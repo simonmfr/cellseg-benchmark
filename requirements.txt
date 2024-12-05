@@ -1,0 +1,6 @@
+spatialdata>=0.2.5
+spatialdata-io>=0.1.5
+scanpy>=1.10.3
+scikit-learn>=1.5.2
+scipy>=1.12.0
+seaborn>=0.13.2
