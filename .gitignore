@@ -1,23 +1,30 @@
 # Custom 
-
-*.DS_Store
-htmls/
+## Folders
 datasets/raw/
 datasets/processed/
 data/
+cache/
+notebooks_local/
+
+## Datafiles
 *.h5
 *.npy
 *.zip
 *.html
-**.out
-cache/
+*.png
 
+# Slurm 
+**.out
+
+# R 
 *.Rproj.user
 *.Rhistory
 *.RData
 *.Ruserdata
 *.Rproj
-*.png
+
+# MacOS specific
+*.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
