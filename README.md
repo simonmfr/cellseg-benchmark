@@ -25,7 +25,7 @@ pre-commit run --all-files
 
 ### Basic usage
 The ruff config is located in `pyproject.toml`. See the [ruff documentation of rules](https://docs.astral.sh/ruff/rules/) for all possible rules that we can enable / disable.
-As we have installed the pre-commit hook, ruff formatting and liniting will run automatically for all changed files whenever you do git commit. 
+As we have installed the pre-commit hook, ruff formatting and liniting will run automatically for all changed files whenever you do git commit. If there are errors, you will get a detailled messaged of the offending code and the error. Fix the errors, add the changed file and try to commit again.
 
 You can also manually run the ruff formatter and checker on all files with: 
 ```
