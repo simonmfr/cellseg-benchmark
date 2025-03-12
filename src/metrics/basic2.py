@@ -1,8 +1,4 @@
-import ast
-import warnings
 import pandas as pd
-import scanpy as sc
-from shapely.geometry import Polygon
 
 
 def transcript_density_3d(cell_volume_3d, n_transcripts):

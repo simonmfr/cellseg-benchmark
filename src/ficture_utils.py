@@ -1,13 +1,14 @@
 import gzip
-import pandas as pd
+
 import dask.dataframe as dd
-from tqdm import tqdm
+import numpy as np
+import pandas as pd
 from spatialdata.models import PointsModel
+from tqdm import tqdm
 
 
 def parse_metadata(file_path):
-    """
-    Parse metadata from the first three lines of FICTURE pixel-level tsv.gz file.
+    """Parse metadata from the first three lines of FICTURE pixel-level tsv.gz file.
 
     Args:
         file_path (str): Path to file.
@@ -28,8 +29,7 @@ def parse_metadata(file_path):
 
 
 def load_pixel_tsv(file_path, skiprows=3, chunksize=10000):
-    """
-    Load FICTURE pixel-level tsv.gz file with progress bar.
+    """Load FICTURE pixel-level tsv.gz file with progress bar.
 
     Args:
         file_path (str): Path to the FICTURE pixel-level tsv.gz file (*.pixel.sorted.tsv.gz)
@@ -57,8 +57,7 @@ def load_pixel_tsv(file_path, skiprows=3, chunksize=10000):
 
 
 def process_coordinates(df, metadata):
-    """
-    Transform FICTURE pixel coordinates to micrometer scale and rename columns.
+    """Transform FICTURE pixel coordinates to micrometer scale and rename columns.
 
     Args:
         df (pd.DataFrame): DataFrame containing pixel coordinates.
@@ -78,8 +77,7 @@ def process_coordinates(df, metadata):
 
 
 def get_pixel_level_factors(pixel_level_factors_file):
-    """
-    Load and format FICTURE pixel-level file to micrometer scale and return a parsed SpatialData PointsModel.
+    """Load and format FICTURE pixel-level file to micrometer scale and return a parsed SpatialData PointsModel.
 
     Args:
         pixel_level_factors_file (str): Path to the FICTURE pixel-level tsv.gz file (*.pixel.sorted.tsv.gz)
@@ -94,6 +92,7 @@ def get_pixel_level_factors(pixel_level_factors_file):
 
 
 def get_transcript_level_factors(transcripts, tree, df, metadata, current_factor):
+    """Assigns factor values to transcripts based on their nearest spatial location."""
     # query tree to get nearest pixels and according factor assignment
     query = np.array([transcripts["x"], transcripts["y"]]).T
     dd, ii = tree.query(query)
