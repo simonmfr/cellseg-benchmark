@@ -1,14 +1,16 @@
 # Spatial Transcriptomics - Brain Segmentation Benchmark
 
 ## Structure of this repository
+- `src/metrics`
+  Function definitions
 - `scripts`
-  Scripts for calculating metrics and running segmentation algorithms
+  Scripts for metric calculations and segmentation algorithms
 - `notebooks`
   Jupyter notebooks for development and analysis
-- `data`
-  Raw and processed data 
-  - `raw`
-  - `processed`
+- `archive@ -> /dss/dssfs03/pn52re/pn52re-dss-0000`
+  Symlink to raw MERSCOPE data on DSS
+- `data@ -> /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark  # DSS processed data symlink`
+  Symlink to processed data on DSS 
 
 ## Development
 We are using `ruff` and the [ruff pre-commit hook](https://github.com/astral-sh/ruff-pre-commit) to check and format the code and docstrings

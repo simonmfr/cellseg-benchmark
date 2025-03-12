@@ -5,6 +5,8 @@ datasets/processed/
 data/
 cache/
 notebooks_local/
+*-notused.ipynb
+outdated-*
 
 ## Datafiles
 *.h5
