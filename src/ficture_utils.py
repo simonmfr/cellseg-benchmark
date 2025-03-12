@@ -91,3 +91,14 @@ def get_pixel_level_factors(pixel_level_factors_file):
     df = load_pixel_tsv(pixel_level_factors_file, skiprows=3)
     dask_df = dd.from_pandas(process_coordinates(df, metadata), npartitions=96)
     return PointsModel.parse(dask_df)
+
+
+def get_transcript_level_factors(transcripts, tree, df, metadata, current_factor):
+    # query tree to get nearest pixels and according factor assignment
+    query = np.array([transcripts["x"], transcripts["y"]]).T
+    dd, ii = tree.query(query)
+    # get factor prediction from df
+    factor = np.array(df.iloc[ii]["K1"])
+    # where distance > 5 um set factor to max_factor to indicate that this transcript was not mapped
+    factor[dd > 5] = int(metadata["K"])
+    return transcripts.assign(**{f"{current_factor}_factors": factor})

@@ -1,4 +1,3 @@
 from .basic import *
 from .specificity import *
-from .wasserstein import * 
-from .ficture import *
+from .wasserstein import *

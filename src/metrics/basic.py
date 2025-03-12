@@ -1,120 +1,125 @@
-import ast
-import warnings
 import pandas as pd
 import scanpy as sc
+import warnings
+import ast
 from shapely.geometry import Polygon
 
+def compute_outlier_percentage(sdata, min_counts=25, min_genes=5):
+    """Compute the percentage of outlier cells based on low counts/genes."""
+    # min_counts=50 used in squidpy tutorial, 25 used in colab script from vizgen, 20 counts or 5 genes used in Allen 2023 paper
+    outliers_percentage_dict = {}
+    
+    for name, table in sdata.tables.items():
+        if name.startswith("adata_"):
+            sc.pp.calculate_qc_metrics(table, qc_vars=[], percent_top=None, inplace=True)
+            table.obs["cell_outlier"] = (table.obs["total_counts"] < min_counts) | (table.obs["n_genes_by_counts"] < min_genes)
+            table.obs["cell_outlier"] = table.obs["cell_outlier"].astype(bool)
+            outliers_count = table.obs["cell_outlier"].sum()
+            outliers_percentage = (outliers_count / table.shape[0]) * 100
+            outliers_percentage_dict[name.replace("adata_", "")] = outliers_percentage
+    
+    return outliers_percentage_dict
 
-def n_genes(adata):
-    """Returns number of genes in adata."""
-    qc_metrics = sc.pp.calculate_qc_metrics(
-        adata, percent_top=None, log1p=False, inplace=False
-    )
-    return qc_metrics[0]["n_genes_by_counts"]
 
-
-def n_transcripts(adata):
-    """Returns total count of transcripts in adata."""
-    qc_metrics = sc.pp.calculate_qc_metrics(
-        adata, percent_top=None, log1p=False, inplace=False
-    )
-    return qc_metrics[0]["total_counts"]
-
-
-def cell_area_2d(boundaries, zindex=3):
-    """Computes cell area for cells with the specified ZIndex. Unit is the same as in the boundary/shapes slot (um2 in MERFISH default output). Not inferring across zstacks.
-
-    Parameters:
-    - boundaries (pd.DataFrame)
-    - zindex (int)
+def count_cells(sdata):
     """
-    if len(boundaries["ZIndex"].unique()) == 1:
-        zindex = boundaries["ZIndex"].unique()[0]
-        warnings.warn(
-            f"Only one z-plane detected. Setting zindex to {zindex}. Verify sdata loading if incorrect."
-        )
+    Count non-outlier cells  for each table and return as dict
 
-    boundaries_zindex = boundaries[boundaries["ZIndex"] == zindex]
-
-    df_size = boundaries_zindex.copy()
-    df_size["geometry"] = df_size["geometry"].apply(
-        lambda x: Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
-    )
-    df_size["area"] = df_size["geometry"].apply(lambda x: x.area)
-
-    res = df_size.set_index("EntityID")[["area"]]
-    res.index.name = None
-    return res
-
-
-def transcript_density_3d(cell_volume_3d, n_transcripts):
-    """Calculate the transcript density in 3D.
-
-    Calculation done by dividing the number of transcripts
-    per cell by the cell volume.
-
-    Parameters:
-        cell_volume_3d (pd.DataFrame): C containing the 3D volume of each cell.
-        n_transcripts (pd.DataFrame): Containing the total number of transcripts per cell.
-
-    Returns:
-        pandas.Series: The transcript density (transcripts per unit volume) for each cell.
+    Requires output from compute_outlier_percentage().
     """
-    cell_volume_3d.index = cell_volume_3d.index.astype(int)
-    n_transcripts.index = n_transcripts.index.astype(int)
+    return {name.replace("adata_", ""): table[~table.obs["cell_outlier"]].shape[0] 
+            for name, table in sdata.tables.items() 
+            if name.startswith("adata_")}
 
-    return n_transcripts.loc[cell_volume_3d.index] / cell_volume_3d
 
-
-def pct_unassigned_transcripts(
-    transcripts_df, no_cell_key=-1, cell_identifier="cell_id"
-):
-    """Calculate the percentage of all transcripts not assigned to any cell.
-
-    Parameters:
-        transcripts_df (pd.DataFrame): DataFrame containing transcript data including cell assignment
-        no_cell_key (int): The value representing no cell type match (default is -1).
-        cell_identifier (str): The column name for cell assignment (default is "cell_id").
-
-    Returns:
-        float: Percentage of transcripts not assigned to the excluded cell type.
+def mean_genes_per_cell(sdata):
     """
-    pct = (
-        (transcripts_df[cell_identifier] == no_cell_key).sum() / len(transcripts_df)
-    ) * 100
-    return round(pct, 2)
-
-
-def top_unsegmented_genes(
-    transcripts_df, no_cell_key=-1, cell_identifier="cell_id", gene_identifier="gene"
-):
-    """Ranks genes based on the proportion of unsegmented vs segmented transcripts.
-
-    Parameters:
-        transcripts_df (pd.DataFrame): A dataframe containing transcript data with cell assignment and gene labels.
-        no_cell_key (int, optional): A value indicating the absence of a segmented cell (default is -1).
-        cell_identifier (str, optional): The column name for cell identifiers (default is "cell_id").
-        gene_identifier (str, optional): The column name for gene identifiers (default is "gene").
-
-    Returns:
-        pandas.DataFrame: A dataframe with the counts of segmented and unsegmented occurrences for each gene,
-            sorted by the proportion of unsegmented vs segmented descending order.
+    Calculate the mean genes per cell for each table and return as dict
+    
+    Requires output from compute_outlier_percentage().
     """
-    segmented_counts = transcripts_df[transcripts_df[cell_identifier] != no_cell_key][
-        gene_identifier
-    ].value_counts()
-    unsegmented_counts = transcripts_df[transcripts_df[cell_identifier] == no_cell_key][
-        gene_identifier
-    ].value_counts()
+    return {name.replace("adata_", ""): table[~table.obs["cell_outlier"]].obs["n_genes_by_counts"].mean() 
+            for name, table in sdata.tables.items() 
+            if name.startswith("adata_")}
 
-    gene_counts = pd.DataFrame(
-        {"segmented_count": segmented_counts, "unsegmented_count": unsegmented_counts}
-    ).fillna(0)
 
-    gene_counts["total_count"] = gene_counts.sum(axis=1)
-    gene_counts["unsegmented_proportion"] = (
-        gene_counts["unsegmented_count"] / gene_counts["total_count"]
-    ).round(2)
-    gene_counts.index.name = None
+def mean_counts_per_cell(sdata):
+    """
+    Calculate the mean counts per cell for each table and return as dict
+    
+    Requires output from compute_outlier_percentage().
+    """
+    return {name.replace("adata_", ""): table[~table.obs["cell_outlier"]].obs["total_counts"].mean() 
+            for name, table in sdata.tables.items() 
+            if name.startswith("adata_")}
 
-    return gene_counts.sort_values("unsegmented_proportion", ascending=False)
+    
+def mean_cell_area_2d(sdata, zindex=3):
+    """Compute mean 2D cell area per dataset, excluding outlier cells, using the specified ZIndex if available."""
+    mean_area_dict = {}
+
+    for name, boundaries in sdata.shapes.items():
+        if name.startswith("boundaries_"):
+            table_name = name.replace("boundaries_", "adata_")  # Match table name
+            if table_name not in sdata.tables:
+                warnings.warn(f"Missing corresponding table {table_name} for {name}. Skipping dataset.")
+                continue
+
+            table = sdata.tables[table_name]
+            if "cell_outlier" not in table.obs:
+                warnings.warn(f"Missing 'cell_outlier' column in {table_name}. Using all cells.")
+                valid_cells = table.obs.index  # Use all cells if no outlier info
+            else:
+                valid_cells = table.obs.loc[~table.obs["cell_outlier"]].index  # Exclude outliers
+
+            if boundaries.empty or "geometry" not in boundaries:
+                continue  # Skip if data is missing
+
+            # Convert geometry from string to Polygon if needed
+            boundaries = boundaries.copy()
+            boundaries["geometry"] = boundaries["geometry"].apply(
+                lambda x: Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
+            )
+
+            # Handle ZIndex if present
+            if "ZIndex" in boundaries:
+                unique_z = boundaries["ZIndex"].unique()
+                if len(unique_z) == 1:
+                    zindex = unique_z[0]
+                    warnings.warn(f"Only one z-plane detected. Setting zindex to {zindex}. Verify sdata loading if incorrect.")
+                
+                boundaries = boundaries[boundaries["ZIndex"] == zindex]
+            else:
+                warnings.warn(f"ZIndex column missing in {name}. Using the entire dataset.")
+
+            # Filter boundaries using index
+            boundaries = boundaries.loc[boundaries.index.intersection(valid_cells)]
+
+            # Compute mean cell area
+            mean_area_dict[name.replace("boundaries_", "")] = boundaries["geometry"].apply(lambda x: x.area).mean()
+
+    return mean_area_dict
+
+
+def combine_metrics(sdata):
+    """
+    Run selected metrics and merge results into a dataframe.
+    """
+    # Get the individual metrics as dicts
+    outliers_dict = compute_outlier_percentage(sdata)
+    cell_counts_dict = count_cells(sdata)
+    mean_genes_dict = mean_genes_per_cell(sdata)
+    mean_counts_dict = mean_counts_per_cell(sdata)
+    mean_cell_area_2d_dict = mean_cell_area_2d(sdata)
+    
+    # Convert each dict into a df and join them
+    outliers_df = pd.DataFrame(list(outliers_dict.items()), columns=["Dataset", "Outlier Percentage"]).set_index("Dataset")
+    cell_counts_df = pd.DataFrame(list(cell_counts_dict.items()), columns=["Dataset", "Cell Count"]).set_index("Dataset")
+    mean_genes_df = pd.DataFrame(list(mean_genes_dict.items()), columns=["Dataset", "Mean Genes per Cell"]).set_index("Dataset")
+    mean_counts_df = pd.DataFrame(list(mean_counts_dict.items()), columns=["Dataset", "Mean Counts per Cell"]).set_index("Dataset")
+    mean_cell_area_2d_df = pd.DataFrame(list(mean_cell_area_2d_dict.items()), columns=["Dataset", "Mean Cell Area 2D"]).set_index("Dataset")
+    
+    # Merge all dfs on the 'Dataset' index
+    combined_df = outliers_df.join([cell_counts_df, mean_genes_df, mean_counts_df, mean_cell_area_2d_df])
+    
+    return combined_df
