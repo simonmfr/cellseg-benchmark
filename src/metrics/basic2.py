@@ -1,25 +1,6 @@
 import pandas as pd
 
 
-def transcript_density_3d(cell_volume_3d, n_transcripts):
-    """Calculate the transcript density in 3D.
-
-    Calculation done by dividing the number of transcripts
-    per cell by the cell volume.
-
-    Parameters:
-        cell_volume_3d (pd.DataFrame): C containing the 3D volume of each cell.
-        n_transcripts (pd.DataFrame): Containing the total number of transcripts per cell.
-
-    Returns:
-        pandas.Series: The transcript density (transcripts per unit volume) for each cell.
-    """
-    cell_volume_3d.index = cell_volume_3d.index.astype(int)
-    n_transcripts.index = n_transcripts.index.astype(int)
-
-    return n_transcripts.loc[cell_volume_3d.index] / cell_volume_3d
-
-
 def pct_unassigned_transcripts(
     transcripts_df, no_cell_key=-1, cell_identifier="cell_id"
 ):

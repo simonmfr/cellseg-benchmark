@@ -6,7 +6,7 @@ import spatialdata_io
 
 
 def process_merscope(sample_name, data_dir, sample_paths, zmode):
-    """Load and save a MERSCOPE sample as sdata with specified z_layers configuration."""
+    """Load and save a MERSCOPE sample as sdata with specified z_layers configuration. Only loads transcripts and mosaic_images."""
     if zmode not in {"z3", "3d"}:
         raise ValueError(f"Invalid zmode: {zmode}")
     sdata_file = os.path.join(data_dir, "samples", sample_name, f"sdata_{zmode}.zarr")
@@ -102,6 +102,7 @@ def integrate_segmentation_data(
             data_dir, "samples", sample_name, "results", seg_method, "sdata.zarr"
         )
         if not os.path.exists(seg_path):
+            print(f"No boundaries/adata files found for {seg_method}. Skipping.")
             continue
 
         if (

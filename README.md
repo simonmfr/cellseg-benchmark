@@ -1,4 +1,4 @@
-# Spatial Transcriptomics - Brain Segmentation Benchmark
+# Benchmarking cell segmentation in brain tissue Spatial Transcriptomics
 
 ## Structure of this repository
 - `src`
@@ -7,9 +7,9 @@
   Scripts for metric calculations and segmentation algorithms
 - `notebooks`
   Jupyter notebooks for development and analysis
-- `archive@ -> /dss/dssfs03/pn52re/pn52re-dss-0000`
+- `archive`
   Symlink to raw MERSCOPE data on DSS
-- `data@ -> /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark`
+- `data`
   Symlink to processed data on DSS 
 
 ## Development
