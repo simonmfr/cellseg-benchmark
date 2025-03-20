@@ -1,4 +1,4 @@
-# Benchmarking cell segmentation in brain tissue Spatial Transcriptomics
+# Benchmarking cell segmentation in brain tissue
 
 ## Structure of this repository
 - `src`
