@@ -6,7 +6,7 @@ from subprocess import run
 import scanpy as sc
 from sopa.io.explorer import write_cell_categories
 
-import cell_annotation_utils
+import src.cell_annotation_utils as cell_annotation_utils
 
 warnings.filterwarnings("ignore")
 
