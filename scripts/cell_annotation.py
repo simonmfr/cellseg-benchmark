@@ -1,10 +1,12 @@
 import os
+from os.path import join, abspath
 import sys
 import warnings
 from subprocess import run
 
 import scanpy as sc
 
+sys.path.insert(0, join(abspath(os.getcwd()), "..", "src"))
 import src.cell_annotation_utils as cell_annotation_utils
 
 warnings.filterwarnings("ignore")
