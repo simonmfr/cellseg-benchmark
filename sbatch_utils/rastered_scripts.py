@@ -5,10 +5,12 @@ from pathlib import Path
 size = sys.argv[1]
 unit = sys.argv[2]
 overlap = sys.argv[3]
-if int(sys.argv[4]) >= 0:
+if 1 >= int(sys.argv[4]) >= 0:
     intens_rat = int(sys.argv[4])
 else:
     intens_rat = 0.1
+
+assert unit=="microns" or unit=="pixel", "unit must be either microns or pixel."
 
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
