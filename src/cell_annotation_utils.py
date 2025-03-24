@@ -543,10 +543,8 @@ def update_explorer(path, adata):
     path: path to sdata.zarr and sdata.explorer
     adata: annotated adata
     """
-    adata_original_obs = read_zarr(os.path.join(path, "sdata.zarr"))["table"].obs
-    adata.obs = adata.obs.merge(
-        adata_original_obs, left_index=True, right_index=True, how="right"
-    )
+    adata_original = read_zarr(os.path.join(path, "sdata.zarr"))["table"]
+    adata_original.obs = adata.obs.merge(adata_original.obs, left_index=True, right_index=True, how="right")
     write_cell_categories(os.path.join(path, "sdata.explorer"), adata)
 
 
