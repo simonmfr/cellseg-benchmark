@@ -4,7 +4,6 @@ import warnings
 from subprocess import run
 
 import scanpy as sc
-from sopa.io.explorer import write_cell_categories
 
 import src.cell_annotation_utils as cell_annotation_utils
 
@@ -42,4 +41,4 @@ adata = cell_annotation_utils.celltype_mapping(
     path, json_name, allen_mmc_dir, data_dir, mad_factor
 )
 
-write_cell_categories(os.path.join(path, "sdata.explorer"), adata)
+cell_annotation_utils.update_explorer(path, adata)

@@ -1,6 +1,7 @@
 import os
 import sys
 from os.path import join
+from subprocess import run
 
 import sopa
 from spatialdata import read_zarr
@@ -11,11 +12,11 @@ staining = sys.argv[3]
 
 
 def main(data_path, save_path, staining):
-    """Run segmentation."""
+    """Cellpose2 algorithm by sopa with dask backend parallelized."""
     sdata = sopa.io.merscope(data_path)
 
-    sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
-    sdata = read_zarr(join(save_path, "sdata.zarr"))
+    sdata.write(join(save_path, "sdata_tmp.zarr"), overwrite=True)
+    sdata = read_zarr(join(save_path, "sdata_tmp.zarr"))
 
     sopa.make_image_patches(sdata, patch_width=8900, patch_overlap=178)
 
@@ -50,6 +51,7 @@ def main(data_path, save_path, staining):
 
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
     sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
+    run(["rm", "-r", join(save_path, "sdata_tmp.zarr")])
 
 
 if __name__ == "__main__":
