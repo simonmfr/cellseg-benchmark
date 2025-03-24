@@ -545,7 +545,7 @@ def update_explorer(path, adata):
     """
     adata_original = read_zarr(os.path.join(path, "sdata.zarr"))["table"]
     adata_original.obs = adata.obs.merge(adata_original.obs, left_index=True, right_index=True, how="right")
-    write_cell_categories(os.path.join(path, "sdata.explorer"), adata)
+    write_cell_categories(os.path.join(path, "sdata.explorer"), adata_original)
 
 
 # Main function to run the entire pipeline
