@@ -1,12 +1,19 @@
 import json
 from pathlib import Path
 
-with open("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json") as f:
+with open(
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+) as f:
     data = json.load(f)
 
-Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_voronoi").mkdir(parents=False, exist_ok=True)
+Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_voronoi").mkdir(
+    parents=False, exist_ok=True
+)
 for key, value in data.items():
-    f = open(f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_voronoi/{key}.sbatch", "w")
+    f = open(
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_voronoi/{key}.sbatch",
+        "w",
+    )
     f.write(f"""#!/bin/bash
             
 #SBATCH --clusters=serial

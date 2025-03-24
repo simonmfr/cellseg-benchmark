@@ -5,17 +5,24 @@ from pathlib import Path
 size = sys.argv[1]
 unit = sys.argv[2]
 overlap = sys.argv[3]
-if int(sys.argv[4])>=0:
+if int(sys.argv[4]) >= 0:
     intens_rat = int(sys.argv[4])
 else:
     intens_rat = 0.1
 
-with open("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json") as f:
+with open(
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+) as f:
     data = json.load(f)
 
-Path(f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_rastered_{size}{unit}").mkdir(parents=False, exist_ok=True)
+Path(
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_rastered_{size}{unit}"
+).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
-    f = open(f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_rastered_{size}{unit}/{key}.sbatch", "w")
+    f = open(
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_rastered_{size}{unit}/{key}.sbatch",
+        "w",
+    )
     f.write(f"""#!/bin/bash
             
 #SBATCH -p lrz-cpu

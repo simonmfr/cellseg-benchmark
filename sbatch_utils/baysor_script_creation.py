@@ -1,17 +1,24 @@
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 staining = sys.argv[1]
 CP_version = sys.argv[2]
 confidence = sys.argv[3]
 
-with open("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json") as f:
+with open(
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+) as f:
     data = json.load(f)
 
-Path(f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_Baysor_CP{CP_version}_{staining}").mkdir(parents=False, exist_ok=True)
+Path(
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_Baysor_CP{CP_version}_{staining}"
+).mkdir(parents=False, exist_ok=True)
 for key, _ in data.items():
-    f = open(f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_Baysor_CP{CP_version}_{staining}/{key}_{confidence}.sbatch", "w")
+    f = open(
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_Baysor_CP{CP_version}_{staining}/{key}_{confidence}.sbatch",
+        "w",
+    )
     f.write(f"""#!/bin/bash
 
 #SBATCH -p lrz-cpu
