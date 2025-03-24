@@ -11,6 +11,8 @@
   Symlink to raw MERSCOPE data on DSS
 - `data`
   Symlink to processed data on DSS 
+- `sbatch_utils`
+  Scripts for creating sbatch scripts for each method
 
 ## Development
 We are using `ruff` and the [ruff pre-commit hook](https://github.com/astral-sh/ruff-pre-commit) to check and format the code and docstrings
