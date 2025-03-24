@@ -1,12 +1,13 @@
 import os
-from os.path import join, abspath
+from os.path import join
 import sys
 import warnings
 from subprocess import run
+from pathlib import Path
 
 import scanpy as sc
 
-sys.path.insert(0, join(abspath(os.getcwd()), "..", "src"))
+sys.path.append(join(Path(__file__).parent.resolve(), "..", "src"))
 import src.cell_annotation_utils as cell_annotation_utils
 
 warnings.filterwarnings("ignore")
