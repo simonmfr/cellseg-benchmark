@@ -7,8 +7,8 @@ import sopa
 import toml
 from spatialdata import read_zarr
 
-confidence = float(sys.argv[2])
 base_segmentation = sys.argv[1]
+confidence = float(sys.argv[2])
 sample = sys.argv[3]
 
 

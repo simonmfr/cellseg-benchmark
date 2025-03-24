@@ -18,10 +18,8 @@ for key, value in data.items():
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 1-00:00:00
+#SBATCH -t 12:00:00
 #SBATCH --mem=300G
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=30
 #SBATCH -J merscope_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merscope_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/merscope_{key}.err
@@ -30,6 +28,7 @@ for key, value in data.items():
 source ~/.bashrc
 conda activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_Merlin
-python /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/merscope_sdata.py {value} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_Merlin
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/merscope_sdata.py {value} \
+ /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_Merlin
             """)
     f.close()

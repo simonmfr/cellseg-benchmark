@@ -33,6 +33,7 @@ for key, value in data.items():
 source ~/.bashrc
 conda activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_2_DAPI_{staining}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa_api/api_cellpose_2.py {value} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_2_DAPI_{staining} {staining}
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_cellpose_2.py {value} \
+ /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_2_DAPI_{staining} {staining}
             """)
     f.close()

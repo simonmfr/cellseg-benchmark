@@ -26,7 +26,7 @@ for key, _ in data.items():
 #SBATCH -t 1-00:00:00
 #SBATCH --mem=300G
 #SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=30
+#SBATCH --ntasks-per-node=25
 #SBATCH -J Baysor_{key}_CP{CP_version}_{staining}_{confidence}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP{CP_version}_{staining}_{confidence}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP{CP_version}_{staining}_{confidence}.err
@@ -34,7 +34,7 @@ for key, _ in data.items():
 
 source ~/.bashrc
 conda activate sopa
-mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_{CP_version}_DAPI_{staining}_{confidence}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa_api/api-baysor.py Cellpose_{CP_version}_DAPI_{staining} {confidence} {key}
+mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_CP{CP_version}_DAPI_{staining}_{confidence}
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api-baysor.py Cellpose_{CP_version}_DAPI_{staining} {confidence} {key}
             """)
     f.close()
