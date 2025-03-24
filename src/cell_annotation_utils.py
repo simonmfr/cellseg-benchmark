@@ -10,6 +10,7 @@ import scipy.sparse as sp
 import seaborn as sns
 from matplotlib.pyplot import rc_context
 from scipy.stats import median_abs_deviation
+from sopa.io.explorer import write_cell_categories
 from spatialdata import read_zarr
 
 
@@ -533,6 +534,20 @@ def assign_final_cell_types(
             )
 
     return adata, undefined_reasons, cluster_score_matrix
+
+
+def update_explorer(path, adata):
+    """Update explorer files.
+
+    Args:
+    path: path to sdata.zarr and sdata.explorer
+    adata: annotated adata
+    """
+    adata_original_obs = read_zarr(os.path.join(path, "sdata.zarr"))["table"].obs
+    adata.obs = adata.obs.merge(
+        adata_original_obs, left_index=True, right_index=True, how="right"
+    )
+    write_cell_categories(os.path.join(path, "sdata.explorer"), adata)
 
 
 # Main function to run the entire pipeline
