@@ -7,8 +7,8 @@ from subprocess import run
 
 import scanpy as sc
 
-sys.path.append(join(Path(__file__).parent.resolve(), "..", "src"))
-import src.cell_annotation_utils as cell_annotation_utils
+sys.path.insert(1, join(Path(__file__).parent.parent.resolve(), "src"))
+import cell_annotation_utils as cell_annotation_utils
 
 warnings.filterwarnings("ignore")
 
