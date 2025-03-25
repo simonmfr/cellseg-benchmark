@@ -14,7 +14,7 @@ with open(
 Path(
     f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_Baysor_CP{CP_version}_{staining}"
 ).mkdir(parents=False, exist_ok=True)
-for key, _ in data.items():
+for key, value in data.items():
     f = open(
         f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_Baysor_CP{CP_version}_{staining}/{key}_{confidence}.sbatch",
         "w",
@@ -35,6 +35,6 @@ for key, _ in data.items():
 source ~/.bashrc
 conda activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_CP{CP_version}_DAPI_{staining}_{confidence}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api-baysor.py Cellpose_{CP_version}_DAPI_{staining} {confidence} {key}
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_baysor.py {value} Cellpose_{CP_version}_DAPI_{staining} {confidence} {key}
             """)
     f.close()
