@@ -26,7 +26,7 @@ for method in listdir(path):
 #SBATCH -J annotation_{sample}_{method}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/annotation_{sample}_{method}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/annotation_{sample}_{method}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa_tmp.sqsh"
 
 mamba activate sopa
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/cell_annotation.py \
