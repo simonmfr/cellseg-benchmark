@@ -1,18 +1,22 @@
 import sys
-from pathlib import Path
-from os.path import join, isdir
 from os import listdir
+from os.path import isdir, join
+from pathlib import Path
 
 sample = sys.argv[1]
 
-path = join("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples", sample, "results")
+path = join(
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples", sample, "results"
+)
 
 Path(
     f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_annotation/{sample}"
 ).mkdir(parents=True, exist_ok=True)
 
 for method in listdir(path):
-    if isdir(join(path, method, "sdata.zarr")) and isdir(join(path, method, "sdata.explorer")):
+    if isdir(join(path, method, "sdata.zarr")) and isdir(
+        join(path, method, "sdata.explorer")
+    ):
         f = open(
             f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_annotation/{sample}/{method}.sbatch",
             "w",

@@ -10,7 +10,7 @@ if 1 >= int(sys.argv[4]) >= 0:
 else:
     intens_rat = 0.1
 
-assert unit=="microns" or unit=="pixel", "unit must be either microns or pixel."
+assert unit == "microns" or unit == "pixel", "unit must be either microns or pixel."
 
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"

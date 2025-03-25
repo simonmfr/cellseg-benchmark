@@ -1,9 +1,9 @@
 import os
-from os.path import join
 import sys
 import warnings
-from subprocess import run
+from os.path import join
 from pathlib import Path
+from subprocess import run
 
 import scanpy as sc
 

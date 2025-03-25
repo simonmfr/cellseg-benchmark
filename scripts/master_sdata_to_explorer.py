@@ -1,4 +1,3 @@
-from operator import contains
 from os.path import join
 from sys import argv
 
@@ -9,11 +8,12 @@ from sopa.io.explorer import write
 from spatialdata import read_zarr
 from spatialdata.models import ShapesModel
 
-
 sdata = read_zarr(join(argv[1], "sdata_z3.zarr"))
 methods = argv[2:]
 
-assert all([method in sdata.tables.keys() for method in methods]), "Not all keys are contained in master sdata."
+assert all([method in sdata.tables.keys() for method in methods]), (
+    "Not all keys are contained in master sdata."
+)
 
 # cell_id needs to be in the adata for processing reasons
 # keep the name of the method
