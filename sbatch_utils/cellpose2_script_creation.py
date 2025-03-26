@@ -24,14 +24,13 @@ for key, value in data.items():
 #SBATCH -t 1-00:00:00
 #SBATCH --mem=300G
 #SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=30
+#SBATCH --ntasks-per-node=20
 #SBATCH -J CP2_{key}_{staining}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/CP2_{key}_{staining}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/CP2_{key}_{staining}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
 
-source ~/.bashrc
-conda activate sopa
+mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_2_DAPI_{staining}
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_cellpose_2.py {value} \
  /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_2_DAPI_{staining} {staining}

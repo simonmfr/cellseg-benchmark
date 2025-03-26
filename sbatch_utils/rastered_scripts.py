@@ -30,8 +30,6 @@ for key, value in data.items():
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 08:00:00
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=1
 #SBATCH --mem=128G
 #SBATCH -J rastered{size}_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/rastered{size}_{key}.out

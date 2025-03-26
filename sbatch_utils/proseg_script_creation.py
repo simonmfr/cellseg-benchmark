@@ -29,8 +29,7 @@ for key, value in data.items():
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_{key}_CP{CP_version}_{staining}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
 
-source ~/.bashrc
-conda activate sopa
+mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_CP{CP_version}_DAPI_{staining}
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_proseg.py {value} {key} Cellpose_{CP_version}_DAPI_{staining}
             """)
