@@ -2,6 +2,10 @@ import glob
 import os
 import re
 
+import pandas as pd
+import numpy as np
+import geopandas as gpd
+from shapely.affinity import affine_transform
 import spatialdata as sd
 import spatialdata_io
 
@@ -204,3 +208,63 @@ def update_element(sdata, element_name):
     # c. remove the backup copy
     del sdata[new_name]
     sdata.delete_element_from_disk(new_name)
+
+def pixel_to_microns(sdata, transform_file, shape_patterns=None, exclude_patterns=None, overwrite=False):
+
+    """
+    Transform Cellpose boundaries from pixels to microns
+
+    Parameters:
+    -----------
+    sdata : SpatialData
+        SpatialData object containing shape collections
+    transform_file : str
+        Path to file containing transformation matrix
+    shape_patterns : list, optional
+        List of patterns to match for shape names
+    exclude_patterns : list, optional
+        List of patterns to exclude from shape names
+    overwrite : bool, optional
+        Whether to overwrite existing shapes (default: False)
+    """
+    if exclude_patterns is None:
+        exclude_patterns = []
+    if shape_patterns is None:
+        shape_patterns = sdata.shapes.keys()
+
+    transform_matrix = pd.read_csv(transform_file, sep=" ", header=None).values
+    inv_matrix = np.linalg.inv(transform_matrix)
+
+    # Track number of transformations
+    transform_count = 0
+
+    # Process eligible shapes
+    for shape_name in list(sdata.shapes.keys()):
+        # Check if shape name matches any of the patterns and doesn't match any exclude patterns
+        if any(pattern in shape_name for pattern in shape_patterns) and not any(
+                exclude in shape_name for exclude in exclude_patterns
+        ):
+            # Get boundaries
+            boundaries = sdata.shapes[shape_name]
+
+            # Create transformed geometries
+            transformed_geoms = boundaries.affine_transform([inv_matrix[0,0],inv_matrix[0,1],
+                                                  inv_matrix[1,0],inv_matrix[1,1],inv_matrix[0,2],inv_matrix[1,2]])
+
+            # Create new GeoDataFrame
+            transformed_boundaries = gpd.GeoDataFrame(
+                boundaries.drop(columns=["geometry"]),
+                geometry=transformed_geoms,
+                crs=boundaries.crs,
+            )
+
+            # Copy attributes
+            for key, value in boundaries.attrs.items():
+                transformed_boundaries.attrs[key] = value
+
+            # Determine output name
+            output_name = shape_name if overwrite else f"{shape_name}_microns"
+
+            # Add to spatialdata
+            sdata.shapes[output_name] = transformed_boundaries
+            transform_count += 1
