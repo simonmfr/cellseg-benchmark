@@ -85,7 +85,7 @@ def integrate_segmentation_data(
     data_dir, sample_name, seg_methods, sdata_main, write_to_disk=True
 ):
     """Integrate segmentation data from multiple methods into the main spatial data object.
-    
+
     Handles exception for Baysor, where it selects the "baysor_boundaries" shape among multiple boundary files.
 
     Args:
@@ -126,20 +126,32 @@ def integrate_segmentation_data(
                     sdata_main.write_element(f"boundaries_{seg_method}")
             elif len(boundary_files) > 1:
                 if re.match(r"(?i)baysor", seg_method):
-                    baysor_files = [f for f in boundary_files if re.match(r"(?i)baysor", f)]
+                    baysor_files = [
+                        f for f in boundary_files if re.match(r"(?i)baysor", f)
+                    ]
                     if baysor_files:
                         sdata_main[f"boundaries_{seg_method}"] = sdata[baysor_files[0]]
                         if write_to_disk:
                             sdata_main.write_element(f"boundaries_{seg_method}")
-                        print(f"Selected {baysor_files[0]} for {seg_method} from multiple boundary files: {boundary_files}.")
+                        print(
+                            f"Selected {baysor_files[0]} for {seg_method} from multiple boundary files: {boundary_files}."
+                        )
                     else:
-                        print(f"Multiple *boundaries files found for {seg_method}. Skipping boundary import.")
+                        print(
+                            f"Multiple *boundaries files found for {seg_method}. Skipping boundary import."
+                        )
                 else:
-                    print(f"Multiple *boundaries files found for {seg_method}. Skipping boundary import.")
+                    print(
+                        f"Multiple *boundaries files found for {seg_method}. Skipping boundary import."
+                    )
             else:
-                print(f"Shapes file missing for {seg_method}. Skipping boundary import.")
+                print(
+                    f"Shapes file missing for {seg_method}. Skipping boundary import."
+                )
         else:
-            print(f"Skipping boundary import of {seg_method} as boundaries_{seg_method} exist already.")
+            print(
+                f"Skipping boundary import of {seg_method} as boundaries_{seg_method} exist already."
+            )
 
         # Handle tables
         if f"adata_{seg_method}" not in sdata_main:
@@ -153,17 +165,22 @@ def integrate_segmentation_data(
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
             elif len(table_files) > 1:
-                print(f"Multiple table files found for {seg_method}. Skipping adata import.")
+                print(
+                    f"Multiple table files found for {seg_method}. Skipping adata import."
+                )
             else:
                 print(f"Table file missing for {seg_method}. Skipping adata import.")
         else:
-            print(f"Skipping adata import of {seg_method} as adata_{seg_method} exist already.")
+            print(
+                f"Skipping adata import of {seg_method} as adata_{seg_method} exist already."
+            )
 
     return sdata_main
 
+
 def update_element(sdata, element_name):
-    """
-    Workaround for updating a backed element in sdata.
+    """Workaround for updating a backed element in sdata.
+
     Adapted from https://github.com/scverse/spatialdata/blob/main/tests/io/test_readwrite.py#L156
     """
     new_name = f"{element_name}_tmp"

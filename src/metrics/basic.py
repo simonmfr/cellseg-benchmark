@@ -9,20 +9,20 @@ from shapely.geometry import Polygon
 
 def compute_outlier_percentage(sdata, min_counts=25, min_genes=5, inplace=True):
     """Compute percentage of outlier cells based on low counts/genes.
-    
+
     If inplace = True, adds qc metrics and boolean "cell_outlier" to adata.obs. No filtering is done.
-    
-    Parameters: sdata (SpatialData), min_counts (int, default=25), 
+
+    Parameters: sdata (SpatialData), min_counts (int, default=25),
     min_genes (int, default=5), inplace (bool, default=True)
     Returns: dict of dataset names to outlier percentages
     """
     outliers_percentage_dict = {}
-    
+
     for name, table in sdata.tables.items():
         if name.startswith("adata_"):
             if not inplace:
                 table = table.copy()
-                
+
             sc.pp.calculate_qc_metrics(
                 table, qc_vars=[], percent_top=None, inplace=True
             )
@@ -33,15 +33,16 @@ def compute_outlier_percentage(sdata, min_counts=25, min_genes=5, inplace=True):
             outliers_count = table.obs["cell_outlier"].sum()
             outliers_percentage = round((outliers_count / table.shape[0]) * 100, 1)
             outliers_percentage_dict[name.replace("adata_", "")] = outliers_percentage
-            
+
             if not inplace:
                 sdata.tables[name] = table
-                
+
     return outliers_percentage_dict
 
 
 def count_cells(sdata):
     """Count non-outlier cells for each table in sdata and return as dict.
+    
     Requires output from compute_outlier_percentage().
     """
     try:
@@ -109,8 +110,6 @@ def compute_cell_areas_2d(sdata, zindex=3, column_name="area", verbose=True):
         Modifies adata.obs by adding the cell area column for each dataset
     """
     for boundaries_name, boundaries in sdata.shapes.items():
-        
-        
         if not boundaries_name.startswith("boundaries_"):
             continue
 
@@ -180,14 +179,18 @@ def mean_cell_area_2d(sdata, column_name="area"):
 
             adata = sdata.tables[table_name]
             if column_name not in adata.obs:
-                warnings.warn(f"{column_name} missing in {table_name}. Skipping. Did you run compute_cell_areas_2d first?")
+                warnings.warn(
+                    f"{column_name} missing in {table_name}. Skipping. Did you run compute_cell_areas_2d first?"
+                )
                 continue
-                
+
             # Filter valid cells (exclude outliers if column exists)
             if "cell_outlier" in adata.obs:
                 valid_cells = adata.obs.loc[~adata.obs["cell_outlier"], column_name]
             else:
-                warnings.warn(f"'cell_outlier' column missing in {table_name}. Using all cells.")
+                warnings.warn(
+                    f"'cell_outlier' column missing in {table_name}. Using all cells."
+                )
                 valid_cells = adata.obs[column_name]
 
             # Compute mean area, ignoring NaNs, and round to integer
@@ -219,14 +222,14 @@ def transcript_density(cell_volume_3d, n_transcripts):
 
 def mean_transcript_densities(sdata, area_col="area"):
     """Calculate transcript densities (transcripts/cell_volume_3d) for all tables in sdata.
-    
+
     Requires area_col (default: "area") and "total_counts" in adata.obs.
     """
     transcript_densities = {}
     for table_name in sdata.tables.keys():
         # Strip "adata_" prefix from table name for consistency
         clean_name = table_name.replace("adata_", "")
-        
+
         # Check required columns
         if area_col not in sdata[table_name].obs:
             warnings.warn(f"Missing {area_col} in {table_name}. Skipping.")
@@ -234,7 +237,7 @@ def mean_transcript_densities(sdata, area_col="area"):
         if "total_counts" not in sdata[table_name].obs:
             warnings.warn(f"Missing 'total_counts' in {table_name}. Skipping.")
             continue
-        
+
         # Filter valid cells (exclude outliers if column exists)
         if "cell_outlier" in sdata[table_name].obs:
             valid_cells = ~sdata[table_name].obs["cell_outlier"]
@@ -243,13 +246,13 @@ def mean_transcript_densities(sdata, area_col="area"):
                 f"'cell_outlier' column missing in {table_name}. Using all cells."
             )
             valid_cells = pd.Series(True, index=sdata[table_name].obs.index)
-        
+
         density = transcript_density(
             cell_volume_3d=sdata[table_name].obs.loc[valid_cells][area_col] * 7,
             n_transcripts=sdata[table_name].obs.loc[valid_cells]["total_counts"],
         )
         transcript_densities[clean_name] = round(density.mean(), 4)
-    
+
     return transcript_densities
 
 
@@ -257,34 +260,36 @@ def combine_metrics(sdata):
     """Run and combine selected metrics into a single dataframe."""
     # Compute cell areas
     compute_cell_areas_2d(sdata, zindex=3, column_name="area", verbose=True)
-    
+
     # Define metrics
     metric_dicts = {
         "% Low Quality Cells": compute_outlier_percentage(sdata),
         "Number of Cells": count_cells(sdata),
         "Genes per Cell (mean)": mean_genes_per_cell(sdata),
         "Counts per Cell (mean)": mean_counts_per_cell(sdata),
-        "Cell Area (mean in z=3)": mean_cell_area_2d(sdata), # requires compute_cell_areas_2d()
-        "Cell Transcript Density (mean per um3)": mean_transcript_densities(sdata)
+        "Cell Area (mean in z=3)": mean_cell_area_2d(
+            sdata
+        ),  # requires compute_cell_areas_2d()
+        "Cell Transcript Density (mean per um3)": mean_transcript_densities(sdata),
     }
-    
+
     # Get all unique dataset names
-    all_datasets = sorted(set().union(*[dict.keys() for dict in metric_dicts.values()]))
-    
+    all_datasets = sorted(set().union(*[dict.keys() for dict_i in metric_dicts.values()]))
+
     # Create DataFrame with datasets as index
     df = pd.DataFrame(index=all_datasets)
     df.index.name = "Dataset"
-    
+
     # Fill each column with corresponding metric values
     for col_name, metric_dict in metric_dicts.items():
         df[col_name] = [metric_dict.get(dataset, pd.NA) for dataset in all_datasets]
-    
+
     # Convert integer-like columns to Int64 type (nullable integer)
     for col in df.columns:
         try:
             if all(float(x).is_integer() for x in df[col] if pd.notna(x)):
-                df[col] = df[col].astype('Int64')
+                df[col] = df[col].astype("Int64")
         except (ValueError, AttributeError):
             pass
-                        
+
     return df
