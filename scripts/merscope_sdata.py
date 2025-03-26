@@ -9,7 +9,10 @@ data_path = sys.argv[1]
 save_path = sys.argv[2]
 
 sdata = merscope(data_path)
-write(join(save_path, "sdata.explorer", sdata))
+write(join(save_path, "sdata.explorer"), sdata,
+        gene_column="gene",
+        ram_threshold_gb=4,
+        pixel_size=0.108)
 sdata.write(join(save_path, "sdata.zarr"))
 run(["rm", "-r", join(save_path, "sdata.zarr", "images")])
 run(["rm", "-r", join(save_path, "sdata.zarr", "points")])
