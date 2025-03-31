@@ -24,7 +24,7 @@ def main(data_path, save_path, staining):
     sopa.settings.dask_client_kwargs["n_workers"] = int(
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
-    sopa.settings.dask_client_kwargs["timeout"] = "600"
+    sopa.settings.dask_client_kwargs["timeout"] = "6000"
 
     sopa.segmentation.cellpose(
         sdata,
