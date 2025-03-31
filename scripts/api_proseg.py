@@ -9,7 +9,7 @@ from spatialdata import read_zarr
 data_path = sys.argv[1]
 sample = sys.argv[2]
 base_segmentation = sys.argv[3]
-
+proseg_flags = ' '.join(sys.argv[4:])
 
 def main(data_path, sample, base_segmentation):
     """ComSeg algorithm by sopa with dask backend parallelized."""
