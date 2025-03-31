@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
 import anndata
 import matplotlib.pyplot as plt
@@ -214,7 +214,7 @@ def plot_mad_thresholds(
     name="mad_threshold",
     group_column="allen_CLUS",
     value_column="allen_avg_cor_CLUS",
-    mad_factor: int=3,
+    mad_factor: int = 3,
     figsize=(13, 7),
 ):
     """Plot a violin plot of data grouped by a specified column, with horizontal lines showing MAD thresholds.
@@ -268,7 +268,9 @@ def plot_mad_thresholds(
         return
 
 
-def plot_mapping_qc(json_results, adata: AnnData, mapping_result, level="CCN20230722_CLAS"):
+def plot_mapping_qc(
+    json_results, adata: AnnData, mapping_result, level="CCN20230722_CLAS"
+):
     """Create quality control plots for cell type mapping results.
 
     Parameters:
@@ -412,7 +414,9 @@ match_dict = {
 
 
 # 1. Crosstab calculation for cell type assignment
-def assign_cell_types_by_cluster(adata: AnnData, leiden_res: float=3.0, min_cells: int=100):
+def assign_cell_types_by_cluster(
+    adata: AnnData, leiden_res: float = 3.0, min_cells: int = 100
+):
     """Assign cell types to leiden clusters based on majority vote."""
     leiden_col = f"leiden_res{leiden_res}".replace(".", "_")
     cell_type_col = "cell_type"
@@ -444,7 +448,7 @@ def assign_cell_types_by_cluster(adata: AnnData, leiden_res: float=3.0, min_cell
 
 
 # 2. Score cell types using marker genes
-def score_cell_types(adata: AnnData, marker_genes_dict, top_n_genes: int=25):
+def score_cell_types(adata: AnnData, marker_genes_dict, top_n_genes: int = 25):
     """Score cells for marker gene expression using only top n genes.
 
     Parameters:
@@ -468,7 +472,11 @@ def score_cell_types(adata: AnnData, marker_genes_dict, top_n_genes: int=25):
 
 # 3. Final cell type assignment based on scores
 def assign_final_cell_types(
-    adata: AnnData, cluster_labels_dict: Dict[Any, str], match_dict, leiden_res: float=3.0, score_threshold: float=0.25
+    adata: AnnData,
+    cluster_labels_dict: Dict[Any, str],
+    match_dict,
+    leiden_res: float = 3.0,
+    score_threshold: float = 0.25,
 ):
     """Assign final cell types based on scoring results."""
     leiden_col = f"leiden_res{leiden_res}".replace(".", "_")
@@ -556,10 +564,10 @@ def update_explorer(path, adata: AnnData):
 def cell_type_annotation_pipeline(
     adata: AnnData,
     marker_genes_dict: Dict[str, str],
-    leiden_res: float=3.0,
-    min_cells: int=100,
-    score_threshold: float=0.25,
-    top_n_genes: int=25,
+    leiden_res: float = 3.0,
+    min_cells: int = 100,
+    score_threshold: float = 0.25,
+    top_n_genes: int = 25,
 ):
     """Run the complete cell type annotation pipeline."""
     # Check if leiden clustering exists, run if not present
@@ -622,7 +630,7 @@ def cell_type_annotation_pipeline(
     return adata, summary_df, normalized_crosstab, cluster_score_matrix
 
 
-def celltype_mapping(path, json_name, allen_mmc_dir, data_dir, mad_factor: int=3):
+def celltype_mapping(path, json_name, allen_mmc_dir, data_dir, mad_factor: int = 3):
     """Perform celltype mapping.
 
     Args:

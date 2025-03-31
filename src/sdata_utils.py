@@ -113,7 +113,10 @@ def process_merlin_segmentation(
 
 
 def integrate_segmentation_data(
-    sdata_path: str, seg_methods: List[str], sdata_main: sd.SpatialData, write_to_disk: bool=True
+    sdata_path: str,
+    seg_methods: List[str],
+    sdata_main: sd.SpatialData,
+    write_to_disk: bool = True,
 ):
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
@@ -181,7 +184,9 @@ def integrate_segmentation_data(
     return sdata_main
 
 
-def assign_transformations(sdata_main: sd.SpatialData, seg_method: str, write_to_disk:bool):
+def assign_transformations(
+    sdata_main: sd.SpatialData, seg_method: str, write_to_disk: bool
+):
     """Assign transformations to spatial data.
 
     Args:
@@ -256,7 +261,11 @@ def update_element(sdata, element_name):
 
 
 def pixel_to_microns(
-    sdata:sd.SpatialData, transform_file: str, shape_patterns: List[str]=None, exclude_patterns: List[str]=None, overwrite: bool=False
+    sdata: sd.SpatialData,
+    transform_file: str,
+    shape_patterns: List[str] = None,
+    exclude_patterns: List[str] = None,
+    overwrite: bool = False,
 ):
     """Transform Cellpose boundaries from pixels to microns.
 
