@@ -46,7 +46,7 @@ def main(data_path, save_path):
     )
 
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(save_path, "sdata.zarr"))
+    sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
     run(["rm", "-r", join(save_path, "sdata_tmp.zarr")])
 
 
