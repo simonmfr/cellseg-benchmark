@@ -1,5 +1,6 @@
 import glob
 import os
+from typing import List
 
 import geopandas as gpd
 import numpy as np
@@ -9,7 +10,7 @@ import spatialdata_io
 from spatialdata.transformations import Identity, get_transformation, set_transformation
 
 
-def process_merscope(sample_name, data_dir, data_path, zmode):
+def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str):
     """Load and save a MERSCOPE sample as sdata with specified z_layers configuration. Only loads transcripts and mosaic_images."""
     if zmode not in {"z3", "3d"}:
         raise ValueError(f"Invalid zmode: {zmode}")
@@ -112,7 +113,7 @@ def process_merlin_segmentation(
 
 
 def integrate_segmentation_data(
-    sdata_path, seg_methods, sdata_main, write_to_disk=True
+    sdata_path: str, seg_methods: List[str], sdata_main: sd.SpatialData, write_to_disk: bool=True
 ):
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
@@ -180,7 +181,7 @@ def integrate_segmentation_data(
     return sdata_main
 
 
-def assign_transformations(sdata_main: sd.SpatialData, seg_method, write_to_disk):
+def assign_transformations(sdata_main: sd.SpatialData, seg_method: str, write_to_disk:bool):
     """Assign transformations to spatial data.
 
     Args:
@@ -255,7 +256,7 @@ def update_element(sdata, element_name):
 
 
 def pixel_to_microns(
-    sdata, transform_file, shape_patterns=None, exclude_patterns=None, overwrite=False
+    sdata:sd.SpatialData, transform_file: str, shape_patterns: List[str]=None, exclude_patterns: List[str]=None, overwrite: bool=False
 ):
     """Transform Cellpose boundaries from pixels to microns.
 
