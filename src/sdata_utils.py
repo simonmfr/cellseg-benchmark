@@ -1,16 +1,15 @@
 import glob
 import os
-import re
 
-import pandas as pd
-import numpy as np
 import geopandas as gpd
-from shapely.affinity import affine_transform
+import numpy as np
+import pandas as pd
 import spatialdata as sd
 import spatialdata_io
+from spatialdata.transformations import Identity, get_transformation, set_transformation
 
 
-def process_merscope(sample_name, data_dir, sample_paths, zmode):
+def process_merscope(sample_name, data_dir, data_path, zmode):
     """Load and save a MERSCOPE sample as sdata with specified z_layers configuration. Only loads transcripts and mosaic_images."""
     if zmode not in {"z3", "3d"}:
         raise ValueError(f"Invalid zmode: {zmode}")
@@ -19,7 +18,7 @@ def process_merscope(sample_name, data_dir, sample_paths, zmode):
         print(f"Skipping {sample_name}: {zmode} file already exists")
         return
     sdata = spatialdata_io.merscope(
-        sample_paths[sample_name],
+        data_path,
         z_layers=3 if zmode == "z3" else range(7),
         backend=None,
         cells_boundaries=False,
@@ -29,8 +28,35 @@ def process_merscope(sample_name, data_dir, sample_paths, zmode):
         slide_name="_".join(sample_name.split("_")[:2]),
         region_name=sample_name.split("_")[2],
     )
-    os.makedirs(os.path.dirname(sdata_file), exist_ok=True)
+
+    # os.makedirs(os.path.dirname(sdata_file), exist_ok=True) #not necessary
     sdata.write(sdata_file, overwrite=False)
+    sdata = sd.read_zarr(sdata_file)
+
+    # set coordinates system
+    transformation_to_pixel = get_transformation(
+        sdata[list(sdata.points.keys())[0]], "global"
+    )
+
+    set_transformation(
+        sdata[list(sdata.points.keys())[0]], Identity(), "micron", write_to_sdata=sdata
+    )
+    set_transformation(
+        sdata[list(sdata.points.keys())[0]],
+        transformation_to_pixel,
+        "pixel",
+        write_to_sdata=sdata,
+    )
+
+    set_transformation(
+        sdata[list(sdata.images.keys())[0]],
+        transformation_to_pixel.inverse(),
+        "micron",
+        write_to_sdata=sdata,
+    )
+    set_transformation(
+        sdata[list(sdata.images.keys())[0]], Identity(), "pixel", write_to_sdata=sdata
+    )
 
 
 def process_merlin_segmentation(
@@ -86,15 +112,12 @@ def process_merlin_segmentation(
 
 
 def integrate_segmentation_data(
-    data_dir, sample_name, seg_methods, sdata_main, write_to_disk=True
+    sdata_path, seg_methods, sdata_main, write_to_disk=True
 ):
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
-    Handles exception for Baysor, where it selects the "baysor_boundaries" shape among multiple boundary files.
-
     Args:
-        data_dir: Base directory for data
-        sample_name: Name of the sample
+        sdata_path: Path to dircetory of master sdata
         seg_methods: List of segmentation methods to process
         sdata_main: Main spatial data object to update
         write_to_disk: Whether to write elements to disk immediately
@@ -103,9 +126,7 @@ def integrate_segmentation_data(
         Updated sdata_main object
     """
     for seg_method in seg_methods:
-        seg_path = os.path.join(
-            data_dir, "samples", sample_name, "results", seg_method, "sdata.zarr"
-        )
+        seg_path = os.path.join(sdata_path, "results", seg_method, "sdata.zarr")
         if not os.path.exists(seg_path):
             print(f"No boundaries/adata files found for {seg_method}. Skipping.")
             continue
@@ -116,41 +137,18 @@ def integrate_segmentation_data(
         ):
             sdata = sd.read_zarr(seg_path)
 
-        # Handle boundaries
         if f"boundaries_{seg_method}" not in sdata_main:
-            base_dir = os.path.join(seg_path, "shapes")
-            boundary_files = [
-                os.path.basename(f)
-                for f in glob.glob(os.path.join(base_dir, "*_boundaries"))
-            ]
+            # region key specifies the key for boundaries created/used by sopa for this method
+            boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
 
-            if len(boundary_files) == 1:
-                sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_files[0]]
+            if boundary_key in sdata.shapes.keys():
+                sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
                 if write_to_disk:
                     sdata_main.write_element(f"boundaries_{seg_method}")
-            elif len(boundary_files) > 1:
-                if re.match(r"(?i)baysor", seg_method):
-                    baysor_files = [
-                        f for f in boundary_files if re.match(r"(?i)baysor", f)
-                    ]
-                    if baysor_files:
-                        sdata_main[f"boundaries_{seg_method}"] = sdata[baysor_files[0]]
-                        if write_to_disk:
-                            sdata_main.write_element(f"boundaries_{seg_method}")
-                        print(
-                            f"Selected {baysor_files[0]} for {seg_method} from multiple boundary files: {boundary_files}."
-                        )
-                    else:
-                        print(
-                            f"Multiple *boundaries files found for {seg_method}. Skipping boundary import."
-                        )
-                else:
-                    print(
-                        f"Multiple *boundaries files found for {seg_method}. Skipping boundary import."
-                    )
+                assign_transformations(sdata_main, seg_method, write_to_disk)
             else:
                 print(
-                    f"Shapes file missing for {seg_method}. Skipping boundary import."
+                    f"Shapes file missing for {seg_method}. Skipping boundary import. Check conformaty with sopa pipeline, especially sdata['table'].uns['spatialdata_attrs']['region']."
                 )
         else:
             print(
@@ -182,6 +180,52 @@ def integrate_segmentation_data(
     return sdata_main
 
 
+def assign_transformations(sdata_main: sd.SpatialData, seg_method, write_to_disk):
+    """Assign transformations to spatial data.
+
+    Args:
+        sdata_main: master sdata
+        seg_method: current segmentation method
+        write_to_disk: if writing to disk
+    """
+    if write_to_disk:
+        backing = sdata_main
+    else:
+        backing = None
+
+    transformation_to_pixel = get_transformation(
+        sdata_main[list(sdata_main.points.keys())[0]], "global"
+    )
+    image_based = ["Cellpose", "Negative_Control"]
+
+    if any([seg_method.startswith(method) for method in image_based]):
+        set_transformation(
+            sdata_main[f"boundaries_{seg_method}"],
+            transformation_to_pixel.inverse(),
+            "micron",
+            write_to_sdata=backing,
+        )
+        set_transformation(
+            sdata_main[f"boundaries_{seg_method}"],
+            Identity(),
+            "pixel",
+            write_to_sdata=backing,
+        )
+    else:
+        set_transformation(
+            sdata_main[f"boundaries_{seg_method}"],
+            Identity(),
+            "micron",
+            write_to_sdata=backing,
+        )
+        set_transformation(
+            sdata_main[f"boundaries_{seg_method}"],
+            transformation_to_pixel,
+            "pixel",
+            write_to_sdata=backing,
+        )
+
+
 def update_element(sdata, element_name):
     """Workaround for updating a backed element in sdata.
 
@@ -209,10 +253,11 @@ def update_element(sdata, element_name):
     del sdata[new_name]
     sdata.delete_element_from_disk(new_name)
 
-def pixel_to_microns(sdata, transform_file, shape_patterns=None, exclude_patterns=None, overwrite=False):
 
-    """
-    Transform Cellpose boundaries from pixels to microns
+def pixel_to_microns(
+    sdata, transform_file, shape_patterns=None, exclude_patterns=None, overwrite=False
+):
+    """Transform Cellpose boundaries from pixels to microns.
 
     Parameters:
     -----------
@@ -242,14 +287,22 @@ def pixel_to_microns(sdata, transform_file, shape_patterns=None, exclude_pattern
     for shape_name in list(sdata.shapes.keys()):
         # Check if shape name matches any of the patterns and doesn't match any exclude patterns
         if any(pattern in shape_name for pattern in shape_patterns) and not any(
-                exclude in shape_name for exclude in exclude_patterns
+            exclude in shape_name for exclude in exclude_patterns
         ):
             # Get boundaries
             boundaries = sdata.shapes[shape_name]
 
             # Create transformed geometries
-            transformed_geoms = boundaries.affine_transform([inv_matrix[0,0],inv_matrix[0,1],
-                                                  inv_matrix[1,0],inv_matrix[1,1],inv_matrix[0,2],inv_matrix[1,2]])
+            transformed_geoms = boundaries.affine_transform(
+                [
+                    inv_matrix[0, 0],
+                    inv_matrix[0, 1],
+                    inv_matrix[1, 0],
+                    inv_matrix[1, 1],
+                    inv_matrix[0, 2],
+                    inv_matrix[1, 2],
+                ]
+            )
 
             # Create new GeoDataFrame
             transformed_boundaries = gpd.GeoDataFrame(
