@@ -10,7 +10,7 @@ from spatialdata import SpatialData
 from spatialdata.models import Image2DModel
 from tifffile import imread
 
-sys.path.insert(1, Path(__file__).parent.parent.resolve())
+sys.path.insert(1, str(Path(__file__).parent.parent.resolve()))
 import ficture_utils
 
 
