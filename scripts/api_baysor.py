@@ -26,6 +26,7 @@ def main(data_path, base_segmentation, confidence, sample):
     ]
     del sdata_tmp
 
+    print(join(path, f"Baysor_2D_{base_segmentation}", "sdata_tmp.zarr"))
     # backing für memory efficiency
     sdata.write(
         join(path, f"Baysor_2D_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True
