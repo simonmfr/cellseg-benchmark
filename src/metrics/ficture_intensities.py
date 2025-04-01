@@ -30,7 +30,7 @@ def ficture_intensities(
     """
     DAPI_shape = imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
     transform = pd.read_csv(
-        join("images/micron_to_mosaic_pixel_transform.csv"), sep=" ", header=None
+        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"), sep=" ", header=None
     )
 
     ficture_full_path = ""
