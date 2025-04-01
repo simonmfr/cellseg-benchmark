@@ -51,7 +51,7 @@ def main(data_path, base_segmentation, confidence, sample):
     sopa.segmentation.baysor(sdata, config=config, delete_cache=True)
 
     sopa.aggregate(
-        sdata, gene_column="gene", average_intensities=True, min_transcripts=10
+        sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10
     )
     sopa.io.explorer.write(
         join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.explorer"),
