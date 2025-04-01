@@ -107,7 +107,7 @@ def ficture_intensities(
             weights=filtered_data["probability"],
         )
         image = np.clip(np.around(image * 65535), 0, 65535).astype(np.uint16)
-        assert image.shape == DAPI_shape, f"image shape not correct, got {image.shape}"
+        image = image[np.newaxis, :]
         return image
 
     for factor in unique_factors:
