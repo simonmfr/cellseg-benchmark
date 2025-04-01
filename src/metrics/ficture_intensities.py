@@ -116,12 +116,12 @@ def ficture_intensities(
         except NameError:
             image_stack = create_factor_level_image(ficture_pixels, factor, DAPI_shape)
         else:
-            image_stack = np.stack(
-                [
+            image_stack = np.concatenate(
+                (
                     image_stack,
                     create_factor_level_image(ficture_pixels, factor, DAPI_shape),
-                ],
-                axis=0,
+                ),
+                axis=0, dtype=np.uint16,
             )
     sdata["image"] = Image2DModel.parse(image_stack)
 
