@@ -88,6 +88,7 @@ def ficture_intensities(
     pd_intensity = pd.DataFrame(
         intensities,
         index=sdata[shapes_key].index,
-        columns=[f"{i}_intensity" for i in unique_factors],
+        columns=[f"ficture_{i}_intensity" for i in unique_factors], #TODO: also get ficture factors (num)
     )
+    pd_intensity = pd_intensity/pd_intensity.max(axis=None)
     return pd_intensity
