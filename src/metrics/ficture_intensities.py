@@ -2,6 +2,7 @@ import sys
 from os import listdir
 from os.path import join
 from pathlib import Path
+from re import split
 
 import numpy as np
 import pandas as pd
@@ -30,13 +31,16 @@ def ficture_intensities(
     """
     DAPI_shape = imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
     transform = pd.read_csv(
-        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"), sep=" ", header=None
+        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
+        sep=" ",
+        header=None,
     )
 
     ficture_full_path = ""
     for file in listdir(ficture_path):
         if file.endswith(".pixel.sorted.tsv.gz"):
             ficture_full_path = join(ficture_path, file)
+            n_factors = int(split(". |F", file)[1])
     assert ficture_full_path != "", (
         "Ficture path not correct or Ficture output not computed."
     )
@@ -73,14 +77,19 @@ def ficture_intensities(
         try:
             image_stack
         except NameError:
-            image_stack = ficture_utils.create_factor_level_image(ficture_pixels, factor, DAPI_shape)
+            image_stack = ficture_utils.create_factor_level_image(
+                ficture_pixels, factor, DAPI_shape
+            )
         else:
             image_stack = np.concatenate(
                 (
                     image_stack,
-                    ficture_utils.create_factor_level_image(ficture_pixels, factor, DAPI_shape),
+                    ficture_utils.create_factor_level_image(
+                        ficture_pixels, factor, DAPI_shape
+                    ),
                 ),
-                axis=0, dtype=np.uint16,
+                axis=0,
+                dtype=np.uint16,
             )
     sdata["image"] = Image2DModel.parse(image_stack)
 
@@ -88,7 +97,7 @@ def ficture_intensities(
     pd_intensity = pd.DataFrame(
         intensities,
         index=sdata[shapes_key].index,
-        columns=[f"ficture_{i}_intensity" for i in unique_factors], #TODO: also get ficture factors (num)
+        columns=[f"fictureF{n_factors}_{i}_intensity" for i in unique_factors],
     )
-    pd_intensity = pd_intensity/pd_intensity.max(axis=None)
+    pd_intensity = pd_intensity / pd_intensity.max(axis=None)
     return pd_intensity

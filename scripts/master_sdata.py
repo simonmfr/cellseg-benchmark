@@ -24,4 +24,6 @@ seg_methods = [
     for method in os.listdir(join(sdata_path, "results"))
     if os.path.isdir(join(sdata_path, "results", method, "sdata.zarr"))
 ]
-su.integrate_segmentation_data(sdata_path, seg_methods, sdata_main, write_to_disk=True)
+su.integrate_segmentation_data(
+    sdata_path, seg_methods, sdata_main, write_to_disk=True, data_path=data_path
+)

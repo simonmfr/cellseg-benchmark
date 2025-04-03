@@ -1,6 +1,6 @@
 import glob
 import os
-from typing import List
+from typing import List, Optional
 
 import geopandas as gpd
 import numpy as np
@@ -8,6 +8,8 @@ import pandas as pd
 import spatialdata as sd
 import spatialdata_io
 from spatialdata.transformations import Identity, get_transformation, set_transformation
+
+image_based = ["Cellpose", "Negative_Control"]
 
 
 def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str):
@@ -117,6 +119,7 @@ def integrate_segmentation_data(
     seg_methods: List[str],
     sdata_main: sd.SpatialData,
     write_to_disk: bool = True,
+    data_path: Optional[str] = None,
 ):
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
@@ -125,6 +128,7 @@ def integrate_segmentation_data(
         seg_methods: List of segmentation methods to process
         sdata_main: Main spatial data object to update
         write_to_disk: Whether to write elements to disk immediately
+        data_path: Optional path to directory to get transformation for adatas
 
     Returns:
         Updated sdata_main object
@@ -168,6 +172,7 @@ def integrate_segmentation_data(
 
             if len(table_files) == 1:
                 sdata_main[f"adata_{seg_method}"] = sdata[table_files[0]]
+                transform_adata(sdata_main, seg_method, data_path=data_path)
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
             elif len(table_files) > 1:
@@ -202,7 +207,6 @@ def assign_transformations(
     transformation_to_pixel = get_transformation(
         sdata_main[list(sdata_main.points.keys())[0]], "global"
     )
-    image_based = ["Cellpose", "Negative_Control"]
 
     if any([seg_method.startswith(method) for method in image_based]):
         set_transformation(
@@ -230,6 +234,48 @@ def assign_transformations(
             "pixel",
             write_to_sdata=backing,
         )
+    return
+
+
+def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
+    """Add coordinate transforms to adata.
+
+    Args:
+        sdata_main: master sdata
+        seg_method: current segmentation method
+        data_path: path to merscope data
+    """
+    transform = pd.read_csv(
+        os.path.join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+        sep=" ",
+        header=None,
+    )
+
+    adata = sdata_main[f"adata_{seg_method}"]
+
+    if any([seg_method.startswith(method) for method in image_based]):
+        adata.obs["x_micron"] = (
+            adata.obs["x"] * (1 / transform.iloc[0, 0])
+            - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
+        )
+        adata.obs["y_micron"] = (
+            adata.obs["y"] * (1 / transform.iloc[1, 1])
+            - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
+        )
+        adata.obs["x_pixel"] = adata.obs["x"]
+        adata.obs["y_pixel"] = adata.obs["y"]
+    else:
+        adata.obs["x_micron"] = adata.obs["x"]
+        adata.obs["y_micron"] = adata.obs["y"]
+        adata.obs["x_pixel"] = (
+            adata.obs["x"] * transform.iloc[0, 0] + transform.iloc[0, 2]
+        )
+        adata.obs["y_pixel"] = (
+            adata.obs["y"] * transform.iloc[1, 1] + transform.iloc[1, 2]
+        )
+
+    sdata_main[f"adata_{seg_method}"] = adata
+    return
 
 
 def update_element(sdata, element_name):

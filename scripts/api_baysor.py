@@ -28,9 +28,12 @@ def main(data_path, base_segmentation, confidence, sample):
 
     # backing für memory efficiency
     sdata.write(
-        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"), overwrite=True
+        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"),
+        overwrite=True,
     )
-    sdata = read_zarr(join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"))
+    sdata = read_zarr(
+        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr")
+    )
 
     sopa.make_transcript_patches(
         sdata,
@@ -63,7 +66,13 @@ def main(data_path, base_segmentation, confidence, sample):
 
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
     sdata.write(join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"))
-    run(["rm", "-r", join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr")])
+    run(
+        [
+            "rm",
+            "-r",
+            join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"),
+        ]
+    )
 
 
 if __name__ == "__main__":
