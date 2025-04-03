@@ -276,7 +276,7 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
     adata.obs['region'] = f"boundaries_{seg_method}"
     adata.obs['region'] = pd.Categorical(adata.obs['region'])
     adata.obs['cell_id'] = adata.obs[adata.uns['spatialdata_attrs']['instance_key']]
-    adata.obs['cell_id'] = pd.Categorical(adata.obs['cell_id'])
+    adata.obs['cell_id'] = adata.obs['cell_id']
     adata.uns['spatialdata_attrs']['instance_key'] = "cell_id"
 
     sdata_main[f"adata_{seg_method}"] = adata
