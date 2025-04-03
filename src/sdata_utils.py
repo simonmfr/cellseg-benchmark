@@ -272,6 +272,7 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
         adata.obsm["spatial_pixel"] = np.stack([x, y], axis=1)
     adata.uns['spatialdata_attrs']['region'] = f"boundaries_{seg_method}"
     adata.obs['region'] = f"boundaries_{seg_method}"
+    adata.obs['region'] = pd.Categorical(adata.obs['region'])
 
     sdata_main[f"adata_{seg_method}"] = adata
     return
