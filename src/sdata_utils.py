@@ -255,15 +255,21 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
     spatial = adata.obsm["spatial"]
 
     if any([seg_method.startswith(method) for method in image_based]):
-        x = spatial[:,0] * (1 / transform.iloc[0, 0])- (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
-        y = spatial[:,1] * (1 / transform.iloc[1, 1]) - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
-        adata.obsm["spatial_microns"] = np.vstack((x, y))
+        x = (
+            spatial[:, 0] * (1 / transform.iloc[0, 0])
+            - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
+        )
+        y = (
+            spatial[:, 1] * (1 / transform.iloc[1, 1])
+            - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
+        )
+        adata.obsm["spatial_microns"] = np.stack([x, y], axis=1)
         adata.obsm["spatial_pixel"] = spatial
     else:
         adata.obsm["spatial_microns"] = spatial
-        x = spatial[:,0] * transform.iloc[0, 0] + transform.iloc[0, 2]
-        y = spatial[:,1] * transform.iloc[1, 1] + transform.iloc[1, 2]
-        adata.obsm["spatial_pixel"] = np.vstack((x, y))
+        x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
+        y = spatial[:, 1] * transform.iloc[1, 1] + transform.iloc[1, 2]
+        adata.obsm["spatial_pixel"] = np.stack([x, y], axis=1)
 
     sdata_main[f"adata_{seg_method}"] = adata
     return
