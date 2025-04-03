@@ -245,6 +245,7 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
         seg_method: current segmentation method
         data_path: path to merscope data
     """
+    print(f"Handling adata: {seg_method}")
     transform = pd.read_csv(
         os.path.join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
