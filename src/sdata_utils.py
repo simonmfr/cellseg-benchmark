@@ -147,6 +147,7 @@ def integrate_segmentation_data(
 
         if f"boundaries_{seg_method}" not in sdata_main:
             # region key specifies the key for boundaries created/used by sopa for this method
+            print(sdata)
             boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
 
             if boundary_key in sdata.shapes.keys():
