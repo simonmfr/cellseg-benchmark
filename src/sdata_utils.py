@@ -135,8 +135,11 @@ def integrate_segmentation_data(
     """
     for seg_method in seg_methods:
         seg_path = os.path.join(sdata_path, "results", seg_method, "sdata.zarr")
-        if not os.path.exists(seg_path):
-            print(f"No boundaries/adata files found for {seg_method}. Skipping.")
+        if not os.path.exists(os.path.join(seg_path, 'shapes')):
+            print(f"No boundaries files found for {seg_method}. Skipping.")
+            continue
+        if not os.path.exists(os.path.join(seg_path, 'tables')):
+            print(f"No adata files found for {seg_method}. Skipping.")
             continue
 
         if (
