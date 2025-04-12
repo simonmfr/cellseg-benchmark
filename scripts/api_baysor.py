@@ -51,7 +51,7 @@ def main(data_path, base_segmentation, confidence, sample):
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence
-    sopa.segmentation.baysor(sdata, config=config, delete_cache=True)
+    sopa.segmentation.baysor(sdata, config=config, delete_cache=True, force=True)
 
     sopa.aggregate(
         sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10
