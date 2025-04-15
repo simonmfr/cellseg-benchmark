@@ -42,7 +42,7 @@ Cellpose_1_{staining}_model  --voxel-layers {voxel}
         f.close()
     else:
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_Cellpose_{CP_version}_{staining}/{key}_vxl_{voxel}.sbatch",
+            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_CP{CP_version}_{staining}/{key}_vxl_{voxel}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash
