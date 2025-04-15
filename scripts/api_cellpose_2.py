@@ -4,6 +4,7 @@ from os.path import join
 from subprocess import run
 
 import sopa
+from pandas import read_csv
 from spatialdata import read_zarr
 
 data_path = sys.argv[1]
@@ -14,6 +15,11 @@ staining = sys.argv[3]
 def main(data_path, save_path, staining):
     """Cellpose2 algorithm by sopa with dask backend parallelized."""
     sdata = sopa.io.merscope(data_path)
+    translation = read_csv(
+        join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+        sep=" ",
+        header=None,
+    )
 
     sdata.write(join(save_path, "sdata_tmp.zarr"), overwrite=True)
     sdata = read_zarr(join(save_path, "sdata_tmp.zarr"))
@@ -24,7 +30,7 @@ def main(data_path, save_path, staining):
     sopa.settings.dask_client_kwargs["n_workers"] = int(
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
-    sopa.settings.dask_client_kwargs["timeout"] = "60000"
+    sopa.settings.dask_client_kwargs["timeout"] = "600000"
 
     sopa.segmentation.cellpose(
         sdata,
@@ -47,7 +53,7 @@ def main(data_path, save_path, staining):
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
-        pixel_size=0.108,
+        pixel_size=1 / translation.iloc[0, 0],
     )
 
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]

@@ -10,11 +10,11 @@ with open(
     data = json.load(f)
 
 Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_Cellpose_2"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Cellpose_2"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_Cellpose_2/{key}_{staining}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Cellpose_2/{key}_{staining}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash

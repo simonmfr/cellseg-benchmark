@@ -4,6 +4,7 @@ from os.path import join
 from subprocess import run
 
 import sopa
+from pandas import read_csv
 from spatialdata import read_zarr
 
 data_path = sys.argv[1]
@@ -24,6 +25,11 @@ def main(data_path, sample, base_segmentation):
     sdata[list(sdata_tmp.points.keys())[0]] = sdata_tmp[
         list(sdata_tmp.points.keys())[0]
     ]
+    translation = read_csv(
+        join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+        sep=" ",
+        header=None,
+    )
     del sdata_tmp
 
     # backing für memory efficiency
@@ -35,8 +41,8 @@ def main(data_path, sample, base_segmentation):
     # Annahme: nur cellpose prior wird benutzt
     sopa.make_transcript_patches(
         sdata,
-        patch_width=500,
-        patch_overlap=20,
+        patch_width=1200,
+        patch_overlap=50,
         prior_shapes_key="cellpose_boundaries",
         write_cells_centroids=True,
     )
@@ -45,6 +51,7 @@ def main(data_path, sample, base_segmentation):
     sopa.settings.dask_client_kwargs["n_workers"] = int(
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
+    sopa.settings.dask_client_kwargs["timeout"] = "600000"
 
     path_json = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/comseg.json"
     sopa.segmentation.comseg(sdata, config=path_json, min_area=10, delete_cache=False)
@@ -57,7 +64,7 @@ def main(data_path, sample, base_segmentation):
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
-        pixel_size=0.108,
+        pixel_size=1 / translation.iloc[0, 0],
     )
 
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]

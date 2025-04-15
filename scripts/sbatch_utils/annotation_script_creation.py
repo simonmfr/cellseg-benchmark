@@ -10,7 +10,7 @@ path = join(
 )
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_annotation/{sample}"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_annotation/{sample}"
 ).mkdir(parents=True, exist_ok=True)
 
 for method in listdir(path):
@@ -18,7 +18,7 @@ for method in listdir(path):
         join(path, method, "sdata.explorer")
     ):
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_annotation/{sample}/{method}.sbatch",
+            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_annotation/{sample}/{method}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash

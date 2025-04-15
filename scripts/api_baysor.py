@@ -65,7 +65,10 @@ def main(data_path, base_segmentation, confidence, sample):
     )
 
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"), overwrite=True)
+    sdata.write(
+        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"),
+        overwrite=True,
+    )
     run(
         [
             "rm",

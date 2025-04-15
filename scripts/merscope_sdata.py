@@ -3,6 +3,7 @@ from os.path import join
 from pathlib import Path
 from subprocess import run
 
+from pandas import read_csv
 from sopa.io.explorer import write
 from spatialdata import read_zarr
 from spatialdata_io import merscope
@@ -18,6 +19,11 @@ sdata = merscope(
         "cell_boundaries": Path(join(data_path, "cell_boundaries.parquet")),
     },
 )
+translation = read_csv(
+    join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+    sep=" ",
+    header=None,
+)
 sdata.write(join(save_path, "sdata.zarr"))
 sdata = read_zarr(join(save_path, "sdata.zarr"))
 
@@ -26,7 +32,7 @@ write(
     sdata,
     gene_column="gene",
     ram_threshold_gb=4,
-    pixel_size=0.108,
+    pixel_size=1 / translation.iloc[0, 0],
 )
 run(["rm", "-r", join(save_path, "sdata.zarr", "images")])
 run(["rm", "-r", join(save_path, "sdata.zarr", "points")])

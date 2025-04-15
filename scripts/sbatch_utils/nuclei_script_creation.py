@@ -7,11 +7,11 @@ with open(
     data = json.load(f)
 
 Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_nuclei_model"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_nuclei_model"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_nuclei_model/{key}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_nuclei_model/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash

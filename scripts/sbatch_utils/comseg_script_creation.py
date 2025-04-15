@@ -11,19 +11,45 @@ with open(
     data = json.load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_ComSeg_CP{CP_version}_{staining}"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_ComSeg_CP{CP_version}_{staining}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
-    f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatch_ComSeg_CP{CP_version}_{staining}/{key}.sbatch",
-        "w",
-    )
-    f.write(f"""#!/bin/bash
+    if staining == "nuclei":
+        f = open(
+            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_ComSeg_CP{CP_version}_{staining}/{key}.sbatch",
+            "w",
+        )
+        f.write(f"""#!/bin/bash
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 2-00:00:00
-#SBATCH --mem=300G
+#SBATCH --mem=500G
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-node=10
+#SBATCH -J ComSeg_{key}_CP1_{staining}
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/ComSeg_{key}_CP1_{staining}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/ComSeg_{key}_CP1_{staining}.err
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+
+source ~/.bashrc
+conda activate sopa
+mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_1_{staining}_model
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_comseg.py {value} {key} \
+Cellpose_1_{staining}_model
+            """)
+        f.close()
+    else:
+        f = open(
+            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_ComSeg_CP{CP_version}_{staining}/{key}.sbatch",
+            "w",
+        )
+        f.write(f"""#!/bin/bash
+
+#SBATCH -p lrz-cpu
+#SBATCH --qos=cpu
+#SBATCH -t 2-00:00:00
+#SBATCH --mem=500G
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=10
 #SBATCH -J ComSeg_{key}_CP{CP_version}_{staining}
@@ -32,7 +58,9 @@ for key, value in data.items():
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
 
 mamba activate sopa
-mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/ComSeg_CP{CP_version}_DAPI_{staining}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_comseg.py {value} {key} Cellpose_{CP_version}_DAPI_{staining}
+pip install igraph
+mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/ComSeg_Cellpose_{CP_version}_DAPI_{staining}
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_comseg.py {value} {key} \
+ Cellpose_{CP_version}_DAPI_{staining}
             """)
-    f.close()
+        f.close()
