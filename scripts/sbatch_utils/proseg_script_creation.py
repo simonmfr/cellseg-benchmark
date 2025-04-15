@@ -12,7 +12,7 @@ with open(
     data = json.load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_Cellpose_{CP_version}_{staining}"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_CP{CP_version}_{staining}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     if staining == "nuclei":
