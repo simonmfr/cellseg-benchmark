@@ -135,10 +135,10 @@ def integrate_segmentation_data(
     """
     for seg_method in seg_methods:
         seg_path = os.path.join(sdata_path, "results", seg_method, "sdata.zarr")
-        if not os.path.exists(os.path.join(seg_path, 'shapes')):
+        if not os.path.exists(os.path.join(seg_path, "shapes")):
             print(f"No boundaries files found for {seg_method}. Skipping.")
             continue
-        if not os.path.exists(os.path.join(seg_path, 'tables')):
+        if not os.path.exists(os.path.join(seg_path, "tables")):
             print(f"No adata files found for {seg_method}. Skipping.")
             continue
 
@@ -274,13 +274,13 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
         x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
         y = spatial[:, 1] * transform.iloc[1, 1] + transform.iloc[1, 2]
         adata.obsm["spatial_pixel"] = np.stack([x, y], axis=1)
-    adata.uns['spatialdata_attrs']['region'] = f"boundaries_{seg_method}"
-    adata.uns['spatialdata_attrs']['region_key'] = "region"
-    adata.obs['region'] = f"boundaries_{seg_method}"
-    adata.obs['region'] = pd.Categorical(adata.obs['region'])
-    adata.obs['cell_id'] = adata.obs[adata.uns['spatialdata_attrs']['instance_key']]
-    adata.obs['cell_id'] = adata.obs['cell_id']
-    adata.uns['spatialdata_attrs']['instance_key'] = "cell_id"
+    adata.uns["spatialdata_attrs"]["region"] = f"boundaries_{seg_method}"
+    adata.uns["spatialdata_attrs"]["region_key"] = "region"
+    adata.obs["region"] = f"boundaries_{seg_method}"
+    adata.obs["region"] = pd.Categorical(adata.obs["region"])
+    adata.obs["cell_id"] = adata.obs[adata.uns["spatialdata_attrs"]["instance_key"]]
+    adata.obs["cell_id"] = adata.obs["cell_id"]
+    adata.uns["spatialdata_attrs"]["instance_key"] = "cell_id"
 
     sdata_main[f"adata_{seg_method}"] = adata
     return

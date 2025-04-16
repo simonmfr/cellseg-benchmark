@@ -1,8 +1,3 @@
-import sys
-from os import listdir
-from os.path import join
-from pathlib import Path
-from re import split
 
 import dask
 import geopandas as gpd
@@ -12,112 +7,73 @@ import pandas as pd
 import shapely
 from dask.diagnostics import ProgressBar
 from shapely.geometry import Polygon, box
-from sopa.utils import get_spatial_image, get_boundaries, to_intrinsic
 from sopa.segmentation.shapes import expand_radius, pixel_outer_bounds, rasterize
+from sopa.utils import get_boundaries, get_spatial_image, to_intrinsic
 from spatialdata import SpatialData
 from spatialdata.models import Image2DModel
-from tifffile import imread
 from xarray import DataArray
-
-sys.path.insert(1, str(Path(__file__).parent.parent.resolve()))
-import ficture_utils
 
 
 def ficture_intensities(
-    sdata: SpatialData, data_path, ficture_path, shapes_key: str
-) -> pd.DataFrame:
-    """Compute average intensities for ficture factors in cells given by sdata.
+    master_sdata: SpatialData,
+    images,
+    key,
+    n_factors,
+    unique_factors,
+    var: bool = True,
+    update_element: bool = False,
+):
+    """Compute the mean and optionally the variance of the ficture intensities per cell.
 
     Args:
-        sdata: sdata from segmentation containing at least cell boundaries.
-        data_path: path to the original merscope output
-        ficture_path: path to the ficture output
-        shapes_key: key for valid cell boundaries
+        master_sdata: master sdata created by master_sdata.py
+        images: ficure images in numpy stack
+        key: key of method
+        n_factors: number of factors in ficture model
+        unique_factors: number of unique factors in top 3
+        var: if variance should be calculated
+        update_element: if the master sdata should be updated or not
 
-    Returns: average intensities for ficture factors in cells given by sdata.
+    Returns: None, if update_element is True, otherwise mean and variance of ficture intensities.
 
     """
-    DAPI_shape = imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
-    transform = pd.read_csv(
-        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
-        sep=" ",
-        header=None,
+    master_sdata["ficture_images"] = Image2DModel.parse(images)
+    intensities = aggregate_channels(
+        master_sdata, image_key="ficture_images", shapes_key=f"boundaries_{key}"
     )
-
-    ficture_full_path = ""
-    for file in listdir(ficture_path):
-        if file.endswith(".pixel.sorted.tsv.gz"):
-            ficture_full_path = join(ficture_path, file)
-            n_factors = int(split(". |F", file)[1])
-    assert ficture_full_path != "", (
-        "Ficture path not correct or Ficture output not computed."
-    )
-
-    fic_header = ["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
-    ficture_pixels = pd.read_csv(
-        ficture_full_path, sep="\t", names=fic_header, comment="#"
-    )
-
-    metadata = ficture_utils.parse_metadata(ficture_full_path)
-    scale = float(metadata["SCALE"])
-    offset_x = float(metadata["OFFSET_X"])
-    offset_y = float(metadata["OFFSET_Y"])
-    ficture_pixels["X_pixel"] = (
-        ficture_pixels["X"] / scale * transform.iloc[0, 0]
-        + offset_x * transform.iloc[0, 0]
-        + transform.iloc[0, 2]
-    )
-    ficture_pixels["Y_pixel"] = (
-        ficture_pixels["Y"] / scale * transform.iloc[1, 1]
-        + offset_y * transform.iloc[1, 1]
-        + transform.iloc[1, 2]
-    )
-    del transform, metadata
-
-    unique_factors = (
-        list(np.unique(ficture_pixels["K1"]))
-        + list(np.unique(ficture_pixels["K2"]))
-        + list(np.unique(ficture_pixels["K3"]))
-    )
-    unique_factors = list(set(unique_factors))
-
-    for factor in unique_factors:
-        try:
-            image_stack
-        except NameError:
-            image_stack = ficture_utils.create_factor_level_image(
-                ficture_pixels, factor, DAPI_shape
-            )
-        else:
-            image_stack = np.concatenate(
-                (
-                    image_stack,
-                    ficture_utils.create_factor_level_image(
-                        ficture_pixels, factor, DAPI_shape
-                    ),
-                ),
-                axis=0,
-                dtype=np.uint16,
-            )
-    sdata["image"] = Image2DModel.parse(image_stack)
-
-    intensities = aggregate_channels(sdata, image_key="image", shapes_key=shapes_key)
-    variance = aggregate_channels(sdata, image_key="image", shapes_key=shapes_key, mode="variance", means=intensities)
     pd_intensity = pd.DataFrame(
         intensities,
-        index=sdata[shapes_key].index,
+        index=master_sdata[f"adata_{key}"].obs.index,
         columns=[f"fictureF{n_factors}_{i}_mean_intensity" for i in unique_factors],
     )
-    pd_variance = pd.DataFrame(
-        variance,
-        index=sdata[shapes_key].index,
-        columns=[f"fictureF{n_factors}_{i}_var_intensity" for i in unique_factors],
-    )
     pd_intensity = pd_intensity / pd_intensity.max(axis=None)
+    if var:
+        variance = aggregate_channels(
+            master_sdata,
+            image_key="ficture_images",
+            shapes_key=f"boundaries_{key}",
+            mode="variance",
+            means=intensities,
+        )
+        pd_variance = pd.DataFrame(
+            variance,
+            index=master_sdata[f"adata_{key}"].obs.index,
+            columns=[f"fictureF{n_factors}_{i}_var_intensity" for i in unique_factors],
+        )
+    else:
+        pd_variance = None
+    if update_element:
+        master_sdata[f"adata_{key}"].obsm["mean_intensity"] = pd_intensity
+        if var:
+            master_sdata[f"adata_{key}"].obsm["variance_intensity"] = pd_variance
+        master_sdata.write_element(f"adata_{key}")
+        return
     return pd_intensity, pd_variance
+
 
 # from sopa.aggregation.channels.py
 AVAILABLE_MODES = ["average", "min", "max", "variance"]
+
 
 def aggregate_channels(
     sdata: SpatialData,
@@ -125,7 +81,7 @@ def aggregate_channels(
     shapes_key: str | None = None,
     expand_radius_ratio: float = 0,
     mode: str = "average",
-    means: np.ndarray | None = None
+    means: np.ndarray | None = None,
 ) -> np.ndarray:
     """Aggregate the channel intensities per cell (either `"average"`, or take the `"min"` / `"max"`).
 
@@ -135,11 +91,14 @@ def aggregate_channels(
         shapes_key: Key of `sdata` containing the cell boundaries. If only one `shapes` element, this does not have to be provided.
         expand_radius_ratio: Cells polygons will be expanded by `expand_radius_ratio * mean_radius`. This help better aggregate boundary stainings.
         mode: Aggregation mode. One of `"average"`, `"min"`, `"max"`. By default, average the intensity inside the cell mask.
+        means: If given, provides the means of the channel intensities.
 
     Returns:
         A numpy `ndarray` of shape `(n_cells, n_channels)`
     """
-    assert mode in AVAILABLE_MODES, f"Invalid {mode=}. Available modes are {AVAILABLE_MODES}"
+    assert mode in AVAILABLE_MODES, (
+        f"Invalid {mode=}. Available modes are {AVAILABLE_MODES}"
+    )
     if mode == "variance":
         assert means is not None, "means required for variance computation"
 
@@ -152,7 +111,12 @@ def aggregate_channels(
     return _aggregate_channels_aligned(image, geo_df, mode, means)
 
 
-def _aggregate_channels_aligned(image: DataArray, geo_df: gpd.GeoDataFrame | list[Polygon], mode: str, means: np.ndarray | None = None) -> np.ndarray:
+def _aggregate_channels_aligned(
+    image: DataArray,
+    geo_df: gpd.GeoDataFrame | list[Polygon],
+    mode: str,
+    means: np.ndarray | None = None,
+) -> np.ndarray:
     """Average channel intensities per cell. The image and cells have to be aligned, i.e. be on the same coordinate system.
 
     Args:
@@ -203,8 +167,12 @@ def _aggregate_channels_aligned(image: DataArray, geo_df: gpd.GeoDataFrame | lis
             areas[index] += np.sum(mask)
 
             if mode == "min":
-                masked_image = ma.masked_array(sub_image, 1 - np.repeat(mask[None], n_channels, axis=0))
-                aggregation[index] = np.minimum(aggregation[index], masked_image.min(axis=(1, 2)))
+                masked_image = ma.masked_array(
+                    sub_image, 1 - np.repeat(mask[None], n_channels, axis=0)
+                )
+                aggregation[index] = np.minimum(
+                    aggregation[index], masked_image.min(axis=(1, 2))
+                )
             elif mode in ["average", "max", "variance"]:
                 func = np.sum if mode == "average" else np.max
                 values = func(sub_image * mask, axis=(1, 2))
