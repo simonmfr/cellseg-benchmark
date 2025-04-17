@@ -7,6 +7,7 @@ from re import split
 import numpy as np
 import pandas as pd
 from spatialdata import read_zarr
+from tqdm import tqdm
 from tifffile import imread
 
 sys.path.insert(1, join(str(Path(__file__).parent.parent.resolve()), "src"))
@@ -57,7 +58,7 @@ unique_factors = (
 )
 unique_factors = list(set(unique_factors))
 
-for factor in unique_factors:
+for factor in tqdm(unique_factors):
     try:
         image_stack
     except NameError:
@@ -78,10 +79,9 @@ shape_keys = ["_".join(key.split("_")[1:]) for key in master_sdata.shapes.keys()
 table_keys = ["_".join(key.split("_")[1:]) for key in master_sdata.tables.keys()]
 full_keys = list(set(shape_keys) & set(table_keys))
 
-for key in full_keys:
-    print("Handle", key)
+for key in tqdm(full_keys):
     ficture_intensities(
-        master_sdata, key, n_factors, unique_factors, update_element=True
+        master_sdata, image_stack, key, n_factors, unique_factors, update_element=True
     )
     cell_type = pd.read_csv(join(master_sdata_path, "results", key,
                                                                      "cell_type_annotation", "adata_obs_annotated.csv"))["cell_type_final"]
