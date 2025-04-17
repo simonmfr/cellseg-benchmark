@@ -26,7 +26,7 @@ ficture_full_path = ""
 for file in listdir(ficture_path):
     if file.endswith(".pixel.sorted.tsv.gz"):
         ficture_full_path = join(ficture_path, file)
-        n_factors = int(split(".|F", file)[1])
+        n_factors = int(split(r"\.|F", file)[1])
 assert ficture_full_path != "", (
     "Ficture path not correct or Ficture output not computed."
 )
