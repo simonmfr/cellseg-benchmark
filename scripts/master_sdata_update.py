@@ -26,7 +26,7 @@ ficture_full_path = ""
 for file in listdir(ficture_path):
     if file.endswith(".pixel.sorted.tsv.gz"):
         ficture_full_path = join(ficture_path, file)
-        n_factors = int(split(". |F", file)[1])
+        n_factors = int(split(".|F", file)[1])
 assert ficture_full_path != "", (
     "Ficture path not correct or Ficture output not computed."
 )
@@ -79,6 +79,10 @@ table_keys = ["_".join(key.split("_")[1:]) for key in master_sdata.tables.keys()
 full_keys = list(set(shape_keys) & set(table_keys))
 
 for key in full_keys:
+    print("Handle", key)
     ficture_intensities(
         master_sdata, key, n_factors, unique_factors, update_element=True
     )
+    master_sdata[f"adata_{key}"].obs['cell_type'] = pd.read_csv(join(master_sdata_path, "results", key,
+                                                                     "cell_type_annotation", "adata_obs_annotated.csv"))["cell_type_final"]
+    master_sdata.write_element(f"adata_{key}")
