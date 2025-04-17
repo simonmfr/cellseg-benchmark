@@ -83,6 +83,7 @@ for key in full_keys:
     ficture_intensities(
         master_sdata, key, n_factors, unique_factors, update_element=True
     )
-    master_sdata[f"adata_{key}"].obs['cell_type'] = pd.read_csv(join(master_sdata_path, "results", key,
+    cell_type = pd.read_csv(join(master_sdata_path, "results", key,
                                                                      "cell_type_annotation", "adata_obs_annotated.csv"))["cell_type_final"]
+    master_sdata[f"adata_{key}"].obs = master_sdata[f"adata_{key}"].obs.merge(cell_type, how="left", left_index=True, right_index=True)
     master_sdata.write_element(f"adata_{key}")
