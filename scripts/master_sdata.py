@@ -25,7 +25,7 @@ data_dir = sys.argv[4]  # base directory
 if len(sys.argv) > 5:
     n_ficture = int(sys.argv[5])
 else:
-    n_fiture = 21
+    n_ficture = 21
 
 su.process_merscope(sample, data_dir, data_path, zmode=zmode)
 
