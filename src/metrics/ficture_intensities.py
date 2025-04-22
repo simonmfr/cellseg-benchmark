@@ -1,4 +1,3 @@
-
 import dask
 import geopandas as gpd
 import numpy as np
@@ -10,46 +9,48 @@ from shapely.geometry import Polygon, box
 from sopa.segmentation.shapes import expand_radius, pixel_outer_bounds, rasterize
 from sopa.utils import get_boundaries, get_spatial_image, to_intrinsic
 from spatialdata import SpatialData
-from spatialdata.models import Image2DModel
+from spatialdata.models import Image2DModel, ShapesModel
 from xarray import DataArray
 
 
 def ficture_intensities(
-    master_sdata: SpatialData,
-    images,
-    key,
-    n_factors,
-    unique_factors,
+    sdata: SpatialData,
+    images: np.ndarray,
+    key: str,
+    n_factors: int,
+    unique_factors: list,
     var: bool = True,
-    update_element: bool = False,
 ):
     """Compute the mean and optionally the variance of the ficture intensities per cell.
 
     Args:
-        master_sdata: master sdata created by master_sdata.py
+        sdata: sdata of method with "table" table
         images: ficure images in numpy stack
         key: key of method
         n_factors: number of factors in ficture model
         unique_factors: number of unique factors in top 3
         var: if variance should be calculated
-        update_element: if the master sdata should be updated or not
 
     Returns: None, if update_element is True, otherwise mean and variance of ficture intensities.
 
     """
-    master_sdata["ficture_images"] = Image2DModel.parse(images)
+    boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
+    tmp_sdata = SpatialData()
+    tmp_sdata["ficture_images"] = Image2DModel.parse(images)
+    tmp_sdata[f"boundaries_{key}"] = ShapesModel.parse(sdata[boundary_key])
+
     intensities = aggregate_channels(
-        master_sdata, image_key="ficture_images", shapes_key=f"boundaries_{key}"
+        tmp_sdata, image_key="ficture_images", shapes_key=f"boundaries_{key}"
     )
     pd_intensity = pd.DataFrame(
         intensities,
-        index=master_sdata[f"adata_{key}"].obs.index,
+        index=sdata["table"].obs.index,
         columns=[f"fictureF{n_factors}_{i}_mean_intensity" for i in unique_factors],
     )
     pd_intensity = pd_intensity / pd_intensity.max(axis=None)
     if var:
         variance = aggregate_channels(
-            master_sdata,
+            tmp_sdata,
             image_key="ficture_images",
             shapes_key=f"boundaries_{key}",
             mode="variance",
@@ -57,18 +58,11 @@ def ficture_intensities(
         )
         pd_variance = pd.DataFrame(
             variance,
-            index=master_sdata[f"adata_{key}"].obs.index,
+            index=sdata["table"].obs.index,
             columns=[f"fictureF{n_factors}_{i}_var_intensity" for i in unique_factors],
         )
-    else:
-        pd_variance = None
-    if update_element:
-        master_sdata[f"adata_{key}"].obsm["mean_intensity"] = pd_intensity
-        if var:
-            master_sdata[f"adata_{key}"].obsm["variance_intensity"] = pd_variance
-        master_sdata.write_element(f"adata_{key}")
-        return
-    return pd_intensity, pd_variance
+        return pd_intensity, pd_variance
+    return pd_intensity
 
 
 # from sopa.aggregation.channels.py

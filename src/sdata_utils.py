@@ -1,5 +1,7 @@
-import glob
 import os
+from os import listdir
+from os.path import join
+from re import split
 from typing import List, Optional
 
 import geopandas as gpd
@@ -8,6 +10,11 @@ import pandas as pd
 import spatialdata as sd
 import spatialdata_io
 from spatialdata.transformations import Identity, get_transformation, set_transformation
+from tifffile import imread
+from tqdm import tqdm
+
+from ficture_utils import create_factor_level_image, parse_metadata
+from metrics.ficture_intensities import ficture_intensities
 
 image_based = ["Cellpose", "Negative_Control"]
 
@@ -120,6 +127,8 @@ def integrate_segmentation_data(
     sdata_main: sd.SpatialData,
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
+    n_ficture: int = 21,
+    var: bool = True,
 ):
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
@@ -129,11 +138,14 @@ def integrate_segmentation_data(
         sdata_main: Main spatial data object to update
         write_to_disk: Whether to write elements to disk immediately
         data_path: Optional path to directory to get transformation for adatas
+        n_ficture: Number of fictures
+        var: Whether to compute variance of ficture factors
 
     Returns:
         Updated sdata_main object
     """
-    for seg_method in seg_methods:
+    ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
+    for seg_method in tqdm(seg_methods):
         seg_path = os.path.join(sdata_path, "results", seg_method, "sdata.zarr")
         if not os.path.exists(os.path.join(seg_path, "shapes")):
             print(f"No boundaries files found for {seg_method}. Skipping.")
@@ -168,17 +180,51 @@ def integrate_segmentation_data(
 
         # Handle tables
         if f"adata_{seg_method}" not in sdata_main:
-            base_dir = os.path.join(seg_path, "tables")
-            table_files = [
-                os.path.basename(f) for f in glob.glob(os.path.join(base_dir, "table"))
-            ]
-
-            if len(table_files) == 1:
-                sdata_main[f"adata_{seg_method}"] = sdata[table_files[0]]
+            if len(sdata.tables) == 1:
+                sdata_main[f"adata_{seg_method}"] = sdata[list(sdata.tables.keys())[0]]
                 transform_adata(sdata_main, seg_method, data_path=data_path)
+
+                if "cell_type_annotation" in listdir(
+                    join(sdata_path, "results", seg_method)
+                ):  # TODO: add automatic cell type annotation
+                    cell_type = pd.read_csv(
+                        join(
+                            sdata_path,
+                            "results",
+                            seg_method,
+                            "cell_type_annotation",
+                            "adata_obs_annotated.csv",
+                        )
+                    )["cell_type_final"]
+                    sdata_main[f"adata_{seg_method}"].obs = sdata_main[
+                        f"adata_{seg_method}"
+                    ].obs.merge(
+                        cell_type, how="left", left_index=True, right_index=True
+                    )
+                else:
+                    print(
+                        f"No cell type annotation found for {seg_method}. Skipping annotation."
+                    )
+
+                if len(ficture_arguments) > 0:
+                    stats = ficture_intensities(
+                        sdata,
+                        ficture_arguments[0],
+                        seg_method,
+                        n_ficture,
+                        ficture_arguments[1],
+                        var=var,
+                    )
+                    sdata_main[f"adata_{seg_method}"].obsm["ficture_mean"] = stats[0]
+                    if var:
+                        sdata_main[f"adata_{seg_method}"].obsm["ficture_variance"] = (
+                            stats[1]
+                        )
+
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
-            elif len(table_files) > 1:
+
+            elif len(sdata.tables) > 1:
                 print(
                     f"Multiple table files found for {seg_method}. Skipping adata import."
                 )
@@ -385,3 +431,79 @@ def pixel_to_microns(
             # Add to spatialdata
             sdata.shapes[output_name] = transformed_boundaries
             transform_count += 1
+
+
+def prepare_ficture(data_path, sdata_path, n_ficture=21):
+    """Generate ficture images stack and other ficture information.
+
+    Args:
+        data_path: Path to merscope data
+        sdata_path: path to master sdata directory
+        n_ficture: number of factors of ficture run
+
+    Returns: image stack, number of relevant ficture factors, number of unique ficture factors
+
+    """
+    DAPI_shape = imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
+    transform = pd.read_csv(
+        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
+        sep=" ",
+        header=None,
+    )
+
+    if "Ficture" not in os.listdir(join(sdata_path, "results")):
+        return []
+    ficture_path = join(sdata_path, "results", "Ficture", "output")
+    for file in listdir(ficture_path):
+        if n_ficture == int(split(r"\.|F", file)[1]):
+            ficture_path = join(ficture_path, file)
+
+    ficture_full_path = ""
+    for file in listdir(ficture_path):
+        if file.endswith(".pixel.sorted.tsv.gz"):
+            ficture_full_path = join(ficture_path, file)
+    assert ficture_full_path != "", "Ficture output not correctly computed."
+
+    fic_header = ["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
+    ficture_pixels = pd.read_csv(
+        ficture_full_path, sep="\t", names=fic_header, comment="#"
+    )
+
+    metadata = parse_metadata(ficture_full_path)
+    scale = float(metadata["SCALE"])
+    offset_x = float(metadata["OFFSET_X"])
+    offset_y = float(metadata["OFFSET_Y"])
+    ficture_pixels["X_pixel"] = (
+        ficture_pixels["X"] / scale * transform.iloc[0, 0]
+        + offset_x * transform.iloc[0, 0]
+        + transform.iloc[0, 2]
+    )
+    ficture_pixels["Y_pixel"] = (
+        ficture_pixels["Y"] / scale * transform.iloc[1, 1]
+        + offset_y * transform.iloc[1, 1]
+        + transform.iloc[1, 2]
+    )
+    del transform, metadata
+
+    unique_factors = (
+        list(np.unique(ficture_pixels["K1"]))
+        + list(np.unique(ficture_pixels["K2"]))
+        + list(np.unique(ficture_pixels["K3"]))
+    )
+    unique_factors = list(set(unique_factors))
+
+    for factor in tqdm(unique_factors):
+        try:
+            image_stack
+        except NameError:
+            image_stack = create_factor_level_image(ficture_pixels, factor, DAPI_shape)
+        else:
+            image_stack = np.concatenate(
+                (
+                    image_stack,
+                    create_factor_level_image(ficture_pixels, factor, DAPI_shape),
+                ),
+                axis=0,
+                dtype=np.uint16,
+            )
+    return [image_stack, unique_factors]

@@ -7,8 +7,8 @@ from re import split
 import numpy as np
 import pandas as pd
 from spatialdata import read_zarr
-from tqdm import tqdm
 from tifffile import imread
+from tqdm import tqdm
 
 sys.path.insert(1, join(str(Path(__file__).parent.parent.resolve()), "src"))
 from ficture_utils import create_factor_level_image, parse_metadata
@@ -83,7 +83,16 @@ for key in tqdm(full_keys):
     ficture_intensities(
         master_sdata, image_stack, key, n_factors, unique_factors, update_element=True
     )
-    cell_type = pd.read_csv(join(master_sdata_path, "results", key,
-                                                                     "cell_type_annotation", "adata_obs_annotated.csv"))["cell_type_final"]
-    master_sdata[f"adata_{key}"].obs = master_sdata[f"adata_{key}"].obs.merge(cell_type, how="left", left_index=True, right_index=True)
+    cell_type = pd.read_csv(
+        join(
+            master_sdata_path,
+            "results",
+            key,
+            "cell_type_annotation",
+            "adata_obs_annotated.csv",
+        )
+    )["cell_type_final"]
+    master_sdata[f"adata_{key}"].obs = master_sdata[f"adata_{key}"].obs.merge(
+        cell_type, how="left", left_index=True, right_index=True
+    )
     master_sdata.write_element(f"adata_{key}")
