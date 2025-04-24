@@ -50,7 +50,7 @@ def main(data_path, sample, proseg_flags):
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
 
-    sopa.segmentation.proseg(
+    proseg(
         sdata, delete_cache=False, command_line_suffix=proseg_flags
     )
     sopa.aggregate(
