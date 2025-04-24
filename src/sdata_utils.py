@@ -181,7 +181,7 @@ def integrate_segmentation_data(
         # Handle tables
         if f"adata_{seg_method}" not in sdata_main:
             if len(sdata.tables) == 1:
-                sdata_main[f"adata_{seg_method}"] = sdata[list(sdata.tables.keys())[0]]
+                sdata_main[f"adata_{seg_method}"] = sdata[list(sdata.tables.keys())[0]].copy()
                 transform_adata(sdata_main, seg_method, data_path=data_path)
 
                 if "cell_type_annotation" in listdir(
