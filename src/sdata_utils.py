@@ -205,6 +205,7 @@ def integrate_segmentation_data(
 #                    print(
 #                        f"No cell type annotation found for {seg_method}. Skipping annotation."
 #                    )
+
                 if len(ficture_arguments) > 0:
                     stats = ficture_intensities(
                         sdata,
