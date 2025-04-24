@@ -184,28 +184,27 @@ def integrate_segmentation_data(
                 sdata_main[f"adata_{seg_method}"] = sdata[list(sdata.tables.keys())[0]].copy()
                 transform_adata(sdata_main, seg_method, data_path=data_path)
 
-                if "cell_type_annotation" in listdir(
-                    join(sdata_path, "results", seg_method)
-                ):  # TODO: add automatic cell type annotation
-                    cell_type = pd.read_csv(
-                        join(
-                            sdata_path,
-                            "results",
-                            seg_method,
-                            "cell_type_annotation",
-                            "adata_obs_annotated.csv",
-                        )
-                    )["cell_type_final"]
-                    sdata_main[f"adata_{seg_method}"].obs = sdata_main[
-                        f"adata_{seg_method}"
-                    ].obs.merge(
-                        cell_type, how="left", left_index=True, right_index=True
-                    )
-                else:
-                    print(
-                        f"No cell type annotation found for {seg_method}. Skipping annotation."
-                    )
-
+#                if "cell_type_annotation" in listdir(
+#                    join(sdata_path, "results", seg_method)
+#                ):  # TODO: add automatic cell type annotation
+#                    cell_type = pd.read_csv(
+#                        join(
+#                            sdata_path,
+#                            "results",
+#                            seg_method,
+#                            "cell_type_annotation",
+#                            "adata_obs_annotated.csv",
+#                        )
+#                    )["cell_type_final"]
+#                    sdata_main[f"adata_{seg_method}"].obs = sdata_main[
+#                        f"adata_{seg_method}"
+#                    ].obs.merge(
+#                        cell_type, how="left", left_index=True, right_index=True
+#                    )
+#                else:
+#                    print(
+#                        f"No cell type annotation found for {seg_method}. Skipping annotation."
+#                    )
                 if len(ficture_arguments) > 0:
                     stats = ficture_intensities(
                         sdata,

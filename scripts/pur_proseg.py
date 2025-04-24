@@ -23,11 +23,10 @@ from sopa.segmentation.methods._proseg import _run_proseg, _read_proseg
 
 data_path = sys.argv[1]
 sample = sys.argv[2]
-base_segmentation = sys.argv[3]
-proseg_flags = " ".join(sys.argv[4:])
+proseg_flags = " ".join(sys.argv[3:])
 
 log = logging.getLogger(__name__)
-def main(data_path, sample, base_segmentation):
+def main(data_path, sample, proseg_flags):
     """ComSeg algorithm by sopa with dask backend parallelized."""
     sdata = sopa.io.merscope(data_path)  # to read in the images and points
     path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
@@ -85,7 +84,7 @@ def main(data_path, sample, base_segmentation):
 
 
 if __name__ == "__main__":
-    main(data_path, sample, base_segmentation)
+    main(data_path, sample, proseg_flags)
 
 def _get_proseg_command(sdata: SpatialData, points_key: str, command_line_suffix: str) -> str:
     feature_key = get_feature_key(sdata[points_key], raise_error=True)

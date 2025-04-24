@@ -13,7 +13,7 @@ base_segmentation = sys.argv[3]
 proseg_flags = " ".join(sys.argv[4:])
 
 
-def main(data_path, sample, base_segmentation):
+def main(data_path, sample, base_segmentation, proseg_flags):
     """ComSeg algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)  # to read in the images and points
     path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
@@ -86,4 +86,4 @@ def main(data_path, sample, base_segmentation):
 
 
 if __name__ == "__main__":
-    main(data_path, sample, base_segmentation)
+    main(data_path, sample, base_segmentation, proseg_flags)
