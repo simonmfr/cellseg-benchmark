@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 def _get_proseg_command(sdata: SpatialData, points_key: str, command_line_suffix: str) -> str:
     feature_key = get_feature_key(sdata[points_key], raise_error=True)
-    return f"proseg transcripts.csv -x x -y y -z z --gene-column {feature_key} {command_line_suffix}"
+    return f"proseg transcripts.csv -x x -y y -z z --gene-column {feature_key} --cell-id-column cell_id --cell-id-unassigned -1 {command_line_suffix}"
 
 def proseg(
     sdata: SpatialData,
@@ -98,7 +98,6 @@ def main(data_path, sample, proseg_flags):
     )
     sdata = read_zarr(join(path, f"Proseg_pure", "sdata_tmp.zarr"))
 
-    # Annahme: nur cellpose prior wird benutzt
     sopa.make_transcript_patches(sdata, patch_width=None)
 
     sopa.settings.parallelization_backend = "dask"
