@@ -129,7 +129,7 @@ def integrate_segmentation_data(
     data_path: Optional[str] = None,
     n_ficture: int = 21,
     var: bool = True,
-):
+): #TODO: seperate steps of integration into smaller steps for usage in update function.
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
     Args:
@@ -161,18 +161,7 @@ def integrate_segmentation_data(
             sdata = sd.read_zarr(seg_path)
 
         if f"boundaries_{seg_method}" not in sdata_main:
-            # region key specifies the key for boundaries created/used by sopa for this method
-            boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
-
-            if boundary_key in sdata.shapes.keys():
-                sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
-                if write_to_disk:
-                    sdata_main.write_element(f"boundaries_{seg_method}")
-                assign_transformations(sdata_main, seg_method, write_to_disk)
-            else:
-                print(
-                    f"Shapes file missing for {seg_method}. Skipping boundary import. Check conformaty with sopa pipeline, especially sdata['table'].uns['spatialdata_attrs']['region']."
-                )
+            sdata_main = build_shapes(sdata, sdata_main, seg_method, write_to_disk=write_to_disk)
         else:
             print(
                 f"Skipping boundary import of {seg_method} as boundaries_{seg_method} exist already."
@@ -184,45 +173,17 @@ def integrate_segmentation_data(
                 sdata_main[f"adata_{seg_method}"] = sdata[list(sdata.tables.keys())[0]].copy()
                 transform_adata(sdata_main, seg_method, data_path=data_path)
 
-#                if "cell_type_annotation" in listdir(
-#                    join(sdata_path, "results", seg_method)
-#                ):  # TODO: add automatic cell type annotation
-#                    cell_type = pd.read_csv(
-#                        join(
-#                            sdata_path,
-#                            "results",
-#                            seg_method,
-#                            "cell_type_annotation",
-#                            "adata_obs_annotated.csv",
-#                        )
-#                    )["cell_type_final"]
-#                    sdata_main[f"adata_{seg_method}"].obs = sdata_main[
-#                        f"adata_{seg_method}"
-#                    ].obs.merge(
-#                        cell_type, how="left", left_index=True, right_index=True
-#                    )
-#                else:
-#                    print(
-#                        f"No cell type annotation found for {seg_method}. Skipping annotation."
-#                    )
+                if "cell_type_annotation" in listdir(
+                    join(sdata_path, "results", seg_method)
+                ):  # TODO: add automatic cell type annotation
+                    sdata_main = add_cell_type_annotation(sdata_main, sdata_path, seg_method, write_to_disk=write_to_disk)
+                else:
+                    print(
+                        f"No cell type annotation found for {seg_method}. Skipping annotation."
+                    )
 
                 if len(ficture_arguments) > 0:
-                    stats = ficture_intensities(
-                        sdata,
-                        ficture_arguments[0],
-                        seg_method,
-                        n_ficture,
-                        ficture_arguments[1],
-                        var=var,
-                    )
-                    sdata_main[f"adata_{seg_method}"].obsm["ficture_mean"] = stats[0]
-                    if var:
-                        sdata_main[f"adata_{seg_method}"].obsm["ficture_variance"] = (
-                            stats[1]
-                        )
-
-                if write_to_disk:
-                    sdata_main.write_element(f"adata_{seg_method}")
+                    sdata_main = add_ficture(sdata, sdata_main, seg_method, ficture_arguments, n_ficture, var, write_to_disk=write_to_disk)
 
             elif len(sdata.tables) > 1:
                 print(
@@ -237,6 +198,57 @@ def integrate_segmentation_data(
 
     return sdata_main
 
+def build_shapes(sdata, sdata_main, seg_method, write_to_disk):
+    # region key specifies the key for boundaries created/used by sopa for this method
+    boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
+
+    if boundary_key in sdata.shapes.keys():
+        sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
+        if write_to_disk:
+            sdata_main.write_element(f"boundaries_{seg_method}")
+        assign_transformations(sdata_main, seg_method, write_to_disk)
+    else:
+        print(
+            f"Shapes file missing for {seg_method}. Skipping boundary import. Check conformaty with sopa pipeline, especially sdata['table'].uns['spatialdata_attrs']['region']."
+        )
+    return sdata_main
+
+def add_cell_type_annotation(sdata_main, sdata_path:str, seg_method, write_to_disk):
+    cell_type = pd.read_csv(
+        join(
+            sdata_path,
+            "results",
+            seg_method,
+            "cell_type_annotation",
+            "adata_obs_annotated.csv",
+        )
+    )["cell_type_final", 'cell_id']
+    sdata_main[f"adata_{seg_method}"].obs = sdata_main[
+        f"adata_{seg_method}"
+    ].obs.merge(
+        cell_type, how="left", left_index=True, right_on='cell_id'
+    )
+    if write_to_disk:
+        sdata_main.write_element(f"adata_{seg_method}")
+    return sdata_main
+
+def add_ficture(sdata, sdata_main, seg_method, ficture_arguments, n_ficture, var, write_to_disk):
+    stats = ficture_intensities(
+        sdata,
+        ficture_arguments[0],
+        seg_method,
+        n_ficture,
+        ficture_arguments[1],
+        var=var,
+    )
+    sdata_main[f"adata_{seg_method}"].obsm[f"ficture{n_ficture}_mean"] = stats[0]
+    if var:
+        sdata_main[f"adata_{seg_method}"].obsm[f"ficture{n_ficture}_variance"] = (
+            stats[1]
+        )
+    if write_to_disk:
+        sdata_main.write_element(f"adata_{seg_method}")
+    return sdata_main
 
 def assign_transformations(
     sdata_main: sd.SpatialData, seg_method: str, write_to_disk: bool
