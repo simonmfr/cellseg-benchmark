@@ -49,7 +49,7 @@ data_dir = sys.argv[4]  # base directory
 if len(sys.argv) > 5:
     n_ficture = int(sys.argv[5])
     if len(sys.argv) > 6:
-        var = sys.argv[6]
+        var = True
     else:
         var = False
 else:
@@ -66,7 +66,6 @@ seg_methods = [
     if os.path.isdir(join(sdata_path, "results", method, "sdata.zarr"))
 ]
 
-print("Compile task list")
 tasks_collection = defaultdict(list)
 
 ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
