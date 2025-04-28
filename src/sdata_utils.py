@@ -343,7 +343,6 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
     sdata_main[f"adata_{seg_method}"] = adata
     return
 
-
 def update_element(sdata, element_name):
     """Workaround for updating a backed element in sdata.
 

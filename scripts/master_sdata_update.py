@@ -16,15 +16,6 @@ from sdata_utils import build_shapes, add_cell_type_annotation, add_ficture, tra
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-def check_cell_type_availability(adata: AnnData, method_path: str)->bool:
-    if "cell_type_annotation" in os.listdir(method_path):
-        if "cell_type_final" in list(adata.obs.columns):
-            return False
-        else:
-            return True
-    else:
-        return False
-
 def check_ficture_availability(adata: AnnData, sdata_path: str, n_ficture:int, var=False)->bool:
     if "Ficture" not in os.listdir(join(sdata_path, "results")):
         return False
@@ -33,7 +24,7 @@ def check_ficture_availability(adata: AnnData, sdata_path: str, n_ficture:int, v
         if f"ficture{n_ficture}_mean" in list(adata.obsm_keys()):
             return False
     else:
-        if set([f"ficture{n_ficture}_mean", f"ficture{n_ficture}_var"]) <= set(adata.obsm_keys()) :
+        if set([f"ficture{n_ficture}_mean", f"ficture{n_ficture}_variance"]) <= set(adata.obsm_keys()) :
             return False
 
     ficture_path = join(sdata_path, "results", "Ficture", "output")
@@ -74,20 +65,20 @@ if not ficture_arguments:
 
 for method in seg_methods:
     if f"boundaries_{method}" not in sdata_main.shapes.keys():
-        tasks_collection[f"boundaries_{method}"].append(f"shapes")
+        tasks_collection[method].append(f"shapes")
     if f"adata_{method}" not in sdata_main.tables.keys():
-        tasks_collection[f"adata_{method}"].append('adata')
+        tasks_collection[method].append('adata')
     else:
         adata = sdata_main.tables[f"adata_{method}"]
-        method_path = os.path.join(sdata_path, method)
+        method_path = os.path.join(sdata_path, "results", method)
 
-        if not os.path.exists(join(method_path, "cell_type_annotation")):
+        if not os.path.exists(join(method_path, "cell_type_annotation", "adata_obs_annotated.csv")):
             logging.warning(f"No cell type annotation found on disk for method '{method}'")
         elif "cell_type_final" not in adata.obs.columns:
-            tasks_collection[f"adata_{method}"].append("cell_types")
+            tasks_collection[method].append("cell_types")
 
         if check_ficture_availability(adata, sdata_path, n_ficture, var=var):
-            tasks_collection[f"adata_{method}"].append("ficture")
+            tasks_collection[method].append("ficture")
 
 for key, upd in tasks_collection.items():
     logging.info(f"{key} requires updates: {upd}")
@@ -109,7 +100,7 @@ for method, tasks in tasks_collection.items():
 
             if "cell_type_annotation" in os.listdir(
                     join(sdata_path, "results", method)
-            ):  # TODO: add automatic cell type annotation
+            ):
                 sdata_main = add_cell_type_annotation(sdata_main, sdata_path, method, write_to_disk=False)
             else:
                 logging.warning(f"No cell type annotation found for '{method}'. Skipping annotation.")

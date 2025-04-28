@@ -117,15 +117,15 @@ def create_factor_level_image(data, factor, DAPI_shape) -> np.ndarray:
     print(f"working on factor: {factor}")
     K1_ind = data["K1"] == factor
     K1 = data[K1_ind]
-    K1["probability"] = K1["P1"]
+    K1["probability"] = K1["P1"].copy()
 
     K2_ind = data["K2"] == factor
     K2 = data[K2_ind]
-    K2["probability"] = K2["P2"]
+    K2["probability"] = K2["P2"].copy()
 
     K3_ind = data["K3"] == factor
     K3 = data[K3_ind]
-    K3["probability"] = K3["P3"]
+    K3["probability"] = K3["P3"].copy()
 
     filtered_data = pd.concat([K1, K2, K3], axis=0)[
         ["Y_pixel", "X_pixel", "probability"]
