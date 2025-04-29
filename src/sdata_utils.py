@@ -222,7 +222,7 @@ def add_cell_type_annotation(sdata_main, sdata_path:str, seg_method, write_to_di
             "cell_type_annotation",
             "adata_obs_annotated.csv",
         )
-    )["cell_type_final", 'cell_id']
+    )[["cell_type_final", 'cell_id']]
     sdata_main[f"adata_{seg_method}"].obs = sdata_main[
         f"adata_{seg_method}"
     ].obs.merge(
