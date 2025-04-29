@@ -44,7 +44,7 @@ def ficture_intensities(
     )
     pd_intensity = pd.DataFrame(
         intensities,
-        index=sdata["table"].obs.index,
+        index=sdata["table"].obs_names,
         columns=[f"fictureF{n_factors}_{i}_mean_intensity" for i in unique_factors],
     )
     pd_intensity = pd_intensity / pd_intensity.max(axis=None)
@@ -58,11 +58,11 @@ def ficture_intensities(
         )
         pd_variance = pd.DataFrame(
             variance,
-            index=sdata["table"].obs.index,
+            index=sdata["table"].obs_names,
             columns=[f"fictureF{n_factors}_{i}_var_intensity" for i in unique_factors],
         )
-        return pd_intensity, pd_variance
-    return pd_intensity
+        return (pd_intensity, pd_variance)
+    return (pd_intensity)
 
 
 # from sopa.aggregation.channels.py

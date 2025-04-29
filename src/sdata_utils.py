@@ -129,7 +129,7 @@ def integrate_segmentation_data(
     data_path: Optional[str] = None,
     n_ficture: int = 21,
     var: bool = True,
-): #TODO: seperate steps of integration into smaller steps for usage in update function.
+):
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
     Args:
