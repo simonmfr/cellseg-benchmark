@@ -93,7 +93,7 @@ for method, tasks in tasks_collection.items():
         if task == "cell_types":
             sdata_main = add_cell_type_annotation(sdata_main, sdata_path, method, write_to_disk=False)
         elif task == "ficture":
-            sdata_main = add_ficture(sdata, sdata_main, method, ..., n_ficture, var, write_to_disk=False)
+            sdata_main = add_ficture(sdata, sdata_main, method, ficture_arguments, n_ficture, var, write_to_disk=False)
         elif task == "adata":
             sdata_main[f"adata_{method}"] = sdata[list(sdata.tables.keys())[0]].copy()
             transform_adata(sdata_main, method, data_path=data_path)
