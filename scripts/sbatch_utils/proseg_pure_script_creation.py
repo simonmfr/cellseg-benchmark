@@ -32,6 +32,6 @@ for key, value in data.items():
 
 mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_pure
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_proseg.py {value} {key} --voxel-layers {voxel}
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/proseg_pure.py {value} {key} --voxel-layers {voxel}
             """)
     f.close()
