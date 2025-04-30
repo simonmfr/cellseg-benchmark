@@ -204,6 +204,52 @@ with rc_context({"figure.figsize": (9, 9)}):
     plt.close()
     adata.obs.drop(columns=adata.obsm["allen_cell_type_mapping"].columns, inplace=True)
 
+# plot mixed and low-quality cells on umap and spatial plot
+adata.obs["cell_type_mmc_is_low_quality"] = adata.obs["cell_type_mmc_incl_low_quality"].apply(
+        lambda x: "undefined" if x == "Undefined" else "mapped"
+    )
+palette_dict = {
+    "cell_type_mmc_is_mixed": {"mixed": "red", "unique": "lightgrey"},
+    "cell_type_mmc_is_low_quality": {"undefined": "blue", "mapped": "lightgrey"},
+}
+
+fig, axes = plt.subplots(2, 2, figsize=(18, 16), gridspec_kw={'wspace': 0.001, 'hspace': 0.15})
+
+keys = ["cell_type_mmc_is_mixed", "cell_type_mmc_is_low_quality"]
+
+for i, key in enumerate(keys):
+    palette = palette_dict[key]
+
+    sc.pl.umap(
+        adata,
+        color=key,
+        size=pt_size_umap,
+        legend_fontoutline=2,
+        legend_fontweight="normal",
+        legend_fontsize=7,
+        palette=palette,
+        ax=axes[0, i],
+        show=False
+    )
+    axes[0, i].set_aspect('equal')
+
+    # Spatial
+    sc.pl.embedding(
+        adata,
+        basis='spatial',
+        color=key,
+        size=150000 / adata.shape[0],
+        legend_loc=None,
+        palette=palette,
+        ax=axes[1, i],
+        show=False
+    )
+    axes[1, i].set_aspect('equal')
+
+output_path = os.path.join(annotation_path, "UMAP_and_SPATIAL_mapmycells_mixed_and_undefined.png")
+plt.savefig(output_path, dpi=200, bbox_inches="tight")
+plt.close()
+
 print(adata.obs['cell_type_mmc_incl_mixed'].value_counts())
 print(adata.obs['cell_type_mmc_is_mixed'].value_counts())
 print(adata.obs['cell_type_mmc_mixed_names'].value_counts())
