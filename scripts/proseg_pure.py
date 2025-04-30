@@ -1,25 +1,23 @@
+import logging
 import os
+import shutil
 import sys
 from os.path import join
+from pathlib import Path
 from subprocess import run
-import logging
 
 import sopa
 from pandas import read_csv
-from spatialdata import read_zarr, SpatialData
-
-import shutil
-from pathlib import Path
-
 from sopa._constants import SopaAttrs, SopaKeys
 from sopa.aggregation.aggregation import add_standardized_table
+from sopa.segmentation._transcripts import _check_transcript_patches
+from sopa.segmentation.methods._proseg import _read_proseg, _run_proseg
 from sopa.utils import (
     delete_transcripts_patches_dirs,
     get_feature_key,
     get_transcripts_patches_dirs,
 )
-from sopa.segmentation._transcripts import _check_transcript_patches
-from sopa.segmentation.methods._proseg import _run_proseg, _read_proseg
+from spatialdata import SpatialData, read_zarr
 
 data_path = sys.argv[1]
 sample = sys.argv[2]
@@ -27,9 +25,13 @@ proseg_flags = " ".join(sys.argv[3:])
 
 log = logging.getLogger(__name__)
 
-def _get_proseg_command(sdata: SpatialData, points_key: str, command_line_suffix: str) -> str:
+
+def _get_proseg_command(
+    sdata: SpatialData, points_key: str, command_line_suffix: str
+) -> str:
     feature_key = get_feature_key(sdata[points_key], raise_error=True)
     return f"proseg transcripts.csv -x x -y y -z z --gene-column {feature_key} --cell-id-column cell_id --cell-id-unassigned=-1 {command_line_suffix}"
+
 
 def proseg(
     sdata: SpatialData,
@@ -54,18 +56,18 @@ def proseg(
         command_line_suffix: Optional suffix to add to the proseg command line.
         key_added: Name of the shapes element to be added to `sdata.shapes`.
     """
-    assert (
-        shutil.which("proseg") is not None
-    ), "Proseg is not installed. Install it according to https://github.com/dcjones/proseg"
+    assert shutil.which("proseg") is not None, (
+        "Proseg is not installed. Install it according to https://github.com/dcjones/proseg"
+    )
 
     _check_transcript_patches(sdata)
 
     points_key = sdata[SopaKeys.TRANSCRIPTS_PATCHES][SopaKeys.POINTS_KEY].iloc[0]
 
     patches_dirs = get_transcripts_patches_dirs(sdata)
-    assert (
-        len(patches_dirs) == 1
-    ), "Proseg is fast enough to work on a single patch. Re-run `sopa.make_transcript_patches` with `patch_width=None` and a `prior_shapes_key`."
+    assert len(patches_dirs) == 1, (
+        "Proseg is fast enough to work on a single patch. Re-run `sopa.make_transcript_patches` with `patch_width=None` and a `prior_shapes_key`."
+    )
     patch_dir = Path(patches_dirs[0])
 
     proseg_command = _get_proseg_command(sdata, points_key, command_line_suffix)
@@ -80,7 +82,10 @@ def proseg(
     if delete_cache:
         delete_transcripts_patches_dirs(sdata)
 
-    log.info("Proseg table and boundaries added (running `sopa.aggregate` is not mandatory).")
+    log.info(
+        "Proseg table and boundaries added (running `sopa.aggregate` is not mandatory)."
+    )
+
 
 def main(data_path, sample, proseg_flags):
     """ComSeg algorithm by sopa with dask backend parallelized."""
@@ -93,10 +98,8 @@ def main(data_path, sample, proseg_flags):
     )
 
     # backing für memory efficiency
-    sdata.write(
-        join(path, f"Proseg_pure", "sdata_tmp.zarr"), overwrite=True
-    )
-    sdata = read_zarr(join(path, f"Proseg_pure", "sdata_tmp.zarr"))
+    sdata.write(join(path, "Proseg_pure", "sdata_tmp.zarr"), overwrite=True)
+    sdata = read_zarr(join(path, "Proseg_pure", "sdata_tmp.zarr"))
 
     sopa.make_transcript_patches(sdata, patch_width=None)
 
@@ -105,14 +108,12 @@ def main(data_path, sample, proseg_flags):
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
 
-    proseg(
-        sdata, delete_cache=False, command_line_suffix=proseg_flags
-    )
+    proseg(sdata, delete_cache=False, command_line_suffix=proseg_flags)
     sopa.aggregate(
         sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10
     )
     sopa.io.explorer.write(
-        join(path, f"Proseg_pure", "sdata.explorer"),
+        join(path, "Proseg_pure", "sdata.explorer"),
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
@@ -121,7 +122,7 @@ def main(data_path, sample, proseg_flags):
 
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(path, f"Proseg_pure", "sdata.zarr"))
+    sdata.write(join(path, "Proseg_pure", "sdata.zarr"))
     run(
         [
             "cp",
@@ -129,13 +130,13 @@ def main(data_path, sample, proseg_flags):
             cache_dir,
             join(
                 path,
-                f"Proseg_pure",
+                "Proseg_pure",
                 "sdata.zarr",
                 str(cache_dir).split("/")[-1],
             ),
         ]
     )
-    run(["rm", "-r", join(path, f"Proseg_pure", "sdata_tmp.zarr")])
+    run(["rm", "-r", join(path, "Proseg_pure", "sdata_tmp.zarr")])
 
 
 if __name__ == "__main__":

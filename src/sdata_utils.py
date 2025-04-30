@@ -1,3 +1,4 @@
+import logging
 import os
 from os import listdir
 from os.path import join
@@ -129,6 +130,7 @@ def integrate_segmentation_data(
     data_path: Optional[str] = None,
     n_ficture: int = 21,
     var: bool = True,
+    logger: Optional[logging.Logger] = None,
 ):
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
@@ -140,6 +142,7 @@ def integrate_segmentation_data(
         data_path: Optional path to directory to get transformation for adatas
         n_ficture: Number of fictures
         var: Whether to compute variance of ficture factors
+        logger: Optional logger object to write messages to console
 
     Returns:
         Updated sdata_main object
@@ -148,10 +151,20 @@ def integrate_segmentation_data(
     for seg_method in tqdm(seg_methods):
         seg_path = os.path.join(sdata_path, "results", seg_method, "sdata.zarr")
         if not os.path.exists(os.path.join(seg_path, "shapes")):
-            print(f"No boundaries files found for {seg_method}. Skipping.")
+            if logger:
+                logger.warning(
+                    "No boundaries files found for {}. Skipping".format(seg_method)
+                )
+            else:
+                print(f"No boundaries files found for {seg_method}. Skipping.")
             continue
         if not os.path.exists(os.path.join(seg_path, "tables")):
-            print(f"No adata files found for {seg_method}. Skipping.")
+            if logger:
+                logger.warning(
+                    "No adata files found for {}. Skipping".format(seg_method)
+                )
+            else:
+                print(f"No adata files found for {seg_method}. Skipping.")
             continue
 
         if (
@@ -161,45 +174,93 @@ def integrate_segmentation_data(
             sdata = sd.read_zarr(seg_path)
 
         if f"boundaries_{seg_method}" not in sdata_main:
-            sdata_main = build_shapes(sdata, sdata_main, seg_method, write_to_disk=write_to_disk)
-        else:
-            print(
-                f"Skipping boundary import of {seg_method} as boundaries_{seg_method} exist already."
+            sdata_main = build_shapes(
+                sdata, sdata_main, seg_method, write_to_disk=write_to_disk
             )
+        else:
+            if logger:
+                logger.warning(
+                    "No boundaries files found for {}. Skipping".format(seg_method)
+                )
+            else:
+                print(
+                    f"Skipping boundary import of {seg_method} as boundaries_{seg_method} exist already."
+                )
 
         # Handle tables
         if f"adata_{seg_method}" not in sdata_main:
             if len(sdata.tables) == 1:
-                sdata_main[f"adata_{seg_method}"] = sdata[list(sdata.tables.keys())[0]].copy()
+                sdata_main[f"adata_{seg_method}"] = sdata[
+                    list(sdata.tables.keys())[0]
+                ].copy()
                 transform_adata(sdata_main, seg_method, data_path=data_path)
 
                 if "cell_type_annotation" in listdir(
                     join(sdata_path, "results", seg_method)
                 ):  # TODO: add automatic cell type annotation
-                    sdata_main = add_cell_type_annotation(sdata_main, sdata_path, seg_method, write_to_disk=write_to_disk)
-                else:
-                    print(
-                        f"No cell type annotation found for {seg_method}. Skipping annotation."
+                    sdata_main = add_cell_type_annotation(
+                        sdata_main, sdata_path, seg_method, write_to_disk=write_to_disk
                     )
+                else:
+                    if logger:
+                        logger.warning(
+                            "No adata files found for {}. Skipping".format(seg_method)
+                        )
+                    else:
+                        print(
+                            f"No adata files found for {seg_method}. Skipping annotation."
+                        )
 
                 if len(ficture_arguments) > 0:
-                    sdata_main = add_ficture(sdata, sdata_main, seg_method, ficture_arguments, n_ficture, var, write_to_disk=write_to_disk)
+                    sdata_main = add_ficture(
+                        sdata,
+                        sdata_main,
+                        seg_method,
+                        ficture_arguments,
+                        n_ficture,
+                        var,
+                        write_to_disk=write_to_disk,
+                    )
 
             elif len(sdata.tables) > 1:
-                print(
-                    f"Multiple table files found for {seg_method}. Skipping adata import."
+                if logger:
+                    logger.warning(
+                        "No adata files found for {}. Skipping adata import".format(
+                            seg_method
+                        )
+                    )
+                else:
+                    print(
+                        f"Multiple table files found for {seg_method}. Skipping adata import."
+                    )
+            else:
+                if logger:
+                    logger.warning(
+                        "No adata files found for {}. Skipping adata import".format(
+                            seg_method
+                        )
+                    )
+                else:
+                    print(
+                        f"Table file missing for {seg_method}. Skipping adata import."
+                    )
+        else:
+            if logger:
+                logger.warning(
+                    "Skipping adata import of {} as adata_{} exist already.".format(
+                        seg_method, seg_method
+                    )
                 )
             else:
-                print(f"Table file missing for {seg_method}. Skipping adata import.")
-        else:
-            print(
-                f"Skipping adata import of {seg_method} as adata_{seg_method} exist already."
-            )
+                print(
+                    f"Skipping adata import of {seg_method} as adata_{seg_method} exist already."
+                )
 
     return sdata_main
 
-def build_shapes(sdata, sdata_main, seg_method, write_to_disk):
-    # region key specifies the key for boundaries created/used by sopa for this method
+
+def build_shapes(sdata, sdata_main, seg_method, write_to_disk, logger=None):
+    """Insert shapes of segmentation method into sdata_main."""
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
 
     if boundary_key in sdata.shapes.keys():
@@ -208,12 +269,21 @@ def build_shapes(sdata, sdata_main, seg_method, write_to_disk):
             sdata_main.write_element(f"boundaries_{seg_method}")
         assign_transformations(sdata_main, seg_method, write_to_disk)
     else:
-        print(
-            f"Shapes file missing for {seg_method}. Skipping boundary import. Check conformaty with sopa pipeline, especially sdata['table'].uns['spatialdata_attrs']['region']."
-        )
+        if logger:
+            logger.warning(
+                "Shapes file missing for {}. Skipping boundary import. Check conformaty with sopa pipeline, especially sdata['table'].uns['spatialdata_attrs']['region'].".format(
+                    seg_method
+                )
+            )
+        else:
+            print(
+                f"Shapes file missing for {seg_method}. Skipping boundary import. Check conformaty with sopa pipeline, especially sdata['table'].uns['spatialdata_attrs']['region']."
+            )
     return sdata_main
 
-def add_cell_type_annotation(sdata_main, sdata_path:str, seg_method, write_to_disk):
+
+def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_disk):
+    """Add cell type annotations to sdata_main."""
     cell_type = pd.read_csv(
         join(
             sdata_path,
@@ -222,11 +292,9 @@ def add_cell_type_annotation(sdata_main, sdata_path:str, seg_method, write_to_di
             "cell_type_annotation",
             "adata_obs_annotated.csv",
         )
-    )[["cell_type_final", 'cell_id']]
-    new_obs = sdata_main[
-        f"adata_{seg_method}"
-    ].obs.merge(
-        cell_type, how="left", left_index=True, right_on='cell_id'
+    )[["cell_type_final", "cell_id"]]
+    new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
+        cell_type, how="left", left_index=True, right_on="cell_id"
     )
     new_obs.index = sdata_main[f"adata_{seg_method}"].obs.index
     new_obs.fillna("Low-Read-Cells", inplace=True)
@@ -235,7 +303,11 @@ def add_cell_type_annotation(sdata_main, sdata_path:str, seg_method, write_to_di
         sdata_main.write_element(f"adata_{seg_method}")
     return sdata_main
 
-def add_ficture(sdata, sdata_main, seg_method, ficture_arguments, n_ficture, var, write_to_disk):
+
+def add_ficture(
+    sdata, sdata_main, seg_method, ficture_arguments, n_ficture, var, write_to_disk
+):
+    """Add ficture information to sdata_main."""
     stats = ficture_intensities(
         sdata,
         ficture_arguments[0],
@@ -246,12 +318,13 @@ def add_ficture(sdata, sdata_main, seg_method, ficture_arguments, n_ficture, var
     )
     sdata_main[f"adata_{seg_method}"].obsm[f"ficture{n_ficture}_mean"] = stats[0]
     if var:
-        sdata_main[f"adata_{seg_method}"].obsm[f"ficture{n_ficture}_variance"] = (
-            stats[1]
-        )
+        sdata_main[f"adata_{seg_method}"].obsm[f"ficture{n_ficture}_variance"] = stats[
+            1
+        ]
     if write_to_disk:
         sdata_main.write_element(f"adata_{seg_method}")
     return sdata_main
+
 
 def assign_transformations(
     sdata_main: sd.SpatialData, seg_method: str, write_to_disk: bool
@@ -344,6 +417,7 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
 
     sdata_main[f"adata_{seg_method}"] = adata
     return
+
 
 def update_element(sdata, element_name):
     """Workaround for updating a backed element in sdata.

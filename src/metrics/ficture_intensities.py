@@ -62,7 +62,7 @@ def ficture_intensities(
             columns=[f"fictureF{n_factors}_{i}_var_intensity" for i in unique_factors],
         )
         return (pd_intensity, pd_variance)
-    return (pd_intensity)
+    return pd_intensity
 
 
 # from sopa.aggregation.channels.py

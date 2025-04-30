@@ -10,7 +10,7 @@ with open(
     data = json.load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_pure"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_pure"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(

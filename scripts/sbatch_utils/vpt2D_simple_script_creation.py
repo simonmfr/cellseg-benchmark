@@ -1,8 +1,8 @@
 import json
 import sys
-from pathlib import Path
-from os.path import join
 from os import listdir
+from os.path import join
+from pathlib import Path
 
 staining = sys.argv[1]
 
@@ -21,9 +21,9 @@ Path(
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     res_path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/vpt_2D_DAPI_{staining}"
-    for dir in listdir(value):
-        if dir.endswith(".vzg"):
-            vzg_path = join(value, dir)
+    for dire in listdir(value):
+        if dire.endswith(".vzg"):
+            vzg_path = join(value, dire)
     f = open(
         f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple/{key}_{staining}.sbatch",
         "w",
@@ -46,7 +46,7 @@ mkdir -p {res_path}
 
 vpt --verbose --processes 40 run-segmentation \
 --segmentation-algorithm {experiment_json_path} \
---input-images {join(value, 'images')} \
+--input-images {join(value, "images")} \
 --input-micron-to-mosaic {join(value, "images/micron_to_mosaic_pixel_transform.csv")} \
 --output-path {join(res_path, "analysis_outputs")} \
 --tile-size 2400 \
