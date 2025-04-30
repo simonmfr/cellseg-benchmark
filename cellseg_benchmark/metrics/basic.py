@@ -42,7 +42,7 @@ def compute_outlier_percentage(sdata, min_counts=25, min_genes=5, inplace=True):
 
 def count_cells(sdata):
     """Count non-outlier cells for each table in sdata and return as dict.
-    
+
     Requires output from compute_outlier_percentage().
     """
     try:
@@ -274,7 +274,9 @@ def combine_metrics(sdata):
     }
 
     # Get all unique dataset names
-    all_datasets = sorted(set().union(*[dict.keys() for dict_i in metric_dicts.values()]))
+    all_datasets = sorted(
+        set().union(*[dict.keys() for dict_i in metric_dicts.values()])
+    )
 
     # Create DataFrame with datasets as index
     df = pd.DataFrame(index=all_datasets)

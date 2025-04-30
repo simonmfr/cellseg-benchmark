@@ -13,15 +13,15 @@ overlap = int(sys.argv[4])
 intens_rat = float(sys.argv[6])
 
 sdata = merscope(data_path)
+translation = read_csv(
+    join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+    sep=" ",
+    header=None,
+)
 
 if sys.argv[5] == "pixel":
     make_image_patches(sdata, patch_width=width, patch_overlap=overlap)
 elif sys.argv[5] == "microns":
-    translation = read_csv(
-        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
-        sep=" ",
-        header=None,
-    )
     make_image_patches(
         sdata,
         patch_width=translation.loc[0, 0] * width,
@@ -38,4 +38,5 @@ write(
     shapes_key="image_patches",
     gene_column="gene",
     save_h5ad=True,
+    pixel_size=1 / translation.loc[0, 0],
 )

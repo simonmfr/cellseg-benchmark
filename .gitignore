@@ -8,6 +8,7 @@ notebooks_local/
 *-notused.ipynb
 outdated-*
 **/temp/
+.idea/
 
 ## Datafiles
 *.h5

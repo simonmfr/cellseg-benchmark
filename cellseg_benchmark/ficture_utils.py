@@ -101,3 +101,44 @@ def get_transcript_level_factors(transcripts, tree, df, metadata, current_factor
     # where distance > 5 um set factor to max_factor to indicate that this transcript was not mapped
     factor[dd > 5] = int(metadata["K"])
     return transcripts.assign(**{f"{current_factor}_factors": factor})
+
+
+def create_factor_level_image(data, factor, DAPI_shape) -> np.ndarray:
+    """Compute image for given factor.
+
+    Args:
+        data: ficture data
+        factor: factor to compute image for
+        DAPI_shape: target shape
+
+    Returns: image of factor
+
+    """
+    K1_ind = data["K1"] == factor
+    K1 = data[K1_ind]
+    K1["probability"] = K1["P1"].copy()
+
+    K2_ind = data["K2"] == factor
+    K2 = data[K2_ind]
+    K2["probability"] = K2["P2"].copy()
+
+    K3_ind = data["K3"] == factor
+    K3 = data[K3_ind]
+    K3["probability"] = K3["P3"].copy()
+
+    filtered_data = pd.concat([K1, K2, K3], axis=0)[
+        ["Y_pixel", "X_pixel", "probability"]
+    ]
+    del K1, K2, K3
+
+    bins_y = np.linspace(0, DAPI_shape[1], num=DAPI_shape[1] + 1)
+    bins_x = np.linspace(0, DAPI_shape[0], num=DAPI_shape[0] + 1)
+    image, _, _ = np.histogram2d(
+        filtered_data["Y_pixel"],
+        filtered_data["X_pixel"],
+        bins=[bins_x, bins_y],
+        weights=filtered_data["probability"],
+    )
+    image = np.clip(np.around(image * 65535), 0, 65535).astype(np.uint16)
+    image = image[np.newaxis, :]
+    return image
