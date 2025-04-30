@@ -7,7 +7,7 @@ from subprocess import run
 
 import scanpy as sc
 
-sys.path.insert(1, join(Path(__file__).parent.parent.resolve(), "src"))
+sys.path.insert(1, join(Path(__file__).parent.parent.resolve(), "cellseg_benchmark"))
 import cell_annotation_utils as cell_annotation_utils
 
 warnings.filterwarnings("ignore")

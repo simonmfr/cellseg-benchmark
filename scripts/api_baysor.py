@@ -16,7 +16,7 @@ sample = sys.argv[4]
 def main(data_path, base_segmentation, confidence, sample):
     """Baysor algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)
-    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
+    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/samples/{sample}/results"
     sdata = read_zarr(join(path, base_segmentation, "sdata.zarr"))
     sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
         list(sdata_tmp.images.keys())[0]
@@ -47,7 +47,7 @@ def main(data_path, base_segmentation, confidence, sample):
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
 
-    path_toml = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/baysor_2D_config.toml"
+    path_toml = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/baysor_2D_config.toml"
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence

@@ -3,13 +3,10 @@ import os
 import sys
 import warnings
 from os.path import join
-from pathlib import Path
 
 from spatialdata import read_zarr
 
-sys.path.insert(1, join(str(Path(__file__).parent.parent.resolve()), "src"))
-
-import sdata_utils as su
+from cellseg_benchmark import sdata_utils as su
 
 warnings.filterwarnings("ignore")
 

@@ -10,7 +10,7 @@ from re import split
 from anndata import AnnData
 from spatialdata import read_zarr
 
-sys.path.insert(1, join(str(Path(__file__).parent.parent.resolve()), "src"))
+sys.path.insert(1, join(str(Path(__file__).parent.parent.resolve()), "cellseg_benchmark"))
 from sdata_utils import (
     add_cell_type_annotation,
     add_ficture,

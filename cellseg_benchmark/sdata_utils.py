@@ -14,8 +14,8 @@ from spatialdata.transformations import Identity, get_transformation, set_transf
 from tifffile import imread
 from tqdm import tqdm
 
-from ficture_utils import create_factor_level_image, parse_metadata
-from metrics.ficture_intensities import ficture_intensities
+from .ficture_utils import create_factor_level_image, parse_metadata
+from .metrics.ficture_intensities import ficture_intensities
 
 image_based = ["Cellpose", "Negative_Control"]
 

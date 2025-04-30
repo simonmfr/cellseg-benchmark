@@ -6,11 +6,11 @@ from pathlib import Path
 sample = sys.argv[1]
 
 path = join(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples", sample, "results"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/samples", sample, "results"
 )
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_annotation/{sample}"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sbatches/sbatch_annotation/{sample}"
 ).mkdir(parents=True, exist_ok=True)
 
 for method in listdir(path):
@@ -18,7 +18,7 @@ for method in listdir(path):
         join(path, method, "sdata.explorer")
     ):
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_annotation/{sample}/{method}.sbatch",
+            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sbatches/sbatch_annotation/{sample}/{method}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash
@@ -28,12 +28,12 @@ for method in listdir(path):
 #SBATCH -t 00:20:00
 #SBATCH --mem=32G
 #SBATCH -J annotation_{sample}_{method}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/annotation_{sample}_{method}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/annotation_{sample}_{method}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/logs/outputs/annotation_{sample}_{method}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/logs/errors/annotation_{sample}_{method}.err
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sopa.sqsh"
 
 mamba activate sopa
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/cell_annotation.py \
- {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark 0
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg_benchmark/scripts/cell_annotation.py \
+ {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark 0
                     """)
         f.close()

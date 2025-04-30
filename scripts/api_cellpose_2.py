@@ -36,7 +36,7 @@ def main(data_path, save_path, staining):
         sdata,
         channels=[staining, "DAPI"],
         pretrained_model=join(
-            "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/custom_models",
+            "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/custom_models",
             f"CP_DAPI_{staining}",
         ),
         diameter=89,
