@@ -1,23 +1,159 @@
 import json
 import os
-from typing import Any, Dict
+import sys
+import subprocess
+from datetime import date
 
 import anndata
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import math
 import scanpy as sc
 import scipy.sparse as sp
 import seaborn as sns
-from anndata import AnnData
 from matplotlib.pyplot import rc_context
+from matplotlib import rcParams
 from scipy.stats import median_abs_deviation
-from sopa.io.explorer import write_cell_categories
-from spatialdata import read_zarr
 
+
+def assign_cell_types_to_clusters(adata, leiden_col, cell_type_col = "cell_type_mapmycells", min_cells=100):
+    """Assign cell type labels to leiden clusters based on majority vote of MapMyCells results."""
+    # Create crosstab
+    cluster_cell_type_crosstab = pd.crosstab(
+        adata.obs[leiden_col],
+        adata.obs[cell_type_col],
+        margins=True,
+        margins_name="Total",
+    )
+
+    # Exclude cell types with fewer than the minimum number of cells
+    cluster_cell_type_crosstab = cluster_cell_type_crosstab.loc[:, cluster_cell_type_crosstab.loc["Total"] >= min_cells]
+
+    # Normalize column-wise to get percentages
+    normalized_percentage = cluster_cell_type_crosstab.div(cluster_cell_type_crosstab.loc["Total"], axis=1) * 100
+
+    # Identify the most frequent cell type for each cluster (maximum percentage)
+    assigned_cell_type_dict = normalized_percentage.drop(index="Total", columns="Total").idxmax(axis=1).to_dict()
+
+    return assigned_cell_type_dict, normalized_percentage
+
+
+def assign_final_cell_types(
+    adata, cluster_labels_dict, match_dict, leiden_col, out_col = "cell_type_final", score_threshold=0.25
+):
+    """Assign final cell types based on scoring results in-place.
+    
+    Parameters:
+    -----------
+    adata : anndata.AnnData
+        Anndata object
+    cluster_labels_dict : dict
+        Dictionary mapping cluster IDs to initially assigned cell types, created by assign_cell_types_by_cluster()
+    match_dict : dict
+        Dictionary mapping MapMyCells cell type names to their corresponding scanpy.tl.score_genes suffixes
+    leiden_col : string
+        Column in adata.obs containing Leiden clustering
+    score_threshold : float, default=0.25
+        Minimum score required to assign a cell type
+    
+    Returns:
+    --------
+    adata : anndata.AnnData
+        Updated anndata object with out_col in adata.obs
+    undefined_reasons : dict
+        Dictionary explaining why some clusters remained undefined
+    cluster_score_matrix : pandas.DataFrame
+        Matrix of scores for each cluster-cell type combination
+    """
+
+    # Initialize final cell types with Undefined
+    adata.obs[out_col] = np.nan
+
+    # Store reasons for undefined assignments
+    undefined_reasons = {}
+
+    # Initialize cluster-score matrix
+    clusters = list(adata.obs[leiden_col].unique())
+    cell_types = list(match_dict.keys())
+    cluster_score_matrix = pd.DataFrame(index=clusters, columns=cell_types, dtype=float)
+
+    # For each cluster
+    for cluster in clusters:
+        # Get the cell type assigned by crosstab
+        assigned_cell_type = cluster_labels_dict.get(cluster, "Undefined")
+
+        # Get cells in this cluster
+        mask = adata.obs[leiden_col] == cluster
+
+        # Collect all scores for this cluster
+        all_scores = {}
+        for cell_type, score_suffix in match_dict.items():
+            score_col = f"score_{score_suffix}"
+            if score_col in adata.obs.columns:
+                mean_score = adata.obs.loc[mask, score_col].mean()
+                all_scores[cell_type] = mean_score
+                cluster_score_matrix.loc[cluster, cell_type] = mean_score
+            else:
+                cluster_score_matrix.loc[cluster, cell_type] = np.nan
+
+        if not all_scores:
+            undefined_reasons[cluster] = "No scores found for any cell type"
+            continue
+
+        # Find highest scoring cell type
+        highest_cell_type = max(all_scores, key=all_scores.get)
+        highest_score = all_scores[highest_cell_type]
+
+        # Get score for assigned cell type
+        assigned_score_col = (
+            f"score_{match_dict.get(assigned_cell_type, assigned_cell_type)}"
+        )
+        if assigned_score_col in adata.obs.columns:
+            assigned_score = adata.obs.loc[mask, assigned_score_col].mean()
+        else: # e.g. "Undefined" or "Mixed"
+            assigned_score = np.nan
+
+        # If highest score is above threshold, use it
+        if highest_score > score_threshold:
+            if highest_cell_type != assigned_cell_type:
+                print(
+                    f"    Cluster {cluster}: Reassigned from {assigned_cell_type} to {highest_cell_type} (higher score: {assigned_score:.4f} vs {highest_score:.4f})"
+                )
+            adata.obs.loc[mask, out_col] = highest_cell_type
+        else:
+            undefined_reasons[cluster] = (
+                f"No cell type has score above threshold {score_threshold} (highest: {highest_cell_type} with {highest_score:.4f}). Set to undefined."
+            )
+            adata.obs.loc[mask, out_col] = "Undefined"
+
+    return adata, undefined_reasons, cluster_score_matrix
+
+
+def create_mixed_cell_types(df, 
+                            diff_threshold=0.5, 
+                            main_col='allen_SUBC', 
+                            diff_col='allen_diff_rup1_prob_SUBC', 
+                            runnerup_col='allen_runner_up_1_SUBC'
+                           ):
+   """Create DataFrame with mixed cell type annotations, based on MapMyCells probability differences."""
+   # Identify mixed cells
+   is_mixed = (df[diff_col] < diff_threshold) & (df[main_col] != df[runnerup_col])
+   
+   # Create result DataFrame
+   result = pd.DataFrame(index=df.index)
+   result['allen_SUBC_is_mixed'] = is_mixed.map({True: "mixed", False: "unique"})
+   result['allen_SUBC_incl_mixed'] = df[main_col].where(~is_mixed, "Mixed")
+   result['allen_SUBC_mixed_names'] = df[main_col].where(~is_mixed, df[main_col] + "/" + df[runnerup_col])
+   
+   return result
+    
 
 def export_filter_adatas_from_sdata(sdata_path):
     """Extracts all adata objects from sdata.tables, filters cells based on given thresholds, and exports object into folder "_cell_type_annotation"."""
+
+    from spatialdata import read_zarr
+    
     sdata = read_zarr(sdata_path)
 
     # Create target dir
@@ -41,35 +177,12 @@ def export_filter_adatas_from_sdata(sdata_path):
         adata.write_h5ad(export_path)
 
 
-def flag_low_quality_mappings(df, group_col, value_col, mad_factor=5, inplace=True):
-    """Flags low quality data by replacing group_col value with "Undefined" for rows with values significantly below the median (based on median absolute deviation).
+def group_cell_types(metadata_col):
+    """Format and bin cell types from MapMyCells into defined groups."""
 
-    Args:
-        df: DataFrame containing the data to analyze
-        group_col: Column name used for grouping
-        value_col: Column name containing values to evaluate
-        mad_factor: Multiplier for median absolute deviation threshold (default: 5)
-        inplace: If True, modifies df directly; if False, returns a copy (default: True)
+    result = metadata_col.str.split().str[-1].copy()
 
-    Returns:
-        None if inplace=True, modified DataFrame copy if inplace=False
-    """
-    if inplace:
-        low_quality_mask = df.groupby(group_col).apply(
-            lambda x: x[value_col]
-            < (x[value_col].median() - mad_factor * median_abs_deviation(x[value_col]))
-        )
-        df.loc[low_quality_mask.values, group_col] = "Undefined"
-        return
-    else:
-        return df.copy()
-
-
-def group_cell_types(meta):
-    """Format and collapse cell types from MapMyCells into larger groups."""
-    meta["cell_type"] = meta["allen_SUBC"].str.split().str[-1]
-
-    neuron_mask = meta["cell_type"].isin(
+    neuron_mask = result.isin(
         [
             "Gaba",
             "Glut",
@@ -85,53 +198,150 @@ def group_cell_types(meta):
             "Glyc-Gaba",
         ]
     )
-    meta.loc[neuron_mask, "cell_type"] = "Neurons-" + meta.loc[neuron_mask, "cell_type"]
+    result.loc[neuron_mask] = "Neurons-" + result.loc[neuron_mask]
 
-    nn_mask = meta["cell_type"] == "NN"
-    meta.loc[nn_mask, "cell_type"] = meta.loc[nn_mask, "allen_SUBC"]
+    nn_mask = result == "NN"
+    result.loc[nn_mask] = metadata_col.loc[nn_mask]
 
-    meta["cell_type"] = meta["cell_type"].str.replace(r" NN$", "", regex=True)
-    meta["cell_type"] = meta["cell_type"].str.replace(r"^\d+\s*", "", regex=True)
+    result = result.str.replace(r" NN$", "", regex=True)
+    result = result.str.replace(r"^\d+\s*", "", regex=True)
 
     replacement_dict = {
         "Astro-TE": "Astrocytes",
         "Astro-NT": "Astrocytes",
         "Astro-OLF": "Astrocytes",
         "Astro-CB": "Astrocytes",
-        "Bergmann": "Astrocytes",
         "Oligo": "Oligodendrocytes",
         "Peri": "Pericytes",
         "Endo": "ECs",
         "VLMC": "VLMCs",
-        "ABC": "VLMCs",
+        "ABC": "ABCs",
         "SMC": "SMCs",
         "OPC": "OPCs",
         "OEC": "OECs",
-        "Astroependymal": "Ependymal",
-        "CHOR": "Choroid Plexus",
-        "Tanycyte": "Ependymal",
+        "Ependymal":"Ependymal",
+        "Astroependymal": "Astroependymal",
+        "CHOR": "Choroid-Plexus",
+        "Tanycyte": "Tanycytes",
         "Hypendymal": "Ependymal",
         "Monocytes": "Immune-Other",
         "DC": "Immune-Other",
         "Lymphoid": "Immune-Other",
         "BAM": "BAMs",
-        "IMN": "Neurons-Immature",
+        "IMN": "Neurons-Granule-Immature",
         "Neurons-Glut-Chol": "Neurons-Other",
         "Neurons-Gaba-Glut": "Neurons-Other",
         "Neurons-Chol": "Neurons-Other",
         "Neurons-Hist-Gaba": "Neurons-Other",
-        "Neurons-Gaba-Chol": "Neurons-Gaba",
+        "Neurons-Gaba-Chol": "Neurons-Other",
         "Neurons-Glut-Sero": "Neurons-Other",
-        "Neurons-Dopa-Gaba": "Neurons-Other",
-        "Neurons-Glyc-Gaba": "Neurons-Other",
-        "Neurons-Gly-Gaba": "Neurons-Other",
+        "Neurons-Dopa-Gaba": "Neurons-Dopa",
+        "Neurons-Gly-Gaba": "Neurons-Glyc-Gaba",
+        "Neurons-Gaba-Glut": "Neurons-Gaba",
+        "Neurons-Glut-Sero": "Neurons-Glut",
     }
-    meta["cell_type"] = meta["cell_type"].replace(replacement_dict)
 
-    return meta
+    result = result.replace(replacement_dict)
+
+    return result
 
 
-def normalize_counts(adata: AnnData, method="area", target_sum=250):
+def map_gene_symbols_to_ensembl(adata, species='mouse'):
+    """
+    Maps gene symbols in an AnnData object to Ensembl IDs.
+    
+    Args:
+        adata: AnnData object with gene symbols in var['gene']
+        species: Species name for querying (default: 'mouse')
+        
+    Returns:
+        Updated AnnData object with Ensembl IDs in var['ensmus_id']
+    """
+    # load on demand
+    import mygene
+    
+    mg = mygene.MyGeneInfo()
+    
+    # Initial mapping of gene symbols to Ensembl IDs
+    gene_symbols = adata.var["gene"].unique().tolist()
+    results = mg.querymany(gene_symbols, scopes='symbol', species=species, 
+                          fields='ensembl.gene', returnall=True)
+    
+    gene_to_ensembl = {}
+    for hit in results['out']:
+        if hit.get('ensembl') and 'gene' in hit['ensembl']:
+            gene_to_ensembl[hit['query']] = hit['ensembl']['gene']
+        else:
+            gene_to_ensembl[hit['query']] = 'NA'
+    
+    adata.var['ensmus_id'] = adata.var['gene'].map(gene_to_ensembl)
+    
+    # Handle missing Ensembl IDs
+    missing_genes = adata.var[adata.var['ensmus_id'] == 'NA']['gene'].unique().tolist()
+    
+    # Query MyGene for extended info on missing genes
+    missing_results = mg.querymany(missing_genes, scopes=['symbol', 'alias'], 
+                                  species=species, fields=['ensembl.gene', 'symbol'])
+    
+    ensembl_replacements = {}
+    symbol_replacements = {}
+    for result in missing_results:
+        if 'ensembl' in result and 'gene' in result['ensembl']:
+            ensembl_replacements[result['query']] = result['ensembl']['gene']
+            symbol_replacements[result['query']] = result['symbol']
+        
+        # If still not found, try expansive search
+        if result['query'] not in ensembl_replacements:
+            expanded_search = mg.query(result['query'] + "*", species=species, 
+                                    fields=['ensembl.gene', 'symbol', 'alias'])
+            
+            if expanded_search['hits']:
+                for hit in expanded_search['hits']:
+                    aliases = hit.get('alias', [])
+                    if isinstance(aliases, str):
+                        aliases = [aliases]
+                    
+                    if result['query'] in aliases and 'ensembl' in hit and 'gene' in hit['ensembl']:
+                        ensembl_replacements[result['query']] = hit['ensembl']['gene']
+                        symbol_replacements[result['query']] = hit['symbol']
+                        break
+    
+    # Apply replacements to both columns
+    for old_gene, new_gene in symbol_replacements.items():
+        mask = adata.var['gene'] == old_gene
+        adata.var.loc[mask, 'gene'] = new_gene
+        adata.var.loc[mask, 'ensmus_id'] = ensembl_replacements[old_gene]
+    
+    # Summary statistics
+    genes_updated = len(symbol_replacements)
+    remaining_na = len(adata.var[adata.var['ensmus_id'] == 'NA']['gene'].unique())
+    
+    print(f"Genes updated: {genes_updated}")
+    print(f"Remaining genes without Ensembl IDs: {remaining_na}")
+    
+    return adata
+
+
+def mark_low_quality_mappings(metadata, target_column, mad_factor, level):
+    """Add new column for low-quality mappings marked as "Undefined" based on correlation MAD threshold as suggested by Allen Institute."""
+    level_key = f"{target_column}_{level}"
+    cor_key = f"{target_column}_cor_{level}"
+    out_key = f"{target_column}_{level}_incl_low_quality"
+
+    # Calculate the low-quality mask
+    low_quality_mask = metadata.groupby(level_key)[cor_key].transform(
+        lambda x: x < (x.median() - mad_factor * median_abs_deviation(x, nan_policy='omit'))
+    )
+
+    # Fill NaN values with False
+    low_quality_mask = low_quality_mask.fillna(False)
+
+    # Create new column with either "Undefined" or original value
+    metadata[out_key] = metadata[level_key]
+    metadata.loc[low_quality_mask, out_key] = "Undefined"
+    
+
+def normalize_counts(adata, method="area", target_sum=250):
     """Normalize counts by area/volume or library size, then compute log1p and z-score.
 
     Parameters:
@@ -175,21 +385,21 @@ def normalize_counts(adata: AnnData, method="area", target_sum=250):
         raise ValueError("Method must be one of: 'area', 'volume', or 'library'")
 
     # Normalize by area/volume
-    print(f"Anzahl an 0-Zeilen: {np.sum(adata.X.sum(axis=1) == 0)}")
-    print(f"Min Ahnzahl an Genen: {np.min(adata.X.sum(axis=1))}")
+    print(f"Number of 0 rows: {np.sum(adata.X.sum(axis=1) == 0)}")
+    print(f"Min number of genes: {np.min(adata.X.sum(axis=1))}")
     adata.layers[norm_layer_name] = sp.csr_matrix(
         sp.csr_matrix(adata.X, dtype=np.float32).multiply(1 / size_factor[:, None]),
         dtype=np.float32,
     )
-    print(f"norm_layer_name: {type(adata.layers[norm_layer_name])}")
+    print(f"matrix type before normalization: {type(adata.layers[norm_layer_name])}")
 
     # Scale to target sum
     norm_matrix = adata.layers[norm_layer_name]
     scaling_factors = target_sum / norm_matrix.sum(axis=1).A1
-    print(f"scaling_factors: {type(scaling_factors)}, shape: {scaling_factors.shape}")
+    print(f"scaling_factor type: {type(scaling_factors)}, shape: {scaling_factors.shape}")
     adata.layers[norm_layer_name] = norm_matrix.multiply(scaling_factors[:, None])
     print(
-        f"norm_layer_name: {type(adata.layers[norm_layer_name])}, shape: {adata.layers[norm_layer_name].shape}"
+        f"matrix type after normalization: {type(adata.layers[norm_layer_name])}, shape: {adata.layers[norm_layer_name].shape}"
     )
 
     # Verify mean count matches target
@@ -213,8 +423,8 @@ def plot_mad_thresholds(
     out_path,
     name="mad_threshold",
     group_column="allen_CLUS",
-    value_column="allen_avg_cor_CLUS",
-    mad_factor: int = 3,
+    value_column="allen_cor_CLUS",
+    mad_factor=3,
     figsize=(13, 7),
 ):
     """Plot a violin plot of data grouped by a specified column, with horizontal lines showing MAD thresholds.
@@ -268,291 +478,338 @@ def plot_mad_thresholds(
         return
 
 
-def plot_mapping_qc(
-    json_results, adata: AnnData, mapping_result, level="CCN20230722_CLAS"
-):
-    """Create quality control plots for cell type mapping results.
-
-    Parameters:
-    -----------
-    json_results : dict
-        Results from cell type mapping, containing taxonomy tree and mapping results
-    adata : anndata.AnnData
-        Annotated data matrix with cell information
-    level : str, optional
-        Hierarchical level to analyze (default is 'CCN20230722_CLAS')
-
-    Returns:
-    --------
-    fig : matplotlib.figure.Figure
-        Figure containing three subplots of mapping QC metrics
+def process_adata(adata):
     """
-    # Get the level name from taxonomy tree
-    level_name = json_results["taxonomy_tree"]["hierarchy_mapper"][level]
-
-    # Get cell barcodes and create mapping result dictionary
-    cell_barcodes = adata.obs.index.values
-
-    # Calculate number of non-zero genes for each cell
-    n_genes = (
-        (adata.X > 0).sum(axis=1).A1
-        if hasattr(adata.X, "A1")
-        else (adata.X > 0).sum(axis=1)
-    )
-
-    # Extract average correlation and bootstrapping probability
-    avg_corr = np.array(
-        [mapping_result[b][level]["avg_correlation"] for b in cell_barcodes]
-    )
-    bootstrapping_prob = np.array(
-        [mapping_result[b][level]["bootstrapping_probability"] for b in cell_barcodes]
-    )
-
-    # Create figure with three subplots
-    fig = plt.figure(figsize=(15, 4))
-
-    # Subplot 1: Number of genes vs Average Correlation
-    corr_axis = fig.add_subplot(1, 3, 1)
-    corr_axis.set_title(level_name)
-    corr_axis.scatter(n_genes, avg_corr, s=1)
-    corr_axis.set_xlabel("N non-zero genes")
-    corr_axis.set_ylabel("Average Correlation")
-    corr_axis.set_xscale("log")
-
-    # Subplot 2: Number of genes vs Bootstrapping Probability
-    prob_axis = fig.add_subplot(1, 3, 2)
-    prob_axis.scatter(n_genes, bootstrapping_prob, s=1)
-    prob_axis.set_xlabel("N non-zero genes")
-    prob_axis.set_ylabel("Bootstrapping Probability")
-    prob_axis.set_xscale("log")
-
-    # Subplot 3: Average Correlation vs Bootstrapping Probability
-    corr_v_prob_axis = fig.add_subplot(1, 3, 3)
-    corr_v_prob_axis.scatter(avg_corr, bootstrapping_prob, s=1)
-    corr_v_prob_axis.set_xlabel("Average Correlation")
-    corr_v_prob_axis.set_ylabel("Bootstrapping Probability")
-
-    return fig
-
-
-def process_allen_metadata(json_results, mapping_result):
-    """Process Allen metadata from JSON results and mapping results.
-
-    Parameters:
-    -----------
-    json_results : dict
-        Dictionary containing taxonomy tree information
-    mapping_result : dict
-        Dictionary containing mapping results for each barcode
-
-    Returns:
-    --------
-    pd.DataFrame
-        Processed metadata DataFrame with readable labels and correlations
+    Preprocesses AnnData object:
+    - Filter cells
+    - Normalize count data by cell volume
+    - Compute PCA, neighbors, and UMAP
+    - Copy Allen cell type annotations from obsm to obs
     """
-    # Build a mapping of node to human-readable names for all levels
-    node_to_label = {
+
+    # Filter low-quality cells
+    sc.pp.filter_cells(adata, min_counts=20)
+    sc.pp.filter_cells(adata, min_genes=5)
+
+    # Check for presence of cell type mapping
+    assert not adata.obsm["allen_cell_type_mapping"].isna().any().all(), "All entries in 'allen_cell_type_mapping' are NaN"
+
+    if "counts" not in adata.layers:
+        adata.layers["counts"] = adata.X.copy()
+    adata.X = adata.layers["counts"].copy()
+
+    # Normalize counts
+    if "area" in adata.obs.columns:
+        normalize_counts(adata, method="area")
+    elif "volume" in adata.obs.columns:
+        normalize_counts(adata, method="volume")
+
+    normalize_counts(adata, method="library")
+
+    selected_layer = "zscore"
+    adata.X = adata.layers[selected_layer]
+    print(f"Using layer '{selected_layer}' for downstream analysis.")
+
+    sc.tl.pca(adata)
+    sc.pp.neighbors(adata)
+    sc.tl.umap(adata)
+
+    # Copy cell type mapping to obs
+    prefix = "cell_type_mmc"
+    cellmapping = {
+        f"{prefix}_raw": "allen_SUBC",
+        f"{prefix}_incl_low_quality": "allen_SUBC_incl_low_quality",
+        f"{prefix}_is_mixed": "allen_SUBC_is_mixed",
+        f"{prefix}_incl_mixed": "allen_SUBC_incl_mixed",
+        f"{prefix}_mixed_names": "allen_SUBC_mixed_names",
+        f"{prefix}_runner_up_1": "allen_runner_up_1_SUBC",
+        f"{prefix}_runner_up_2": "allen_runner_up_2_SUBC",
+        f"{prefix}_runner_up_1_incl_low_quality": "allen_runner_up_1_SUBC_incl_low_quality",
+        f"{prefix}_runner_up_2_incl_low_quality": "allen_runner_up_2_SUBC_incl_low_quality",
+        f"{prefix}_rup1_diff_prob": "allen_diff_rup1_prob_SUBC",
+        f"{prefix}_rup2_diff_prob": "allen_diff_rup2_prob_SUBC",
+    }
+
+    for obs_key, allen_key in cellmapping.items():
+        adata.obs[obs_key] = adata.obsm["allen_cell_type_mapping"].loc[adata.obs.index, allen_key]
+
+    return adata
+
+
+def plot_metric_distributions(df, out_path, file_name):
+   """Plots histograms of raw MapMyCell metrics (correlations, probabilities, and runner-up metrics) for "CLAS" and "SUBC".
+   
+   For detailed explanation of MapMyCells output see https://github.com/AllenInstitute/cell_type_mapper/blob/main/docs/output.md."""
+   # Sample data
+   sample_data = df.sample(min(50000, len(df)))
+   
+   # Get columns ending with "CLAS" or "SUBC"
+   cols_to_plot = [col for col in sample_data.select_dtypes(include=[np.number]).columns 
+                   if col.endswith(("CLAS", "SUBC"))]
+   
+   # Set up plot grid
+   n_cols, n_rows = 4, (len(cols_to_plot) + 3) // 4
+   fig, axes = plt.subplots(n_rows, n_cols, figsize=(10, 8))
+   axes = axes.flatten() if hasattr(axes, 'flatten') else [axes]
+   
+   # Plot histograms
+   for i, col in enumerate(cols_to_plot):
+       if i < len(axes):
+           axes[i].hist(sample_data[col].dropna(), bins=80, range=(0, 1))
+           axes[i].set_title(col, fontsize=8)
+           axes[i].tick_params(labelsize=7)
+   
+   # Hide unused subplots
+   for i in range(len(cols_to_plot), len(axes)):
+       axes[i].set_visible(False)
+   
+   plt.tight_layout()
+   plt.savefig(os.path.join(out_path, file_name + ".png"))
+   plt.close()
+
+
+def process_mapmycells_output(json_results):
+    """Process MapMyCells JSON output into pd.DataFrame per cell with cell type labels, correlations, probabilities, and runner-up metrics.
+    
+    For detailed explanation of MapMyCells output see https://github.com/AllenInstitute/cell_type_mapper/blob/main/docs/output.md."""
+    node_labels = {
         level: {
             node: json_results["taxonomy_tree"]["name_mapper"][level][node]["name"]
             for node in json_results["taxonomy_tree"][level]
         }
         for level in json_results["taxonomy_tree"]["hierarchy"]
     }
-
-    data = {}
+    cell_data = {c["cell_id"]: c for c in json_results["results"]}
+    results = {}
+    
     for level in json_results["taxonomy_tree"]["hierarchy"]:
-        for barcode, result in mapping_result.items():
-            if barcode not in data:
-                data[barcode] = {}
+        level_name = level.replace("CCN20230722_", "")
+        for cell_id, cell_info in cell_data.items():
+            if cell_id not in results:
+                results[cell_id] = {}
+            if level in cell_info:
+                assignment = cell_info[level]["assignment"]
+                prob = cell_info[level].get("bootstrapping_probability", np.nan)
+                rups = cell_info[level].get("runner_up_assignment", [])
+                rups_cor = cell_info[level].get("runner_up_correlation", [])
+                rups_prob = cell_info[level].get("runner_up_probability", [])
 
-            if level in result:
-                assignment = result[level]["assignment"]
-                level_short = level.replace(
-                    "CCN20230722_", ""
-                )  # Remove 'CCN20230722' from level name
+                results[cell_id].update({
+                    f"allen_{level_name}": node_labels[level].get(assignment, "Unknown"),
+                    f"allen_cor_{level_name}": cell_info[level]["avg_correlation"],
+                    f"allen_prob_{level_name}": prob,
+                    f"allen_runner_up_1_{level_name}": node_labels[level].get(rups[0], "Unknown") if rups else np.nan,
+                    f"allen_runner_up_1_cor_{level_name}": rups_cor[0] if rups_cor else np.nan,
+                    f"allen_runner_up_1_prob_{level_name}": rups_prob[0] if rups_prob else np.nan,
+                    f"allen_runner_up_2_{level_name}": node_labels[level].get(rups[1], "Unknown") if len(rups) > 1 else np.nan,
+                    f"allen_runner_up_2_cor_{level_name}": rups_cor[1] if len(rups_cor) > 1 else np.nan,
+                    f"allen_runner_up_2_prob_{level_name}": rups_prob[1] if len(rups_prob) > 1 else np.nan,
+                })
 
-                data[barcode][f"label_id_{level_short}"] = assignment
-                data[barcode][f"allen_avg_cor_{level_short}"] = result[level][
-                    "avg_correlation"
-                ]
-                data[barcode][f"allen_{level_short}"] = node_to_label[level].get(
-                    assignment, "Unknown"
-                )
+                # Add columns with difference between main and follow-up probabilities, setting to 1 if any follow-up probability is NaN
+                for i in [1, 2]:
+                    rup_prob = results[cell_id].get(f"allen_runner_up_{i}_prob_{level_name}", np.nan)
+                    diff_col = f"allen_diff_rup{i}_prob_{level_name}"
+                    results[cell_id][diff_col] = prob - rup_prob if pd.notna(prob) and pd.notna(rup_prob) else 1.0
 
-    # Convert to DataFrame
-    Allen_MMC_metadata = pd.DataFrame.from_dict(data, orient="index")
-
-    # Drop columns with non-readable names (label_id columns)
-    Allen_MMC_metadata.drop(
-        columns=Allen_MMC_metadata.filter(like="label_id_"), inplace=True
-    )
-
-    return Allen_MMC_metadata
-
-
-# Define matching dictionary for cell types (MapMyCells/Yao2023 cell annotation) to score columns (scoring of Yao2023 marker genes)
-match_dict = {
-    "Astrocytes": "Astrocytes",
-    "BAMs": "BAMs",
-    "Choroid Plexus": "Ependymal",
-    "ECs": "ECs",
-    "Ependymal": "Ependymal",
-    "Immune-Other": "Immune-Other",
-    "Microglia": "Microglia",
-    "Neurons-Dopa": "Neurons-Dopa",
-    "Neurons-Glut": "Neurons-Glut",
-    "Neurons-Other": "Neurons-Other",
-    "Neurons-Immature": "Neurons-Immature",
-    "Neurons-Gaba": "Neurons-Gaba",
-    "OECs": "OECs",
-    "OPCs": "OPCs",
-    "Oligodendrocytes": "Oligodendrocytes",
-    "Pericytes": "Pericytes",
-    "SMCs": "SMCs",
-    "VLMCs": "VLMCs",
-}
+    return pd.DataFrame.from_dict(results, orient="index")
 
 
-# 1. Crosstab calculation for cell type assignment
-def assign_cell_types_by_cluster(
-    adata: AnnData, leiden_res: float = 3.0, min_cells: int = 100
+def revise_annotations(
+    adata, 
+    leiden_res=10.0,
+    leiden_col=None, 
+    cell_type_colors=None, 
+    mmc_to_score_dict=None,
+    score_threshold=0.5,
+    top_n_genes=50,
+    ABCAtlas_marker_df_path=None
 ):
-    """Assign cell types to leiden clusters based on majority vote."""
-    leiden_col = f"leiden_res{leiden_res}".replace(".", "_")
-    cell_type_col = "cell_type"
-
-    # Create crosstab
-    ctab = pd.crosstab(
-        adata.obs[leiden_col],
-        adata.obs[cell_type_col],
-        margins=True,
-        margins_name="Total",
-    )
-
-    # Exclude cell types with < min_cells cells
-    ctab = ctab.loc[:, ctab.loc["Total"] >= min_cells]
-
-    # Normalize column-wise
-    ctab_percentage = ctab.div(ctab.loc["Total"], axis=1) * 100
-
-    # Get cluster labels based on max percentage
-    cluster_labels = ctab_percentage.drop(index="Total", columns="Total").idxmax(axis=1)
-
-    # Convert to dictionary
-    cluster_labels_dict = cluster_labels.to_dict()
-
-    # Assign cell types to clusters
-    adata.obs["cell_type_clusters"] = adata.obs[leiden_col].map(cluster_labels_dict)
-
-    return adata, cluster_labels_dict, ctab_percentage
-
-
-# 2. Score cell types using marker genes
-def score_cell_types(adata: AnnData, marker_genes_dict, top_n_genes: int = 25):
-    """Score cells for marker gene expression using only top n genes.
-
-    Parameters:
-    -----------
-    adata : AnnData
-        Annotated data matrix
-    marker_genes_dict : dict
-        Dictionary of cell types and their marker genes
-    top_n_genes : int, default=30
-        Number of top genes to use for scoring
     """
-    for cell_type, genes in marker_genes_dict.items():
-        if genes:  # Only score if gene list is not empty
-            # Take only the top n genes
-            genes_to_use = genes[:top_n_genes] if len(genes) > top_n_genes else genes
-            score_name = f"score_{cell_type}"
-            sc.tl.score_genes(adata, genes_to_use, score_name=score_name)
+    De-noise MapMyCells annotations by assigning cell types to Leiden clusters based on majority vote, plus revise annotations based on marker gene expression. Wrapper for score_cell_types(), assign_cell_types_to_clusters(), assign_final_cell_types()
+    
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix with gene expression and metadata.
+    leiden_col : string
+        Column containing leiden clusters
+    cell_type_colors : dict
+        Dictionary mapping cell types to colors.
+    mmc_to_score_dict : dict
+        Dictionary mapping cell type identifiers to their score cell types.
+    score_threshold : float, default=0.5
+        Threshold for cell type score to be considered valid.
+    top_n_genes : int, default=50
+        Number of top marker genes to use for scoring.
 
+    """
+    
+    print("\n1. Leiden clustering...")
+    
+    # Check if leiden clustering exists, run if not present
+    if leiden_col not in adata.obs.columns:
+        print(f"  Running Leiden clustering with resolution {leiden_res}")
+        sc.tl.leiden(adata, key_added=leiden_col, resolution=leiden_res)
+    else: 
+        print(f"  Using available Leiden clustering with resolution {leiden_res}")
+
+    print("\n2. Scoring marker gene expression...")
+    
+    # load and format markers
+    ABCAtlas_marker_df = pd.read_csv(ABCAtlas_marker_df_path)
+    cell_types = ABCAtlas_marker_df.columns.tolist()
+    cell_type_dict = {}
+    for cell_type in cell_types:
+            if cell_type == "0":
+                continue
+            genes = ABCAtlas_marker_df[cell_type].iloc[0:].tolist()
+            genes = [gene for gene in genes if pd.notna(gene)]
+            cell_type_dict[cell_type] = genes
+    del cell_type_dict["Bergmann"] # too few cells
+        
+    # Score cell types using marker genes
+    adata = score_cell_types(
+        adata, 
+        marker_genes_dict=cell_type_dict,
+        top_n_genes=top_n_genes
+    )
+    
+    # Process each cell type annotation key
+    annotation_keys = ["cell_type_mmc_raw", "cell_type_mmc_incl_mixed", "cell_type_mmc_incl_low_quality"]
+    annotation_results = {}
+    
+    for key in annotation_keys:
+        print(f"\nProcessing {key}...")
+        
+        print("  3. Assigning cell types to Leiden clusters using majority vote...")
+        assigned_cell_type_dict, normalized_percentage = assign_cell_types_to_clusters(
+            adata, 
+            leiden_col=leiden_col, 
+            cell_type_col=key
+        )
+        
+        # Add to adata.obs
+        adata.obs[f"{key}_clusters"] = adata.obs[leiden_col].map(assigned_cell_type_dict)
+
+        print("  4. Revise majority vote using marker genes scores and identify final cell type...")
+        adata, undefined_reasons, cluster_score_matrix = assign_final_cell_types(
+            adata, 
+            cluster_labels_dict=assigned_cell_type_dict, 
+            match_dict=mmc_to_score_dict, 
+            leiden_col=leiden_col, 
+            out_col=f"{key}_revised",
+            score_threshold=score_threshold
+        )
+
+        # Print undefined reasons
+        print("\nClusters marked as Undefined:")
+        for cluster, reason in undefined_reasons.items():
+            print(f"  Cluster {cluster}: {reason}")
+
+        # Calculate summary statistics
+        defined_count = (adata.obs[f"{key}_revised"] != "Undefined").sum()
+        total_count = len(adata.obs)
+        defined_percent = defined_count / total_count * 100
+        
+        print(f"\nAnnotation summary: {defined_count}/{total_count} cells ({defined_percent:.1f}%) assigned to cell types")
+
+        # Update categorical values if colors are provided
+        if cell_type_colors is not None:
+            adata.obs[f"{key}_revised"] = pd.Categorical(
+                adata.obs[f"{key}_revised"], categories=list(cell_type_colors.keys())
+            )
+            adata.obs[f"{key}_revised"] = adata.obs[f"{key}_revised"].cat.remove_unused_categories()
+        
+        print("\nValue counts:")
+        print(adata.obs[f"{key}_revised"].value_counts())
+        
+        # Store results
+        annotation_results[key] = {
+            'defined_count': defined_count,
+            'total_count': total_count,
+            'defined_percent': defined_percent,
+            'undefined_reasons': undefined_reasons
+        }
+    
+    return adata, annotation_results, normalized_percentage
+
+
+def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir, today):
+    today = date.today().strftime("%Y%m%d")
+
+    # Prepare adata
+    adata_temp = adata.copy()
+    adata_temp.var["gene"] = adata_temp.var.index
+    adata_temp.var.index = adata_temp.var["ensmus_id"]
+    if "counts" in adata_temp.layers:
+        adata_temp.X = adata_temp.layers["counts"]
+    elif len(adata_temp.layers) > 0:
+        raise ValueError("'counts' layer not found, and other layers are present.")
+
+    filename = f"{today}_adata_temp_mapmycells.h5ad"
+    temp_file_path = os.path.join(annotation_path, filename)
+    adata_temp.write(temp_file_path)
+
+    # Ensure output directory exists
+    output_dir = os.path.join(annotation_path, "mapmycells_out")
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Build command
+    ref_path = os.path.join(data_dir, "misc", "scRNAseq_ref_ABCAtlas_Yao2023Nature", "ref_taxonomy", "mouse_brain")
+    cmd = [
+        sys.executable, "-m", "cell_type_mapper.cli.from_specified_markers",
+        "--query_path", os.path.join(annotation_path, filename),
+        "--extended_result_path", os.path.join(output_dir, f"{today}_MapMyCells_{sample_name}_{method_name}.json"),
+        "--csv_result_path", os.path.join(output_dir, f"{today}_MapMyCells_{sample_name}_{method_name}.csv"),
+        "--drop_level", "CCN20230722_SUPT",
+        "--cloud_safe", "False",
+        "--query_markers.serialized_lookup", os.path.join(ref_path, "mouse_markers_230821.json"),
+        "--precomputed_stats.path", os.path.join(ref_path, "precomputed_stats_ABC_revision_230821.h5"),
+        "--type_assignment.normalization", "raw",
+        "--type_assignment.n_processors", "4"
+    ]
+
+    subprocess.run(cmd, check=True)
+    os.remove(temp_file_path)
+
+
+def score_cell_types(adata, marker_genes_dict, top_n_genes=25):
+    """Score cells for marker gene expression using top n genes from marker_genes_dict."""
+    if not marker_genes_dict:
+        print("Warning: Empty marker_genes_dict. No scoring performed.")
+        return adata
+        
+    for cell_type, genes in marker_genes_dict.items():
+        if not genes:
+            print(f"Warning: Empty gene list for {cell_type}. Skipping.")
+            continue
+            
+        genes_to_use = genes[:top_n_genes] if len(genes) > top_n_genes else genes
+        available_genes = [gene for gene in genes_to_use if gene in adata.var_names]
+        
+        if available_genes:
+            score_name = f"score_{cell_type}"
+            print(f"  Scoring {cell_type} with {len(available_genes)} genes")
+            sc.tl.score_genes(adata, available_genes, score_name=score_name)
+        else:
+            print(f"  Warning: No marker genes for {cell_type} found in dataset. Skipping.")
+    
     return adata
 
 
-# 3. Final cell type assignment based on scores
-def assign_final_cell_types(
-    adata: AnnData,
-    cluster_labels_dict: Dict[Any, str],
-    match_dict,
-    leiden_res: float = 3.0,
-    score_threshold: float = 0.25,
-):
-    """Assign final cell types based on scoring results."""
-    leiden_col = f"leiden_res{leiden_res}".replace(".", "_")
-
-    # Initialize final cell types with Undefined
-    adata.obs["cell_type_final"] = "Undefined"
-
-    # Store reasons for undefined assignments
-    undefined_reasons = {}
-
-    # Initialize cluster-score matrix
-    clusters = list(adata.obs[leiden_col].unique())
-    cell_types = list(match_dict.keys())
-    cluster_score_matrix = pd.DataFrame(index=clusters, columns=cell_types, dtype=float)
-
-    # For each cluster
-    for cluster in clusters:
-        # Get the cell type assigned by crosstab
-        assigned_cell_type = cluster_labels_dict.get(cluster, "Unknown")
-
-        # Get cells in this cluster
-        mask = adata.obs[leiden_col] == cluster
-
-        # Collect all scores for this cluster
-        all_scores = {}
-        for cell_type, score_suffix in match_dict.items():
-            score_col = f"score_{score_suffix}"
-            if score_col in adata.obs.columns:
-                mean_score = adata.obs.loc[mask, score_col].mean()
-                all_scores[cell_type] = mean_score
-                cluster_score_matrix.loc[cluster, cell_type] = mean_score
-            else:
-                cluster_score_matrix.loc[cluster, cell_type] = np.nan
-
-        if not all_scores:
-            undefined_reasons[cluster] = "No scores found for any cell type"
-            continue
-
-        # Find highest scoring cell type
-        highest_cell_type = max(all_scores, key=all_scores.get)
-        highest_score = all_scores[highest_cell_type]
-
-        # Get score for assigned cell type
-        assigned_score_col = (
-            f"score_{match_dict.get(assigned_cell_type, assigned_cell_type)}"
-        )
-        if assigned_score_col in adata.obs.columns:
-            assigned_score = adata.obs.loc[mask, assigned_score_col].mean()
-        else:
-            undefined_reasons[cluster] = (
-                f"No score column found for {assigned_cell_type}"
-            )
-            continue
-
-        # If highest score is above threshold, use it
-        if highest_score > score_threshold:
-            if highest_cell_type != assigned_cell_type:
-                print(
-                    f"Cluster {cluster}: Reassigned from {assigned_cell_type} to {highest_cell_type} (higher score: {highest_score:.4f} vs {assigned_score:.4f})"
-                )
-            adata.obs.loc[mask, "cell_type_final"] = highest_cell_type
-        else:
-            undefined_reasons[cluster] = (
-                f"No cell type has score above threshold {score_threshold} (highest: {highest_cell_type} with {highest_score:.4f})"
-            )
-
-    return adata, undefined_reasons, cluster_score_matrix
-
-
-def update_explorer(path, adata: AnnData):
+def update_explorer(path, adata):
     """Update explorer files.
 
     Args:
     path: path to sdata.zarr and sdata.explorer
     adata: annotated adata
-    """
+    """    
+
+    # load on demand
+    from spatialdata import read_zarr
+    from sopa.io.explorer import write_cell_categories
+    
     adata_original = read_zarr(os.path.join(path, "sdata.zarr"))["table"]
     adata_original.obs = adata.obs.merge(
         adata_original.obs, left_index=True, right_index=True, how="right"
@@ -560,387 +817,3 @@ def update_explorer(path, adata: AnnData):
     write_cell_categories(os.path.join(path, "sdata.explorer"), adata_original)
 
 
-# Main function to run the entire pipeline
-def cell_type_annotation_pipeline(
-    adata: AnnData,
-    marker_genes_dict: Dict[str, str],
-    leiden_res: float = 3.0,
-    min_cells: int = 100,
-    score_threshold: float = 0.25,
-    top_n_genes: int = 25,
-):
-    """Run the complete cell type annotation pipeline."""
-    # Check if leiden clustering exists, run if not present
-    leiden_col = f"leiden_res{leiden_res}".replace(".", "_")
-    if leiden_col not in adata.obs.columns:
-        print(f"Running leiden clustering with resolution {leiden_res}...")
-        sc.tl.leiden(adata, key_added=leiden_col, resolution=leiden_res)
-
-    print("1. Assigning cell types based on cluster composition...")
-    adata, cluster_labels_dict, normalized_crosstab = assign_cell_types_by_cluster(
-        adata, leiden_res, min_cells
-    )
-
-    print("2. Scoring cells for marker gene expression...")
-    adata = score_cell_types(adata, marker_genes_dict, top_n_genes)
-
-    print("3. Assigning final cell types based on scores...")
-    adata, undefined_reasons, cluster_score_matrix = assign_final_cell_types(
-        adata, cluster_labels_dict, match_dict, leiden_res, score_threshold
-    )
-
-    # Print undefined reasons
-    print("\nClusters marked as Undefined:")
-    for cluster, reason in undefined_reasons.items():
-        print(f"Cluster {cluster}: {reason}")
-
-    # Calculate summary statistics
-    defined_count = (adata.obs["cell_type_final"] != "Undefined").sum()
-    total_count = len(adata.obs)
-    defined_percent = defined_count / total_count * 100
-
-    print(
-        f"\nAnnotation summary: {defined_count}/{total_count} cells ({defined_percent:.2f}%) assigned to defined cell types"
-    )
-
-    # Create summary dataframe
-    summary_df = pd.DataFrame(
-        {
-            "Cluster": list(cluster_labels_dict.keys()),
-            "Initial_Cell_Type": [
-                cluster_labels_dict[cluster] for cluster in cluster_labels_dict.keys()
-            ],
-            "Final_Cell_Type": [
-                adata.obs[
-                    adata.obs[f"leiden_res{leiden_res}".replace(".", "_")] == cluster
-                ]["cell_type_final"].iloc[0]
-                if len(
-                    adata.obs[
-                        adata.obs[f"leiden_res{leiden_res}".replace(".", "_")]
-                        == cluster
-                    ]
-                )
-                > 0
-                else "Undefined"
-                for cluster in cluster_labels_dict.keys()
-            ],
-        }
-    )
-
-    return adata, summary_df, normalized_crosstab, cluster_score_matrix
-
-
-def celltype_mapping(path, json_name, allen_mmc_dir, data_dir, mad_factor: int = 3):
-    """Perform celltype mapping.
-
-    Args:
-        path : path to model
-        json_name : Name of .json file
-        allen_mmc_dir : path to MapMyCells output
-        data_dir : path to parent root
-        mad_factor (int, optional): mad factor. Defaults to 3.
-
-    Returns:
-        _type_: _description_
-    """
-    # Load MapMyCells JSON and QC (mark low-quality mappings as "Undefined")
-
-    # Load and process data
-    json_path = os.path.join(allen_mmc_dir, json_name, f"{json_name}.json")
-    with open(json_path, "rb") as src:
-        json_results = json.load(src)
-    mapping_result = {c["cell_id"]: c for c in json_results["results"]}
-    allen_mmc_metadata = process_allen_metadata(json_results, mapping_result)
-
-    output_dir = os.path.join(path, "cell_type_annotation")
-
-    # Plot MAD thresholds for SUBC and CLAS (per cell type)
-    for allen_key, figsize in [("SUBC", (45, 7)), ("CLAS", (13, 7))]:
-        plot_mad_thresholds(
-            allen_mmc_metadata,
-            out_path=output_dir,
-            name=f"{allen_key}_mad_threshold",
-            group_column=f"allen_{allen_key}",
-            value_column=f"allen_avg_cor_{allen_key}",
-            mad_factor=mad_factor,
-            figsize=figsize,
-        )
-
-    # QC: Flag low-quality mappings
-    taxonomy_levels = ["CLAS", "SUBC", "SUPT", "CLUS"]
-    for level in taxonomy_levels:
-        flag_low_quality_mappings(
-            df=allen_mmc_metadata,
-            group_col=f"allen_{level}",
-            value_col=f"allen_avg_cor_{level}",
-            mad_factor=mad_factor,
-            inplace=True,
-        )
-
-    adata = read_zarr(os.path.join(path, "sdata.zarr"))["table"]
-    adata.obs = adata.obs.merge(
-        allen_mmc_metadata, left_index=True, right_index=True, how="left"
-    )
-
-    sc.pp.filter_cells(adata, min_counts=20)
-    sc.pp.filter_cells(adata, min_genes=5)
-    assert not all(adata.obs.head().isna().any())
-
-    if "counts" not in adata.layers:
-        adata.layers["counts"] = adata.X.copy()
-    adata.X = adata.layers["counts"].copy()
-    if "area" in adata.obs.columns:
-        normalize_counts(adata, method="area")  # Area normalization (default)
-    elif "volume" in adata.obs.columns:
-        normalize_counts(adata, method="volume")  # Volume normalization
-    normalize_counts(adata, method="library")  # Library size normalization
-
-    # Find area log-normalized layer
-    area_log_key = next(
-        (
-            k
-            for k in adata.layers.keys()
-            if k.endswith("_log1p_norm") and k != "library_log1p_norm"
-        ),
-        None,
-    )
-
-    # Plot distributions
-    fig, axs = plt.subplots(1, 4, figsize=(20, 4), gridspec_kw={"wspace": 0.4})
-
-    titles = [
-        "counts",
-        "library_log1p_norm",
-        f"{area_log_key}",
-        "zscore (volume based)",
-    ]
-    data_arrays = [
-        adata.layers["counts"].sum(1),
-        adata.layers["library_log1p_norm"].sum(1),
-        adata.layers[area_log_key].sum(1),
-        adata.layers["zscore"].sum(1),
-    ]
-
-    for ax, data, title in zip(axs, data_arrays, titles):
-        sns.histplot(data, kde=False, bins=100, ax=ax, zorder=2, alpha=1)
-        ax.set_title(title, fontsize=14)
-        ax.grid(True)
-        if ax.get_legend():
-            ax.get_legend().remove()
-        for patch in ax.patches:
-            patch.set_edgecolor("none")
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "compare_normalizations.png"), dpi=200)
-    plt.close()
-
-    adata.X = adata.layers["zscore"]
-    sc.tl.pca(adata)
-    sc.pp.neighbors(adata)
-    sc.tl.umap(adata)
-
-    with rc_context({"figure.figsize": (9, 8)}):
-        sc.pl.umap(
-            adata,
-            color=[
-                "allen_avg_cor_CLAS",
-                "allen_avg_cor_SUBC",
-                "allen_avg_cor_SUPT",
-                "allen_avg_cor_CLUS",
-            ],
-            size=4,
-            legend_fontoutline=2,
-            legend_fontsize=10,
-            ncols=4,
-            show=False,
-        )
-        plt.tight_layout()
-        plt.gca().set_aspect(1)
-        plt.savefig(
-            os.path.join(output_dir, "UMAP_mapmycells_quality_metrics.png"), dpi=200
-        )
-        plt.close()
-
-    adata.obs = group_cell_types(adata.obs)
-
-    cell_type_order = [
-        "ECs",
-        "Pericytes",
-        "SMCs",
-        "VLMCs",
-        "Ependymal",
-        "Choroid Plexus",
-        "Astrocytes",
-        "Oligodendrocytes",
-        "OPCs",
-        "Microglia",
-        "BAMs",
-        "Immune-Other",
-        "Neurons-Gaba",
-        "Neurons-Glut",
-        "Neurons-Dopa",
-        "Neurons-Immature",
-        "Neurons-Other",
-        "OECs",
-        "Undefined",
-    ]
-    adata.obs["cell_type"] = pd.Categorical(
-        adata.obs["cell_type"], categories=cell_type_order
-    )
-    with rc_context({"figure.figsize": (11, 8)}):
-        sc.pl.umap(
-            adata,
-            color=["cell_type"],
-            size=4,
-            legend_fontoutline=2,
-            legend_fontweight="normal",
-            legend_fontsize=12,
-            return_fig=True,
-        )
-        plt.tight_layout()
-        plt.gca().set_aspect(1)
-        plt.savefig(
-            os.path.join(output_dir, "UMAP_mapmycells_cell_types.png"),
-            dpi=200,
-            bbox_inches="tight",
-        )
-        plt.close()
-
-    # highlight low-quality cells
-    adata.obs["low_quality_cells"] = adata.obs["cell_type"].apply(
-        lambda x: "Undefined" if x == "Undefined" else "Mapped"
-    )
-    with rc_context({"figure.figsize": (11, 8)}):
-        sc.pl.umap(
-            adata,
-            color="low_quality_cells",
-            size=4,
-            legend_fontoutline=2,
-            legend_fontweight="normal",
-            legend_fontsize=7,
-            palette={"Undefined": "red", "Mapped": "lightgrey"},
-            return_fig=True,
-        )
-        plt.tight_layout()
-        plt.gca().set_aspect(1)
-        plt.savefig(
-            os.path.join(output_dir, "UMAP_mapmycells_low_quality_cells.png"),
-            dpi=200,
-            bbox_inches="tight",
-        )
-        plt.close()
-    del adata.obs["low_quality_cells"]
-
-    ABCAtlas_marker_df = pd.read_csv(
-        os.path.join(
-            data_dir,
-            "misc",
-            "scRNAseq_ref_ABCAtlas_Yao2023Nature",
-            "marker_genes",
-            "20250211_cell_type_markers_top50.csv",
-        )
-    )
-    # turn ABCAtlas_marker_df to dict
-    cell_types = ABCAtlas_marker_df.columns.tolist()
-    cell_type_dict = {}
-    for cell_type in cell_types:
-        # Skip the index column (0) if present
-        if cell_type == "0":
-            continue
-        # Get values from column, excluding the header row
-        genes = ABCAtlas_marker_df[cell_type].iloc[0:].tolist()
-        # Remove any NaN values
-        genes = [gene for gene in genes if pd.notna(gene)]
-        cell_type_dict[cell_type] = genes
-
-    leiden_res = 3.0
-    adata, summary_df, normalized_crosstab, cluster_score_matrix = (
-        cell_type_annotation_pipeline(
-            adata,
-            marker_genes_dict=cell_type_dict,
-            leiden_res=leiden_res,
-            score_threshold=0.5,
-            top_n_genes=25,
-        )
-    )
-
-    adata.obs["cell_type_final"] = pd.Categorical(
-        adata.obs["cell_type_final"], categories=cell_type_order
-    )
-
-    def plot_umap(
-        adata: AnnData,
-        color_by,
-        legend_loc=None,
-        legend_fontsize=8,
-        legend_fontoutline=1.0,
-        figsize=(11, 8),
-        output_filename=None,
-    ):
-        with rc_context({"figure.figsize": figsize}):
-            fig = sc.pl.umap(
-                adata,
-                color=color_by,
-                size=4,
-                legend_loc=legend_loc,
-                legend_fontoutline=legend_fontoutline,
-                legend_fontweight="normal",
-                legend_fontsize=legend_fontsize,
-                return_fig=True,
-            )
-            plt.tight_layout()
-            plt.gca().set_aspect(1)
-
-            if output_filename:
-                plt.savefig(
-                    os.path.join(output_dir, output_filename),
-                    dpi=200,
-                    bbox_inches="tight",
-                )
-
-            return fig
-
-    # Generate plots with different coloring parameters
-    plot_umap(
-        adata,
-        f"leiden_res{leiden_res}".replace(".", "_"),
-        legend_loc="on data",
-        legend_fontsize=10,
-        output_filename=f"UMAP_leiden_res{leiden_res}.png",
-    )
-
-    plot_umap(
-        adata,
-        "cell_type_clusters",
-        legend_loc="right margin",
-        output_filename="UMAP_mapmycells_cell_types_denoised.png",
-    )  # step 1 / majority vote
-
-    plot_umap(
-        adata,
-        "cell_type_final",
-        legend_loc="right margin",
-        output_filename="UMAP_cell_types_final.png",
-    )  # step 3 / incl score refinement
-
-    plot_umap(
-        adata,
-        "cell_type_final",
-        legend_loc="on data",
-        legend_fontsize=10,
-        legend_fontoutline=1.5,
-        figsize=(9, 8),
-        output_filename="UMAP_cell_types_final_legendondata.png",
-    )
-    plt.close()
-
-    # export data
-    normalized_crosstab.to_csv(
-        os.path.join(output_dir, "mapmycells_leiden_crosstab_normalized_.csv")
-    )
-    cluster_score_matrix.to_csv(
-        os.path.join(output_dir, "markerscore_leiden_matrix.csv")
-    )
-    adata.obs.to_csv(os.path.join(output_dir, "adata_obs_annotated.csv"))
-
-    return adata
