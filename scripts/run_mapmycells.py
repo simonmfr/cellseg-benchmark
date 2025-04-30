@@ -16,6 +16,7 @@ from os.path import join
 from pathlib import Path
 from subprocess import run
 import pandas as pd
+import numpy as np
 import scanpy as sc
 from spatialdata import read_zarr
 
