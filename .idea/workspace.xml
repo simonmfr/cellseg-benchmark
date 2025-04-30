@@ -5,9 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="048a8a57-1aa6-47da-ad84-3860fc806524" name="Changes" comment="sdata save issue fix">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/msfonts/fontinst.exe" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/msfonts/fontinst.exe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/cell_annotation_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/cell_annotation_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/run_mapmycells.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/run_mapmycells.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sdata_utils.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -60,6 +61,8 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "diff.base",
     "vue.rearranger.settings.migration": "true"
   },
   "keyToStringList": {
@@ -69,6 +72,11 @@
     ]
   }
 }]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/cellseg_benchmark" />
+    </key>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>

@@ -12,6 +12,7 @@ import math, os
 import sys
 import warnings
 import json
+import logging
 from os.path import join
 from pathlib import Path
 from subprocess import run
@@ -27,20 +28,23 @@ plt.rcParams["font.family"] = "Arial" if "Arial" in [f.name for f in fm.fontMana
 plt.rcParams['font.weight'] = 'normal'
 # see https://medium.com/@daimin0514/how-to-install-the-arial-font-in-linux-9e6ac76d3d9f
 import seaborn as sns
-
-sys.path.insert(1, join(Path(__file__).parent.parent.resolve(), "src"))
-import cell_annotation_utils as anno_utils
+import cellseg_benchmark.cell_annotation_utils as anno_utils
 
 from datetime import date
 today = date.today().strftime("%Y%m%d")
 
+logger = logging.getLogger("shape_mapping")
+logger.setLevel(logging.WARNING)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
+logger.addHandler(handler)
+
 if len(sys.argv) < 4:
-    print(f"Error: Missing required arguments. Usage: python {os.path.basename(__file__)} sample_name method_name data_dir [mad_factor]")
-    sys.exit(1)
+    raise AttributeError("Missing required arguments. Usage: python {os.path.basename(__file__)} sample_name method_name data_dir [mad_factor]")
 
 if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])
-    print(f"Using {sc.settings.n_jobs} CPU cores from SLURM allocation")
+    logger.info("Using SLURM_CPUS_PER_TASK={}".format(sc.settings.n_jobs))
 
 warnings.filterwarnings("ignore")
 
@@ -54,7 +58,6 @@ except IndexError:
     mad_factor = 3  # Default value if not provided
 
 path = os.path.join(data_dir, "samples", sample_name, "results", method_name)
-print("Path: "+path)
 annotation_path = os.path.join(path, "cell_type_annotation")
 os.makedirs(annotation_path, exist_ok=True)
 
@@ -66,9 +69,7 @@ adata.var["gene"] = adata.var.index
 # add ensembl IDs
 adata = anno_utils.map_gene_symbols_to_ensembl(adata)
 
-print(adata.var.head(3))
-
-print(f"Running MapMyCells on mouse brain atlas...")
+logger.info("Running MapMyCells on mouse brain atlas")
 anno_utils.run_mapmycells(
     adata,
     sample_name=sample_name,
@@ -78,13 +79,12 @@ anno_utils.run_mapmycells(
     today=today
 )
 
-print(f"Processing MapMyCells output...")
+logger.info("Processing MapMyCells output")
 
 json_path = os.path.join(annotation_path, "mapmycells_out", f"{today}_MapMyCells_{sample_name}_{method_name}.json")
 with open(json_path, "rb") as src:
         json_results = json.load(src)
 allen_mmc_metadata = anno_utils.process_mapmycells_output(json_results)
-print(allen_mmc_metadata.head(2))
 
 anno_utils.plot_metric_distributions(allen_mmc_metadata, 
                                      out_path=annotation_path,
@@ -102,7 +102,7 @@ for allen_key, figsize in [("SUBC", (45, 7)), ("CLAS", (13, 7))]:
             figsize=figsize,
 )
 
-print(f"Mark low-quality cells as 'Undefined'...")
+logger.info("Marking low-quality cells as 'Undefined'")
 # based on correlation MAD as suggested by Allen Institute
 taxonomy_levels = ["CLAS", "SUBC", "SUPT", "CLUS"]
 prefixes = ["allen", "allen_runner_up_1", "allen_runner_up_2"]
@@ -114,11 +114,9 @@ for level in taxonomy_levels:
 # re-group cell types from *_SUBC
 for prefix in prefixes:
     for suffix in ["SUBC", "SUBC_incl_low_quality"]:
-        allen_mmc_metadata[f"{prefix}_{suffix}"] = anno_utils.group_cell_types(allen_mmc_metadata[f"{prefix}_{suffix}"])   
+        allen_mmc_metadata[f"{prefix}_{suffix}"] = anno_utils.group_cell_types(allen_mmc_metadata[f"{prefix}_{suffix}"])
 
-print(allen_mmc_metadata["allen_SUBC"].value_counts())
-
-print(f"Annotate 'mixed' cells based on runner-up probability...")
+logger.info("Annotate 'mixed' cells based on runner-up probability")
 mixed_df = anno_utils.create_mixed_cell_types(df = allen_mmc_metadata, 
                                               diff_threshold = 0.5)
 
@@ -126,7 +124,6 @@ allen_mmc_metadata = allen_mmc_metadata.merge(mixed_df,
                                               left_index=True, 
                                               right_index=True, 
                                               how='left')
-print(mixed_df.head())
 
 # add to adata.obsm
 adata.obsm["allen_cell_type_mapping"] = allen_mmc_metadata.loc[adata.obs.index]
@@ -251,11 +248,11 @@ output_path = os.path.join(annotation_path, "UMAP_and_SPATIAL_mapmycells_mixed_a
 plt.savefig(output_path, dpi=200, bbox_inches="tight")
 plt.close()
 
-print(adata.obs['cell_type_mmc_incl_mixed'].value_counts())
-print(adata.obs['cell_type_mmc_is_mixed'].value_counts())
-print(adata.obs['cell_type_mmc_mixed_names'].value_counts())
-print(adata.obs['cell_type_mmc_is_low_quality'].value_counts())
-print(adata.obs['cell_type_mmc_incl_low_quality'].value_counts())
+logger.info("Number of mmc including mixed cells: {}".format(adata.obs['cell_type_mmc_incl_mixed'].value_counts()))
+logger.info("Number of mixed mmc: {}".format(adata.obs['cell_type_mmc_is_mixed'].value_counts()))
+logger.info("Number of mmc with mixed names: {}".format(adata.obs['cell_type_mmc_mixed_names'].value_counts()))
+logger.info("Number of low-quality cells: {}".format(adata.obs['cell_type_mmc_is_low_quality'].value_counts()))
+logger.info("Number of cells including low-quality cells: {}".format(adata.obs['cell_type_mmc_incl_low_quality'].value_counts()))
 
 # Revise annotations
 cell_type_colors = {
