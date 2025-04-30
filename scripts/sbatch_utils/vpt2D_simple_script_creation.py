@@ -11,6 +11,11 @@ with open(
 ) as f:
     data = json.load(f)
 
+with open(
+    f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/vpt_experiment_jsons/{staining1}_{staining2}.json"
+) as f:
+    experiment_json_path = json.load(f)
+
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple"
 ).mkdir(parents=False, exist_ok=True)

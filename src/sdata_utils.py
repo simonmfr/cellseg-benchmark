@@ -229,6 +229,7 @@ def add_cell_type_annotation(sdata_main, sdata_path:str, seg_method, write_to_di
         cell_type, how="left", left_index=True, right_on='cell_id'
     )
     new_obs.index = sdata_main[f"adata_{seg_method}"].obs.index
+    new_obs.fillna("Low-Read-Cells", inplace=True)
     sdata_main[f"adata_{seg_method}"].obs = new_obs
     if write_to_disk:
         sdata_main.write_element(f"adata_{seg_method}")
