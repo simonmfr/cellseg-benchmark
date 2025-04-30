@@ -223,11 +223,13 @@ def add_cell_type_annotation(sdata_main, sdata_path:str, seg_method, write_to_di
             "adata_obs_annotated.csv",
         )
     )[["cell_type_final", 'cell_id']]
-    sdata_main[f"adata_{seg_method}"].obs = sdata_main[
+    new_obs = sdata_main[
         f"adata_{seg_method}"
     ].obs.merge(
         cell_type, how="left", left_index=True, right_on='cell_id'
     )
+    new_obs.index = sdata_main[f"adata_{seg_method}"].obs.index
+    sdata_main[f"adata_{seg_method}"].obs = new_obs
     if write_to_disk:
         sdata_main.write_element(f"adata_{seg_method}")
     return sdata_main
@@ -306,7 +308,6 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
         seg_method: current segmentation method
         data_path: path to merscope data
     """
-    print(f"Handling adata: {seg_method}")
     transform = pd.read_csv(
         os.path.join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",

@@ -6,9 +6,11 @@ from pathlib import Path
 from spatialdata import read_zarr
 
 sys.path.insert(1, join(str(Path(__file__).parent.parent.resolve()), "src"))
-
-sys.path.insert(1, join(Path(__file__).parent.parent.resolve(), "src"))
 import sdata_utils as su
+
+import warnings
+
+warnings.filterwarnings("ignore")
 
 sample = sys.argv[1]  # sample name
 data_path = sys.argv[2]  # merscope data

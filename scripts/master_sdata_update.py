@@ -16,6 +16,10 @@ from sdata_utils import build_shapes, add_cell_type_annotation, add_ficture, tra
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+import warnings
+
+warnings.filterwarnings("ignore")
+
 def check_ficture_availability(adata: AnnData, sdata_path: str, n_ficture:int, var=False)->bool:
     if "Ficture" not in os.listdir(join(sdata_path, "results")):
         return False

@@ -114,7 +114,6 @@ def create_factor_level_image(data, factor, DAPI_shape) -> np.ndarray:
     Returns: image of factor
 
     """
-    print(f"working on factor: {factor}")
     K1_ind = data["K1"] == factor
     K1 = data[K1_ind]
     K1["probability"] = K1["P1"].copy()
