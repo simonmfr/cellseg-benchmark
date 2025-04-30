@@ -12,7 +12,7 @@ with open(
     data = json.load(f)
 
 with open(
-    f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/vpt_experiment_jsons/{staining1}_{staining2}.json"
+    f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/vpt_experiment_jsons/{staining}.json"
 ) as f:
     experiment_json_path = json.load(f)
 
