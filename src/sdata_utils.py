@@ -6,11 +6,10 @@ import spatialdata as sd
 import spatialdata_io
 
 
-def process_merscope(sample_name, data_dir, sample_paths, zmode):
+def process_merscope(sample_name, sdata_file, sample_paths, zmode):
     """Load and save a MERSCOPE sample as sdata with specified z_layers configuration. Only loads transcripts and mosaic_images."""
     if zmode not in {"z3", "3d"}:
         raise ValueError(f"Invalid zmode: {zmode}")
-    sdata_file = os.path.join(data_dir, "samples", sample_name, f"sdata_{zmode}.zarr")
     if os.path.exists(sdata_file):
         print(f"Skipping {sample_name}: {zmode} file already exists")
         return
@@ -135,6 +134,21 @@ def integrate_segmentation_data(
                             sdata_main.write_element(f"boundaries_{seg_method}")
                         print(
                             f"Selected {baysor_files[0]} for {seg_method} from multiple boundary files: {boundary_files}."
+                        )
+                    else:
+                        print(
+                            f"Multiple *boundaries files found for {seg_method}. Skipping boundary import."
+                        )
+                if re.match(r"(?i)proseg", seg_method):
+                    proseg_files = [
+                        f for f in boundary_files if re.match(r"(?i)proseg", f)
+                    ]
+                    if proseg_files:
+                        sdata_main[f"boundaries_{seg_method}"] = sdata[proseg_files[0]]
+                        if write_to_disk:
+                            sdata_main.write_element(f"boundaries_{seg_method}")
+                        print(
+                            f"Selected {proseg_files[0]} for {seg_method} from multiple boundary files: {boundary_files}."
                         )
                     else:
                         print(

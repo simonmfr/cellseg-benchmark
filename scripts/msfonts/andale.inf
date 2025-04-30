@@ -1,0 +1,22 @@
+[Version]
+Signature="$Chicago$"
+AdvancedINF=2.5
+
+[DefaultInstall]
+UpdateInis=SubWindowsINIUpdate
+RunPostSetupCommands=RunPostSetupCommandsSection
+SmartReboot=A
+
+[DefaultInstall.NT] 
+AddReg=SubRegAdd
+RunPostSetupCommands=RunPostSetupCommandsSection
+
+[RunPostSetupCommandsSection]
+fontinst.exe
+
+[SubWindowsINIUpdate]
+%25%\win.ini,FontSubstitutes,,"Monotype.com=Andale Mono"
+
+[SubRegAdd]
+HKLM,"SOFTWARE\Microsoft\Windows NT\CurrentVersion\FontSubstitutes","Monotype.com",,"Andale Mono"
+

@@ -67,16 +67,19 @@ Usage:
 python voronoi_segmentation.py data_path save_path max_cells
 ```
 
-## [cell_annotation.py](cell_annotation.py)
-requires sopa installation. Arguments:
-1) `sample_name`
-2) `method_name`
-3) `data_directory`: root of analysis folder (cellseg-benchmark)
-4) `mad_factor`: if number smaller than 1, then defaults to 3
+## [cell_type_annotation.py](cell_type_annotation.py)
+Cell type annotation using MapMyCells from Allen Institute.
+
+Arguments:
+1. `sample_name`: Name of the sample to process (eg foxf2_s2_r1)
+2. `method_name`: Name of the segmentation method (eg Proseg)
+3. `data_directory`: Root of analysis folder (cellseg-benchmark)
+4. `ref_taxonomy`: Folder containing MapMyCells reference taxonomy files
+5. `mad_factor`: Factor for median absolute deviation filtering (defaults to 3 if not provided or if value < 1)
 
 Usage:
-```
-python cell_annotation.py sample_name method_name data_dir mad_factor
+```bash
+python cell_type_annotation.py sample_name method_name data_directory [mad_factor]
 ```
 
 ## [transcript_tif.py](transcript_tif.py)
