@@ -9,6 +9,7 @@ notebooks_local/
 outdated-*
 **/temp/
 .idea/
+scripts/msfonts/
 
 ## Datafiles
 *.h5
@@ -213,3 +214,4 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+scripts/msfonts/fontinst.exe
