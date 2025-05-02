@@ -8,7 +8,7 @@ staining1 = sys.argv[1]
 staining2 = sys.argv[2]
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
 ) as f:
     data = json.load(f)
 
