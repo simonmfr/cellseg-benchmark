@@ -760,6 +760,7 @@ def revise_annotations(
             leiden_col=leiden_col,
             out_col=f"{key}_revised",
             score_threshold=score_threshold,
+            logger=logger,
         )
 
         # Print undefined reasons
