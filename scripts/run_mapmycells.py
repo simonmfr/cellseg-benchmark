@@ -364,6 +364,7 @@ adata, annotation_results, normalized_percentage = anno_utils.revise_annotations
         "marker_genes_df",
         "20250416_cell_type_markers_top50.csv",
     ),
+    logger=logger,
 )
 
 # plot main annotations as umap and spatial plot
