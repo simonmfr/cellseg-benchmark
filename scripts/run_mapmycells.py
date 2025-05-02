@@ -71,7 +71,7 @@ adata = adata[:, ~adata.var_names.str.startswith("Blank")]
 adata.var["gene"] = adata.var.index
 
 # add ensembl IDs
-adata = anno_utils.map_gene_symbols_to_ensembl(adata)
+adata = anno_utils.map_gene_symbols_to_ensembl(adata, logger=logger)
 
 logger.info("Running MapMyCells on mouse brain atlas")
 anno_utils.run_mapmycells(
