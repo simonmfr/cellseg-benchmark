@@ -25,15 +25,15 @@ for method in listdir(path):
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 00:20:00
-#SBATCH --mem=32G
+#SBATCH -t 00:40:00
+#SBATCH --mem=25G
 #SBATCH -J annotation_{sample}_{method}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/logs/outputs/annotation_{sample}_{method}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/logs/errors/annotation_{sample}_{method}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/annotation.sqsh"
 
 mamba activate sopa
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg_benchmark/scripts/cell_annotation.py \
- {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark 0
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg_benchmark/scripts/run_mapmycells.py \
+ {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark
                     """)
         f.close()
