@@ -32,7 +32,9 @@ for method in listdir(path):
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/annotation_{sample}_{method}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/annotation.sqsh"
 
-mamba activate sopa
+mamba activate annotation
+cd ~/gitrepos/cellseg-benchmark
+git pull
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/run_mapmycells.py \
  {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark
                     """)
