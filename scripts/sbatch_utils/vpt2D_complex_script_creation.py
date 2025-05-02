@@ -12,13 +12,10 @@ with open(
 ) as f:
     data = json.load(f)
 
-with open(
-    f"/dss/dsshome1/00/ra87rib/cellseg_benchmark/misc/vpt_experiment_jsons/{staining1}_{staining2}.json"
-) as f:
-    experiment_json_path = json.load(f)
+experiment_json_path = f"/dss/dsshome1/00/ra87rib/cellseg_benchmark/misc/vpt_experiment_jsons/{staining1}_{staining2}.json"
 
 Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sbatches/sbatch_vpt_2D_simple"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sbatches/sbatch_vpt_2D_complex"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     res_path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/samples/{key}/results/vpt_2D_DAPI_{staining1}_{staining2}"
