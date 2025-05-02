@@ -726,7 +726,7 @@ def revise_annotations(
 
     # Score cell types using marker genes
     adata = score_cell_types(
-        adata, marker_genes_dict=cell_type_dict, top_n_genes=top_n_genes
+        adata, marker_genes_dict=cell_type_dict, top_n_genes=top_n_genes, logger=logger
     )
 
     # Process each cell type annotation key
