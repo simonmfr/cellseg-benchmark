@@ -2,16 +2,16 @@ import json
 from pathlib import Path
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
 ) as f:
     data = json.load(f)
 
 Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sbatches/sbatch_nuclei_model"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_nuclei_model"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sbatches/sbatch_nuclei_model/{key}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_nuclei_model/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -23,13 +23,13 @@ for key, value in data.items():
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=20
 #SBATCH -J nuclei_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/logs/outputs/nuclei_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/logs/errors/nuclei_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sopa.sqsh"
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/nuclei_{key}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/nuclei_{key}.err
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
 
 mamba activate sopa
-mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/samples/{key}/results/Cellpose_1_nuclei_model
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg_benchmark/scripts/api_nuclei.py {value} \
-/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/samples/{key}/results/Cellpose_1_nuclei_model
+mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_nuclei_model
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_nuclei.py {value} \
+/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_nuclei_model
             """)
     f.close()

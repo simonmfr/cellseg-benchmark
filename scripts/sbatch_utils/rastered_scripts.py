@@ -13,16 +13,16 @@ else:
 assert unit == "microns" or unit == "pixel", "unit must be either microns or pixel."
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
 ) as f:
     data = json.load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sbatches/sbatch_rastered_{size}{unit}"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_rastered_{size}{unit}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sbatches/sbatch_rastered_{size}{unit}/{key}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_rastered_{size}{unit}/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -32,14 +32,14 @@ for key, value in data.items():
 #SBATCH -t 08:00:00
 #SBATCH --mem=128G
 #SBATCH -J rastered{size}_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/logs/outputs/rastered{size}_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/logs/errors/rastered{size}_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/misc/sopa.sqsh"
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/rastered{size}_{key}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/rastered{size}_{key}.err
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
 
 mamba activate sopa
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg_benchmark/scripts/rastered_segmentation.py \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/rastered_segmentation.py \
  {value} \
- /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark/samples/{key}/results/Negative_Control_Rastered_{size} \
+ /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Rastered_{size} \
  {size} {overlap} {unit} {intens_rat}
             """)
     f.close()
