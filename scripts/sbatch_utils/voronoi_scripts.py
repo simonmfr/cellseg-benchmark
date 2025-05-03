@@ -16,8 +16,8 @@ for key, value in data.items():
     )
     f.write(f"""#!/bin/bash
             
-#SBATCH --clusters=serial
-#SBATCH --partition=serial_std
+#SBATCH -p lrz-cpu
+#SBATCH --qos=cpu
 #SBATCH -t 10:00:00
 #SBATCH --mem=64G
 #SBATCH -J voronoi_{key}
