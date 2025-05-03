@@ -19,7 +19,7 @@ for key, value in data.items():
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 10:00:00
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH -J voronoi_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/voronoi_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/voronoi_{key}.err
