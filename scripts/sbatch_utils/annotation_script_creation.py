@@ -25,7 +25,7 @@ for method in listdir(path):
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 00:40:00
+#SBATCH -t 01:00:00
 #SBATCH --mem=25G
 #SBATCH -J annotation_{sample}_{method}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/annotation_{sample}_{method}.out
