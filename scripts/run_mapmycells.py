@@ -545,7 +545,7 @@ na_cols = [
     "cell_type_mmc_runner_up_2_incl_low_quality",
 ]
 for col in na_cols:
-    if isinstance(adata.obs[col], pd.Categorical):
+    if isinstance(adata.obs[col].dtype, pd.CategoricalDtype):
         adata.obs[col] = adata.obs[col].cat.add_categories("None")
     adata.obs[col] = adata.obs[col].fillna("None")
 adata.obs.to_csv(os.path.join(annotation_path, "adata_obs_annotated.csv"), index=False)
