@@ -32,11 +32,11 @@ aggregate(sdata, shapes_key="image_patches", min_intensity_ratio=intens_rat)
 sdata["rastered_boundaries"] = sdata["image_patches"]
 sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
 
-write(
-    join(save_path, "sdata.explorer"),
-    sdata,
-    shapes_key="image_patches",
-    gene_column="gene",
-    save_h5ad=True,
-    pixel_size=1 / translation.loc[0, 0],
-)
+#write(
+#    join(save_path, "sdata.explorer"),
+#    sdata,
+#    shapes_key="image_patches",
+#    gene_column="gene",
+#    save_h5ad=True,
+#    pixel_size=1 / translation.loc[0, 0],
+#)
