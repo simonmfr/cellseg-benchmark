@@ -26,7 +26,7 @@ for key, value in data.items():
         "w",
     )
     f.write(f"""#!/bin/bash
-            
+
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 08:00:00
@@ -41,5 +41,5 @@ python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/rastere
  {value} \
  /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Rastered_{size} \
  {size} {overlap} {unit} {intens_rat}
-            """)
+""")
     f.close()
