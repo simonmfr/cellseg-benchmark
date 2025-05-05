@@ -23,7 +23,7 @@ for key, value in data.items():
         if dire.endswith(".vzg"):
             vzg_path = join(value, dire)
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple/{key}_{staining1}_{staining2}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_complex/{key}_{staining1}_{staining2}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
