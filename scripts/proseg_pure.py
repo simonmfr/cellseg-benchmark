@@ -122,7 +122,7 @@ def main(data_path, sample, proseg_flags):
 
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(path, "Proseg_pure", "sdata.zarr"))
+    sdata.write(join(path, "Proseg_pure", "sdata.zarr"), overwrite=True)
     run(
         [
             "cp",
