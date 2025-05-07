@@ -23,11 +23,12 @@ for key, value in data.items():
 #SBATCH -J master_sdata_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/master_sdata_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/master_sdata_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/cellseg_benchmark.sqsh"
 
 
-mamba activate sopa
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/master_sdata.py {key} {data} z3 \
-/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark 
+cd ~/gitrepos/cellseg_benchmark
+git pull
+mamba activate cellseg_benchmark
+python scripts/master_sdata.py {key} {data} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark 
             """)
     f.close()
