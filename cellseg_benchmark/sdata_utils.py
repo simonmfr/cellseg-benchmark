@@ -272,7 +272,7 @@ def build_shapes(sdata, sdata_main, seg_method, write_to_disk, logger=None):
     if boundary_key in sdata.shapes.keys():
         sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
         if write_to_disk:
-            if f"boundaries_{seg_method}" in sdata_main.shapes.keys():
+            if join("shapes",f"boundaries_{seg_method}") in sdata_main.elements_paths_on_disk():
                 update_element(sdata_main, f"boundaries_{seg_method}")
             else:
                 sdata_main.write_element(f"boundaries_{seg_method}")
@@ -321,7 +321,7 @@ def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_d
         new_obs[col].fillna("Low-Read-Cells", inplace=True)
     sdata_main[f"adata_{seg_method}"].obs = new_obs
     if write_to_disk:
-        if f"adata_{seg_method}" in sdata_main.tables.keys():
+        if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
             update_element(sdata_main, f"adata_{seg_method}")
         else:
             sdata_main.write_element(f"adata_{seg_method}")
@@ -346,7 +346,7 @@ def add_ficture(
             1
         ]
     if write_to_disk:
-        if f"adata_{seg_method}" in sdata_main.tables.keys():
+        if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
             update_element(sdata_main, f"adata_{seg_method}")
         else:
             sdata_main.write_element(f"adata_{seg_method}")
@@ -386,7 +386,7 @@ def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False):
             adata.obs["volume"] = adata.obs["area"]*7
     sdata_main[f"adata_{seg_method}"] = adata
     if write_to_disk:
-        if f"adata_{seg_method}" in sdata_main.tables.keys():
+        if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
             update_element(sdata_main, f"adata_{seg_method}")
         else:
             sdata_main.write_element(f"adata_{seg_method}")
