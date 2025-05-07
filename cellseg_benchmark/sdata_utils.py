@@ -151,6 +151,8 @@ def integrate_segmentation_data(
     """
     ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
     for seg_method in tqdm(seg_methods):
+        if logger is not None:
+            logger.info(f"Adding {seg_method}...")
         seg_path = os.path.join(sdata_path, "results", seg_method, "sdata.zarr")
         if not os.path.exists(os.path.join(seg_path, "shapes")):
             if logger:
@@ -199,7 +201,7 @@ def integrate_segmentation_data(
 
                 if "cell_type_annotation" in listdir(
                     join(sdata_path, "results", seg_method)
-                ):  # TODO: add automatic cell type annotation
+                ):
                     sdata_main = add_cell_type_annotation(
                         sdata_main, sdata_path, seg_method, write_to_disk=write_to_disk
                     )
@@ -311,7 +313,7 @@ def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_d
     )
     new_obs.index = sdata_main[f"adata_{seg_method}"].obs.index
     for col in new_obs.columns:
-        if isinstance(new_obs[col], pd.CategoricalDtype):
+        if isinstance(new_obs[col].dtype, pd.CategoricalDtype):
             new_obs[col] = new_obs[col].cat.add_categories("Low-Read-Cells")
         new_obs[col].fillna("Low-Read-Cells", inplace=True)
     sdata_main[f"adata_{seg_method}"].obs = new_obs

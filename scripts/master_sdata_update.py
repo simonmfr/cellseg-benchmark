@@ -97,7 +97,7 @@ for method in seg_methods:
             logging.warning(
                 f"No cell type annotation found on disk for method '{method}'"
             )
-        elif "cell_type_final" not in adata.obs.columns:
+        else:
             tasks_collection[method].append("cell_types")
 
         if "volume" not in adata.obs.columns:
