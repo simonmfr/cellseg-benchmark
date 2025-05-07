@@ -10,16 +10,14 @@ from re import split
 from anndata import AnnData
 from spatialdata import read_zarr
 
-sys.path.insert(
-    1, join(str(Path(__file__).parent.parent.resolve()), "cellseg_benchmark")
-)
-from sdata_utils import (
+from cellseg_benchmark.sdata_utils import (
     add_cell_type_annotation,
     add_ficture,
     build_shapes,
     prepare_ficture,
     transform_adata,
     update_element,
+calculate_volume
 )
 
 logger = logging.getLogger("shape_mapping")
@@ -102,6 +100,9 @@ for method in seg_methods:
         elif "cell_type_final" not in adata.obs.columns:
             tasks_collection[method].append("cell_types")
 
+        if "volume" not in adata.obs.columns:
+            tasks_collection[method].append("volume")
+
         if check_ficture_availability(adata, sdata_path, n_ficture, var=var):
             tasks_collection[method].append("ficture")
 
@@ -129,6 +130,8 @@ for method, tasks in tasks_collection.items():
                 var,
                 write_to_disk=False,
             )
+        elif task == "volume":
+            sdata_main = calculate_volume(method, sdata_main, sdata_path, write_to_disk=False)
         elif task == "adata":
             sdata_main[f"adata_{method}"] = sdata[list(sdata.tables.keys())[0]].copy()
             transform_adata(sdata_main, method, data_path=data_path)
@@ -157,6 +160,6 @@ for method, tasks in tasks_collection.items():
     if "shapes" in tasks:
         update_element(sdata_main, f"boundaries_{method}")
         logging.info(f"Completed shape update for '{method}'")
-    elif len(set(["cell_type_annotation", "ficture", "adata"]) & set(tasks)):
+    elif len(set(["cell_type_annotation", "ficture", "adata", "volume"]) & set(tasks)):
         update_element(sdata_main, f"adata_{method}")
         logging.info(f"Completed adata update for '{method}'")

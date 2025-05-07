@@ -4,6 +4,8 @@ from os import listdir
 from os.path import join
 from re import split
 from typing import List, Optional
+import gzip
+import io
 
 import geopandas as gpd
 import numpy as np
@@ -210,6 +212,8 @@ def integrate_segmentation_data(
                         print(
                             f"No adata files found for {seg_method}. Skipping annotation."
                         )
+                if "volume" not in sdata_main[f"adata_{seg_method}"].obs.columns:
+                    sdata_main = calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=write_to_disk)
 
                 if len(ficture_arguments) > 0:
                     sdata_main = add_ficture(
@@ -283,7 +287,7 @@ def build_shapes(sdata, sdata_main, seg_method, write_to_disk, logger=None):
 
 
 def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_disk):
-    """Add cell type annotations to sdata_main."""
+    """Add cell type annotations to sdata_main, including adding volumes."""
     cell_type = pd.read_csv(
         join(
             sdata_path,
@@ -292,7 +296,16 @@ def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_d
             "cell_type_annotation",
             "adata_obs_annotated.csv",
         )
-    )[["cell_type_final", "cell_id"]]
+    )[["cell_type_mmc_incl_low_quality_revised",
+       "cell_type_mmc_incl_low_quality_clusters",
+       "cell_type_mmc_incl_low_quality",
+       "cell_type_mmc_incl_mixed_revised",
+       "cell_type_mmc_incl_mixed_clusters",
+       "cell_type_mmc_incl_mixed",
+       "cell_type_mmc_raw_revised",
+       "cell_type_mmc_raw_clusters",
+       "cell_type_mmc_raw",
+       "cell_id"]]
     new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
         cell_type, how="left", left_index=True, right_on="cell_id"
     )
@@ -324,6 +337,43 @@ def add_ficture(
         sdata_main[f"adata_{seg_method}"].obsm[f"ficture{n_ficture}_variance"] = stats[
             1
         ]
+    if write_to_disk:
+        sdata_main.write_element(f"adata_{seg_method}")
+    return sdata_main
+
+methods_3D = ["Proseg"]
+
+def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False):
+    """Calculate volume of sdata."""
+    adata = sdata_main[f"adata_{seg_method}"]
+    if any([x in seg_method for x in methods_3D]):
+        if "Proseg" in seg_method:
+            path = join(
+                sdata_path,
+                "results",
+                seg_method,
+                "sdata.zarr",
+                ".sopa_cache",
+                "transcript_patches",
+                "0",
+                "cell-polygons-layers.geojson.gz"
+            )
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                geojson_text = f.read()
+
+            geojson_io = io.StringIO(geojson_text)
+
+            gdf = gpd.read_file(geojson_io)
+            gdf['area'] = [x.area for x in gdf['geometry']]
+            area = gdf[['cell', 'area']].groupby('cell').sum()
+            area.rename(columns={'area': 'volume'}, inplace=True)
+            adata.obs = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
+    else:
+        if "area" not in adata.obs.columns:
+            raise KeyError("Area column not found in adata.obs. Volume cannot be calculated.")
+        else:
+            adata.obs["volume"] = adata.obs["area"]*7
+    sdata_main[f"adata_{seg_method}"] = adata
     if write_to_disk:
         sdata_main.write_element(f"adata_{seg_method}")
     return sdata_main
