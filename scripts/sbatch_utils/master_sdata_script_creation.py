@@ -26,7 +26,7 @@ for key, value in data.items():
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/cellseg_benchmark.sqsh"
 
 
-cd ~/gitrepos/cellseg_benchmark
+cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
 python scripts/master_sdata.py {key} {value} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark 
