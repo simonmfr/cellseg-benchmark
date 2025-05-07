@@ -311,9 +311,9 @@ def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_d
     )
     new_obs.index = sdata_main[f"adata_{seg_method}"].obs.index
     for col in new_obs.columns:
-        if isinstance(new_obs.obs[col].dtype, pd.CategoricalDtype):
-            new_obs.obs[col] = new_obs.obs[col].cat.add_categories("Low-Read-Cells")
-        new_obs.obs[col].fillna("Low-Read-Cells", inplace=True)
+        if isinstance(new_obs[col], pd.CategoricalDtype):
+            new_obs.obs[col] = new_obs[col].cat.add_categories("Low-Read-Cells")
+        new_obs[col].fillna("Low-Read-Cells", inplace=True)
     sdata_main[f"adata_{seg_method}"].obs = new_obs
     if write_to_disk:
         sdata_main.write_element(f"adata_{seg_method}")
