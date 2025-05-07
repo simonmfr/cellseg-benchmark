@@ -29,6 +29,6 @@ for key, value in data.items():
 cd ~/gitrepos/cellseg_benchmark
 git pull
 mamba activate cellseg_benchmark
-python scripts/master_sdata.py {key} {data} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark 
+python scripts/master_sdata.py {key} {value} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark 
             """)
     f.close()
