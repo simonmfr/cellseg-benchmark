@@ -11,7 +11,7 @@ from cellseg_benchmark import sdata_utils as su
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger("shape_mapping")
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
@@ -39,5 +39,5 @@ seg_methods = [
     if os.path.isdir(join(sdata_path, "results", method, "sdata.zarr"))
 ]
 su.integrate_segmentation_data(
-    sdata_path, seg_methods, sdata_main, write_to_disk=True, data_path=data_path
+    sdata_path, seg_methods, sdata_main, write_to_disk=True, data_path=data_path, logger=logger
 )
