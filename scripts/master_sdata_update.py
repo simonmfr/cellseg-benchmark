@@ -20,7 +20,7 @@ from cellseg_benchmark.sdata_utils import (
 )
 
 logger = logging.getLogger("shape_mapping")
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
