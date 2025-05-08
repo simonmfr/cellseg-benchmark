@@ -383,7 +383,9 @@ def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, lo
             gdf['area'] = [x.area for x in gdf['geometry']]
             area = gdf[['cell', 'area']].groupby('cell').sum()
             area.rename(columns={'area': 'volume'}, inplace=True)
-            adata.obs = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
+            tmp = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
+            tmp.index = adata.obs.index
+            adata.obs = tmp
     else:
         try:
             boundaries = sdata_main.transform_element_to_coordinate_system(f"boundaries_{seg_method}", target_coordinate_system="micron")
