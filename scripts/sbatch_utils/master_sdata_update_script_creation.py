@@ -20,14 +20,16 @@ for key, value in data.items():
 #SBATCH --qos=cpu
 #SBATCH -t 01:00:00
 #SBATCH --mem=300G
-#SBATCH -J master_sdata_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/master_sdata_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/master_sdata_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH -J master_sdata_update_{key}
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/master_sdata_update_{key}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/master_sdata_update_{key}.err
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/cellseg_benchmark.sqsh"
 
 
-mamba activate sopa
+cd ~/gitrepos/cellseg-benchmark
+git pull
+mamba activate cellseg_benchmark
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/master_sdata_update.py {key} {data} z3 \
-/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg_benchmark 
+/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark 
             """)
     f.close()
