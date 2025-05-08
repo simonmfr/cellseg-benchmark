@@ -199,9 +199,7 @@ def integrate_segmentation_data(
                 ].copy()
                 transform_adata(sdata_main, seg_method, data_path=data_path)
 
-                if "cell_type_annotation" in listdir(
-                    join(sdata_path, "results", seg_method)
-                ):
+                if os.path.exists(join(sdata_path, "results", seg_method, "cell_type_annotation", "adata_obs_annotated.csv")):
                     sdata_main = add_cell_type_annotation(
                         sdata_main, sdata_path, seg_method, write_to_disk=write_to_disk
                     )
