@@ -111,17 +111,17 @@ for method in seg_methods:
         if "volume" not in adata.obs.columns:
             tasks_collection[method].append("volume")
 
-#        if check_ficture_availability(adata, sdata_path, n_ficture, var=var):
-#            tasks_collection[method].append("ficture")
-#            ficture_flag = True
+        if check_ficture_availability(adata, sdata_path, n_ficture, var=var):
+            tasks_collection[method].append("ficture")
+            ficture_flag = True
 
 for key, upd in tasks_collection.items():
     logger.info(f"{key} requires updates: {upd}")
 
-#if ficture_flag:
-#    ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
-#else:
-#    ficture_arguments = None
+if ficture_flag:
+    ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
+else:
+    ficture_arguments = None
 
 for method, tasks in tasks_collection.items():
     logger.info(f"Starting updates for '{method}'")
@@ -134,16 +134,16 @@ for method, tasks in tasks_collection.items():
             sdata_main = add_cell_type_annotation(
                 sdata_main, sdata_path, method, write_to_disk=False
             )
-#        elif task == "ficture":
-#            sdata_main = add_ficture(
-#                sdata,
-#                sdata_main,
-#                method,
-#                ficture_arguments,
-#                n_ficture,
-#                var,
-#               write_to_disk=False,
-#            )
+        elif task == "ficture":
+            sdata_main = add_ficture(
+                sdata,
+                sdata_main,
+                method,
+                ficture_arguments,
+                n_ficture,
+                var,
+               write_to_disk=False,
+            )
         elif task == "volume":
             sdata_main = calculate_volume(method, sdata_main, sdata_path, write_to_disk=False)
         elif task == "adata":
@@ -161,16 +161,16 @@ for method, tasks in tasks_collection.items():
                     f"No cell type annotation found for '{method}'. Skipping annotation."
                 )
 
-#            if len(ficture_arguments) > 0:
-#                sdata_main = add_ficture(
-#                    sdata,
-#                    sdata_main,
-#                    method,
-#                    ficture_arguments,
-#                    n_ficture,
-#                    var,
-#                    write_to_disk=False,
-#                )
+            if len(ficture_arguments) > 0:
+                sdata_main = add_ficture(
+                    sdata,
+                    sdata_main,
+                    method,
+                    ficture_arguments,
+                    n_ficture,
+                    var,
+                    write_to_disk=False,
+                )
     if "shapes" in tasks:
         update_element(sdata_main, f"boundaries_{method}")
         logger.info(f"Completed shape update for '{method}'")

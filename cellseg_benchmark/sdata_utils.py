@@ -360,7 +360,7 @@ def add_ficture(
 methods_3D = ["Proseg"]
 
 def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, logger=None): #
-    """Calculate volume of sdata.""" #TODO: Ensure, that it's handles on micron level
+    """Calculate volume of sdata."""
     adata = sdata_main[f"adata_{seg_method}"]
     if any([x in seg_method for x in methods_3D]):
         if "Proseg" in seg_method: #boundaries in microns

@@ -18,8 +18,8 @@ for key, value in data.items():
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 05:00:00
-#SBATCH --mem=150G
+#SBATCH -t 14:00:00
+#SBATCH --mem=350G
 #SBATCH -J master_sdata_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/master_sdata_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/master_sdata_{key}.err
@@ -30,5 +30,5 @@ cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
 python scripts/master_sdata.py {key} {value} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark 
-            """)
+""")
     f.close()
