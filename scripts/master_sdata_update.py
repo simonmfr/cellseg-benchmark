@@ -84,7 +84,7 @@ seg_methods = [
 tasks_collection = defaultdict(list)
 
 if "Ficture" not in os.listdir(join(sdata_path, "results")):
-    logging.warning("No ficture output found.")
+    logger.warning("No ficture output found.")
 
 ficture_flag = False
 for method in seg_methods:
@@ -101,7 +101,7 @@ for method in seg_methods:
         if not os.path.exists(
             join(method_path, "cell_type_annotation", "adata_obs_annotated.csv")
         ):
-            logging.warning(
+            logger.warning(
                 f"No cell type annotation found on disk for method '{method}'"
             )
         else:
@@ -111,39 +111,39 @@ for method in seg_methods:
         if "volume" not in adata.obs.columns:
             tasks_collection[method].append("volume")
 
-        if check_ficture_availability(adata, sdata_path, n_ficture, var=var):
-            tasks_collection[method].append("ficture")
-            ficture_flag = True
+#        if check_ficture_availability(adata, sdata_path, n_ficture, var=var):
+#            tasks_collection[method].append("ficture")
+#            ficture_flag = True
 
 for key, upd in tasks_collection.items():
-    logging.info(f"{key} requires updates: {upd}")
+    logger.info(f"{key} requires updates: {upd}")
 
-if ficture_flag:
-    ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
-else:
-    ficture_arguments = None
+#if ficture_flag:
+#    ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
+#else:
+#    ficture_arguments = None
 
 for method, tasks in tasks_collection.items():
-    logging.info(f"Starting updates for '{method}'")
+    logger.info(f"Starting updates for '{method}'")
     sdata = read_zarr(join(sdata_path, "results", method, "sdata.zarr"))
     for task in tasks:
-        logging.info(f"Applying task '{task}' for '{method}'")
+        logger.info(f"Applying task '{task}' for '{method}'")
         if task == "shapes":
             sdata_main = build_shapes(sdata, sdata_main, method, write_to_disk=False)
         if task == "cell_types":
             sdata_main = add_cell_type_annotation(
                 sdata_main, sdata_path, method, write_to_disk=False
             )
-        elif task == "ficture":
-            sdata_main = add_ficture(
-                sdata,
-                sdata_main,
-                method,
-                ficture_arguments,
-                n_ficture,
-                var,
-                write_to_disk=False,
-            )
+#        elif task == "ficture":
+#            sdata_main = add_ficture(
+#                sdata,
+#                sdata_main,
+#                method,
+#                ficture_arguments,
+#                n_ficture,
+#                var,
+#               write_to_disk=False,
+#            )
         elif task == "volume":
             sdata_main = calculate_volume(method, sdata_main, sdata_path, write_to_disk=False)
         elif task == "adata":
@@ -161,19 +161,19 @@ for method, tasks in tasks_collection.items():
                     f"No cell type annotation found for '{method}'. Skipping annotation."
                 )
 
-            if len(ficture_arguments) > 0:
-                sdata_main = add_ficture(
-                    sdata,
-                    sdata_main,
-                    method,
-                    ficture_arguments,
-                    n_ficture,
-                    var,
-                    write_to_disk=False,
-                )
+#            if len(ficture_arguments) > 0:
+#                sdata_main = add_ficture(
+#                    sdata,
+#                    sdata_main,
+#                    method,
+#                    ficture_arguments,
+#                    n_ficture,
+#                    var,
+#                    write_to_disk=False,
+#                )
     if "shapes" in tasks:
         update_element(sdata_main, f"boundaries_{method}")
-        logging.info(f"Completed shape update for '{method}'")
+        logger.info(f"Completed shape update for '{method}'")
     elif len(set(["cell_type_annotation", "ficture", "adata", "volume"]) & set(tasks)):
         update_element(sdata_main, f"adata_{method}")
-        logging.info(f"Completed adata update for '{method}'")
+        logger.info(f"Completed adata update for '{method}'")
