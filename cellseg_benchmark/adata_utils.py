@@ -14,6 +14,8 @@ import squidpy as sq
 import matplotlib as mpl
 import scipy.sparse as sp
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import pandas as pd
+from cellseg_benchmark.cell_annotation_utils import cell_type_colors
 
 def merge_adatas(sdatas: List[Tuple[str, SpatialData]], key: str, logger: logging.Logger=None, do_qc=False, save_path=None) -> AnnData:
     adatas = []
@@ -48,6 +50,14 @@ def merge_adatas(sdatas: List[Tuple[str, SpatialData]], key: str, logger: loggin
             y_limits[3] = max(y_limits[3], max(np.histogram(adata.obs["volume"], bins=100)[0]))
 
     adata = concat(adatas, join="outer", merge="first")
+    adata.obs["cell_type_mmc_raw_revised"] = pd.Categorical(
+        adata.obs["cell_type_mmc_raw_revised"], categories=list(cell_type_colors.keys())
+    )
+    adata.obs["cell_type_mmc_raw_revised"] = adata.obs["cell_type_mmc_raw_revised"].cat.remove_unused_categories()
+
+    # set colors in adata.uns
+    colors = [cell_type_colors[cat] for cat in adata.obs["cell_type_mmc_raw_revised"].cat.categories]
+    adata.uns["cell_type_mmc_raw_revised_colors"] = colors
     adata.obs_names_make_unique()
     if logger:
         logger.info(f"{key}: # of cells: {len(adata)}, # of samples: {len(adata.obs.full_name.unique())}")
@@ -73,7 +83,7 @@ def merge_adatas_deb(sdatas: List[Tuple[str, AnnData]], do_qc=False, save_path=N
         adata.obs['total_counts'] = adata.X.sum(axis=1)
         adata.obs['n_genes_by_counts'] = adata.X.count_nonzero(axis=1)
         adata.obs['full_name'] = name
-        adata.obs['volume'] = 7*adata.obs.area
+        adata.obs['volume'] = 7*adata.obs.area/(10*10)
         adatas.append(adata)
 
         if do_qc:
@@ -114,7 +124,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
                 patch.set_edgecolor('none')  # Remove border lines
 
     pad = 5
-    cols = ["Number of Genes per Cell", "Number of Genes per Cell (until n=1000)", "Number of distinct Genes per Cell", "Volume"]
+    cols = ["Number of Counts per Cell", "Number of Counts per Cell (until n=1000)", "Number of Genes per Cell", "Volume"]
     rows = sample_names
 
     for ax, col in zip(axs[0,:], cols):
@@ -128,7 +138,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
                     size='large', ha='right', va='center', rotation='vertical')
 
     fig.tight_layout()
-    fig.savefig(join(save_dir, "general_stats_cells.png"))
+    fig.savefig(join(save_dir, "qc_general_stats_cells.png"))
     plt.close()
 
     #===================================Cell Qualities==================================================================
@@ -154,12 +164,12 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
                     size='large', ha='right', va='center', rotation='vertical')
 
     fig.tight_layout()
-    fig.savefig(join(save_dir, "cell_qualities.png"))
+    fig.savefig(join(save_dir, "qc_cell_qualities.png"))
     plt.close()
 
     #===============================General Stats Genes=================================================================
     fig, axs = plt.subplots(len(sample_names), 3, figsize=(18,len(sample_names) * 5),
-                            gridspec_kw={'wspace': 0.4}, sharey=True)
+                            gridspec_kw={'wspace': 0.4})
     for i, name in enumerate(sample_names):
         adata_tmp = adata[adata.obs["full_name"] == name]
         adata_tmp.var["total_counts"] = adata_tmp.X.sum(axis=0).T
@@ -182,7 +192,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
                     size='large', ha='right', va='center', rotation='vertical')
 
     fig.tight_layout()
-    fig.savefig(join(save_dir, "general_stats_genes.png"))
+    fig.savefig(join(save_dir, "qc_general_stats_genes.png"))
     plt.close()
 
     #===============================Highly expressed genes==============================================================
@@ -198,21 +208,32 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
                     size='large', ha='right', va='center', rotation='vertical')
 
     fig.tight_layout()
-    fig.savefig(join(save_dir, "highes_expressed_genes.png"))
+    fig.savefig(join(save_dir, "qc_highes_expressed_genes.png"))
     plt.close()
 
 def filter_cells(adata, save_path, min_counts=25, min_genes=5, logger=None):
     sample_names = adata.obs["full_name"].unique()
 
-    for name in sample_names:
+    fig, axs = plt.subplots(len(sample_names), 1, figsize=(12, len(sample_names)*9), gridspec_kw={'wspace': 0.4})
+    for ax, name in zip(axs, sample_names):
         adata_tmp = adata[adata.obs["full_name"] == name]
         adata_tmp.obs["cell_outlier"] = (adata_tmp.obs["total_counts"] < min_counts) | (
         adata_tmp.obs["n_genes_by_counts"] < min_genes)
         adata_tmp.obs["cell_outlier"] = adata_tmp.obs["cell_outlier"].astype('category')
         sq.pl.spatial_scatter(
-            adata_tmp, shape=None, color="cell_outlier", size=0.125, library_id="spatial", figsize=(8, 8),
-            palette=mpl.colors.ListedColormap(["lightgrey", "red"]), save=join(save_path, f"outlier_{name}.png")
+            adata_tmp, ax=ax, shape=None, color="cell_outlier", size=0.125, library_id="spatial", figsize=(8, 8),
+            palette=mpl.colors.ListedColormap(["lightgrey", "red"])
         )
+
+    pad = 5
+    rows = sample_names
+    for ax, row in zip(axs, rows):
+        ax.annotate(row, xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
+                    xycoords=ax.yaxis.label, textcoords='offset points',
+                    size='large', ha='right', va='center', rotation='vertical')
+    fig.savefig(join(save_path, f"filter_outlier.png"))
+    plt.close()
+
     if logger:
         logger.info(f"# cells before filtering: {adata.n_obs}")
     sc.pp.filter_cells(adata, min_counts=min_counts)
@@ -229,12 +250,22 @@ def filter_cells(adata, save_path, min_counts=25, min_genes=5, logger=None):
     ).astype('category')
     if logger:
         logger.info(adata.obs.outlier.value_counts())
-    for name in sample_names:
+    fig, axs = plt.subplots(len(sample_names), 1, figsize=(12, len(sample_names)*9), gridspec_kw={'wspace': 0.4})
+    for ax,name in zip(axs, sample_names):
         adata_tmp = adata[adata.obs["full_name"] == name]
         sq.pl.spatial_scatter(
-            adata_tmp, shape=None, color="outlier", size=0.125, library_id="spatial", figsize=(8, 8),
+            adata_tmp, ax=ax, shape=None, color="outlier", size=0.125, library_id="spatial", figsize=(8, 8),
             palette=mpl.colors.ListedColormap(["lightgrey", "red"]), save=join(save_path, f"volume_outlier_{name}.png")
         )
+
+    pad = 5
+    rows = sample_names
+    for ax, row in zip(axs, rows):
+        ax.annotate(row, xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
+                    xycoords=ax.yaxis.label, textcoords='offset points',
+                    size='large', ha='right', va='center', rotation='vertical')
+    fig.savefig(join(save_path, f"filter_volume_outlier.png"))
+    plt.close()
     adata = adata[adata.obs['outlier'] == False]
     return adata
 
@@ -258,7 +289,8 @@ def filter_genes(adata, save_path, logger=None):
         ax.grid(True, zorder=1)
         for patch in ax.patches:
             patch.set_edgecolor('none')
-    fig.savefig(join(save_path, "genes_filtered.png"))
+    fig.savefig(join(save_path, "filter_general_stats_merged.png"))
+    plt.close()
     return adata
 
 def normalize(adata, save_path, logger=None):
@@ -287,7 +319,8 @@ def normalize(adata, save_path, logger=None):
         plt.axvline(p99, color='red', lw=1)  # less strict
         plt.axvline(p2, color='orange', lw=1)
         plt.axvline(p98, color='orange', lw=1)  # used by Allen et al.
-        plt.savefig(join(save_path, "counts.png"))
+        plt.savefig(join(save_path, "outlier_counts.png")) #TODO: make sure to close every plot
+        plt.close()
         mask = (row_sums > p1) & (row_sums < p99)
         adata = adata[mask]
         if logger:
@@ -298,42 +331,21 @@ def normalize(adata, save_path, logger=None):
         if logger:
             logger.info(f"calculate z-score")
         adata.layers["zscore"] = sc.pp.scale(adata.layers["volume_log1p_norm"], zero_center=True, max_value=None)
-
-        fig, axs = plt.subplots(1, 4, figsize=(20, 4), gridspec_kw={'wspace': 0.4})
-        titles = ['Counts', 'Normalized (by volume)', 'Log-normalized (by volume)', "Z-score (after volume log-norm)"]
-        for ax, data, bins, title in zip(
-                axs,
-                [adata.layers["counts"].sum(1),
-                 adata.layers["volume_norm"].sum(1),
-                 adata.layers["volume_log1p_norm"].sum(1),
-                 adata.layers["zscore"].sum(1)],
-                [100, 10, 100, 100],
-                titles
-        ):
-            sns.histplot(data, kde=False, bins=bins, ax=ax, zorder=2, alpha=1)
-            ax.set_title(title)
-            ax.grid(True)
-            legend = ax.get_legend()
-            if legend is not None:
-                legend.remove()
-            for patch in ax.patches:
-                patch.set_edgecolor('none')
-        fig.savefig(join(save_path, "counts_per_cell_z_score.png"))
-        return adata
-
-    def lib_size_normalization(adata, save_path, logger=None):
         if logger:
             logger.info(f"normalize after lib size")
         scales_counts = sc.pp.normalize_total(adata, layer="counts", target_sum=None, inplace=False)
         adata.layers["librarysize_log1p_norm"] = sc.pp.log1p(scales_counts["X"], copy=True)
 
-        fig, axs = plt.subplots(1, 2, figsize=(10, 4), gridspec_kw={'wspace': 0.4})
-        titles = ['Counts', 'Log-normalized (by libsize)']
+        fig, axs = plt.subplots(1, 5, figsize=(25, 4), gridspec_kw={'wspace': 0.4})
+        titles = ['Counts', 'Normalized (by volume)', 'Log-normalized (by volume)', "Z-score (after volume log-norm)", 'Log-normalized (by libsize)']
         for ax, data, bins, title in zip(
                 axs,
                 [adata.layers["counts"].sum(1),
+                 adata.layers["volume_norm"].sum(1),
+                 adata.layers["volume_log1p_norm"].sum(1),
+                 adata.layers["zscore"].sum(1),
                  adata.layers["librarysize_log1p_norm"].sum(1)],
-                [100, 100],
+                [100, 10, 100, 100, 100],
                 titles
         ):
             sns.histplot(data, kde=False, bins=bins, ax=ax, zorder=2, alpha=1)
@@ -344,7 +356,8 @@ def normalize(adata, save_path, logger=None):
                 legend.remove()
             for patch in ax.patches:
                 patch.set_edgecolor('none')
-        plt.savefig(join(save_path, "counts_per_cell_lib.png"))
+        plt.savefig(join(save_path, "normalize_z_score.png"))
+        plt.close()
         return adata
 
     def scaling(adata, scaling_factor, logger=None):
@@ -368,24 +381,40 @@ def normalize(adata, save_path, logger=None):
     adata = scaling(adata, scaling_factor=250, logger=logger)
     adata.layers[("volume_log1p_norm")] = sc.pp.log1p(adata.layers["volume_norm"], copy=True)
     adata = z_score(adata, save_path, logger=logger)
-    adata = lib_size_normalization(adata, save_path, logger=logger)
     return adata
 
 def dimensionality_reduction(adata, save_path, logger=None):
+    adata.X = adata.layers["zscore"]
     sc.settings.figdir = save_path
     if logger:
         logger.info("Dimensionality reduction: PCA")
     sc.pp.pca(adata, svd_solver="arpack")
-    sc.pl.pca_scatter(adata, color="total_counts", save=".png")
-    sc.pl.pca_variance_ratio(adata, log=True, save=".png")
+    fig, axs = plt.subplots(1, 2, figsize=(20, 9), gridspec_kw={'wspace': 0.4})
+    sc.pl.pca_scatter(adata, color="total_counts", ax=axs[0])
+    var_ratio = adata.uns['pca']['variance_ratio']
 
+    # plot on your second subplot
+    axs[1].plot(
+        np.arange(1, len(var_ratio) + 1),
+        var_ratio,
+        marker='o',
+        linestyle='-'
+    )
+    axs[1].set_yscale('log')
+    axs[1].set_xlabel('Principal component')
+    axs[1].set_ylabel('Variance ratio')
+    axs[1].set_title('PCA variance ratio')
+    fig.savefig(join(save_path, "PCA.png"))
+    plt.close(fig)
+
+    fig, axs = plt.subplots(1, 3, figsize=(30, 8), gridspec_kw={'wspace': 0.4})
     if logger:
         logger.info("Dimensionality reduction: neighbors and umap with n=20 PCA")
     sc.pp.neighbors(adata, n_neighbors=10, n_pcs=20)
     sc.tl.umap(adata)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
-            sc.pl.umap(adata, color="total_counts", save="_20.png", show=False)
+            sc.pl.embedding(adata, ax=axs[0], basis="X_umap", color="total_counts", title="UMAP: n = 20", show=False)
 
     if logger:
         logger.info("Dimensionality reduction: neighbors and umap with n=40 PCA")
@@ -393,7 +422,7 @@ def dimensionality_reduction(adata, save_path, logger=None):
     sc.tl.umap(adata)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
-            sc.pl.umap(adata, color="total_counts", save="_40.png", show=False)
+            sc.pl.embedding(adata, ax=axs[1], basis="X_umap", color="total_counts", title="UMAP: n = 40", show=False)
 
     if logger:
         logger.info("Dimensionality reduction: neighbors and umap with n=50 PCA")
@@ -401,7 +430,11 @@ def dimensionality_reduction(adata, save_path, logger=None):
     sc.tl.umap(adata)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
-            sc.pl.umap(adata, color="total_counts", save="_50.png", show=False)
+            sc.pl.embedding(adata, ax=axs[2], basis="X_umap", color="total_counts", title="UMAP: n = 50", show=False)
+
+    plt.savefig(join(save_path, "UMAP_unintegrated.png"))
+    plt.close()
+    return adata
 
 def integration_harmony(adata, batch_key, save_path, logger=None):
     sc.settings.figdir = save_path
@@ -421,9 +454,30 @@ def integration_harmony(adata, batch_key, save_path, logger=None):
         logger.info("Integration harmony: umap")
     sc.tl.umap(adata, neighbors_key="neighbors_harmony", key_added="X_umap_harmony")
 
-    with plt.style.context('default'):
-        with mpl.rc_context({'figure.figsize': (8, 8)}):
-            sc.pl.embedding(adata, basis="X_umap_harmony", color='full_name', show=False, save="umap_50_integrated.png")
+    pt_size_umap = 220000 / adata.shape[0]
+    fig, axs = plt.subplots(3, 2, figsize=(30, 35), gridspec_kw={'wspace': 0.4})
+    sc.pl.embedding(adata, basis="X_umap", color='full_name', show=False, ax=axs[0,0], title="No Integration", size=pt_size_umap)
+    axs[0,0].set_aspect('equal')
+    sc.pl.embedding(adata, basis="X_umap_harmony", color='full_name', show=False, ax=axs[0,1], title="Harmonny Integration", size=pt_size_umap)
+    axs[0,1].set_aspect('equal')
+    sc.pl.embedding(adata, basis="X_umap", color='slide', show=False, ax=axs[1,0], title="No Integration", size=pt_size_umap)
+    axs[1,0].set_aspect('equal')
+    sc.pl.embedding(adata, basis="X_umap_harmony", color='slide', show=False, ax=axs[1,1], title="Harmonny Integration", size=pt_size_umap)
+    axs[1,1].set_aspect('equal')
+    sc.pl.embedding(adata, basis="X_umap", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,0], title="No Integration", size=pt_size_umap)
+    axs[2,0].set_aspect('equal')
+    sc.pl.embedding(adata, basis="X_umap_harmony", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,1], title="Harmonny Integration", size=pt_size_umap)
+    axs[2,1].set_aspect('equal')
+
+    pad = 5
+    rows = ["Sample", "Slide", "Cell Type"]
+
+    for ax, row in zip(axs[:, 0], rows):
+        ax.annotate(row, xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
+                    xycoords=ax.yaxis.label, textcoords='offset points',
+                    size='large', ha='right', va='center', rotation='vertical')
+    plt.savefig(join(save_path, "UMAP_integration.png"))
+    plt.close()
     return adata
 
 if __name__ == "__main__":
@@ -435,10 +489,52 @@ if __name__ == "__main__":
 
     adatas = [("foxf2_s1_r0", read_h5ad("/Users/jonasflor/Downloads/foxf2_s1_r0.h5ad")),
               ("foxf2_s1_r1", read_h5ad("/Users/jonasflor/Downloads/foxf2_s1_r1.h5ad"))]
+    adata = adatas[0][1]
+    obs = pd.read_csv("/Users/jonasflor/Downloads/adata_obs_annotated_1_0.csv")[["cell_type_mmc_incl_low_quality_revised",
+           "cell_type_mmc_incl_low_quality_clusters",
+           "cell_type_mmc_incl_low_quality",
+           "cell_type_mmc_incl_mixed_revised",
+           "cell_type_mmc_incl_mixed_clusters",
+           "cell_type_mmc_incl_mixed",
+           "cell_type_mmc_raw_revised",
+           "cell_type_mmc_raw_clusters",
+           "cell_type_mmc_raw",
+           "cell_id"]]
+    new_obs = adata.obs.merge(
+        obs, how="left", left_index=True, right_on="cell_id"
+    )
+    for col in new_obs.columns:
+        if isinstance(new_obs[col].dtype, pd.CategoricalDtype):
+            new_obs[col] = new_obs[col].cat.add_categories("Low-Read-Cells")
+        new_obs[col] = new_obs[col].fillna("Low-Read-Cells")
+    new_obs.index = adata.obs.index
+    adatas[0][1].obs = new_obs
+
+    adata = adatas[1][1]
+    obs = pd.read_csv("/Users/jonasflor/Downloads/adata_obs_annotated_1_1.csv")[
+        ["cell_type_mmc_incl_low_quality_revised",
+         "cell_type_mmc_incl_low_quality_clusters",
+         "cell_type_mmc_incl_low_quality",
+         "cell_type_mmc_incl_mixed_revised",
+         "cell_type_mmc_incl_mixed_clusters",
+         "cell_type_mmc_incl_mixed",
+         "cell_type_mmc_raw_revised",
+         "cell_type_mmc_raw_clusters",
+         "cell_type_mmc_raw",
+         "cell_id"]]
+    new_obs = adata.obs.merge(
+        obs, how="left", left_index=True, right_on="cell_id"
+    )
+    for col in new_obs.columns:
+        if isinstance(new_obs[col].dtype, pd.CategoricalDtype):
+            new_obs[col] = new_obs[col].cat.add_categories("Low-Read-Cells")
+        new_obs[col].fillna("Low-Read-Cells", inplace=True)
+    new_obs.index = adata.obs.index
+    adatas[1][1].obs = new_obs
+
     tmp = merge_adatas_deb(adatas, logger=logger, do_qc=False, save_path="/Users/jonasflor/Desktop/debug_pics")
     tmp = filter_cells(tmp, save_path="/Users/jonasflor/Desktop/debug_pics", logger=logger)
     tmp = filter_genes(tmp, save_path="/Users/jonasflor/Desktop/debug_pics", logger=logger)
     tmp = normalize(tmp, "/Users/jonasflor/Desktop/debug_pics", logger=logger)
     dimensionality_reduction(tmp, "/Users/jonasflor/Desktop/debug_pics", logger=logger)
     tmp = integration_harmony(tmp, "full_name", "/Users/jonasflor/Desktop/debug_pics", logger=logger)
-    logger.info(tmp)

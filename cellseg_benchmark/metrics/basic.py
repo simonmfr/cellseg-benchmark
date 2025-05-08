@@ -93,6 +93,9 @@ def mean_counts_per_cell(sdata):
 
 
 def compute_cell_areas_2d(sdata, zindex=3, column_name="area", verbose=True):
+
+    #see sdata_utils/caluculate_volume() instead
+
     """Compute and add 2D cell area to adata.obs for each dataset in SpatialData.
 
     Parameters:

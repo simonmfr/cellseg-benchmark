@@ -359,11 +359,11 @@ def add_ficture(
 
 methods_3D = ["Proseg"]
 
-def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False):
-    """Calculate volume of sdata."""
+def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, logger=None): #
+    """Calculate volume of sdata.""" #TODO: Ensure, that it's handles on micron level
     adata = sdata_main[f"adata_{seg_method}"]
     if any([x in seg_method for x in methods_3D]):
-        if "Proseg" in seg_method:
+        if "Proseg" in seg_method: #boundaries in microns
             path = join(
                 sdata_path,
                 "results",
@@ -385,10 +385,13 @@ def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False):
             area.rename(columns={'area': 'volume'}, inplace=True)
             adata.obs = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
     else:
-        if "area" not in adata.obs.columns:
-            raise KeyError("Area column not found in adata.obs. Volume cannot be calculated.")
-        else:
-            adata.obs["volume"] = adata.obs["area"]*7
+        try:
+            boundaries = sdata_main.transform_to_coordinate_system(f"boundaries_{seg_method}", target_crs="micron")
+        except KeyError:
+            if logger:
+                logger.warning("Volume cannot be computed for {}. Skipping.".format(seg_method))
+            return sdata_main
+        adata.obs["volume"] = boundaries.geometry.area*7
     sdata_main[f"adata_{seg_method}"] = adata
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():

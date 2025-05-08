@@ -26,6 +26,7 @@ from matplotlib.pyplot import rc_context
 from spatialdata import read_zarr
 
 import cellseg_benchmark.cell_annotation_utils as anno_utils
+from cellseg_benchmark.cell_annotation_utils import cell_type_colors
 
 plt.rcParams["font.family"] = (
     "Arial" if "Arial" in [f.name for f in fm.fontManager.ttflist] else "sans-serif"
@@ -287,37 +288,6 @@ logger.info(
         adata.obs["cell_type_mmc_incl_low_quality"].value_counts()
     )
 )
-
-# Revise annotations
-cell_type_colors = {
-    "ECs": "#FF6464",
-    "Pericytes": "#F6EC2A",
-    "SMCs": "#29FBA7",
-    "VLMCs": "#85B0F9",
-    "ABCs": "#AEC9F5",
-    "Ependymal": "#FDC000",
-    "Tanycytes": "#FFE180",
-    "Choroid-Plexus": "#BF9800",
-    "Astrocytes": "#FE9A30",
-    "Astroependymal": "#FE9A30",
-    "Bergmann": "#FFD1A3",
-    "Oligodendrocytes": "#4564FF",
-    "OPCs": "#0095FF",
-    "Microglia": "#00C088",
-    "BAMs": "#00F3D8",
-    "Immune-Other": "#98DF8A",
-    "Neurons-Gaba": "#B449F8",
-    "Neurons-Glut": "#CEB3FF",
-    "Neurons-Glyc-Gaba": "#DCAEFF",
-    "Neurons-Dopa": "#FCA0FF",
-    # "Neurons-Immature": "#FF50E5",
-    "Neurons-Granule-Immature": "#FF50E5",
-    "Neurons-Other": "#FCA0FF",
-    "OECs": "#9EDAE5",
-    "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
-    "Undefined": "#D9D9D9",  # = below QC threshold
-    "Mixed": "#D9D9D9",
-}
 
 # Dictionary mapping cell type identifiers from MapMyCells to their corresponding Score Cell Type from sc.tl.score_genes
 # Format: "MapMyCells Cell Type":"Score Cell Type"

@@ -13,6 +13,35 @@ import seaborn as sns
 from matplotlib.pyplot import rc_context
 from scipy.stats import median_abs_deviation
 
+cell_type_colors = {
+    "ECs": "#FF6464",
+    "Pericytes": "#F6EC2A",
+    "SMCs": "#29FBA7",
+    "VLMCs": "#85B0F9",
+    "ABCs": "#AEC9F5",
+    "Ependymal": "#FDC000",
+    "Tanycytes": "#FFE180",
+    "Choroid-Plexus": "#BF9800",
+    "Astrocytes": "#FE9A30",
+    "Astroependymal": "#FE9A30",
+    "Bergmann": "#FFD1A3",
+    "Oligodendrocytes": "#4564FF",
+    "OPCs": "#0095FF",
+    "Microglia": "#00C088",
+    "BAMs": "#00F3D8",
+    "Immune-Other": "#98DF8A",
+    "Neurons-Gaba": "#B449F8",
+    "Neurons-Glut": "#CEB3FF",
+    "Neurons-Glyc-Gaba": "#DCAEFF",
+    "Neurons-Dopa": "#FCA0FF",
+    # "Neurons-Immature": "#FF50E5",
+    "Neurons-Granule-Immature": "#FF50E5",
+    "Neurons-Other": "#FCA0FF",
+    "OECs": "#9EDAE5",
+    "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
+    "Undefined": "#D9D9D9",  # = below QC threshold
+    "Mixed": "#D9D9D9",
+}
 
 def assign_cell_types_to_clusters(
     adata, leiden_col, cell_type_col="cell_type_mapmycells", min_cells=100
