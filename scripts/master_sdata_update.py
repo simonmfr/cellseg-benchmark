@@ -4,7 +4,6 @@ import sys
 import warnings
 from collections import defaultdict
 from os.path import join
-from pathlib import Path
 from re import split
 
 from anndata import AnnData
@@ -17,7 +16,7 @@ from cellseg_benchmark.sdata_utils import (
     prepare_ficture,
     transform_adata,
     update_element,
-calculate_volume
+    calculate_volume
 )
 
 logger = logging.getLogger("shape_mapping")
@@ -58,13 +57,19 @@ zmode = sys.argv[3]
 data_dir = sys.argv[4]  # base directory
 if len(sys.argv) > 5:
     n_ficture = int(sys.argv[5])
-    if len(sys.argv) > 6:
-        var = True
-    else:
-        var = False
 else:
     n_ficture = 21
+if len(sys.argv) > 6:
+    var = True
+else:
     var = False
+if len(sys.argv) > 7:
+    if sys.argv[7] == "--force":
+        forcing = sys.argv[8:]
+    else:
+        forcing = []
+else:
+    forcing = []
 
 sdata_path = join(data_dir, "samples", sample)
 sdata_main = read_zarr(join(sdata_path, "sdata_z3.zarr"))
@@ -78,11 +83,13 @@ seg_methods = [
 
 tasks_collection = defaultdict(list)
 
-ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
-if not ficture_arguments:
+if "Ficture" not in os.listdir(join(sdata_path, "results")):
     logging.warning("No ficture output found.")
 
+ficture_flag = False
 for method in seg_methods:
+    if not forcing:
+        tasks_collection[method].extend(forcing)
     if f"boundaries_{method}" not in sdata_main.shapes.keys():
         tasks_collection[method].append("shapes")
     if f"adata_{method}" not in sdata_main.tables.keys():
@@ -105,9 +112,15 @@ for method in seg_methods:
 
         if check_ficture_availability(adata, sdata_path, n_ficture, var=var):
             tasks_collection[method].append("ficture")
+            ficture_flag = True
 
 for key, upd in tasks_collection.items():
     logging.info(f"{key} requires updates: {upd}")
+
+if ficture_flag:
+    ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture)
+else:
+    ficture_arguments = None
 
 for method, tasks in tasks_collection.items():
     logging.info(f"Starting updates for '{method}'")
