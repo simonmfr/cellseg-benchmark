@@ -74,7 +74,7 @@ else:
 sdata_path = join(data_dir, "samples", sample)
 sdata_main = read_zarr(join(sdata_path, "sdata_z3.zarr"))
 
-logging.info("Starting task collection")
+logger.info("Starting task collection")
 seg_methods = [
     method
     for method in os.listdir(join(sdata_path, "results"))
@@ -88,7 +88,7 @@ if "Ficture" not in os.listdir(join(sdata_path, "results")):
 
 ficture_flag = False
 for method in seg_methods:
-    if not forcing:
+    if forcing != []:
         tasks_collection[method].extend(forcing)
     if f"boundaries_{method}" not in sdata_main.shapes.keys():
         tasks_collection[method].append("shapes")
@@ -157,7 +157,7 @@ for method, tasks in tasks_collection.items():
                     sdata_main, sdata_path, method, write_to_disk=False
                 )
             else:
-                logging.warning(
+                logger.warning(
                     f"No cell type annotation found for '{method}'. Skipping annotation."
                 )
 
