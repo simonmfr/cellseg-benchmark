@@ -105,7 +105,8 @@ for method in seg_methods:
                 f"No cell type annotation found on disk for method '{method}'"
             )
         else:
-            tasks_collection[method].append("cell_types")
+            if not any(["cell_type" in x for x in adata.obs.columns]):
+                tasks_collection[method].append("cell_types")
 
         if "volume" not in adata.obs.columns:
             tasks_collection[method].append("volume")
