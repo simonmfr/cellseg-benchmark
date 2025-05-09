@@ -38,6 +38,8 @@ def merge_adatas(sdatas: List[Tuple[str, SpatialData]], key: str, logger: loggin
         adata.obs['slide'] = samples[1]
         adata.obs['region'] = samples[2]
         adata.obs['condition'] = paths[name].split("/")[-2].split("-")[-2]
+        if isinstance(adata.X, np.ndarray):
+            adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
         adata.obs['total_counts'] = adata.X.sum(axis=1)
         adata.obs['n_genes_by_counts'] = adata.X.count_nonzero(axis=1)
         adata.obs['full_name'] = name
