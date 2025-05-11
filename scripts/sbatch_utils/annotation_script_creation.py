@@ -13,6 +13,17 @@ Path(
     f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_annotation/{sample}"
 ).mkdir(parents=True, exist_ok=True)
 
+times = {}
+for f in listdir(path):
+    if f=="Negative_Control_Rastered_5":
+        times[f] = "1-00:00:00"
+    elif "Baysor" in f:
+        times[f] = "02:00:00"
+    elif f=="Negative_Control_Rastered_10" or f=="Negative_Control_Voronoi":
+        times[f] = "04:00:00"
+    else:
+        times[f] = "01:00:00"
+
 for method in listdir(path):
     if isdir(join(path, method, "sdata.zarr")) and isdir(
         join(path, method, "sdata.explorer")
@@ -25,7 +36,7 @@ for method in listdir(path):
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 01:00:00
+#SBATCH -t {times[method]}
 #SBATCH --mem=25G
 #SBATCH -J annotation_{sample}_{method}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/annotation_{sample}_{method}.out

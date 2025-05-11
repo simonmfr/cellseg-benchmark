@@ -102,7 +102,7 @@ def merge_adatas_deb(sdatas: List[Tuple[str, AnnData]], do_qc=False, save_path=N
 
 def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     if logger:
-        logger.info(f"Plotting QC results for {adata.obs['full_name']}")
+        logger.info(f"Plotting QC results")
     sample_names = adata.obs.full_name.unique()
 
     #=====================================General Stats=================================================================

@@ -378,9 +378,14 @@ def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, lo
             geojson_io = io.StringIO(geojson_text)
 
             gdf = gpd.read_file(geojson_io)
-            gdf['area'] = [x.area for x in gdf['geometry']]
-            area = gdf[['cell', 'area']].groupby('cell').sum()
-            area.rename(columns={'area': 'volume'}, inplace=True)
+            counts = gdf.cell
+            ind = list(gdf.cell)
+            counts.index = ind
+            counts = counts.groupby(level=0).count()
+            slice_height = 10/counts.max() #10 um total. Assume at least one detected cell stretches whole slice
+            gdf['volume_per_slice'] = [x.area*slice_height for x in gdf['geometry']]
+            area = gdf[['cell', 'volume_per_slice']].groupby('cell').sum()
+            area.rename(columns={'volume_per_slice': 'volume'}, inplace=True)
             tmp = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
             tmp.index = adata.obs.index
             adata.obs = tmp
@@ -391,7 +396,7 @@ def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, lo
             if logger:
                 logger.warning("Volume cannot be computed for {}. Skipping.".format(seg_method))
             return sdata_main
-        adata.obs["volume"] = boundaries.geometry.area*7
+        adata.obs["volume"] = boundaries.geometry.area*10
     sdata_main[f"adata_{seg_method}"] = adata
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
