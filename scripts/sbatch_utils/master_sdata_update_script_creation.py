@@ -30,6 +30,6 @@ cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/master_sdata_update.py {key} {data} z3 \
-/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark 
+/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark 21 x --force volume
             """)
     f.close()
