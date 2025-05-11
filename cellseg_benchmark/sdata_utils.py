@@ -291,6 +291,16 @@ def build_shapes(sdata, sdata_main, seg_method, write_to_disk, logger=None):
 
 def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_disk, logger=None):
     """Add cell type annotations to sdata_main, including adding volumes."""
+    cell_type_information = ["cell_type_mmc_incl_low_quality_revised",
+           "cell_type_mmc_incl_low_quality_clusters",
+           "cell_type_mmc_incl_low_quality",
+           "cell_type_mmc_incl_mixed_revised",
+           "cell_type_mmc_incl_mixed_clusters",
+           "cell_type_mmc_incl_mixed",
+           "cell_type_mmc_raw_revised",
+           "cell_type_mmc_raw_clusters",
+           "cell_type_mmc_raw",
+           "cell_id"]
     try:
         cell_type = pd.read_csv(
             join(
@@ -300,20 +310,14 @@ def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_d
                 "cell_type_annotation",
                 "adata_obs_annotated.csv",
             )
-        )[["cell_type_mmc_incl_low_quality_revised",
-           "cell_type_mmc_incl_low_quality_clusters",
-           "cell_type_mmc_incl_low_quality",
-           "cell_type_mmc_incl_mixed_revised",
-           "cell_type_mmc_incl_mixed_clusters",
-           "cell_type_mmc_incl_mixed",
-           "cell_type_mmc_raw_revised",
-           "cell_type_mmc_raw_clusters",
-           "cell_type_mmc_raw",
-           "cell_id"]]
+        )[cell_type_information]
     except KeyError:
         if logger:
             logger.warning("no propper cell annotation found for {}. Skipping.".format(seg_method))
         return sdata_main
+    if set(cell_type_information) & set(sdata_main.columns):
+        for col in set(cell_type_information) & set(sdata_main.columns):
+            del sdata_main[f"adata_{seg_method}"].obs[col]
     new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
         cell_type, how="left", left_index=True, right_on="cell_id"
     )
@@ -386,6 +390,8 @@ def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, lo
             gdf['volume_per_slice'] = [x.area*slice_height for x in gdf['geometry']]
             area = gdf[['cell', 'volume_per_slice']].groupby('cell').sum()
             area.rename(columns={'volume_per_slice': 'volume'}, inplace=True)
+            if "volume" in adata.obs.columns:
+                del adata.obs['volume']
             tmp = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
             tmp.index = adata.obs.index
             adata.obs = tmp
