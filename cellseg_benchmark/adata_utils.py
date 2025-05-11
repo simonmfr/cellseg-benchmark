@@ -321,7 +321,7 @@ def normalize(adata, save_path, logger=None):
         plt.axvline(p99, color='red', lw=1)  # less strict
         plt.axvline(p2, color='orange', lw=1)
         plt.axvline(p98, color='orange', lw=1)  # used by Allen et al.
-        plt.savefig(join(save_path, "outlier_counts.png")) #TODO: make sure to close every plot
+        plt.savefig(join(save_path, "outlier_counts.png"))
         plt.close()
         mask = (row_sums > p1) & (row_sums < p99)
         adata = adata[mask]
