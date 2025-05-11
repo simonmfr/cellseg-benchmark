@@ -229,7 +229,7 @@ def integrate_segmentation_data(
             elif len(sdata.tables) > 1:
                 if logger:
                     logger.warning(
-                        "No adata files found for {}. Skipping adata import".format(
+                        "Multiple adata files found for {}. Skipping adata import".format(
                             seg_method
                         )
                     )
@@ -514,7 +514,7 @@ def update_element(sdata, element_name):
     name = element_name
     # a a. write a backup copy of the data
     sdata[new_name] = sdata[name]
-    sdata.write_element(new_name)
+    sdata.write_element(new_name, overwrite=True)
     # a2. remove the in-memory copy from the SpatialData object (note,
     # at this point the backup copy still exists on-disk)
     del sdata[new_name]
