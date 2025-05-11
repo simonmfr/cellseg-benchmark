@@ -25,9 +25,7 @@ for f in listdir(path):
         times[f] = "01:00:00"
 
 for method in listdir(path):
-    if isdir(join(path, method, "sdata.zarr")) and isdir(
-        join(path, method, "sdata.explorer")
-    ):
+    if isdir(join(path, method, "sdata.zarr")):
         f = open(
             f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_annotation/{sample}/{method}.sbatch",
             "w",
