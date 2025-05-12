@@ -315,8 +315,8 @@ def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_d
         if logger:
             logger.warning("no propper cell annotation found for {}. Skipping.".format(seg_method))
         return sdata_main
-    if set(cell_type_information) & set(sdata_main.columns):
-        for col in set(cell_type_information) & set(sdata_main.columns):
+    if set(cell_type_information) & set(sdata_main[f"adata_{seg_method}"].obs.columns):
+        for col in set(cell_type_information) & set(sdata_main[f"adata_{seg_method}"].obs.columns):
             del sdata_main[f"adata_{seg_method}"].obs[col]
     new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
         cell_type, how="left", left_index=True, right_on="cell_id"
