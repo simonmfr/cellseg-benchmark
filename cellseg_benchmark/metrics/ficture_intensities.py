@@ -54,7 +54,7 @@ def ficture_intensities(
             image_key="ficture_images",
             shapes_key=f"boundaries_{key}",
             mode="variance",
-            means=intensities,
+            means=pd_intensity.values,
         )
         pd_variance = pd.DataFrame(
             variance,
