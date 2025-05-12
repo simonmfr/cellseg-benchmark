@@ -54,13 +54,14 @@ def ficture_intensities(
             image_key="ficture_images",
             shapes_key=f"boundaries_{key}",
             mode="variance",
-            means=pd_intensity.values,
+            means=intensities,
         )
         pd_variance = pd.DataFrame(
             variance,
             index=sdata["table"].obs_names,
             columns=[f"fictureF{n_factors}_{i}_var_intensity" for i in unique_factors],
         )
+        pd_variance = pd_variance / np.power(pd_intensity.max(axis=None),2)
         return (pd_intensity, pd_variance)
     return pd_intensity
 
