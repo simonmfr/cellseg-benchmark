@@ -206,11 +206,11 @@ def integrate_segmentation_data(
                 else:
                     if logger:
                         logger.warning(
-                            "No adata files found for {}. Skipping".format(seg_method)
+                            "No annotation files found for {}. Skipping".format(seg_method)
                         )
                     else:
                         print(
-                            f"No adata files found for {seg_method}. Skipping annotation."
+                            f"No annotation files found for {seg_method}. Skipping annotation."
                         )
                 if "volume" not in sdata_main[f"adata_{seg_method}"].obs.columns:
                     sdata_main = calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=write_to_disk)

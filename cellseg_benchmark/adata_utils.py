@@ -34,24 +34,26 @@ def merge_adatas(sdatas: List[Tuple[str, SpatialData]], key: str, logger: loggin
             continue
         adata = sdata[f"adata_{key}"]
         samples = name.split("_")
-        adata.obs['sample'] = samples[0]
+        adata.obs['cohort'] = samples[0]
         adata.obs['slide'] = samples[1]
         adata.obs['region'] = samples[2]
         adata.obs['condition'] = paths[name].split("/")[-2].split("-")[-2]
         if isinstance(adata.X, np.ndarray):
             adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
-        adata.obs['total_counts'] = adata.X.sum(axis=1)
-        adata.obs['n_genes_by_counts'] = adata.X.count_nonzero(axis=1)
-        adata.obs['full_name'] = name
+        adata.obs['n_counts'] = adata.X.sum(axis=1)
+        adata.obs['n_genes'] = adata.X.count_nonzero(axis=1)
+        adata.obs['sample'] = name
         adatas.append(adata)
 
         if do_qc:
-            y_limits[0] = max(y_limits[0], max(np.histogram(adata.obs['total_counts'], bins=60)[0]))
-            y_limits[1] = max(y_limits[1], max(np.histogram(adata.obs['total_counts'][adata.obs["total_counts"] < 1000], bins=60)[0]))
-            y_limits[2] = max(y_limits[2], max(np.histogram(adata.obs["n_genes_by_counts"], bins=60)[0]))
+            y_limits[0] = max(y_limits[0], max(np.histogram(adata.obs['n_counts'], bins=60)[0]))
+            y_limits[1] = max(y_limits[1], max(np.histogram(adata.obs['n_counts'][adata.obs["n_counts"] < 1000], bins=60)[0]))
+            y_limits[2] = max(y_limits[2], max(np.histogram(adata.obs["n_genes"], bins=60)[0]))
             y_limits[3] = max(y_limits[3], max(np.histogram(adata.obs["volume"], bins=100)[0]))
 
     adata = concat(adatas, join="outer", merge="first")
+    for i in set("cell_id", "cell_id_x", "cell_id_y") & set(adata.obs.columns):
+        del adata.obs[i]
     adata.obs["cell_type_mmc_raw_revised"] = pd.Categorical(
         adata.obs["cell_type_mmc_raw_revised"], categories=list(cell_type_colors.keys())
     )
@@ -62,7 +64,7 @@ def merge_adatas(sdatas: List[Tuple[str, SpatialData]], key: str, logger: loggin
     adata.uns["cell_type_mmc_raw_revised_colors"] = colors
     adata.obs_names_make_unique()
     if logger:
-        logger.info(f"{key}: # of cells: {len(adata)}, # of samples: {len(adata.obs.full_name.unique())}")
+        logger.info(f"{key}: # of cells: {len(adata)}, # of samples: {len(adata.obs.sample.unique())}")
     if do_qc:
         plot_qc(adata, save_path, y_limits, logger)
     return adata
@@ -78,20 +80,20 @@ def merge_adatas_deb(sdatas: List[Tuple[str, AnnData]], do_qc=False, save_path=N
 
     for name, adata in tqdm(sdatas):
         samples = name.split("_")
-        adata.obs['sample'] = samples[0]
+        adata.obs['cohort'] = samples[0]
         adata.obs['slide'] = samples[1]
         adata.obs['region'] = samples[2]
         adata.obs['condition'] = paths[name].split("/")[-2].split("-")[-2]
-        adata.obs['total_counts'] = adata.X.sum(axis=1)
-        adata.obs['n_genes_by_counts'] = adata.X.count_nonzero(axis=1)
-        adata.obs['full_name'] = name
+        adata.obs['n_counts'] = adata.X.sum(axis=1)
+        adata.obs['n_genes'] = adata.X.count_nonzero(axis=1)
+        adata.obs['sample'] = name
         adata.obs['volume'] = 7*adata.obs.area/(10*10)
         adatas.append(adata)
 
         if do_qc:
-            y_limits[0] = max(y_limits[0], max(np.histogram(adata.obs['total_counts'], bins=60)[0]))
-            y_limits[1] = max(y_limits[1], max(np.histogram(adata.obs['total_counts'][adata.obs["total_counts"] < 1000], bins=60)[0]))
-            y_limits[2] = max(y_limits[2], max(np.histogram(adata.obs["n_genes_by_counts"], bins=60)[0]))
+            y_limits[0] = max(y_limits[0], max(np.histogram(adata.obs['n_counts'], bins=60)[0]))
+            y_limits[1] = max(y_limits[1], max(np.histogram(adata.obs['n_counts'][adata.obs["n_counts"] < 1000], bins=60)[0]))
+            y_limits[2] = max(y_limits[2], max(np.histogram(adata.obs["n_genes"], bins=60)[0]))
             y_limits[3] = max(y_limits[3], max(np.histogram(adata.obs["volume"], bins=100)[0]))
 
     adata = concat(adatas, join="outer", merge="first")
@@ -103,18 +105,18 @@ def merge_adatas_deb(sdatas: List[Tuple[str, AnnData]], do_qc=False, save_path=N
 def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     if logger:
         logger.info(f"Plotting QC results")
-    sample_names = adata.obs.full_name.unique()
+    sample_names = adata.obs.sample.unique()
 
     #=====================================General Stats=================================================================
     fig, axs = plt.subplots(len(sample_names), 4, figsize=(16, len(sample_names) * 4), gridspec_kw={'wspace': 0.4}, squeeze=False)
     for i, name in enumerate(sample_names):
-        adata_tmp = adata[adata.obs["full_name"] == name]
+        adata_tmp = adata[adata.obs["sample"] == name]
 
         for ax, data, bins, y_limit in zip(
                 axs[i,:],
-                [adata_tmp.obs["total_counts"],
-                 adata_tmp.obs["total_counts"][adata_tmp.obs["total_counts"] < 1000],
-                 adata_tmp.obs["n_genes_by_counts"],
+                [adata_tmp.obs["n_counts"],
+                 adata_tmp.obs["n_counts"][adata_tmp.obs["n_counts"] < 1000],
+                 adata_tmp.obs["n_genes"],
                  adata_tmp.obs["volume"]],
                 [60, 60, 60, 100],
                 y_limits
@@ -147,8 +149,8 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     fig, axs = plt.subplots(len(sample_names), 1, figsize=(9, len(sample_names) * 8),
                             gridspec_kw={'wspace': 0.4})
     for ax, name in zip(axs, sample_names):
-        adata_tmp = adata[adata.obs["full_name"] == name]
-        sc.pl.scatter(adata_tmp, x='total_counts', y='n_genes_by_counts', color="volume", ax=ax, show=False, legend_loc='none')
+        adata_tmp = adata[adata.obs["sample"] == name]
+        sc.pl.scatter(adata_tmp, x='n_counts', y='n_genes', color="volume", ax=ax, show=False, legend_loc='none')
 
         default_cax = fig.axes[-1]
         if default_cax is not ax:
@@ -173,19 +175,19 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     fig, axs = plt.subplots(len(sample_names), 3, figsize=(18,len(sample_names) * 5),
                             gridspec_kw={'wspace': 0.4})
     for i, name in enumerate(sample_names):
-        adata_tmp = adata[adata.obs["full_name"] == name]
-        adata_tmp.var["total_counts"] = adata_tmp.X.sum(axis=0).T
-        log10_counts = np.log10(adata_tmp.var["total_counts"] + 1)
+        adata_tmp = adata[adata.obs["sample"] == name]
+        adata_tmp.var["n_counts"] = adata_tmp.X.sum(axis=0).T
+        log10_counts = np.log10(adata_tmp.var["n_counts"] + 1)
 
         sns.violinplot(y=log10_counts, ax=axs[i, 0], zorder=2)
-        axs[i, 0].set_ylabel("log10(total_counts+1)")
+        axs[i, 0].set_ylabel("log10(n_counts+1)")
         axs[i, 0].grid(True, alpha=0.5, zorder=0)
 
         sns.histplot(log10_counts, kde=True, bins=25, ax=axs[i,1], zorder=2)
-        axs[i,1].set_xlabel("log10(total_counts+1)")
+        axs[i,1].set_xlabel("log10(n_counts+1)")
         axs[i,1].grid(True, alpha=0.5, zorder=0)
 
-        sns.ecdfplot(adata_tmp.var["total_counts"], log_scale=True, ax=axs[i,2], zorder=2)
+        sns.ecdfplot(adata_tmp.var["n_counts"], log_scale=True, ax=axs[i,2], zorder=2)
         axs[i,2].grid(True, alpha=0.5, zorder=0)
 
     for ax, row in zip(axs[:,0], rows):
@@ -201,7 +203,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     fig, axs = plt.subplots(len(sample_names), 1, figsize=(12, len(sample_names) * 4),
                             gridspec_kw={'wspace': 0.4})
     for ax, name in zip(axs, sample_names):
-        adata_tmp = adata[adata.obs["full_name"] == name]
+        adata_tmp = adata[adata.obs["sample"] == name]
         sc.pl.highest_expr_genes(adata_tmp, n_top=20, ax=ax, show=False)
 
     for ax, row in zip(axs, rows):
@@ -214,13 +216,13 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     plt.close()
 
 def filter_cells(adata, save_path, min_counts=25, min_genes=5, logger=None):
-    sample_names = adata.obs["full_name"].unique()
+    sample_names = adata.obs["sample"].unique()
 
     fig, axs = plt.subplots(len(sample_names), 1, figsize=(12, len(sample_names)*9), gridspec_kw={'wspace': 0.4})
     for ax, name in zip(axs, sample_names):
-        adata_tmp = adata[adata.obs["full_name"] == name]
-        adata_tmp.obs["cell_outlier"] = (adata_tmp.obs["total_counts"] < min_counts) | (
-        adata_tmp.obs["n_genes_by_counts"] < min_genes)
+        adata_tmp = adata[adata.obs["sample"] == name]
+        adata_tmp.obs["cell_outlier"] = (adata_tmp.obs["n_counts"] < min_counts) | (
+        adata_tmp.obs["n_genes"] < min_genes)
         adata_tmp.obs["cell_outlier"] = adata_tmp.obs["cell_outlier"].astype('category')
         sq.pl.spatial_scatter(
             adata_tmp, ax=ax, shape=None, color="cell_outlier", size=0.125, library_id="spatial", figsize=(8, 8),
@@ -254,7 +256,7 @@ def filter_cells(adata, save_path, min_counts=25, min_genes=5, logger=None):
         logger.info(adata.obs.outlier.value_counts())
     fig, axs = plt.subplots(len(sample_names), 1, figsize=(12, len(sample_names)*9), gridspec_kw={'wspace': 0.4})
     for ax,name in zip(axs, sample_names):
-        adata_tmp = adata[adata.obs["full_name"] == name]
+        adata_tmp = adata[adata.obs["sample"] == name]
         sq.pl.spatial_scatter(
             adata_tmp, ax=ax, shape=None, color="outlier", size=0.125, library_id="spatial", figsize=(8, 8),
             palette=mpl.colors.ListedColormap(["lightgrey", "red"]), save=join(save_path, f"volume_outlier_{name}.png")
@@ -281,9 +283,9 @@ def filter_genes(adata, save_path, logger=None):
     fig, axs = plt.subplots(1, 4, figsize=(18, 4), gridspec_kw={'wspace': 0.4})
     for ax, data, bins in zip(
             axs,
-            [adata.obs["total_counts"],
-             adata.obs["total_counts"][adata.obs["total_counts"] < 1000],
-             adata.obs["n_genes_by_counts"],
+            [adata.obs["n_counts"],
+             adata.obs["n_counts"][adata.obs["n_counts"] < 1000],
+             adata.obs["n_genes"],
              adata.obs["volume"]],
             [100, 100, 100, 100]  # bins
     ):
@@ -392,7 +394,7 @@ def dimensionality_reduction(adata, save_path, logger=None):
         logger.info("Dimensionality reduction: PCA")
     sc.pp.pca(adata, svd_solver="arpack")
     fig, axs = plt.subplots(1, 2, figsize=(20, 9), gridspec_kw={'wspace': 0.4})
-    sc.pl.pca_scatter(adata, color="total_counts", ax=axs[0])
+    sc.pl.pca_scatter(adata, color="n_counts", ax=axs[0])
     var_ratio = adata.uns['pca']['variance_ratio']
 
     # plot on your second subplot
@@ -416,7 +418,7 @@ def dimensionality_reduction(adata, save_path, logger=None):
     sc.tl.umap(adata)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
-            sc.pl.embedding(adata, ax=axs[0], basis="X_umap", color="total_counts", title="UMAP: n = 20", show=False)
+            sc.pl.embedding(adata, ax=axs[0], basis="X_umap", color="n_counts", title="UMAP: n = 20", show=False)
 
     if logger:
         logger.info("Dimensionality reduction: neighbors and umap with n=40 PCA")
@@ -424,7 +426,7 @@ def dimensionality_reduction(adata, save_path, logger=None):
     sc.tl.umap(adata)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
-            sc.pl.embedding(adata, ax=axs[1], basis="X_umap", color="total_counts", title="UMAP: n = 40", show=False)
+            sc.pl.embedding(adata, ax=axs[1], basis="X_umap", color="n_counts", title="UMAP: n = 40", show=False)
 
     if logger:
         logger.info("Dimensionality reduction: neighbors and umap with n=50 PCA")
@@ -432,7 +434,7 @@ def dimensionality_reduction(adata, save_path, logger=None):
     sc.tl.umap(adata)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
-            sc.pl.embedding(adata, ax=axs[2], basis="X_umap", color="total_counts", title="UMAP: n = 50", show=False)
+            sc.pl.embedding(adata, ax=axs[2], basis="X_umap", color="n_counts", title="UMAP: n = 50", show=False)
 
     plt.savefig(join(save_path, "UMAP_unintegrated.png"))
     plt.close()
@@ -458,17 +460,17 @@ def integration_harmony(adata, batch_key, save_path, logger=None):
 
     pt_size_umap = 220000 / adata.shape[0]
     fig, axs = plt.subplots(3, 2, figsize=(30, 35), gridspec_kw={'wspace': 0.4})
-    sc.pl.embedding(adata, basis="X_umap", color='full_name', show=False, ax=axs[0,0], title="No Integration", size=pt_size_umap)
+    sc.pl.embedding(adata, basis="X_umap", color='sample', show=False, ax=axs[0,0], title="No Integration", size=pt_size_umap, legend_loc=None)
     axs[0,0].set_aspect('equal')
-    sc.pl.embedding(adata, basis="X_umap_harmony", color='full_name', show=False, ax=axs[0,1], title="Harmonny Integration", size=pt_size_umap)
+    sc.pl.embedding(adata, basis="X_umap_harmony", color='sample', show=False, ax=axs[0,1], title="Harmony Integration", size=pt_size_umap)
     axs[0,1].set_aspect('equal')
-    sc.pl.embedding(adata, basis="X_umap", color='slide', show=False, ax=axs[1,0], title="No Integration", size=pt_size_umap)
+    sc.pl.embedding(adata, basis="X_umap", color='slide', show=False, ax=axs[1,0], title="No Integration", size=pt_size_umap, legend_loc=None)
     axs[1,0].set_aspect('equal')
-    sc.pl.embedding(adata, basis="X_umap_harmony", color='slide', show=False, ax=axs[1,1], title="Harmonny Integration", size=pt_size_umap)
+    sc.pl.embedding(adata, basis="X_umap_harmony", color='slide', show=False, ax=axs[1,1], title="Harmony Integration", size=pt_size_umap)
     axs[1,1].set_aspect('equal')
-    sc.pl.embedding(adata, basis="X_umap", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,0], title="No Integration", size=pt_size_umap)
+    sc.pl.embedding(adata, basis="X_umap", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,0], title="No Integration", size=pt_size_umap, legend_loc=None)
     axs[2,0].set_aspect('equal')
-    sc.pl.embedding(adata, basis="X_umap_harmony", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,1], title="Harmonny Integration", size=pt_size_umap)
+    sc.pl.embedding(adata, basis="X_umap_harmony", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,1], title="Harmony Integration", size=pt_size_umap)
     axs[2,1].set_aspect('equal')
 
     pad = 5

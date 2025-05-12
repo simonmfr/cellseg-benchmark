@@ -38,4 +38,4 @@ dimensionality_reduction(adata, save_path=save_path, logger=logger)
 adata = integration_harmony(adata, batch_key="full_name", save_path=save_path, logger=logger)
 
 os.makedirs(os.path.join(path, "analysis", name, "adatas"), exist_ok=True)
-adata.write(os.path.join(path, "analysis", name, "adatas", "adata.h5ad"))
+adata.write(os.path.join(path, "analysis", name, "adatas", "adata_integrated.h5ad.gz"), compression="gzip")
