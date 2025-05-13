@@ -4,7 +4,8 @@ from spatialdata import read_zarr
 import os
 import logging
 import sys
-
+import warnings
+warnings.filterwarnings("ignore")
 
 logger = logging.getLogger("integrate_adatas")
 logger.setLevel(logging.INFO)

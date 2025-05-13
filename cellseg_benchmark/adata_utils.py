@@ -52,7 +52,7 @@ def merge_adatas(sdatas: List[Tuple[str, SpatialData]], key: str, logger: loggin
             y_limits[3] = max(y_limits[3], max(np.histogram(adata.obs["volume"], bins=100)[0]))
 
     adata = concat(adatas, join="outer", merge="first")
-    for i in set("cell_id", "cell_id_x", "cell_id_y") & set(adata.obs.columns):
+    for i in set(["cell_id", "cell_id_x", "cell_id_y"]) & set(adata.obs.columns):
         del adata.obs[i]
     adata.obs["cell_type_mmc_raw_revised"] = pd.Categorical(
         adata.obs["cell_type_mmc_raw_revised"], categories=list(cell_type_colors.keys())
