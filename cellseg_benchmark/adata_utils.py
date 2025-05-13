@@ -64,7 +64,8 @@ def merge_adatas(sdatas: List[Tuple[str, SpatialData]], key: str, logger: loggin
     adata.uns["cell_type_mmc_raw_revised_colors"] = colors
     adata.obs_names_make_unique()
     if logger:
-        logger.info(f"{key}: # of cells: {len(adata)}, # of samples: {len(adata.obs.sample.unique())}")
+        n = len(adata.obs["sample"].unique())
+        logger.info(f"{key}: # of cells: {len(adata)}, # of samples: {n}")
     if do_qc:
         plot_qc(adata, save_path, y_limits, logger)
     return adata
