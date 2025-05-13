@@ -36,7 +36,7 @@ adata = filter_cells(adata, save_path=save_path, logger=logger)
 adata = filter_genes(adata, save_path=save_path, logger=logger)
 adata = normalize(adata, save_path=save_path, logger=logger)
 dimensionality_reduction(adata, save_path=save_path, logger=logger)
-adata = integration_harmony(adata, batch_key="full_name", save_path=save_path, logger=logger)
+adata = integration_harmony(adata, batch_key="sample", save_path=save_path, logger=logger)
 
 os.makedirs(os.path.join(path, "analysis", name, "adatas"), exist_ok=True)
 adata.write(os.path.join(path, "analysis", name, "adatas", "adata_integrated.h5ad.gz"), compression="gzip")
