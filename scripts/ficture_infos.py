@@ -30,7 +30,7 @@ sdata_path = join(data_dir, "samples", sample)
 stats = prepare_ficture(data_path, sdata_path, logger=logger)
 
 area_covered = (stats[0]>0)
-area_covered_weighted = (stats[0].astype('f2')/np.iinfo(np.uint16).max) #reverse ficture normalization
+area_covered_weighted = (stats[0].astype(np.float16)/(np.finfo(np.float16).max.astype(np.uint16) - 5)) #reverse ficture normalization
 data_tmp = np.concat([area_covered.sum(axis=(1,2))[np.newaxis, :], area_covered_weighted.sum(axis=(1,2))[np.newaxis, :]], axis=0)
 general_stats = pd.DataFrame(data=data_tmp, columns=list(range(21)), index=["factor_area", "factor_area_weighted"])
 general_stats.to_csv(join(sdata_path, "results", "Ficture", "general_stats.csv"))
@@ -44,12 +44,13 @@ for key in master_sdata.shapes.keys():
     sdata[key] = master_sdata[key]
 
 for key in sdata.shapes.keys():
+    logger.info("Working on {}".format(key))
     covered = aggregate_channels(sdata, image_key="ficture_image_1", shapes_key=key, mode="sum")
     covered_weight = aggregate_channels(sdata, image_key="ficture_image_2", shapes_key=key, mode="sum")
-    mean = aggregate_channels(sdata, image_key="ficture_image_1", shapes_key=f"boundary", mode="average")
-    mean_weight = aggregate_channels(sdata, image_key="ficture_image_2", shapes_key=f"boundary", mode="average")
-    var = aggregate_channels(sdata, image_key="ficture_image_1", shapes_key=f"boundary", mode="variance", means=mean)
-    var_weight = aggregate_channels(sdata, image_key="ficture_image_2", shapes_key=f"boundary", mode="variance", means=mean_weight)
+    mean = aggregate_channels(sdata, image_key="ficture_image_1", shapes_key=key, mode="average")
+    mean_weight = aggregate_channels(sdata, image_key="ficture_image_2", shapes_key=key, mode="average")
+    var = aggregate_channels(sdata, image_key="ficture_image_1", shapes_key=key, mode="variance", means=mean)
+    var_weight = aggregate_channels(sdata, image_key="ficture_image_2", shapes_key=key, mode="variance", means=mean_weight)
 
     os.makedirs(join(sdata_path, "results", "_".join(split("_", key)[1:]), "Ficture_stats"), exist_ok=True)
     pd.DataFrame(
