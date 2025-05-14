@@ -606,7 +606,7 @@ def pixel_to_microns(
             transform_count += 1
 
 
-def prepare_ficture(data_path, sdata_path, n_ficture=21, logger=None):
+def prepare_ficture(data_path, sdata_path, n_ficture=21, logger=None, factors: Optional[List[int]]=None):
     """Generate ficture images stack and other ficture information.
 
     Args:
@@ -666,6 +666,9 @@ def prepare_ficture(data_path, sdata_path, n_ficture=21, logger=None):
         + list(np.unique(ficture_pixels["K3"]))
     )
     unique_factors = list(set(unique_factors))
+    if factors is not None:
+        assert all([x in unique_factors for x in factors])
+        unique_factors = list(set(factors))
 
     for factor in tqdm(unique_factors):
         try:
