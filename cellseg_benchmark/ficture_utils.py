@@ -103,7 +103,7 @@ def get_transcript_level_factors(transcripts, tree, df, metadata, current_factor
     return transcripts.assign(**{f"{current_factor}_factors": factor})
 
 
-def create_factor_level_image(data, factor, DAPI_shape, picture: bool=False) -> np.ndarray:
+def create_factor_level_image(data, factor, DAPI_shape) -> np.ndarray:
     """Compute image for given factor.
 
     Args:
@@ -139,9 +139,6 @@ def create_factor_level_image(data, factor, DAPI_shape, picture: bool=False) -> 
         bins=[bins_x, bins_y],
         weights=filtered_data["probability"],
     )
-    if picture:
-        image = np.clip(np.around(image * 65535), 0, 65535).astype(np.uint16)
-    else:
-        image = image.astype(np.uint16)
+    image = np.clip(np.around(image * np.iinfo(np.uint16).max), 0, np.iinfo(np.uint16).max).astype(np.uint16) #makes smaller file
     image = image[np.newaxis, :]
     return image

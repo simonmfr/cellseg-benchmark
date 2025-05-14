@@ -30,7 +30,7 @@ sdata_path = join(data_dir, "samples", sample)
 stats = prepare_ficture(data_path, sdata_path)
 
 area_covered = (stats[0]>0)
-area_covered_weighted = stats[0]
+area_covered_weighted = (stats[0]/np.iinfo(np.uint16).max) #reverse ficture normalization
 data_tmp = np.concat([area_covered.sum(axis=(1,2))[np.newaxis, :], area_covered_weighted.sum(axis=(1,2))[np.newaxis, :]], axis=0)
 general_stats = pd.DataFrame(data=data_tmp, columns=list(range(21)), index=["factor_area", "factor_area_weighted"])
 general_stats.to_csv(join(sdata_path, "results", "Ficture", "general_stats.csv"))
