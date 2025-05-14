@@ -67,7 +67,7 @@ def ficture_intensities(
 
 
 # from sopa.aggregation.channels.py
-AVAILABLE_MODES = ["average", "min", "max", "variance"]
+AVAILABLE_MODES = ["average", "min", "max", "variance", "sum"]
 
 
 def aggregate_channels(
@@ -179,6 +179,8 @@ def _aggregate_channels_aligned(
                         aggregation[index] += np.power(values - means[index], 2)
                     case "max":
                         aggregation[index] = np.maximum(aggregation[index], values)
+                    case "sum":
+                        aggregation[index] += values
 
     with ProgressBar():
         tasks = [
@@ -195,3 +197,5 @@ def _aggregate_channels_aligned(
             return aggregation
         case "variance":
             return aggregation / (areas[:, None].clip(2) - 1)
+        case "sum":
+            return aggregation
