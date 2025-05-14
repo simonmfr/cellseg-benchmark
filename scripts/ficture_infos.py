@@ -14,8 +14,6 @@ import os
 import warnings
 import logging
 
-print("starting")
-
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger("ficture_infos")
