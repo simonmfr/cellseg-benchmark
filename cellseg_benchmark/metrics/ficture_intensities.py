@@ -168,7 +168,7 @@ def _aggregate_channels_aligned(
                 aggregation[index] = np.minimum(
                     aggregation[index], masked_image.min(axis=(1, 2))
                 )
-            elif mode in ["average", "max", "variance"]:
+            elif mode in ["average", "max", "variance", "sum"]:
                 func = np.sum if mode == "average" else np.max
                 values = func(sub_image * mask, axis=(1, 2))
 
