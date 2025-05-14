@@ -1,18 +1,26 @@
 import dask
 dask.config.set({'dataframe.query-planning': False})
 
-import cellseg_benchmark.ficture_utils as fu
 from cellseg_benchmark.metrics.ficture_intensities import *
 from cellseg_benchmark.sdata_utils import prepare_ficture
 from os.path import join
 import numpy as np
 from spatialdata import read_zarr, SpatialData
-from spatialdata.models import Image2DModel, ShapesModel
-import spatialdata_plot
+from spatialdata.models import Image2DModel
 import sys
 import pandas as pd
 from re import split
 import os
+import warnings
+import logging
+
+warnings.filterwarnings("ignore")
+
+logger = logging.getLogger("shape_mapping")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
+logger.addHandler(handler)
 
 sample = sys.argv[1]
 data_path = sys.argv[2]

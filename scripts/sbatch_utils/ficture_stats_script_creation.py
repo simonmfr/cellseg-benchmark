@@ -27,8 +27,8 @@ for key, value in data.items():
 
 cd ~/gitrepos/cellseg-benchmark
 git pull
-checkout Ficture
+git checkout Ficture
 mamba activate cellseg_benchmark
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/ficture_infos.py {key} {value}
+python scripts/ficture_infos.py {key} {value}
 """)
     f.close()
