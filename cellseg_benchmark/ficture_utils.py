@@ -141,5 +141,7 @@ def create_factor_level_image(data, factor, DAPI_shape, picture: bool=False) -> 
     )
     if picture:
         image = np.clip(np.around(image * 65535), 0, 65535).astype(np.uint16)
+    else:
+        image = image.astype(np.uint16)
     image = image[np.newaxis, :]
     return image
