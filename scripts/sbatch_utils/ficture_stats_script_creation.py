@@ -26,8 +26,8 @@ for key, value in data.items():
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/cellseg_benchmark.sqsh"
 
 cd ~/gitrepos/cellseg-benchmark
-git checkout Ficture
 git pull
+git checkout Ficture
 mamba activate cellseg_benchmark
 python scripts/ficture_infos.py {key} {value}
 """)
