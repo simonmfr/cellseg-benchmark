@@ -1,7 +1,7 @@
 import dask
 dask.config.set({'dataframe.query-planning': False})
 
-from cellseg_benchmark.metrics.ficture_intensities import *
+from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
 from cellseg_benchmark.sdata_utils import prepare_ficture
 from os.path import join
 import numpy as np
@@ -14,9 +14,11 @@ import os
 import warnings
 import logging
 
+print("starting")
+
 warnings.filterwarnings("ignore")
 
-logger = logging.getLogger("shape_mapping")
+logger = logging.getLogger("ficture_infos")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
