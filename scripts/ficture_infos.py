@@ -14,7 +14,7 @@ import os
 import warnings
 import logging
 
-warnings.filterwarnings("ignore")
+#warnings.filterwarnings("ignore")
 
 logger = logging.getLogger("ficture_infos")
 logger.setLevel(logging.INFO)
