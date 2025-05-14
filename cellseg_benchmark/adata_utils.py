@@ -414,25 +414,25 @@ def dimensionality_reduction(adata, save_path, logger=None):
 
     fig, axs = plt.subplots(1, 3, figsize=(30, 8), gridspec_kw={'wspace': 0.4})
     if logger:
-        logger.info("Dimensionality reduction: neighbors and umap with n=20 PCA")
-    sc.pp.neighbors(adata, n_neighbors=10, n_pcs=20)
-    sc.tl.umap(adata)
+        logger.info("Dimensionality reduction: n_neighbors=10 and n_pcs=20")
+    sc.pp.neighbors(adata, n_neighbors=10, n_pcs=20) # as used in squidpy and vizgen colab tutorials
+    sc.tl.umap(adata, n_components=3)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
             sc.pl.embedding(adata, ax=axs[0], basis="X_umap", color="n_counts", title="UMAP: n = 20", show=False)
 
     if logger:
-        logger.info("Dimensionality reduction: neighbors and umap with n=40 PCA")
-    sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
-    sc.tl.umap(adata)
+        logger.info("Dimensionality reduction: default n_neighbors and n_pcs=40")
+    sc.pp.neighbors(adata, n_pcs=40)
+    sc.tl.umap(adata, n_components=3)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
             sc.pl.embedding(adata, ax=axs[1], basis="X_umap", color="n_counts", title="UMAP: n = 40", show=False)
 
     if logger:
-        logger.info("Dimensionality reduction: neighbors and umap with n=50 PCA")
-    sc.pp.neighbors(adata, n_neighbors=10, n_pcs=50)
-    sc.tl.umap(adata)
+        logger.info("Dimensionality reduction: default n_neighbors and n_pcs=50")
+    sc.pp.neighbors(adata, n_pcs=50)
+    sc.tl.umap(adata, n_components=3)
     with plt.style.context('default'):
         with mpl.rc_context({'figure.figsize': (8, 8)}):
             sc.pl.embedding(adata, ax=axs[2], basis="X_umap", color="n_counts", title="UMAP: n = 50", show=False)
@@ -457,19 +457,19 @@ def integration_harmony(adata, batch_key, save_path, logger=None):
     sc.pp.neighbors(adata, use_rep='X_pca_harmony', n_pcs=50, key_added="neighbors_harmony")
     if logger:
         logger.info("Integration harmony: umap")
-    sc.tl.umap(adata, neighbors_key="neighbors_harmony", key_added="X_umap_harmony")
+    sc.tl.umap(adata, neighbors_key="neighbors_harmony", key_added="X_umap_harmony", n_components=3)
 
     pt_size_umap = 220000 / adata.shape[0]
     fig, axs = plt.subplots(3, 2, figsize=(30, 35), gridspec_kw={'wspace': 0.4})
-    sc.pl.embedding(adata, basis="X_umap", color='sample', show=False, ax=axs[0,0], title="No Integration", size=pt_size_umap, legend_loc=None)
+    sc.pl.embedding(adata, basis="X_umap", color='sample', show=False, ax=axs[0,0], title="Unintegrated", size=pt_size_umap, legend_loc=None)
     axs[0,0].set_aspect('equal')
     sc.pl.embedding(adata, basis="X_umap_harmony", color='sample', show=False, ax=axs[0,1], title="Harmony Integration", size=pt_size_umap)
     axs[0,1].set_aspect('equal')
-    sc.pl.embedding(adata, basis="X_umap", color='slide', show=False, ax=axs[1,0], title="No Integration", size=pt_size_umap, legend_loc=None)
+    sc.pl.embedding(adata, basis="X_umap", color='slide', show=False, ax=axs[1,0], title="Unintegrated", size=pt_size_umap, legend_loc=None)
     axs[1,0].set_aspect('equal')
     sc.pl.embedding(adata, basis="X_umap_harmony", color='slide', show=False, ax=axs[1,1], title="Harmony Integration", size=pt_size_umap)
     axs[1,1].set_aspect('equal')
-    sc.pl.embedding(adata, basis="X_umap", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,0], title="No Integration", size=pt_size_umap, legend_loc=None)
+    sc.pl.embedding(adata, basis="X_umap", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,0], title="Unintegrated", size=pt_size_umap, legend_loc=None)
     axs[2,0].set_aspect('equal')
     sc.pl.embedding(adata, basis="X_umap_harmony", color='cell_type_mmc_raw_revised', show=False, ax=axs[2,1], title="Harmony Integration", size=pt_size_umap)
     axs[2,1].set_aspect('equal')
