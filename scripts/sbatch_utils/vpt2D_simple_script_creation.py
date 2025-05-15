@@ -60,7 +60,7 @@ vpt --verbose derive-entity-metadata \
 
 vpt --verbose --processes 10 update-vzg \
 --input-vzg {vzg_path} \
---input-boundaries {join(res_path, "analysis_outputs/cellpose2_mosaic_space.parquet")} \
+--input-boundaries {join(res_path, "analysis_outputs/cellpose2_micron_space.parquet")} \
 --input-entity-by-gene {join(res_path, "analysis_outputs/cell_by_gene.csv")} \
 --output-vzg {join(res_path, "visualize.vzg")} \
 --input-metadata {join(res_path, "analysis_outputs/cell_metadata.csv")} \

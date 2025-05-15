@@ -170,7 +170,7 @@ def _aggregate_channels_aligned(
                 )
             elif mode == "variance":
                 func = np.sum
-                values = func(np.power(sub_image * mask - means[index], 2), axis=(1, 2))
+                values = func(np.power(sub_image * mask - means[index, np.newaxis, np.newaxis], 2), axis=(1, 2))
                 aggregation[index] += values
             elif mode in ["average", "max", "sum"]:
                 if mode in ["average", "sum"]:
