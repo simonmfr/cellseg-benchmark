@@ -18,7 +18,7 @@ for key, value in data.items():
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 09:00:00
+#SBATCH -t 12:00:00
 #SBATCH --mem=700G
 #SBATCH -J ficture_stats_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/ficture_stats_{key}.out
@@ -27,7 +27,6 @@ for key, value in data.items():
 
 cd ~/gitrepos/cellseg-benchmark
 git pull
-git checkout Ficture
 mamba activate cellseg_benchmark
 python scripts/ficture_infos.py {key} {value}
 """)
