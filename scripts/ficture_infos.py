@@ -32,11 +32,10 @@ stats = prepare_ficture(data_path, sdata_path, logger=logger)
 
 logger.info(f"Converting images")
 area_covered = (stats[0]>0)
-area_covered_weighted = (stats[0].astype(np.float16)/(np.finfo(np.float16).max.astype(np.uint16) - 5)) #reverse ficture normalization
-del stats
+stats[0] = (stats[0].astype(np.float16)/(np.finfo(np.float16).max.astype(np.uint16) - 5)) #reverse ficture normalization
 logger.info("saving general stats")
 pd.DataFrame(
-    data=np.concat([area_covered.sum(axis=(1,2))[np.newaxis, :], area_covered_weighted.sum(axis=(1,2))[np.newaxis, :]], axis=0),
+    data=np.concat([area_covered.sum(axis=(1,2))[np.newaxis, :], stats[0].sum(axis=(1,2))[np.newaxis, :]], axis=0),
     columns=list(range(21)), index=["factor_area", "factor_area_weighted"]
 ).to_csv(join(sdata_path, "results", "Ficture", "general_stats.csv"))
 
@@ -46,8 +45,8 @@ master_sdata = read_zarr(join(sdata_path, "sdata_z3.zarr"), selection=("shapes",
 logger.info(f"Build temporary SpatialData")
 sdata = SpatialData()
 sdata["ficture_image_1"] = Image2DModel.parse(area_covered)
-sdata["ficture_image_2"] = Image2DModel.parse(area_covered_weighted)
-del area_covered, area_covered_weighted
+sdata["ficture_image_2"] = Image2DModel.parse(stats[0])
+del area_covered, stats
 for key in master_sdata.shapes.keys():
     sdata[key] = master_sdata[key]
 del master_sdata
