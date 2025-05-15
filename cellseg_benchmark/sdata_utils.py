@@ -671,6 +671,8 @@ def prepare_ficture(data_path, sdata_path, n_ficture=21, logger=None, factors: O
         unique_factors = list(set(factors))
 
     for factor in tqdm(unique_factors):
+        if logger is not None:
+            logger.info(f"Building ficture image for {factor}")
         try:
             image_stack
         except NameError:

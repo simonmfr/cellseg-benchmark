@@ -16,7 +16,7 @@ Path(
 times = {}
 for f in listdir(path):
     if f=="Negative_Control_Rastered_5":
-        times[f] = "1-00:00:00"
+        times[f] = "1-12:00:00"
     elif "Baysor" in f:
         times[f] = "02:00:00"
     elif f=="Negative_Control_Rastered_10" or f=="Negative_Control_Voronoi":
@@ -44,7 +44,6 @@ for method in listdir(path):
 mamba activate annotation
 cd ~/gitrepos/cellseg-benchmark
 git pull
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/run_mapmycells.py \
- {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark
+python scripts/run_mapmycells.py {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark
                     """)
         f.close()
