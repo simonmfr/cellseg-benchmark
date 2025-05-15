@@ -29,7 +29,7 @@ for key, value in data.items():
     f.write(f"""#!/bin/bash
 
 #SBATCH -p lrz-hgx-a100-80x4
-#SBATCH -t 1-06:00:00
+#SBATCH -t 12:00:00
 #SBATCH --mem=600G
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
