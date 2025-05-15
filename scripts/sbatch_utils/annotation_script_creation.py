@@ -44,7 +44,6 @@ for method in listdir(path):
 mamba activate annotation
 cd ~/gitrepos/cellseg-benchmark
 git pull
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/run_mapmycells.py \
- {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark
+python scripts/run_mapmycells.py {sample} {method} /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark
                     """)
         f.close()
