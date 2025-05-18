@@ -34,7 +34,7 @@ for key, value in data.items():
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=40
-#SBATCH -J vtp2D_{key}_{staining1}_{staining2}
+#SBATCH -J vtp3D_{key}_{staining1}_{staining2}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt3D_{key}_{staining1}_{staining2}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt3D_{key}_{staining1}_{staining2}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/vpt.sqsh"
