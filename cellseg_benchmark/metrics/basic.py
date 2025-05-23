@@ -1,10 +1,16 @@
 import ast
 import warnings
 
-import numpy as np
-import pandas as pd
 import scanpy as sc
 from shapely.geometry import Polygon
+from spatialdata import SpatialData
+import scipy.sparse as sp
+import pandas as pd
+import numpy as np
+from shapely import minimum_bounding_radius
+from scipy.spatial import cKDTree
+from dask import delayed, compute
+from dask.diagnostics import ProgressBar
 
 
 def compute_outlier_percentage(sdata, min_counts=25, min_genes=5, inplace=True):
@@ -257,6 +263,89 @@ def mean_transcript_densities(sdata, area_col="area"):
         transcript_densities[clean_name] = round(density.mean(), 4)
 
     return transcript_densities
+
+
+def pct_assigned_transcripts(sdata: SpatialData, data_dir, genes: bool = False):
+    pct_assigned_transcripts = {}
+    transcripts = sdata['points'][["gene", "transcript_id"]].compute()
+    if genes:
+        transcripts = transcripts.groupby("gene").count()
+    for table_name in sdata.tables.keys():
+        adata = sdata[table_name]
+
+        if genes:
+            if isinstance(adata.X, np.ndarray):
+                adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
+            sums = adata.X.sum(axis=0)
+            sums = pd.DataFrame(sums, index=adata.var_names, columns=["transcript_counts"])
+            merged = transcripts.merge(sums, how='left', left_index=True, right_index=True)
+            merged.fillna(0, inplace=True) # ensure that all available genes are accounted for
+            merged['percentage'] = merged['transcript_counts'] / merged['transcript_id']
+            pct_assigned_transcripts[table_name] = merged['percentage']
+
+        else:
+            if isinstance(adata.X, np.ndarray):
+                adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
+            sums = adata.X.sum()
+            pct_assigned_transcripts[table_name] = sums/len(transcripts)
+
+    return pct_assigned_transcripts
+
+
+@delayed
+def _process_cluster_dask(cluster, subset, radii):
+    pts = subset[['x', 'y', 'global_z']].to_numpy()
+    poly = subset['geometry'].iat[0]
+
+    # Compute base 2D minimal circle radius and z-range once
+    base_r2 = minimum_bounding_radius(poly)
+    base_rz = np.ptp(pts[:, 2])
+    base_R = np.sqrt(base_r2**2 + base_rz**2)/2
+
+    tree = cKDTree(pts)
+    n = len(pts)
+    results = []
+
+    for r in radii:
+        R = base_R * r  # scale base radius by factor r
+        # count unordered pairs within R
+        pairs = tree.count_neighbors(tree, R)
+        # directed count
+        ripley_0 = 2 * pairs
+        # compute Ripley score
+        score = ripley_0 / (n * (n - 1)) if n > 1 else 0
+        results.append({'cell': cluster, 'radius_factor': r, 'ripley_score': score})
+
+    return results
+
+# Main Ripley function using Dask for parallelism with multiple radii and progress bar
+def ripley_k(df, cluster_column, radii, scheduler='processes'):
+    """
+    Compute Ripley scores per cluster at multiple radii factors in parallel using Dask, showing progress.
+
+    Parameters:
+    - df: pandas DataFrame containing 'x', 'y', 'global_z', 'geometry', and cluster_column
+    - cluster_column: name of the column to group by
+    - radii: iterable of radius scaling factors (floats) to apply to each cluster's base radius
+    - scheduler: Dask scheduler to use ('threads', 'processes', or 'single-threaded')
+
+    Returns:
+    - pandas DataFrame with columns ['cell', 'radius_factor', 'ripley_score']
+    """
+    groups = df.groupby(cluster_column)
+
+    tasks = []
+    for cluster, subset in groups:
+        subset_copy = subset.copy()
+        tasks.append(_process_cluster_dask(cluster, subset_copy, radii))
+
+    with ProgressBar():
+        # each task returns a list of dicts; compute all tasks
+        nested_results = compute(*tasks, scheduler=scheduler)
+
+    # flatten nested lists of results
+    flat_results = [item for sublist in nested_results for item in sublist]
+    return pd.DataFrame(flat_results)
 
 
 def combine_metrics(sdata):
