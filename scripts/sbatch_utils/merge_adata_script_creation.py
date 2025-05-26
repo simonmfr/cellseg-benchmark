@@ -18,9 +18,9 @@ methods = ["Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8", "Cellpose_1_nuclei_model
 times = {}
 for method in methods:
     if "Baysor" in method:
-        times[method] = "07:00:00"
+        times[method] = "12:00:00"
     elif "Negative_Control_Rastered_5" == method:
-        times[method] = "1-00:00:00"
+        times[method] = "2-00:00:00"
     elif method in ["Negative_Control_Rastered_10", "Negative_Control_Voronoi"]:
         times[method] = "12:00:00"
     else:
