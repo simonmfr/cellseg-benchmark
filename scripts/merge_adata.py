@@ -21,12 +21,13 @@ sdata_list = []
 available_names = set()
 logger.info("Loading data")
 for f in os.listdir(os.path.join(path, "samples")):
-    if f not in ["foxf2_s2_r0", "foxf2_s3_r0", "foxf2_s3_r1"]:
-        sdata = read_zarr(os.path.join(path, "samples", f, "sdata_z3.zarr"), selection=("tables",))
-        current_names = list(sdata.tables.keys())
-        current_names = ["_".join(name.split("_")[1:]) for name in current_names]
-        available_names.update(set(current_names))
-        sdata_list.append((f, sdata))
+    if f.startswith("foxf2"):
+        if f not in ["foxf2_s2_r0", "foxf2_s3_r0", "foxf2_s3_r1"]:
+            sdata = read_zarr(os.path.join(path, "samples", f, "sdata_z3.zarr"), selection=("tables",))
+            current_names = list(sdata.tables.keys())
+            current_names = ["_".join(name.split("_")[1:]) for name in current_names]
+            available_names.update(set(current_names))
+            sdata_list.append((f, sdata))
 
 save_path = os.path.join(path, "analysis", name, "plots")
 os.makedirs(save_path, exist_ok=True)
