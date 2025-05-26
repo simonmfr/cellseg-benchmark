@@ -21,7 +21,7 @@ sdata_list = []
 available_names = set()
 logger.info("Loading data")
 for f in os.listdir(os.path.join(path, "samples")):
-    if f not in ["foxf2_s2_r0", "foxf2_s3_r0", "foxf2_s3_r1", "foxf2_s6_r2"]:
+    if f not in ["foxf2_s2_r0", "foxf2_s3_r0", "foxf2_s3_r1"]:
         sdata = read_zarr(os.path.join(path, "samples", f, "sdata_z3.zarr"), selection=("tables",))
         current_names = list(sdata.tables.keys())
         current_names = ["_".join(name.split("_")[1:]) for name in current_names]
