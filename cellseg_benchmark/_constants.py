@@ -1,0 +1,204 @@
+cell_cyle_genes = {
+"G1":["Ccne1","Pttg1"],
+"G1_S":["Slbp","Cdca7","Ung","Cdc6","Pcna","Mcm5","Orc1","Dtl"],
+"S":["Rrm2","E2f8","Atad2"],
+"G2":["Ccnf","Cdca8","Hjurp","Cdk1","Top2a","Kif23"],
+"G2_M":["Kpna2","Bub1b","Tacc3"],
+"M":["Plk1","Mapk13","Aurka","Tpx2"],
+"Proliferation":["Mki67"]
+}
+
+cell_supertypes_merfish_panel_500_mouse_brain = {
+'Vascular':['Cldn5', 'Cdh5', 'Pecam1', 'Kdr', 'Flt1', 'Tie1', 'Tek', 'Nos3', 'Ocln', 'Pdgfb', 'Mgp', 'Cytl1', 'Fbln5', 'Clu', 'Eln', 'Bmx', 'Efnb2', 'Vegfc', 'Sema3g', 'Gkn3', 'Fbln2', 'Hey1', 'Egfl8', 'Jag1', 'Igf2', 'Notch3', 'Tgfb2', 'Rad54b', 'Slc26a10', 'Slc7a5', 'Mfsd2a', 'Tfrc', 'Slc16a1', 'Meox1', 'Col4a3', 'Angpt2', 'Rgcc', 'Cxcl12', 'Ecscr', 'Apln', 'Car4', 'Slc38a5', 'Gatm', 'Itm2a', 'Flt4', 'Vwf', 'Nr2f2', 'Flrt2', 'Ier3', 'Vcam1', 'Ly6c1', 'Ly6a', 'Ctsc', 'Ackr1', 'Lcn2', 'Icam1', 'Tmem252', 'Apoe', 'App', 'Mfge8', 'Prdx1', 'Prdx2', 'Prdx6', 'Sod1', 'Sod2', 'Ifit1', 'Depp1', 'S100a6', 'Cd9', 'Hif1a', 'Notch1', 'Fscn1', 'Plvap', 'Ccn2', 'Fgfbp1', 'Bmp6', 'Bgn', 'Ly6e', 'Acer2', 'B2m', 'Cxcr4', 'Pgf', 'Adamts1', 'Plaur', 'Cx3cl1', 'Vtn', 'Kcnj8', 'Pdgfrb', 'Cspg4', 'Rgs5', 'Cd248', 'Abcc9', 'Anpep', 'Atp13a5', 'Higd1b', 'Cd93', 'Col4a1', 'Col4a2', 'Col4a4', 'Lama4', 'Slc20a2', 'Slc1a3', 'Slc6a13', 'Pdgfa', 'Acta2', 'Pdlim3', 'Tagln', 'Myh11', 'Sncg', 'Cnn1', 'Pln', 'Arl4d', 'Atf3', 'H2afj', 'Nanos1', 'Abca1', 'AI593442', 'Col6a2', 'Dcn', 'Col1a1', 'Lama1', 'Fn1', 'Slc7a11', 'Il33', 'Gjb2', 'Aldh1a2', 'Thbd', 'Slc47a1', 'Abcg2', 'Dpp4', 'Slc7a14', 'Cldn11', 'Lsr', 'Slc4a10', 'Pdgfra', 'Slc22a2', 'Prox1', 'Fxyd5', 'Foxp1', 'Crabp2', 'Ngfr', 'Cd68', 'Ereg', 'Lgals3', 'Spp1', 'Vim', 'Klf4', 'Klf5', 'Mmp2', 'Mmp9', 'Msx2', 'Myocd', 'Runx2', 'Sox9', 'Srf', 'Tgfb1', 'Cdh2', 'Col1a2', 'Tgfb3', 'Tgfbr1', 'Tgfbr2', 'Pdgfc', 'Pdgfd', 'Notch2', 'Notch4', 'Dll1', 'Dll3', 'Dll4', 'Jag2', 'Angpt1', 'Ang2', 'Angptl1', 'Ang4', 'Vegfa', 'Vegfb', 'Vegfd', 'Cd74', 'Osr1', 'Col23a1', 'Arl15', 'Hsp90aa1', 'Plpp3'],
+'Immune':['Mrc1', 'Cx3cr1', 'Cd163', 'Pf4', 'Cd74', 'Lyz2', 'Ms4a7', 'Clec12a', 'Lgals3', 'Ctss', 'Tmem119', 'Aif1', 'Cd68', 'Trem2', 'Itgam', 'Itgax', 'P2ry12', 'Csf1r', 'Laptm5', 'C1qa', 'Axl', 'Spp1', 'Apoe', 'Lpl', 'H2-Aa', 'Ccl4', 'Ccl3', 'B2m', 'Cd9', 'C1qc', 'Dpp10', 'Meg3', 'Cd3e', 'Ptprc', 'Cd3g', 'Nkg7', 'Gzma', 'Cd79a', 'Gata3', 'Fn1'],
+'Oligodendroglia':['Plp1', 'Cnp', 'Cldn11', 'Mbp', 'Mag', 'Mog', 'Enpp2', 'Trf', 'Apod', 'Plxnb3', 'Olig2', 'Enpp6', 'Olig1', 'Opalin', 'Bmp4', 'Klk6', 'Vcan', 'Prox1', 'C4b', 'Il33', 'Il18', 'Tcf7l2', 'Cemip2', 'Pdgfa', 'Ctps', 'S100b', 'Pdgfra', 'Vim', 'Eno2', 'Serpina3n', 'Plvap', 'Cdkn1a', 'Klf4', 'Stat1', 'Ifit1', 'Ptprz1', 'Cspg4', 'Cspg5', 'Rgcc', 'Cd9', 'Sox10', 'Nkx2-2'],
+'Astrocytes':['Aldoc', 'Apoe', 'Clu', 'Plpp3', 'Slc1a3', 'Ptprz1', 'Prdx6', 'Mlc1', 'Kcnj10', 'Aqp4', 'Lama2', 'Snta1', 'Gfap', 'Mfge8', 'C4b', 'Serpina3n', 'Vim', 'Il18', 'Hif3a'],
+'Neurons':['Meg3', 'Arpp21', 'Slc17a7', 'Ptprd', 'Gad2', 'Gad1', 'Galntl6', 'Rbfox3', 'Map2', 'Slc32a1', 'Otof', 'Drd1', 'Adora2a', 'Cux2', 'Scube1', 'Fezf2', 'Lamp5', 'Tshz2', 'Hs3st4', 'Eno2', 'Gphn', 'Ncam1', 'Nefl', 'Prkcg', 'Reln', 'Gm12371', 'Krt12', 'A830036E02Rik', 'Hs3st2', 'Pde1a', 'Rell1', 'Tbr1', 'Rorb', 'Rspo1', 'Sulf2', 'Osr1', 'Pvalb', 'Sst', 'Vip', 'Sncg']
+}
+
+cell_types_merfish_panel_500_mouse_brain = {
+'ECs':['Cldn5', 'Cdh5', 'Pecam1', 'Kdr', 'Flt1', 'Tie1', 'Tek', 'Nos3', 'Ocln', 'Pdgfb', 'Mgp', 'Cytl1', 'Fbln5', 'Clu', 'Eln', 'Bmx', 'Efnb2', 'Vegfc', 'Sema3g', 'Gkn3', 'Fbln2', 'Hey1', 'Egfl8', 'Jag1', 'Igf2', 'Notch3', 'Tgfb2', 'Rad54b', 'Slc26a10', 'Slc7a5', 'Mfsd2a', 'Tfrc', 'Slc16a1', 'Meox1', 'Col4a3', 'Angpt2', 'Rgcc', 'Cxcl12', 'Ecscr', 'Apln', 'Car4', 'Slc38a5', 'Gatm', 'Itm2a', 'Flt4', 'Vwf', 'Nr2f2', 'Flrt2', 'Ier3', 'Vcam1', 'Ly6c1', 'Ly6a', 'Ctsc', 'Ackr1', 'Lcn2', 'Icam1', 'Tmem252', 'Apoe', 'App', 'Mfge8', 'Prdx1', 'Prdx2', 'Prdx6', 'Sod1', 'Sod2', 'Ifit1', 'Depp1', 'S100a6', 'Cd9', 'Hif1a', 'Notch1', 'Fscn1', 'Plvap', 'Ccn2', 'Fgfbp1', 'Bmp6', 'Bgn', 'Ly6e', 'Acer2', 'B2m', 'Cxcr4', 'Pgf', 'Adamts1', 'Plaur', 'Cx3cl1', 'Arl15', 'Hsp90aa1', 'Plpp3'],
+'Pericytes':['Vtn', 'Kcnj8', 'Rgs5', 'Cd248', 'Atp13a5', 'Anpep', 'Higd1b', 'Flt1', 'Ecscr', 'Cd93', 'Apln', 'Col4a1', 'Col4a2', 'Col4a3', 'Col4a4', 'Lama4', 'Adamts1', 'Slc20a2', 'Slc1a3', 'Slc6a13', 'Pdgfrb', 'Pdgfa', 'Pdgfb'],
+'SMCs':['Acta2', 'Pdlim3', 'Tagln', 'Myh11', 'Sncg', 'Cnn1', 'Pln', 'Adamts1', 'Arl4d', 'Atf3', 'Cd93', 'H2afj', 'Nanos1', 'Abca1', 'AI593442', 'Car4', 'Col6a2'],
+'Pericytes_SMCS':['Pdgfrb', 'Cspg4', 'Abcc9', 'Anpep'],
+'Fibroblasts':['Dcn', 'Col1a1', 'Lama1', 'Fn1', 'Slc7a11', 'Il33', 'Slc6a13', 'Gjb2', 'Aldh1a2', 'Thbd', 'Slc47a1', 'Mgp', 'Abcg2', 'Dpp4', 'Slc7a14', 'Cldn11', 'Lsr', 'Slc4a10', 'Pdgfra', 'Slc22a2', 'Prox1', 'Anpep', 'Fxyd5', 'Foxp1', 'Crabp2', 'S100a6', 'Ngfr', 'Pdgfrb'],
+'Ependymal cells':['Ccdc153', 'Tmem212', 'Pifo', 'Foxj1', 'Dpp10', 'Col23a1', 'Rax', 'Folr1', 'Clic6'],
+'Hypendymal cells':['Sspo', 'Spp2'],
+'Glycocalyx-related':['Dcn', 'Vcan', 'Bgn', 'B4galt5', 'Sulf2'],
+'Microglia':['Cx3cr1', 'Ctss', 'Tmem119', 'P2ry12', 'Itgam', 'Csf1r', 'Laptm5', 'Lyz2', 'Itgax', 'Axl', 'Spp1', 'Trem2', 'Apoe', 'Lgals3', 'Lpl', 'Cd74', 'H2-Aa', 'Ccl4', 'Ccl3', 'B2m', 'Cd9', 'C1qa', 'C1qc', 'Dpp10', 'Meg3'],
+'Macrophages':['Cd163', 'Pf4', 'Cd74', 'Lyz2', 'Ms4a7', 'Mrc1', 'Clec12a', 'Lgals3', 'Cd68', 'Apoe', 'Spp1', 'Lpl'],
+'Microglia_Macrophages':['Trem2', 'Cx3cr1', 'Aif1', 'Itgam', 'Itgax', 'C1qc', 'Ctss', 'C1qa', 'Csf1r', 'Laptm5', 'B2m', 'P2ry12', 'Mrc1'],
+'Pan-myeloid':['Ctss', 'C1qa'],
+'Lymphoid cells':['Cd3e', 'Cd3g', 'Nkg7', 'Gzma', 'Cd79a', 'Gata3'],
+'Monocytes_Neutrophils': ['Itgam'],
+'Infiltrating leukocytes': ['Ptprc'],
+'Granulocytes': ['Lyz2', 'Fn1'],
+'Myeloid dendritic cells': ['Itgax'],
+'Oligodendrocytes':['Plp1', 'Cnp', 'Cldn11', 'Mbp', 'Mag', 'Mog', 'Enpp2', 'Trf', 'Apod', 'Plxnb3', 'Olig2', 'Enpp6', 'Olig1', 'Opalin', 'Bmp4', 'Klk6', 'Vcan', 'Prox1', 'C4b', 'Il33', 'Il18', 'Tcf7l2', 'Cemip2', 'Pdgfa', 'Ctps', 'S100b', 'Pdgfra', 'Vim', 'Eno2', 'Serpina3n', 'Plvap', 'Cdkn1a', 'Klf4', 'Stat1', 'Ifit1'],
+'OPCs':['Ptprz1', 'Pdgfra', 'Cspg4', 'Olig1', 'Cspg5', 'Rgcc', 'Olig2', 'Vcan', 'Cd9', 'Sox10', 'Apod', 'Nkx2-2', 'Bmp4'],
+'Astrocytes':['Aldoc', 'Apoe', 'Clu', 'Plpp3', 'Slc1a3', 'Ptprz1', 'Prdx6', 'Mlc1', 'Kcnj10', 'Aqp4', 'Lama2', 'Snta1', 'Gfap', 'Mfge8', 'C4b', 'Serpina3n', 'Vim', 'Il18', 'Hif3a'],
+'Neurons':['Meg3', 'Arpp21', 'Slc17a7', 'Ptprd', 'Gad2', 'Gad1', 'Galntl6', 'Rbfox3', 'Map2', 'Slc32a1', 'Otof', 'Drd1', 'Adora2a', 'Cux2', 'Scube1', 'Fezf2', 'Lamp5', 'Tshz2', 'Hs3st4', 'Eno2', 'Gphn', 'Ncam1', 'Nefl', 'Prkcg', 'Reln', 'Gm12371', 'Krt12', 'A830036E02Rik', 'Hs3st2', 'Pde1a', 'Rell1', 'Tbr1', 'Rorb', 'Rspo1', 'Sulf2', 'Osr1', 'Pvalb', 'Sst', 'Vip', 'Sncg']
+}
+
+vascular_EC_cell_subtypes_merfish_panel_500_mouse_brain = {
+'pan-EC':['Cldn5', 'Cdh5', 'Pecam1', 'Kdr', 'Flt1', 'Tie1', 'Tek', 'Nos3', 'Ocln', 'Pdgfb'],
+'large artery ECs':['Mgp', 'Cytl1', 'Fbln5', 'Clu', 'Eln'],
+'aECs':['Bmx', 'Efnb2', 'Vegfc', 'Sema3g', 'Gkn3', 'Fbln2', 'Hey1', 'Egfl8', 'Jag1', 'Igf2', 'Notch3', 'Mgp', 'Clu'],
+'capillary-arterial ECs':['Tgfb2', 'Rad54b', 'Slc26a10'],
+'capECs':['Slc7a5', 'Mfsd2a', 'Tfrc', 'Slc16a1', 'Meox1', 'Col4a3', 'Angpt2', 'Rgcc', 'Cxcl12', 'Ecscr', 'Apln', 'Car4'],
+'capillary-venous ECs':['Slc38a5', 'Tfrc', 'Slc16a1', 'Car4', 'Gatm', 'Itm2a'],
+'post-capillary venules':['Flt4', 'Vwf', 'Nr2f2'],
+'vECs':['Nr2f2', 'Slc38a5', 'Flrt2', 'Ier3', 'Vcam1', 'Ly6c1', 'Cldn5', 'Ly6a', 'Ctsc'],
+'large vein ECs':['Ackr1', 'Lcn2', 'Vcam1', 'Slc38a5', 'Icam1', 'Tmem252'],
+'arterial-venous_large-vessel ECs':['Vcam1', 'Vwf'],
+'AD pathology in BEC aging':['Apoe', 'App', 'Mfge8'],
+'oxidative stress BEC':['Prdx1', 'Prdx2', 'Prdx6', 'Sod1', 'Sod2'],
+'interferon-activated ECs':['Ifit1', 'Slc7a5'],
+'shear stress arterial ECs':['Depp1', 'S100a6', 'Cd9'],
+'inflammatory vasculature (ECs)':['Vcam1', 'Icam1', 'Lcn2', 'Hif1a', 'Vwf'],
+'pro-angiogenic arteriolar ECs':['Jag1', 'Notch1', 'Hey1', 'Vegfc'],
+'upregulated in pericyte-deficient mice (ECs)':['Icam1', 'Angpt2'],
+'exp lost in pericyte-deficient mice (ECs)':['Mfsd2a'],
+'exp lost in microvessel but not larger vessels (veins) of pericyte-deficient mice (ECs)':['Tfrc', 'Slc16a1'],
+'angiogenic ECs':['Fscn1', 'Angpt2', 'Meox1'],
+'upregulated at BBB leakage site (ECs)':['Plvap', 'Icam1', 'Ccn2'],
+'transformed ECs in pericyte-deficient mice':['Fgfbp1', 'Ccn2', 'Bmp6', 'Bgn'],
+'upregulated in aged ECs':['Ly6e', 'Acer2', 'Vwf', 'Ly6a', 'Sod1', 'Apoe'],
+'Endo-3 (enriched in old mice)':['Ly6a', 'Apoe', 'B2m', 'Bgn'],
+'tip ECs':['Cxcr4', 'Pgf', 'Adamts1', 'Plaur', 'Angpt2', 'Meox1'],
+'might reflect endothelial cell-microglia communication in inflammatory processes':['Cx3cl1'],
+'choroid plexus ECs':['Arl15', 'Hsp90aa1', 'Plvap', 'Plpp3']
+}
+
+vascular_nonEC_cell_subtypes_merfish_panel_500_mouse_brain = {
+'Pan-Pericyte':['Vtn', 'Kcnj8', 'Pdgfrb', 'Cspg4', 'Rgs5', 'Cd248', 'Abcc9', 'Anpep', 'Atp13a5'],
+'Pericytes3':['Kcnj8', 'Anpep', 'Vtn'],
+'Pericytes2':['Ecscr', 'Cd93', 'Apln'],
+'Pericytes1':['Higd1b', 'Rgs5', 'Flt1'],
+'M_pericytes':['Col4a1', 'Col4a2', 'Col4a3', 'Col4a4', 'Lama4', 'Adamts1'],
+'T_pericytes':['Slc20a2', 'Slc1a3', 'Slc6a13'],
+'Pericyte_proliferation':['Pdgfrb', 'Pdgfa', 'Pdgfb'],
+'SMCs':['Acta2', 'Tagln', 'Pdlim3', 'Sncg'],
+'arterial_arteriolar SMCs':['Acta2', 'Tagln', 'Myh11', 'Pln'],
+'arterial SMCs':['Cnn1', 'Adamts1', 'Arl4d', 'Atf3'],
+'arteriolar SMCs':['Cd93', 'H2afj', 'Nanos1'],
+'venous SMCs':['Abca1', 'AI593442', 'Car4', 'Col6a2'],
+'Pan-Fibroblast':['Dcn', 'Anpep', 'Pdgfra', 'Pdgfrb'],
+'Perivascular Fibroblasts':['Col1a1', 'Lama1', 'Fn1'],
+'Perivascular fibroblasts_pia (BFB1_2)':['Slc7a11', 'Lama1'],
+'VLMC1':['Dcn', 'Il33', 'Col1a1'],
+'VLMC2':['Slc6a13', 'Gjb2', 'Aldh1a2'],
+'Arachnoid barrier cells (ABCs)':['Thbd', 'Slc47a1', 'Mgp', 'Abcg2'],
+'Arachnoid barrier cells (ABCs) (BFB4)':['Dpp4', 'Slc7a14'],
+'Arachnoid barrier cells_dural border cells (BFB4_5)':['Cldn11', 'Lsr'],
+'Dural border cells (BFB5)':['Slc4a10', 'Slc47a1'],
+'Pia_arachnoid cells below arachnoid barrier cells (BFB2_3)':['Slc22a2'],
+'Arachnoid cells below the arachnoid barrier cells (BFB3)':['Prox1'],
+'Dural fibroblasts':['Fxyd5', 'Foxp1'],
+'Arachnoid fibroblasts':['Crabp2', 'Aldh1a2', 'Slc6a13'],
+'Pial fibroblasts':['S100a6', 'Ngfr'],
+'SMC_diff': ['Klf4', 'Klf5', 'Mmp2', 'Myocd', 'Srf'],
+'SMC_diff (C)': ['Acta2', 'Cnn1', 'Myh11', 'Tagln', 'Msx2', 'Runx2', 'Sox9'],
+'SMC_diff (Fib)': ['Bgn', 'Dcn', 'Spp1'],
+'SMC_diff (F)': ['Cd68', 'Lgals3'],
+'SMC_diff (S)': ['Ereg', 'Vim', 'Mmp9', 'Fn1'],
+'SMC_diff (Myo)': ['Pdgfrb'],
+'EndMT': ['Tgfb1', 'Kdr'],
+'EndMT (EC)': ['Tek', 'Tie1', 'Cdh5', 'Vwf', 'Pecam1'],
+'EndMT (M)': ['Tagln', 'Cnn1', 'Acta2', 'Vim', 'Fn1', 'Col1a1', 'Col1a2', 'Mmp2', 'Mmp9', 'Cdh2'],
+'Pan-Ependymal':['Pifo', 'Foxj1', 'Dpp10'],
+'Ependymocytes cells':['Ccdc153', 'Tmem212'],
+'Tanycytes':['Col23a1', 'Rax'],
+'Choroidal epithelial cells':['Folr1', 'Clic6'],
+'Hypendymal cells':['Sspo', 'Spp2'],
+'Glycocalyx-related':['Dcn', 'Vcan', 'Bgn', 'B4galt5', 'Sulf2']
+}
+
+immune_cell_subtypes_merfish_panel_500_mouse_brain = {
+'Pan-myeloid':['Ctss', 'C1qa'],
+'Microglia_Macrophages':['Trem2', 'Cx3cr1', 'Aif1', 'Itgam', 'Itgax', 'C1qc', 'Ctss', 'C1qa', 'Csf1r', 'Laptm5', 'B2m', 'P2ry12'],
+'Pan-Microglia':['Ctss', 'Tmem119', 'Cx3cr1', 'P2ry12'],
+'Microglia-specific':['Tmem119', 'P2ry12'],
+'Perivascular microglia':['Mrc1'],
+'Interstitial microglia':['Cx3cr1'],
+'Micro-general_homeostatic':['Tmem119', 'Itgam', 'Csf1r', 'Laptm5'],
+'Micro-reactive-DAM-axis':['Lyz2', 'Itgax', 'Axl', 'Spp1', 'Trem2', 'Apoe'],
+'Micro-reactive-LAM-axis':['Lgals3', 'Lpl'],
+'Micro-reactive-MHCII-axis':['Cd74', 'H2-Aa'],
+'Micro-reactive-Ccl4-axis':['Ccl4', 'Ccl3'],
+'Microglial activation_Microglial activation score':['B2m', 'Trem2', 'Apoe', 'Axl', 'Itgax', 'Cd9', 'C1qa', 'C1qc', 'Lyz2'],
+'Micro-3 (enriched in old mice)':['Dpp10', 'Meg3', 'Ctss', 'Trem2'],
+'Pan-Macrophage':['Cd68', 'Cd163', 'Mrc1', 'Pf4', 'Ms4a7', 'Lyz2', 'Apoe'],
+'Macrophage-specific':['Mrc1'],
+'Perivascular macrophages':['Cd163', 'Pf4', 'Cd74', 'Lyz2', 'Ms4a7', 'Mrc1'],
+'BAM_CAM':['Clec12a', 'Ms4a7', 'Mrc1', 'Lgals3', 'Cd163', 'Pf4'],
+'SAMC (stroke-associated myeloid cells)':['Apoe', 'Spp1', 'Lpl'],
+'T cells':['Cd3e', 'Cd3g'],
+'NK cells':['Nkg7', 'Gzma'],
+'B cells':['Cd79a'],
+'Innate lymphoid cells':['Gata3'],
+'Monocytes_Neutrophils': ['Itgam'],
+'Infiltrating leukocytes': ['Ptprc'],
+'Granulocytes': ['Lyz2', 'Fn1'],
+'Myeloid dendritic cells': ['Itgax'],
+}
+
+oligo_cell_subtypes_merfish_panel_500_mouse_brain = {
+'Pan-Oligodendrocyte':['Plp1', 'Cnp', 'Cldn11', 'Mbp', 'Mag', 'Mog', 'Enpp2', 'Trf', 'Apod', 'Plxnb3', 'Olig2', 'Enpp6', 'Olig1', 'Opalin', 'Bmp4', 'Klk6', 'Vcan', 'Prox1'],
+'Olig-3 (enriched in old mice)':['C4b'],
+'Olig-3 (enriched in old mice) (negative marker)':['Il33'],
+'Oligodendrocyte inflammation_Oligodendrocyte inflammation score':['C4b', 'Il33', 'Il18'],
+'Newly formed oligodendrocytes (NFOLs)':['Tcf7l2', 'Cemip2', 'Pdgfa'],
+'Myelin-forming oligodendrocytes (MFOLs)':['Mog', 'Plp1', 'Opalin', 'Ctps'],
+'Mature oligodendrocytes (MOLs)':['Klk6', 'Apod', 'Trf', 'S100b'],
+'Intermediate oligodendrocyte lineage cells (negative marker)':['Pdgfra'],
+'Intermediate oligodendrocyte lineage cells':['Enpp6','Olig2'],
+'Oligodendrocytes':['Olig2', 'Cnp'],
+'Disease-associated oligodendrocytes (DAOs)':['Vim', 'Eno2', 'C4b', 'Serpina3n', 'Plvap', 'Cdkn1a', 'Klf4', 'Stat1', 'Ifit1'],
+'Pan-OPC':['Ptprz1', 'Pdgfra', 'Cspg4', 'Olig1', 'Cspg5', 'Rgcc', 'Olig2', 'Vcan', 'Cd9'],
+'COPs (committed OPCs)':['Sox10', 'Apod', 'Nkx2-2', 'Bmp4'],
+'COPs (committed OPCs) (negative marker)':['Pdgfra', 'Cspg4']
+}
+
+astro_cell_subtypes_merfish_panel_500_mouse_brain = {
+'Pan-Astrocyte':['Aldoc', 'Apoe', 'Clu', 'Plpp3', 'Slc1a3', 'Ptprz1', 'Prdx6', 'Aqp4', 'Mfge8'],
+'Astrocyte endfeet':['Mlc1', 'Kcnj10', 'Lama2', 'Snta1', 'Gfap'],
+#'Astro-2 (enriched in old mice)':['Gfap', 'C4b'],
+'Astrocyte activation_Astrocyte activation score':['C4b', 'Serpina3n', 'Gfap', 'Vim', 'Il18', 'Hif3a']
+}
+
+neuronal_cell_subtypes_merfish_panel_500_mouse_brain = {
+'Pan-Neuronal':['Meg3', 'Rbfox3', 'Map2', 'Eno2', 'Gphn', 'Ncam1', 'Nefl', 'Prkcg', 'Gad1', 'Reln'],
+'Glutamatergic neurons':['Arpp21', 'Slc17a7', 'Ptprd'],
+'GABAergic neurons':['Gad2', 'Gad1', 'Galntl6', 'Slc32a1'],
+'Medium spiny neurons (MSN)':['Otof', 'Drd1', 'Adora2a'],
+'ExN-L2_3-IT-1':['Cux2'],
+'ExN-L5-IT':['Scube1'],
+'ExN-L5-ET':['Fezf2'],
+'InN-Lamp5':['Lamp5'],
+'ExN-L5_6-NP':['Tshz2'],
+'ExN-L6-CT-2':['Hs3st4'],
+'Cortical pyramidal layer 2_3':['Gm12371', 'Lamp5'],
+'Cortical pyramidal layer 4':['Krt12', 'A830036E02Rik'],
+'Cortical pyramidal layer 5':['Hs3st2', 'Pde1a'],
+'Cortical pyramidal layer 6':['Rell1', 'Tbr1'],
+'Cortical pyramidal layer 6b':['Hs3st4'],
+'Glutamatergic layer-specific markers':['Cux2', 'Otof', 'Rorb', 'Rspo1', 'Sulf2', 'Fezf2', 'Osr1'],
+'GABAergic main subclasses':['Pvalb', 'Sst', 'Vip', 'Sncg', 'Lamp5']
+}
+
+foxf2_related = {
+'foxf2_related': ['Foxf2', 'Tek', 'Nos3', 'Foxq1', 'Foxo1', 'Tfrc', 'Slc16a1', 'Angpt2', 'Smad3'],
+'junction and vesicle coating genes': ['Cldn5', 'Cdh5', 'Ocln', 'Tjp1', 'Tjp2', 'Cav1', 'Cltc', 'Clta'],
+'BBB-related': ['Slc2a1', 'Slco1c1', 'Slco1a4', 'Slc40a1', 'Zic3', 'Abcb1a', 'Abcb1b', 'Abcc1', 'Abcc2', 'Abcg3', 'Ager', 'Lrp1', 'Slc1a5', 'Slc5a1', 'Slc5a6', 'Slc16a2', 'Slc22a1', 'Slc22a5', 'Slc27a1', 'Slc27a4', 'Abcc8', 'Angpt1', 'Bdkrb2', 'Naglu', 'Ptgs1', 'Ptgs2', 'Sh3gl2', 'Slc1a1', 'Slc12a2', 'Tjp1', 'Tjp2', 'Tjp3', 'Tspan12', 'Wnk3', 'Zeb2', 'Adgra2', 'Bpgm', 'Cldn3', 'Ctnnb1', 'Dmd', 'Fzd4', 'Lrp5', 'Lrp6', 'Mxra8', 'Ndp', 'Reck', 'Trpv1', 'Ttpa', 'Vps4b', 'Wnt7a', 'Cldn5', 'Cdh5', 'Tek', 'Ocln', 'Mfsd2a', 'Tfrc', 'Icam1', 'Angpt2', 'Ccn2', 'Sod1', 'Apoe', 'Sox17', 'Abcg2', 'Lsr', 'Slc22a2', 'Cd36', 'Plvap', 'Mbp', 'Vegfa'],
+'ECM organization': ['2300002M23Rik', 'Abi3bp', 'Abl1', 'Abl2', 'Acan', 'Adamts2', 'Adamts3', 'Adamts4', 'Adamts5', 'Adamts6', 'Adamts7', 'Adamts8', 'Adamts9', 'Adamts10', 'Adamts12', 'Adamts13', 'Adamts14', 'Adamts15', 'Adamts16', 'Adamts17', 'Adamts18', 'Adamts19', 'Adamts20', 'Adamtsl1', 'Adtrp', 'Aebp1', 'Agt', 'Ambn', 'Angptl7', 'Antxr1', 'Anxa2', 'Apbb1', 'Apbb2', 'Aplp1', 'Aplp2', 'App', 'Atp7a', 'B4galt1', 'Carmil2', 'Cav1', 'Cav2', 'Ccdc80', 'Ccn1', 'Cflar', 'Chadl', 'Clasp1', 'Clasp2', 'Cma1', 'Col1a1', 'Col1a2', 'Col2a1', 'Col3a1', 'Col4a3', 'Col4a5', 'Col4a6', 'Col5a1', 'Col5a2', 'Col5a3', 'Col7a1', 'Col8a1', 'Col8a2', 'Col9a1', 'Col9a2', 'Col9a3', 'Col10a1', 'Col11a1', 'Col11a2', 'Col13a1', 'Col15a1', 'Col16a1', 'Col17a1', 'Col18a1', 'Col19a1', 'Col22a1', 'Col24a1', 'Col27a1', 'Col28a1', 'Colgalt1', 'Colq', 'Comp', 'Cpb2', 'Creb3l1', 'Crispld2', 'Crtap', 'Cst3', 'Ctsg', 'Ctss', 'Cyp1b1', 'Cyp2j6', 'Dag1', 'Ddr1', 'Ddr2', 'Dmp1', 'Dnajb6', 'Dpt', 'Ecm2', 'Efemp2', 'Egfl6', 'Egflam', 'Elf3', 'Emilin1', 'Ero1a', 'Ets1', 'Exoc8', 'Ext1', 'Fap', 'Fbln1', 'Fermt1', 'Fgfr4', 'Fkbp10', 'Fktn', 'Flot1', 'Flrt2', 'Foxc2', 'Gas2', 'Gfod2', 'Gpm6b', 'Grem1', 'Hapln2', 'Has1', 'Has2', 'Has3', 'Hpn', 'Hpse2', 'Hsd17b12', 'Ibsp', 'Idua', 'Ier3ip1', 'Ihh', 'Il6', 'Impg1', 'Impg2', 'Itga8', 'Itgb1', 'Itgb3', 'Itih1', 'Kazald1', 'Kif9', 'Klk4', 'Klk5', 'Lamb1', 'Lamb2', 'Lamb3', 'Large1', 'Lcp1', 'Lemd3', 'Lmx1b', 'Lox', 'Loxl1', 'Loxl2', 'Loxl3', 'Loxl4', 'Ltbp4', 'Mad2l2', 'Mansc4', 'Marco', 'Matn1', 'Matn2', 'Matn3', 'Matn4', 'Meltf', 'Mfap4', 'Mia', 'Mia3', 'Mmp1b', 'Mmp2', 'Mmp3', 'Mmp7', 'Mmp8', 'Mmp9', 'Mmp10', 'Mmp11', 'Mmp13', 'Mmp14', 'Mmp15', 'Mmp16', 'Mmp17', 'Mmp19', 'Mmp20', 'Mmp21', 'Mmp23', 'Mmp24', 'Mmp25', 'Mmp27', 'Mmp28', 'Mpv17', 'Mpzl3', 'Myo1e', 'Ndnf', 'Nepn', 'Nf1', 'Nid1', 'Noxo1', 'Npnt', 'Ntn4', 'Olfml2a', 'Olfml2b', 'Optc', 'Otol1', 'P3h4', 'Papln', 'Pdpn', 'Phldb1', 'Phldb2', 'Plg', 'Plod3', 'Pmp22', 'Pomgnt1', 'Pomt1', 'Pomt2', 'Postn', 'Prdm5', 'Prdx4', 'Prickle1', 'Ptk2', 'Ptx3', 'Pxdn', 'Qsox1', 'Ramp2', 'Ric1', 'Ric8a', 'Scara3', 'Scx', 'Sema5a', 'Serac1', 'Serpinf2', 'Serpinh1', 'Sfrp2', 'Sh3pxd2b', 'Slc2a10', 'Slc39a8', 'Smad3', 'Smoc1', 'Smpd3', 'Sox9', 'Spint1', 'Spint2', 'Sulf1', 'Tcf15', 'Tfip11', 'Tgfb1', 'Tgfbi', 'Tnf', 'Tnfrsf11b', 'Tnr', 'Tnxb', 'Vipas39', 'Vit', 'Vps33b', 'Wdr72', 'Wnt3a', 'Wt1', 'Zfp469', 'Fbln5', 'Eln', 'Tgfb2', 'Rgcc', 'Spock2', 'Hmcn1', 'Notch1', 'Ccn2', 'Vwa1', 'Eng', 'Fscn1', 'Adamts1', 'Smoc2', 'Vtn', 'Myh11', 'Lama1', 'Fn1', 'Dpp4', 'Hpse', 'Sulf2', 'Col23a1', 'Lama2', 'Gfap', 'Lamc1', 'Foxc1', 'Mmp12', 'Col4a2', 'Col4a1', 'Adamtsl4', 'Reck'],
+}
+
+gwas_hits = {
+'SVS': ['Prdm16', 'Tprgl', 'Pmf1', 'Slc25a44', 'Rab25', 'Bglap', 'Nbeal1', 'Fam117b', 'Ica1l', 'Carf', 'Htra1', 'Col4a2', 'Col4a1', 'Zcchc14', 'Jph3', 'Ulk4', 'Agbl2', 'Ddb2', 'Fnbp4', 'Madd', 'Erp29'],
+'AS': ['Lamc1', 'Lamc2', 'Thada', 'Zfp36l2', 'Fign', 'Plscr5', 'Slc22a7', 'Vegfa', 'Crip3', 'Evx1', 'Ebf2', 'Ankrd33', 'Atp2b1', 'Tlnrd1', 'Rprml'],
+'AIS': ['Nos3', 'Casz1', 'Wnt2b', 'Kcnk3', 'Nbeal1', 'Fam117b', 'Ica1l', 'AC011737.2', 'Wdr12', 'Carf', 'Fgf5', 'LOC100505841', 'Foxf2', 'Foxc1', 'Tap1', 'Cenpq', 'Mmut', 'Cdk6', 'Pik3cg', 'Ccdc71l', 'CTB-111H14.1', 'THAP5', 'Bnc2', 'CDKN2B-AS1', 'Abo', 'Sh3pxd2a', 'Slk', 'Stn1', 'Grk5', 'Lsp1', 'Swap70', 'Pde3a', 'Hoxc4', 'Sh2b3', 'Aldh2', 'Ptpn11', 'Tbx3', 'Lrch1', 'Rubcnl', 'Furin', 'LINC00924', 'Mtmr4', 'Septin4', 'Tspoap1', 'Slc44a2', 'Ldlr', 'Procr', 'Myh7b'],
+'CES': ['Prrx1', 'RP1-79C4.4', 'Pitx2', 'Fga', 'Fgg', 'F11', 'Defb1', 'Zfhx3'],
+'LAS': ['LPA', 'Hdac9', 'Twist1', 'Mmp12'],
+'WMH': ['Nmt1', '1700018B08Rik', 'Klhl24', 'Vcan', 'Calcrl', 'Sall1', 'Ccdc88c', 'Prag1', 'SH3PXD2A-AS1', 'Kcnk2', 'Echdc3', 'Mn1', 'Rasl12', 'Tnks', 'Nid2', 'Xkr6', 'Pkn2', 'Trim65', 'Efemp1', 'Plekhg1', 'Haao', 'KRT8P15', 'RP11-552F3.9', 'Dcakd', 'Nt5c3b', 'Stat...l4', 'Gon4l', 'Syt11', 'Thbs3', 'Them4', 'Metap1', 'Notch4', 'Msra', 'RP11-62H7.2', 'Aktip', 'AMZ2P1', 'Crhr1', 'CRHR1-IT1', 'Epn2', 'Kansl1', 'KANSL1-AS1', 'Mapt', 'Psme3', 'Tubg2', 'Cabin1', 'Dennd1b', 'AC098824.6', 'Cyp20a1', 'AC0077319.1', 'CTC-441N14.4', 'Zan', 'Evl', 'Mtfmt', 'Slc51b', 'RP11-43L7.1', 'Egfl8', 'Apoe', 'Degs2', 'Nbeal1', 'Ica1l', 'Wdr12', 'Carf', 'LOC100505841', 'Sh3pxd2a', 'Slk', 'Htra1', 'Col4a2']
+}
