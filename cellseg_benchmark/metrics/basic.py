@@ -298,7 +298,7 @@ def _process_cluster_dask(cluster, subset, radii):
     poly = subset['geometry'].iat[0]
 
     # Compute base 2D minimal circle radius and z-range once
-    base_r2 = minimum_bounding_radius(poly)
+    base_r2 = 2 * minimum_bounding_radius(poly)
     base_rz = np.ptp(pts[:, 2])
     base_R = np.sqrt(base_r2**2 + base_rz**2)/2
 
