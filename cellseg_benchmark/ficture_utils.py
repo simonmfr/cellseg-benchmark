@@ -139,7 +139,12 @@ def create_factor_level_image(data, factor, DAPI_shape) -> np.ndarray:
         bins=[bins_x, bins_y],
         weights=filtered_data["probability"],
     )
-    image = np.clip(np.around(image * (np.finfo(np.float16).max.astype(np.uint16) - 5)), #ensures no overflow with np.float16
-                    0, (np.finfo(np.float16).max.astype(np.uint16) - 5)).astype(np.uint16) #makes smaller file
+    image = np.clip(
+        np.around(
+            image * (np.finfo(np.float16).max.astype(np.uint16) - 5)
+        ),  # ensures no overflow with np.float16
+        0,
+        (np.finfo(np.float16).max.astype(np.uint16) - 5),
+    ).astype(np.uint16)  # makes smaller file
     image = image[np.newaxis, :]
     return image

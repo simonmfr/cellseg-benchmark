@@ -4,7 +4,6 @@ from os.path import join
 from pandas import read_csv
 from sopa import aggregate, make_image_patches
 from sopa.io import merscope
-from sopa.io.explorer import write
 
 data_path = sys.argv[1]
 save_path = sys.argv[2]
@@ -32,11 +31,11 @@ aggregate(sdata, shapes_key="image_patches", min_intensity_ratio=intens_rat)
 sdata["rastered_boundaries"] = sdata["image_patches"]
 sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
 
-#write(
+# write(
 #    join(save_path, "sdata.explorer"),
 #    sdata,
 #    shapes_key="image_patches",
 #    gene_column="gene",
 #    save_h5ad=True,
 #    pixel_size=1 / translation.loc[0, 0],
-#)
+# )

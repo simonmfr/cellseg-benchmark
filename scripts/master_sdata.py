@@ -39,5 +39,10 @@ seg_methods = [
     if os.path.isdir(join(sdata_path, "results", method, "sdata.zarr"))
 ]
 su.integrate_segmentation_data(
-    sdata_path, seg_methods, sdata_main, write_to_disk=True, data_path=data_path, logger=logger
+    sdata_path,
+    seg_methods,
+    sdata_main,
+    write_to_disk=True,
+    data_path=data_path,
+    logger=logger,
 )

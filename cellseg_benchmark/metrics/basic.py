@@ -1,16 +1,16 @@
 import ast
 import warnings
 
+import numpy as np
+import pandas as pd
 import scanpy as sc
+import scipy.sparse as sp
+from dask import compute, delayed
+from dask.diagnostics import ProgressBar
+from scipy.spatial import cKDTree
+from shapely import minimum_bounding_radius
 from shapely.geometry import Polygon
 from spatialdata import SpatialData
-import scipy.sparse as sp
-import pandas as pd
-import numpy as np
-from shapely import minimum_bounding_radius
-from scipy.spatial import cKDTree
-from dask import delayed, compute
-from dask.diagnostics import ProgressBar
 
 
 def compute_outlier_percentage(sdata, min_counts=25, min_genes=5, inplace=True):
@@ -99,9 +99,7 @@ def mean_counts_per_cell(sdata):
 
 
 def compute_cell_areas_2d(sdata, zindex=3, column_name="area", verbose=True):
-
-    #see sdata_utils/caluculate_volume() instead
-
+    # see sdata_utils/caluculate_volume() instead
     """Compute and add 2D cell area to adata.obs for each dataset in SpatialData.
 
     Parameters:
@@ -265,9 +263,18 @@ def mean_transcript_densities(sdata, area_col="area"):
     return transcript_densities
 
 
-def pct_assigned_transcripts(sdata: SpatialData, data_dir, genes: bool = False):
+def pct_assigned_transcripts(sdata: SpatialData, genes: bool = False):
+    """Compute the percentage assigned transcripts.
+
+    Args:
+        sdata: spatial data for analysis
+        genes: if True, compute percentage assigned transcripts per gene
+
+    Returns:
+        pd.DataFrame: The percentage assigned transcripts per gene.
+    """
     pct_assigned_transcripts = {}
-    transcripts = sdata['points'][["gene", "transcript_id"]].compute()
+    transcripts = sdata["points"][["gene", "transcript_id"]].compute()
     if genes:
         transcripts = transcripts.groupby("gene").count()
     for table_name in sdata.tables.keys():
@@ -277,30 +284,36 @@ def pct_assigned_transcripts(sdata: SpatialData, data_dir, genes: bool = False):
             if isinstance(adata.X, np.ndarray):
                 adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
             sums = adata.X.sum(axis=0)
-            sums = pd.DataFrame(sums, index=adata.var_names, columns=["transcript_counts"])
-            merged = transcripts.merge(sums, how='left', left_index=True, right_index=True)
-            merged.fillna(0, inplace=True) # ensure that all available genes are accounted for
-            merged['percentage'] = merged['transcript_counts'] / merged['transcript_id']
-            pct_assigned_transcripts[table_name] = merged['percentage']
+            sums = pd.DataFrame(
+                sums, index=adata.var_names, columns=["transcript_counts"]
+            )
+            merged = transcripts.merge(
+                sums, how="left", left_index=True, right_index=True
+            )
+            merged.fillna(
+                0, inplace=True
+            )  # ensure that all available genes are accounted for
+            merged["percentage"] = merged["transcript_counts"] / merged["transcript_id"]
+            pct_assigned_transcripts[table_name] = merged["percentage"]
 
         else:
             if isinstance(adata.X, np.ndarray):
                 adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
             sums = adata.X.sum()
-            pct_assigned_transcripts[table_name] = sums/len(transcripts)
+            pct_assigned_transcripts[table_name] = sums / len(transcripts)
 
     return pct_assigned_transcripts
 
 
 @delayed
 def _process_cluster_dask(cluster, subset, radii):
-    pts = subset[['x', 'y', 'global_z']].to_numpy()
-    poly = subset['geometry'].iat[0]
+    pts = subset[["x", "y", "global_z"]].to_numpy()
+    poly = subset["geometry"].iat[0]
 
     # Compute base 2D minimal circle radius and z-range once
     base_r2 = 2 * minimum_bounding_radius(poly)
     base_rz = np.ptp(pts[:, 2])
-    base_R = np.sqrt(base_r2**2 + base_rz**2)/2
+    base_R = np.sqrt(base_r2**2 + base_rz**2) / 2
 
     tree = cKDTree(pts)
     n = len(pts)
@@ -314,14 +327,14 @@ def _process_cluster_dask(cluster, subset, radii):
         ripley_0 = 2 * pairs
         # compute Ripley score
         score = ripley_0 / (n * (n - 1)) if n > 1 else 0
-        results.append({'cell': cluster, 'radius_factor': r, 'ripley_score': score})
+        results.append({"cell": cluster, "radius_factor": r, "ripley_score": score})
 
     return results
 
+
 # Main Ripley function using Dask for parallelism with multiple radii and progress bar
-def ripley_k(df, cluster_column, radii, scheduler='processes'):
-    """
-    Compute Ripley scores per cluster at multiple radii factors in parallel using Dask, showing progress.
+def ripley_k(df, cluster_column, radii, scheduler="processes"):
+    """Compute Ripley scores per cluster at multiple radii factors in parallel using Dask, showing progress.
 
     Parameters:
     - df: pandas DataFrame containing 'x', 'y', 'global_z', 'geometry', and cluster_column

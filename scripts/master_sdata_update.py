@@ -3,7 +3,7 @@ import os
 import sys
 import warnings
 from collections import defaultdict
-from os.path import join, exists
+from os.path import exists, join
 from re import split
 
 from anndata import AnnData
@@ -13,10 +13,10 @@ from cellseg_benchmark.sdata_utils import (
     add_cell_type_annotation,
     add_ficture,
     build_shapes,
+    calculate_volume,
     prepare_ficture,
     transform_adata,
     update_element,
-    calculate_volume
 )
 
 logger = logging.getLogger("shape_mapping")
@@ -50,6 +50,7 @@ def check_ficture_availability(
             return True
     return False
 
+
 def clean_tasks(tasks):
     """Clean the tasks."""
     tasks_tmp = set(tasks)
@@ -58,6 +59,7 @@ def clean_tasks(tasks):
         tasks_tmp.discard("volume")
         tasks_tmp.discard("ficture")
     return tasks_tmp
+
 
 sample = sys.argv[1]  # sample name
 data_path = sys.argv[2]  # merscope data
@@ -152,13 +154,17 @@ for method, tasks in tasks_collection.items():
                 ficture_arguments,
                 n_ficture,
                 var,
-               write_to_disk=False,
+                write_to_disk=False,
             )
         elif task == "volume":
-            sdata_main = calculate_volume(method, sdata_main, sdata_path, write_to_disk=False)
+            sdata_main = calculate_volume(
+                method, sdata_main, sdata_path, write_to_disk=False
+            )
         elif task == "adata":
             if len(sdata.tables) == 1:
-                sdata_main[f"adata_{method}"] = sdata[list(sdata.tables.keys())[0]].copy()
+                sdata_main[f"adata_{method}"] = sdata[
+                    list(sdata.tables.keys())[0]
+                ].copy()
                 transform_adata(sdata_main, method, data_path=data_path)
 
                 if "cell_type_annotation" in os.listdir(
@@ -172,7 +178,9 @@ for method, tasks in tasks_collection.items():
                         f"No cell type annotation found for '{method}'. Skipping annotation."
                     )
                 if "volume" not in sdata_main[f"adata_{method}"].obs.columns:
-                    sdata_main = calculate_volume(method, sdata_main, sdata_path, write_to_disk=False)
+                    sdata_main = calculate_volume(
+                        method, sdata_main, sdata_path, write_to_disk=False
+                    )
 
                 if len(ficture_arguments) > 0:
                     sdata_main = add_ficture(
@@ -203,9 +211,7 @@ for method, tasks in tasks_collection.items():
                         )
                     )
                 else:
-                    print(
-                        f"Table file missing for {method}. Skipping adata import."
-                    )
+                    print(f"Table file missing for {method}. Skipping adata import.")
     if "shapes" in tasks:
         update_element(sdata_main, f"boundaries_{method}")
         logger.info(f"Completed shape update for '{method}'")

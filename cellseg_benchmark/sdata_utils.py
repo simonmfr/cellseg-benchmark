@@ -1,11 +1,11 @@
+import gzip
+import io
 import logging
 import os
 from os import listdir
 from os.path import join
 from re import split
 from typing import List, Optional
-import gzip
-import io
 
 import geopandas as gpd
 import numpy as np
@@ -184,7 +184,9 @@ def integrate_segmentation_data(
         else:
             if logger:
                 logger.warning(
-                    "Skipping boundary import of {} as boundaries_{} exist already.".format(seg_method, seg_method)
+                    "Skipping boundary import of {} as boundaries_{} exist already.".format(
+                        seg_method, seg_method
+                    )
                 )
             else:
                 print(
@@ -199,21 +201,33 @@ def integrate_segmentation_data(
                 ].copy()
                 transform_adata(sdata_main, seg_method, data_path=data_path)
 
-                if os.path.exists(join(sdata_path, "results", seg_method, "cell_type_annotation", "adata_obs_annotated.csv")):
+                if os.path.exists(
+                    join(
+                        sdata_path,
+                        "results",
+                        seg_method,
+                        "cell_type_annotation",
+                        "adata_obs_annotated.csv",
+                    )
+                ):
                     sdata_main = add_cell_type_annotation(
                         sdata_main, sdata_path, seg_method, write_to_disk=write_to_disk
                     )
                 else:
                     if logger:
                         logger.warning(
-                            "No annotation files found for {}. Skipping".format(seg_method)
+                            "No annotation files found for {}. Skipping".format(
+                                seg_method
+                            )
                         )
                     else:
                         print(
                             f"No annotation files found for {seg_method}. Skipping annotation."
                         )
                 if "volume" not in sdata_main[f"adata_{seg_method}"].obs.columns:
-                    sdata_main = calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=write_to_disk)
+                    sdata_main = calculate_volume(
+                        seg_method, sdata_main, sdata_path, write_to_disk=write_to_disk
+                    )
 
                 if len(ficture_arguments) > 0:
                     sdata_main = add_ficture(
@@ -270,7 +284,10 @@ def build_shapes(sdata, sdata_main, seg_method, write_to_disk, logger=None):
     if boundary_key in sdata.shapes.keys():
         sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
         if write_to_disk:
-            if join("shapes",f"boundaries_{seg_method}") in sdata_main.elements_paths_on_disk():
+            if (
+                join("shapes", f"boundaries_{seg_method}")
+                in sdata_main.elements_paths_on_disk()
+            ):
                 update_element(sdata_main, f"boundaries_{seg_method}")
             else:
                 sdata_main.write_element(f"boundaries_{seg_method}")
@@ -289,18 +306,22 @@ def build_shapes(sdata, sdata_main, seg_method, write_to_disk, logger=None):
     return sdata_main
 
 
-def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_disk, logger=None):
+def add_cell_type_annotation(
+    sdata_main, sdata_path: str, seg_method, write_to_disk, logger=None
+):
     """Add cell type annotations to sdata_main, including adding volumes."""
-    cell_type_information = ["cell_type_mmc_incl_low_quality_revised",
-           "cell_type_mmc_incl_low_quality_clusters",
-           "cell_type_mmc_incl_low_quality",
-           "cell_type_mmc_incl_mixed_revised",
-           "cell_type_mmc_incl_mixed_clusters",
-           "cell_type_mmc_incl_mixed",
-           "cell_type_mmc_raw_revised",
-           "cell_type_mmc_raw_clusters",
-           "cell_type_mmc_raw",
-           "cell_id"]
+    cell_type_information = [
+        "cell_type_mmc_incl_low_quality_revised",
+        "cell_type_mmc_incl_low_quality_clusters",
+        "cell_type_mmc_incl_low_quality",
+        "cell_type_mmc_incl_mixed_revised",
+        "cell_type_mmc_incl_mixed_clusters",
+        "cell_type_mmc_incl_mixed",
+        "cell_type_mmc_raw_revised",
+        "cell_type_mmc_raw_clusters",
+        "cell_type_mmc_raw",
+        "cell_id",
+    ]
     try:
         cell_type = pd.read_csv(
             join(
@@ -313,10 +334,14 @@ def add_cell_type_annotation(sdata_main, sdata_path: str, seg_method, write_to_d
         )[cell_type_information]
     except KeyError:
         if logger:
-            logger.warning("no propper cell annotation found for {}. Skipping.".format(seg_method))
+            logger.warning(
+                "no propper cell annotation found for {}. Skipping.".format(seg_method)
+            )
         return sdata_main
     if set(cell_type_information) & set(sdata_main[f"adata_{seg_method}"].obs.columns):
-        for col in set(cell_type_information) & set(sdata_main[f"adata_{seg_method}"].obs.columns):
+        for col in set(cell_type_information) & set(
+            sdata_main[f"adata_{seg_method}"].obs.columns
+        ):
             del sdata_main[f"adata_{seg_method}"].obs[col]
     new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
         cell_type, how="left", left_index=True, right_on="cell_id"
@@ -359,13 +384,17 @@ def add_ficture(
             sdata_main.write_element(f"adata_{seg_method}")
     return sdata_main
 
+
 methods_3D = ["Proseg"]
 
-def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, logger=None): #
+
+def calculate_volume(
+    seg_method, sdata_main, sdata_path, write_to_disk=False, logger=None
+):  #
     """Calculate volume of sdata."""
     adata = sdata_main[f"adata_{seg_method}"]
     if any([x in seg_method for x in methods_3D]):
-        if "Proseg" in seg_method: #boundaries in microns
+        if "Proseg" in seg_method:  # boundaries in microns
             path = join(
                 sdata_path,
                 "results",
@@ -374,7 +403,7 @@ def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, lo
                 ".sopa_cache",
                 "transcript_patches",
                 "0",
-                "cell-polygons-layers.geojson.gz"
+                "cell-polygons-layers.geojson.gz",
             )
             with gzip.open(path, "rt", encoding="utf-8") as f:
                 geojson_text = f.read()
@@ -386,23 +415,29 @@ def calculate_volume(seg_method, sdata_main, sdata_path, write_to_disk=False, lo
             ind = list(gdf.cell)
             counts.index = ind
             counts = counts.groupby(level=0).count()
-            slice_height = 10/counts.max() #10 um total. Assume at least one detected cell stretches whole slice
-            gdf['volume_per_slice'] = [x.area*slice_height for x in gdf['geometry']]
-            area = gdf[['cell', 'volume_per_slice']].groupby('cell').sum()
-            area.rename(columns={'volume_per_slice': 'volume'}, inplace=True)
+            slice_height = (
+                10 / counts.max()
+            )  # 10 um total. Assume at least one detected cell stretches whole slice
+            gdf["volume_per_slice"] = [x.area * slice_height for x in gdf["geometry"]]
+            area = gdf[["cell", "volume_per_slice"]].groupby("cell").sum()
+            area.rename(columns={"volume_per_slice": "volume"}, inplace=True)
             if "volume" in adata.obs.columns:
-                del adata.obs['volume']
+                del adata.obs["volume"]
             tmp = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
             tmp.index = adata.obs.index
             adata.obs = tmp
     else:
         try:
-            boundaries = sdata_main.transform_element_to_coordinate_system(f"boundaries_{seg_method}", target_coordinate_system="micron")
+            boundaries = sdata_main.transform_element_to_coordinate_system(
+                f"boundaries_{seg_method}", target_coordinate_system="micron"
+            )
         except KeyError:
             if logger:
-                logger.warning("Volume cannot be computed for {}. Skipping.".format(seg_method))
+                logger.warning(
+                    "Volume cannot be computed for {}. Skipping.".format(seg_method)
+                )
             return sdata_main
-        adata.obs["volume"] = boundaries.geometry.area*10
+        adata.obs["volume"] = boundaries.geometry.area * 10
     sdata_main[f"adata_{seg_method}"] = adata
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
@@ -606,16 +641,24 @@ def pixel_to_microns(
             transform_count += 1
 
 
-def prepare_ficture(data_path, sdata_path, n_ficture=21, logger=None, factors: Optional[List[int]]=None):
+def prepare_ficture(
+    data_path,
+    sdata_path,
+    n_ficture=21,
+    logger=None,
+    factors: Optional[List[int]] = None,
+):
     """Generate ficture images stack and other ficture information.
 
     Args:
         data_path: Path to merscope data
         sdata_path: path to master sdata directory
         n_ficture: number of factors of ficture run
+        logger: logger instance
+        factors: if provided, only these ficture images will be generated.
 
-    Returns: image stack, number of relevant ficture factors, number of unique ficture factors
-
+    Returns:
+        ficture images and factors of the images
     """
     if logger is not None:
         logger.info(f"Generating ficture images for {data_path}")

@@ -61,7 +61,7 @@ def ficture_intensities(
             index=sdata["table"].obs_names,
             columns=[f"fictureF{n_factors}_{i}_var_intensity" for i in unique_factors],
         )
-        pd_variance = pd_variance / np.power(pd_intensity.max(axis=None),2)
+        pd_variance = pd_variance / np.power(pd_intensity.max(axis=None), 2)
         return (pd_intensity, pd_variance)
     return pd_intensity
 
@@ -170,7 +170,12 @@ def _aggregate_channels_aligned(
                 )
             elif mode == "variance":
                 func = np.sum
-                values = func(np.power(sub_image * mask - means[index][:, np.newaxis, np.newaxis], 2), axis=(1, 2))
+                values = func(
+                    np.power(
+                        sub_image * mask - means[index][:, np.newaxis, np.newaxis], 2
+                    ),
+                    axis=(1, 2),
+                )
                 aggregation[index] += values
             elif mode in ["average", "max", "sum"]:
                 if mode in ["average", "sum"]:

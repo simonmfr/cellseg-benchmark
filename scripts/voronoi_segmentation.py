@@ -9,7 +9,6 @@ from pandas import read_csv
 from scipy.spatial import Voronoi
 from sopa import aggregate
 from sopa.io import merscope
-from sopa.io.explorer import write
 from spatialdata import read_zarr
 from spatialdata.models import ShapesModel
 from tifffile import imread
@@ -49,10 +48,10 @@ sdata["cellpose_boundaries"] = ShapesModel.parse(gdf)
 aggregate(sdata, shapes_key="cellpose_boundaries")
 sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
 
-#write(
+# write(
 #    join(save_path, "sdata.explorer"),
 #    sdata,
 #    gene_column="gene",
 #    save_h5ad=True,
 #    pixel_size=1 / translation.loc[0, 0],
-#)
+# )

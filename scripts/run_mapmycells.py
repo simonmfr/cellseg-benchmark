@@ -81,7 +81,7 @@ anno_utils.run_mapmycells(
     sample_name=sample_name,
     method_name=method_name,
     annotation_path=annotation_path,
-    data_dir=data_dir
+    data_dir=data_dir,
 )
 
 logger.info("Processing MapMyCells output")

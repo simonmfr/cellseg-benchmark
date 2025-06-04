@@ -4,16 +4,33 @@ Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merge_adata"
 ).mkdir(parents=False, exist_ok=True)
 
-methods = ["Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8", "Cellpose_1_nuclei_model", "Baysor_2D_Cellpose_2_DAPI_PolyT_0.2",
-           "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.8", "Negative_Control_Rastered_5",
-           "Cellpose_2_DAPI_PolyT", "Proseg_pure", "Proseg_Cellpose_1_DAPI_Transcripts",
-           "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2", "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
-           "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.2", "Cellpose_1_DAPI_PolyT",
-           "Negative_Control_Rastered_10", "Negative_Control_Voronoi", "Proseg_Cellpose_2_DAPI_Transcripts",
-           "Proseg_Cellpose_1_nuclei_model", "Cellpose_2_DAPI_Transcripts", "Cellpose_1_Merlin",
-           "Negative_Control_Rastered_25", "Cellpose_1_DAPI_Transcripts", "Baysor_2D_Cellpose_2_DAPI_PolyT_0.8",
-           "Baysor_2D_Cellpose_1_nuclei_model_1.0", "Proseg_Cellpose_2_DAPI_PolyT",
-           "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8", "Proseg_Cellpose_1_DAPI_PolyT"]
+methods = [
+    "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8",
+    "Cellpose_1_nuclei_model",
+    "Baysor_2D_Cellpose_2_DAPI_PolyT_0.2",
+    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.8",
+    "Negative_Control_Rastered_5",
+    "Cellpose_2_DAPI_PolyT",
+    "Proseg_pure",
+    "Proseg_Cellpose_1_DAPI_Transcripts",
+    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2",
+    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
+    "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.2",
+    "Cellpose_1_DAPI_PolyT",
+    "Negative_Control_Rastered_10",
+    "Negative_Control_Voronoi",
+    "Proseg_Cellpose_2_DAPI_Transcripts",
+    "Proseg_Cellpose_1_nuclei_model",
+    "Cellpose_2_DAPI_Transcripts",
+    "Cellpose_1_Merlin",
+    "Negative_Control_Rastered_25",
+    "Cellpose_1_DAPI_Transcripts",
+    "Baysor_2D_Cellpose_2_DAPI_PolyT_0.8",
+    "Baysor_2D_Cellpose_1_nuclei_model_1.0",
+    "Proseg_Cellpose_2_DAPI_PolyT",
+    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8",
+    "Proseg_Cellpose_1_DAPI_PolyT",
+]
 
 times = {}
 for method in methods:

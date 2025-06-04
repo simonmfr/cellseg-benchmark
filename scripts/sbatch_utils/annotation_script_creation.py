@@ -15,11 +15,11 @@ Path(
 
 times = {}
 for f in listdir(path):
-    if f=="Negative_Control_Rastered_5":
+    if f == "Negative_Control_Rastered_5":
         times[f] = "1-12:00:00"
     elif "Baysor" in f:
         times[f] = "02:00:00"
-    elif f=="Negative_Control_Rastered_10" or f=="Negative_Control_Voronoi":
+    elif f == "Negative_Control_Rastered_10" or f == "Negative_Control_Voronoi":
         times[f] = "04:00:00"
     else:
         times[f] = "01:00:00"

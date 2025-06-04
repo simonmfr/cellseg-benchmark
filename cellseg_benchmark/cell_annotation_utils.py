@@ -43,6 +43,7 @@ cell_type_colors = {
     "Mixed": "#D9D9D9",
 }
 
+
 def assign_cell_types_to_clusters(
     adata, leiden_col, cell_type_col="cell_type_mapmycells", min_cells=100
 ):
@@ -533,13 +534,20 @@ def plot_mad_thresholds(
 
 
 def process_adata(adata, logger):
-    """Preprocesses AnnData object:
-    - Filter cells
-    - Normalize count data by cell volume
-    - Compute PCA, neighbors, and UMAP
-    - Copy Allen cell type annotations from obsm to obs
+    """Preprocess AnnData object.
+
+        - Filter cells
+        - Normalize count data by cell volume
+        - Compute PCA, neighbors, and UMAP
+        - Copy Allen cell type annotations from obsm to obs
+
+    Args:
+        adata: Anndata object.
+        logger: logging.Logger object
+
+    Returns:
+        preprocessed AnnData object
     """
-    # Filter low-quality cells
     sc.pp.filter_cells(adata, min_counts=20)
     sc.pp.filter_cells(adata, min_genes=5)
 
@@ -713,7 +721,7 @@ def revise_annotations(
     ABCAtlas_marker_df_path=None,
     logger=None,
 ):
-    """De-noise MapMyCells annotations by assigning cell types to Leiden clusters based on majority vote, plus revise annotations based on marker gene expression. Wrapper for score_cell_types(), assign_cell_types_to_clusters(), assign_final_cell_types()
+    """De-noise MapMyCells annotations by assigning cell types to Leiden clusters based on majority vote, plus revise annotations based on marker gene expression. Wrapper for score_cell_types(), assign_cell_types_to_clusters(), assign_final_cell_types().
 
     Parameters
     ----------
@@ -830,6 +838,18 @@ def revise_annotations(
 
 
 def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
+    """Run MapMyCells API for cell annotations.
+
+    Args:
+        adata: adata to annotate
+        sample_name: name of sample
+        method_name: name of method
+        annotation_path: path for saving annotations
+        data_dir: base directory
+
+    Returns:
+        None
+    """
     today = date.today().strftime("%Y%m%d")
 
     # Prepare adata
