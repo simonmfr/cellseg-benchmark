@@ -21,7 +21,7 @@ for key, value in data.items():
     res_path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/vpt_3D_DAPI_{staining1}_{staining2}"
     vzg_path = None
     for dire in listdir(value):
-        if dire.endswith(".vzg"):
+        if dire.endswith(".vzg") or dire.endswith(".vzg2"):
             vzg_path = join(value, dire)
     assert vzg_path is not None, f"{key} provides not valid vzg file"
     f = open(
