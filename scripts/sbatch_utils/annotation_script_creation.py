@@ -36,6 +36,7 @@ for method in listdir(path):
 #SBATCH --qos=cpu
 #SBATCH -t {times[method]}
 #SBATCH --mem=25G
+#SBATCH --cpus-per-task=5
 #SBATCH -J annotation_{sample}_{method}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/annotation_{sample}_{method}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/annotation_{sample}_{method}.err
