@@ -424,7 +424,7 @@ def filter_cells(adata, save_path, min_counts=25, min_genes=5, logger=None):
     adata.obs["outlier"] = (
         (adata.obs[metric] > n * np.median(adata.obs[metric]))
         | (adata.obs[metric] < 100)
-    ).astype("category")
+    )
     if logger:
         logger.info(adata.obs.outlier.value_counts())
     fig, axs = plt.subplots(
@@ -463,7 +463,7 @@ def filter_cells(adata, save_path, min_counts=25, min_genes=5, logger=None):
         )
     fig.savefig(join(save_path, "filter_volume_outlier.png"))
     plt.close()
-    adata = adata[not adata.obs["outlier"]]
+    adata = adata[~adata.obs["outlier"]]
     return adata
 
 
