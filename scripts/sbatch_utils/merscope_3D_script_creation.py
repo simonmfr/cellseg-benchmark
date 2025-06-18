@@ -27,7 +27,7 @@ for key, value in data.items():
 #SBATCH --qos=cpu
 #SBATCH -t 12:00:00
 #SBATCH --mem=300G
-#SBATCH -J vtp_3D_{key}_DAPI_{staining}{adapt}
+#SBATCH -J vpt_3D_{key}_DAPI_{staining}{adapt}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt_3D_{key}_DAPI_{staining}{adapt}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt_3D_{key}_DAPI_{staining}{adapt}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
