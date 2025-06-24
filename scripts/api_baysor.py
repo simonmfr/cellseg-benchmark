@@ -40,6 +40,7 @@ def main(data_path, base_segmentation, confidence, sample):
         patch_width=1000,
         patch_overlap=20,
         prior_shapes_key="cellpose_boundaries",
+        points_key=list(sdata.points.keys())[0]
     )
 
     sopa.settings.parallelization_backend = "dask"
