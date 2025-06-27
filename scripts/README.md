@@ -43,6 +43,27 @@ Usage:
 python api_nuclei.py data_path save_path
 ```
 
+## [master_sdata_to_explorer.py](master_sdata_to_explorer.py)
+Convert multiple shapes and boundaries into one explorer.
+Arguments:
+1) `data_path`: Path to sdata_z3.zarr
+2) `method_1`: Method to add to explorer
+3) `method_2`: Method to add to explorer
+4) `...`: More methods to add to explorer
+
+Usage:
+```
+python master_sdata_to_explorer.py data_path method_1 method_2 ...
+```
+
+## [merge_adata.py](merge_adata.py)
+Arguments:
+1) Segmentation method
+Usage:
+```
+python merge_adata.py segmentation_method
+```
+
 ## [rastered_segmentation.py](rastered_segmentation.py)
 Arguments:
 1) `data_path`: Path to Merscope output
@@ -54,17 +75,6 @@ Arguments:
 Usage:
 ```
 python rastered_segmentation.py data_path save_path width overlap intensity_ratio
-```
-
-## [voronoi_segmentation.py](voronoi_segmentation.py)
-Arguments:
-1) `data_path`: Path to Merscope output
-2) `save_path`: Path to results folder
-3) `max_cells`: Max number of cells for segmentation
-
-Usage:
-```
-python voronoi_segmentation.py data_path save_path max_cells
 ```
 
 ## [run_mapmycells.py](run_mapmycells.py)
@@ -97,15 +107,13 @@ Usage:
 python transcript_tif.py data_path
 ```
 
-## [master_sdata_to_explorer.py](master_sdata_to_explorer.py)
-Convert multiple shapes and boundaries into one explorer.
+## [voronoi_segmentation.py](voronoi_segmentation.py)
 Arguments:
-1) `data_path`: Path to sdata_z3.zarr
-2) `method_1`: Method to add to explorer
-3) `method_2`: Method to add to explorer
-4) `...`: More methods to add to explorer
+1) `data_path`: Path to Merscope output
+2) `save_path`: Path to results folder
+3) `max_cells`: Max number of cells for segmentation
 
 Usage:
 ```
-python master_sdata_to_explorer.py data_path method_1 method_2 ...
+python voronoi_segmentation.py data_path save_path max_cells
 ```
