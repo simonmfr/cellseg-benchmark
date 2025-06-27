@@ -8,11 +8,12 @@ from spatialdata import read_zarr
 
 from cellseg_benchmark.adata_utils import (
     dimensionality_reduction,
-    filter_cells,
+    filter_low_quality_cells,
+    filter_spatial_outlier_cells,
     filter_genes,
     integration_harmony,
     merge_adatas,
-    normalize,
+    normalize_counts,
 )
 
 warnings.filterwarnings("ignore")
