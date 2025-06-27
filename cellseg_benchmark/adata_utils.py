@@ -118,56 +118,6 @@ def merge_adatas(
     return adata
 
 
-def merge_adatas_deb(
-    sdatas: List[Tuple[str, AnnData]], do_qc=False, save_path=None, logger=None
-) -> AnnData:
-    """Debug version of merge_adatas with basis adatas."""
-    adatas = []
-    sample_paths_file = {
-        "foxf2_s1_r0": "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/20240229_Foxf2-Slide01-cp-WT-ECKO/region_0-ECKO000",
-        "foxf2_s1_r1": "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/20240229_Foxf2-Slide01-cp-WT-ECKO/region_1-WT000",
-    }
-
-    y_limits = [0, 0, 0, 0]
-
-    for name, adata in tqdm(sdatas):
-        samples = name.split("_")
-        adata.obs["cohort"] = samples[0]
-        adata.obs["slide"] = samples[1]
-        adata.obs["region"] = samples[2]
-        adata.obs["condition"] = sample_paths_file[name].split("/")[-2].split("-")[-2]
-        adata.obs["n_counts"] = adata.X.sum(axis=1)
-        adata.obs["n_genes"] = adata.X.count_nonzero(axis=1)
-        adata.obs["sample"] = name
-        adata.obs["volume"] = 7 * adata.obs.area / (10 * 10)
-        adatas.append(adata)
-
-        if do_qc:
-            y_limits[0] = max(
-                y_limits[0], max(np.histogram(adata.obs["n_counts"], bins=60)[0])
-            )
-            y_limits[1] = max(
-                y_limits[1],
-                max(
-                    np.histogram(
-                        adata.obs["n_counts"][adata.obs["n_counts"] < 1000], bins=60
-                    )[0]
-                ),
-            )
-            y_limits[2] = max(
-                y_limits[2], max(np.histogram(adata.obs["n_genes"], bins=60)[0])
-            )
-            y_limits[3] = max(
-                y_limits[3], max(np.histogram(adata.obs["volume"], bins=100)[0])
-            )
-
-    adata = concat(adatas, join="outer", merge="first")
-    adata.obs_names_make_unique()
-    if do_qc:
-        plot_qc(adata, save_dir=save_path, y_limits=y_limits, logger=logger)
-    return adata
-
-
 def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     """Plot general quality control stats.
 
@@ -184,7 +134,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
         logger.info("Plotting QC results")
     sample_names = adata.obs["sample"].unique()
 
-    # =====================================General Stats=================================================================
+    # General Stats
     fig, axs = plt.subplots(
         len(sample_names),
         4,
@@ -250,7 +200,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     fig.savefig(join(save_dir, "qc_general_stats_cells.png"))
     plt.close()
 
-    # ===================================Cell Qualities==================================================================
+    # Cell Qualities
     fig, axs = plt.subplots(
         len(sample_names),
         1,
@@ -296,7 +246,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     fig.savefig(join(save_dir, "qc_scatterplot_cells.png"))
     plt.close()
 
-    # ===============================General Stats Genes=================================================================
+    # General Stats Genes
     fig, axs = plt.subplots(
         len(sample_names),
         3,
@@ -336,7 +286,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     fig.savefig(join(save_dir, "qc_general_stats_genes.png"))
     plt.close()
 
-    # ===============================Highly expressed genes==============================================================
+    # Highly expressed genes
     fig, axs = plt.subplots(
         len(sample_names),
         1,
@@ -480,9 +430,6 @@ def filter_spatial_outlier_cells(
         join(save_path, "qc_spatial_outlier_cells.png"), dpi=150, bbox_inches="tight"
     )
     plt.close()
-
-    print(f"spatial_outlier dtype: {adata.obs['spatial_outlier'].dtype}")
-    print(f"Missing values: {adata.obs['spatial_outlier'].isna().sum()}")
     
     if remove_outliers:
         adata = adata[~adata.obs["spatial_outlier"]].copy()
@@ -525,13 +472,13 @@ def filter_low_quality_cells(
     """
     adata.obs["low_quality_cell"] = (
         (adata.obs["n_counts"] < min_counts) | (adata.obs["n_genes"] < min_genes)
-    ).astype("category")
+    )#.astype("category")
 
     metric, n = "volume", 3
     adata.obs["volume_outlier_cell"] = (
         (adata.obs[metric] > n * np.median(adata.obs[metric]))
         | (adata.obs[metric] < 100)
-    ).astype("category")
+    )#.astype("category")
 
     def _plot_flag(flag, fname):
         sample_names = adata.obs["sample"].unique()
