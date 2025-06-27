@@ -20,7 +20,6 @@ import scipy.sparse as sp
 from anndata import AnnData, concat
 from spatialdata import SpatialData
 
-# Project-specific imports
 from cellseg_benchmark.cell_annotation_utils import cell_type_colors
 
 
@@ -574,7 +573,7 @@ def filter_genes(adata, save_path, logger=None):
     """Filter adata after genes.
 
     Args:
-        adata: adata.AnnData
+        adata: AnnData
         save_path: save path for plots
         logger: logger object
 
@@ -803,7 +802,7 @@ def integration_harmony(
     adata: AnnData, 
     batch_key: str, 
     save_path: str, 
-    logger: Optional[logging.Logger] = None,
+    logger: logging.Logger = None,
     n_neighbors: int = 20,
     n_pcs: int = 50
 ) -> AnnData:
@@ -819,8 +818,8 @@ def integration_harmony(
             Column name in adata.obs containing batch identifier for integration.
         save_path : str
             Directory path to save plots.
-        logger : logging.Logger, optional
-            Logger instance for progress tracking.
+        logger : logging.Logger
+            Optional logger object.
         n_neighbors : int, optional
             Number of neighbors for graph construction. Default: 20.
         n_pcs : int, optional
