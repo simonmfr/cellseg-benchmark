@@ -26,7 +26,7 @@ translation = read_csv(
     sep=" ",
     header=None,
 )
-sdata.write(join(save_path, "sdata.zarr"))
+sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
 sdata = read_zarr(join(save_path, "sdata.zarr"))
 
 write(

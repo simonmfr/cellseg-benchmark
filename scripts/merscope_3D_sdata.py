@@ -20,4 +20,4 @@ sdata = merscope(
     z_layers=[0,1,2,3,4,5,6]
 )
 
-sdata.write(join(save_path, "sdata.zarr"))
+sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
