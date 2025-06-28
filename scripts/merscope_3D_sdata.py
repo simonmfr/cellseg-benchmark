@@ -1,17 +1,13 @@
 import sys
 from os.path import join
+from os import listdir
 from pathlib import Path
-from subprocess import run
-
-from pandas import read_csv
-from sopa.io.explorer import write
-from spatialdata import read_zarr
 from spatialdata_io import merscope
 
 data_path = sys.argv[1]
 save_path = sys.argv[2]
 
-assert any([".vzg" in file for file in os.listdir(save_path)]), "not correctly computed"
+assert any([".vzg" in file for file in listdir(save_path)]), "not correctly computed"
 sdata = merscope(
     data_path,
     transcripts=False,
