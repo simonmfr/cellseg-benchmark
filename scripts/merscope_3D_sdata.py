@@ -5,11 +5,19 @@ from pathlib import Path
 from spatialdata_io import merscope
 from spatialdata.models import ShapesModel
 from geopandas import read_parquet
+import logging
+
+logger = logging.getLogger("Merscope_3D")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
+logger.addHandler(handler)
 
 data_path = sys.argv[1]
 save_path = sys.argv[2]
 
 assert any([".vzg" in file for file in listdir(save_path)]), "not correctly computed"
+logger.info(f"Loading data")
 sdata = merscope(
     data_path,
     transcripts=False,
@@ -27,4 +35,6 @@ sdata['boundaries_vpt_3D'] = ShapesModel.parse(read_parquet(join(save_path, "ana
                                           )
                                                )
 
+logger.info(f"Saving data")
 sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
+logger.info(f"Done")
