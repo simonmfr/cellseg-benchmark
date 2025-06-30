@@ -13,7 +13,7 @@ for key, value in data.items():
     f = open(
         f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_ficture_stats/{key}.sbatch",
         "w",
-    )
+    ) #TODO: Remove git checkout
     f.write(f"""#!/bin/bash
 
 #SBATCH -p lrz-cpu
@@ -27,6 +27,7 @@ for key, value in data.items():
 
 cd ~/gitrepos/cellseg-benchmark
 git pull
+git checkout Ficture
 mamba activate cellseg_benchmark
 python scripts/ficture_infos.py {key} {value}
 """)
