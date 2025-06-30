@@ -3,7 +3,7 @@ import os
 import sys
 import warnings
 from os.path import join, isdir, exists
-from re import split
+from pathlib import Path
 
 import dask
 import numpy as np
@@ -27,9 +27,8 @@ logger.addHandler(handler)
 
 sample = sys.argv[1]
 data_path = sys.argv[2]
-data_dir = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-sdata_path = join(data_dir, "samples", sample)
-results_path = join(data_dir, "samples", sample, "results")
+
+results_path = join("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark", "samples", sample, "results")
 
 logger.info("Check Segementations for prior ficture results.")
 compute_ficture = []
@@ -45,7 +44,7 @@ if not (compute_ficture or recompute_gen_stats):
     quit()
 
 logger.info("Preparing Ficture")
-stats = prepare_ficture(data_path, sdata_path, logger=logger)
+stats = prepare_ficture(data_path, results_path, logger=logger)
 
 logger.info("Converting images")
 area_covered = stats[0] > 0
@@ -64,11 +63,11 @@ if recompute_gen_stats:
         ),
         columns=list(range(21)),
         index=["factor_area", "factor_area_weighted"],
-    ).to_csv(join(sdata_path, "results", "Ficture", "general_stats.csv"))
+    ).to_csv(join(results_path, "Ficture", "general_stats.csv"))
 
 if compute_ficture:
     logger.info("Read shapes")
-    master_sdata = read_zarr(join(sdata_path, "sdata_z3.zarr"), selection=("shapes",))
+    master_sdata = read_zarr((join(str(Path(results_path).parent.absolute()), "sdata_z3.zarr")), selection=("shapes",))
 
     logger.info("Build temporary SpatialData")
     sdata = SpatialData()
@@ -106,7 +105,7 @@ if compute_ficture:
         )
 
         os.makedirs(
-            join(sdata_path, "results", method, "Ficture_stats"),
+            join(results_path, method, "Ficture_stats"),
             exist_ok=True,
         )
         pd.DataFrame(
@@ -115,8 +114,7 @@ if compute_ficture:
             columns=[f"fictureF21_{i}_mean_intensity" for i in range(21)],
         ).to_csv(
             join(
-                sdata_path,
-                "results",
+                results_path,
                 method,
                 "Ficture_stats",
                 "means.csv",
@@ -128,8 +126,7 @@ if compute_ficture:
             columns=[f"fictureF21_{i}_mean_intensity_weighted" for i in range(21)],
         ).to_csv(
             join(
-                sdata_path,
-                "results",
+                results_path,
                 method,
                 "Ficture_stats",
                 "means_weight.csv",
@@ -141,8 +138,7 @@ if compute_ficture:
             columns=[f"fictureF21_{i}_variance_intensity" for i in range(21)],
         ).to_csv(
             join(
-                sdata_path,
-                "results",
+                results_path,
                 method,
                 "Ficture_stats",
                 "vars.csv",
@@ -154,8 +150,7 @@ if compute_ficture:
             columns=[f"fictureF21_{i}_variance_intensity_weighted" for i in range(21)],
         ).to_csv(
             join(
-                sdata_path,
-                "results",
+                results_path,
                 method,
                 "Ficture_stats",
                 "vars_weight.csv",
@@ -167,8 +162,7 @@ if compute_ficture:
             columns=[f"fictureF21_{i}_area" for i in range(21)],
         ).to_csv(
             join(
-                sdata_path,
-                "results",
+                results_path,
                 method,
                 "Ficture_stats",
                 "area.csv",
@@ -180,8 +174,7 @@ if compute_ficture:
             columns=[f"fictureF21_{i}_area_weighted" for i in range(21)],
         ).to_csv(
             join(
-                sdata_path,
-                "results",
+                results_path,
                 method,
                 "Ficture_stats",
                 "area_weight.csv",
