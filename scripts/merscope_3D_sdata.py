@@ -30,10 +30,10 @@ sdata = merscope(
     },
     z_layers=[0,1,2,3,4,5,6]
 )
-sdata['boundaries_vpt_3D'] = ShapesModel.parse(read_parquet(join(save_path, "analysis_outputs", "cellpose2_micron_space.parquet"),
-                                          columns=("ID", "EntityID", "ZIndex", "ZLevel", "Geometry")
-                                          )
-                                               )
+boundaries = read_parquet(join(save_path, "analysis_outputs", "cellpose2_micron_space.parquet"),
+                                          columns=("ID", "EntityID", "ZIndex", "ZLevel", "Geometry"))
+boundaries.rename({"Geometry": "geometry"}, axis="columns")
+sdata['boundaries_vpt_3D'] = ShapesModel.parse(boundaries)
 
 logger.info(f"Saving data")
 sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
