@@ -10,7 +10,6 @@ import pandas as pd
 import scanpy as sc
 import scipy.sparse as sp
 import seaborn as sns
-import squidpy as sq
 from anndata import AnnData, concat
 from matplotlib.path import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -289,7 +288,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     fig, axs = plt.subplots(
         len(sample_names),
         1,
-        figsize=(8, len(sample_names) * 4),
+        figsize=(6, len(sample_names) * 4),
     )
     for ax, name in zip(axs, sample_names):
         adata_tmp = adata[adata.obs["sample"] == name]
@@ -360,20 +359,38 @@ def filter_spatial_outlier_cells(
     )
 
     adata.obs["spatial_outlier"] = False
-    
+
     for idx, sample in enumerate(samples):
         ax = axes[idx // n_cols][idx % n_cols]
 
         mask = adata.obs["sample"] == sample
         coords = adata.obsm["spatial"][mask]
 
+        # Subsample for plotting if needed
+        sample_data = adata[mask]
+        if sample_data.n_obs > int(1.5e5):
+            sample_data = sc.pp.subsample(
+                sample_data, n_obs=int(1.5e5), random_state=42, copy=True
+            )
+        plotting_coords = sample_data.obsm["spatial"]
+
         csv_path = join(data_dir, "samples", sample, "cell_outlier_coordinates.csv")
         if not isfile(csv_path):
             if logger:
                 logger.info(
-                    f"[{sample}] Missing polygon file: {csv_path}. Draw outliers in 10X Explorer."
+                    f"[{sample}] Missing polygon file: {csv_path}. Draw outliers in 10X Explorer if necessary."
                 )
             adata.obs.loc[mask, "spatial_outlier"] = False
+
+            # Plot all cells as non-outliers
+            ax.scatter(
+                plotting_coords[:, 0],
+                plotting_coords[:, 1],
+                c="lightgrey",
+                s=max(0.3, min(0.7, 30000 / len(plotting_coords))),
+                alpha=0.75,
+                edgecolors="none",
+            )
             continue
 
         coords_df = pd.read_csv(csv_path, skiprows=4)  # skip comment header lines
@@ -391,6 +408,7 @@ def filter_spatial_outlier_cells(
         ).reshape(3, 3)
         coords_df[["X", "Y"]] -= transform[[0, 1], 2] / transform[[0, 1], [0, 1]]
 
+        # Detect outliers on full dataset
         outliers = np.zeros(len(coords), dtype=bool)
         for sel in coords_df["Selection"].unique():
             poly = coords_df[coords_df["Selection"] == sel][["X", "Y"]].values
@@ -398,16 +416,33 @@ def filter_spatial_outlier_cells(
                 outliers |= Path(poly).contains_points(coords)
 
         adata.obs.loc[mask, "spatial_outlier"] = outliers
+
+        # Detect outliers on plotting dataset for visualization
+        plotting_outliers = np.zeros(len(plotting_coords), dtype=bool)
+        for sel in coords_df["Selection"].unique():
+            poly = coords_df[coords_df["Selection"] == sel][["X", "Y"]].values
+            if len(poly) > 2:
+                plotting_outliers |= Path(poly).contains_points(plotting_coords)
+
+        colors = pd.Categorical(
+            np.where(plotting_outliers, "red", "lightgrey"),
+            categories=["lightgrey", "red"],
+        )
+
         ax.scatter(
-            coords[:, 0],
-            coords[:, 1],
-            c=np.where(outliers, "red", "grey"),
-            s=0.4,
+            plotting_coords[:, 0],
+            plotting_coords[:, 1],
+            c=colors,
+            s=max(0.3, min(0.7, 30000 / len(plotting_coords))),
             alpha=0.75,
             edgecolors="none",
         )
 
-        # draw polygons
+        print(sample)
+        print(len(plotting_coords))
+        print(max(0.3, min(0.7, 30000 / len(plotting_coords))))
+
+        # Draw polygons
         # for sel in coords_df["Selection"].unique():
         #     poly = coords_df[coords_df["Selection"] == sel][["X", "Y"]].values
         #     if len(poly) > 2:
@@ -425,10 +460,10 @@ def filter_spatial_outlier_cells(
     fig.suptitle("Spatial outlier cells by sample", fontsize=14, y=1)
     fig.tight_layout()
     fig.savefig(
-        join(save_path, "qc_spatial_outlier_cells.png"), dpi=150, bbox_inches="tight"
+        join(save_path, "qc_spatial_outlier_cells.png"), dpi=200, bbox_inches="tight"
     )
     plt.close()
-    
+
     if remove_outliers:
         adata = adata[~adata.obs["spatial_outlier"]].copy()
 
@@ -468,49 +503,70 @@ def filter_low_quality_cells(
         AnnData: Modified adata with "spatial_outlier" column added to obs.
             If remove_outliers=True, outlier cells are removed.
     """
-    adata.obs["low_quality_cell"] = (
-        (adata.obs["n_counts"] < min_counts) | (adata.obs["n_genes"] < min_genes)
-    )#.astype("category")
+    adata.obs["low_quality_cell"] = (adata.obs["n_counts"] < min_counts) | (
+        adata.obs["n_genes"] < min_genes
+    )
 
     metric, n = "volume", 3
     adata.obs["volume_outlier_cell"] = (
-        (adata.obs[metric] > n * np.median(adata.obs[metric]))
-        | (adata.obs[metric] < 100)
-    )#.astype("category")
+        adata.obs[metric] > n * np.median(adata.obs[metric])
+    ) | (adata.obs[metric] < 100)
 
     def _plot_flag(flag, fname):
-        sample_names = adata.obs["sample"].unique()
-        fig, axs = plt.subplots(
-            len(sample_names),
-            1,
-            figsize=(12, len(sample_names) * 9),
-            gridspec_kw={"wspace": 0.4},
+        n_cols = 3
+        samples = adata.obs["sample"].unique()
+        n_samples = len(samples)
+        n_rows = math.ceil(n_samples / n_cols)
+
+        fig, axes = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=(4 * n_cols, 4 * n_rows),
+            squeeze=False,
+            sharex=False,
+            sharey=False,
         )
-        for ax, name in zip(axs, sample_names):
-            sq.pl.spatial_scatter(
-                adata[adata.obs["sample"] == name],
-                ax=ax,
-                shape=None,
-                color=flag,
-                size=0.125,
-                library_id="spatial",
-                figsize=(8, 8),
-                palette=mpl.colors.ListedColormap(["lightgrey", "red"]),
+
+        for idx, sample in enumerate(samples):
+            ax = axes[idx // n_cols][idx % n_cols]
+
+            mask = adata.obs["sample"] == sample
+            sample_data = adata[mask]
+
+            if sample_data.n_obs > int(1.5e5):
+                sample_data = sc.pp.subsample(
+                    sample_data, n_obs=int(1.5e5), random_state=42, copy=True
+                )
+
+            coords = sample_data.obsm["spatial"]
+
+            outliers = sample_data.obs[flag].values
+            colors = pd.Categorical(
+                np.where(outliers, "red", "lightgrey"), categories=["lightgrey", "red"]
             )
+
+            ax.scatter(
+                coords[:, 0],
+                coords[:, 1],
+                c=colors,
+                s=max(0.3, min(0.7, 30000 / len(coords))),
+                alpha=0.75,
+                edgecolors="none",
+            )
+
+            ax.set_title(sample, fontsize=10)
+            ax.set_xticks([])
+            ax.set_yticks([])
             for spine in ax.spines.values():
                 spine.set_visible(False)
-            ax.annotate(
-                name,
-                xy=(0, 0.5),
-                xytext=(-ax.yaxis.labelpad - 5, 0),
-                xycoords=ax.yaxis.label,
-                textcoords="offset points",
-                ha="right",
-                va="center",
-                rotation="vertical",
-                size="large",
-            )
-        fig.savefig(join(save_path, fname))
+
+        # Hide unused subplots
+        for ax in axes.flat[n_samples:]:
+            ax.set_visible(False)
+
+        fig.suptitle(f"{flag.replace('_', ' ').title()} by sample", fontsize=14, y=1)
+        fig.tight_layout()
+        fig.savefig(join(save_path, fname), dpi=200, bbox_inches="tight")
         plt.close(fig)
 
     _plot_flag("low_quality_cell", "qc_low_quality_cells.png")
@@ -602,7 +658,7 @@ def normalize_counts(
     """
     if logger:
         logger.info("Normalizing counts...")
-        
+
     if sp.issparse(adata.X) and not isinstance(adata.X, sp.csr_matrix):
         adata.X = adata.X.tocsr()
 
@@ -621,7 +677,9 @@ def normalize_counts(
     lo, hi = np.percentile(row_sums, [1, 99])
     mask = (row_sums > lo) & (row_sums < hi)
     if logger:
-        logger.info(f"Cells before/after outlier removal during normalization: {adata.n_obs} → {mask.sum()}")
+        logger.info(
+            f"Cells before/after outlier removal during normalization: {adata.n_obs} → {mask.sum()}"
+        )
 
     for layer_name in adata.layers.keys():
         if sp.issparse(adata.layers[layer_name]) and not isinstance(
