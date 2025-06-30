@@ -1,8 +1,9 @@
 from pathlib import Path
 
-Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merge_adata"
-).mkdir(parents=False, exist_ok=True)
+base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
+container_image = f"{base_path}/misc/cellseg_benchmark.sqsh"
+log_path = f"{base_path}/misc/logs/outputs"
 
 methods = [
     "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8",
@@ -32,36 +33,28 @@ methods = [
     "Proseg_Cellpose_1_DAPI_PolyT",
 ]
 
-times = {}
+Path(sbatch_path).mkdir(parents=False, exist_ok=True)
+
 for method in methods:
-    if "Baysor" in method:
-        times[method] = "12:00:00"
-    elif "Negative_Control_Rastered_5" == method:
-        times[method] = "2-00:00:00"
-    elif method in ["Negative_Control_Rastered_10", "Negative_Control_Voronoi"]:
-        times[method] = "12:00:00"
+    if method == "Negative_Control_Rastered_5":
+        time_limit = "2-00:00:00"
+    elif any(keyword in method for keyword in ["Baysor", "Cellpose"]) or \
+         method in ["Negative_Control_Rastered_10", "Negative_Control_Voronoi"]:
+        time_limit = "12:00:00"
     else:
-        times[method] = "04:00:00"
-
-for method in methods:
-    f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merge_adata/{method}.sbatch",
-        "w",
-    )
-    f.write(f"""#!/bin/bash
-
+        time_limit = "04:00:00"
+    
+    with open(f"{sbatch_path}/{method}.sbatch", "w") as f:
+        f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t {times[method]}
+#SBATCH -t {time_limit}
 #SBATCH --mem=200G
 #SBATCH -J merge_adata_{method}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/%x.log
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/cellseg_benchmark.sqsh"
-
-
+#SBATCH -o {log_path}/%x.log
+#SBATCH --container-image="{container_image}"
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
 python scripts/merge_adata.py {method}
 """)
-    f.close()

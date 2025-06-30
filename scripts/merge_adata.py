@@ -33,7 +33,7 @@ with open(os.path.join(path, "sample_paths.json"), "r") as f:
 
 sdata_list = []
 available_names = set()
-logger.info("Loading data")
+logger.info("Loading data...")
 for f in os.listdir(os.path.join(path, "samples")):
     if f.startswith("foxf2"):
         if f not in [
@@ -75,7 +75,7 @@ adata = dimensionality_reduction(adata, save_path=save_path, logger=logger)
 adata = integration_harmony(
     adata, batch_key="sample", save_path=save_path, logger=logger
 )
-
+logger.info("Saving integrated object...")
 os.makedirs(os.path.join(path, "analysis", name, "adatas"), exist_ok=True)
 if "fov" in adata.obs.columns:
     adata.obs["fov"] = adata.obs["fov"].astype(str)
@@ -83,3 +83,4 @@ adata.write(
     os.path.join(path, "analysis", name, "adatas", "adata_integrated.h5ad.gz"),
     compression="gzip",
 )
+logger.info("Done.")
