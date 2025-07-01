@@ -25,8 +25,8 @@ for key, value in data.items():
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 12:00:00
-#SBATCH --mem=300G
+#SBATCH -t 00:05:00
+#SBATCH --mem=16G
 #SBATCH -J vpt_3D_{key}_DAPI_{staining}{adapt}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt_3D_{key}_DAPI_{staining}{adapt}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt_3D_{key}_DAPI_{staining}{adapt}.err

@@ -35,6 +35,7 @@ boundaries = read_parquet(join(save_path, "analysis_outputs", "cellpose2_micron_
 boundaries.rename_geometry("geometry", inplace=True)
 sdata['boundaries_vpt_3D'] = ShapesModel.parse(boundaries)
 sdata["table"].uns["spatialdata_attrs"]["region"] = "boundaries_vpt_3D"
+sdata['table'].obs[sdata['table'].uns["spatialdata_attrs"]["region_key"]] = "boundaries_vpt_3D"
 
 logger.info(f"Saving data")
 sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
