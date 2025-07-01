@@ -460,8 +460,19 @@ def filter_spatial_outlier_cells(
     )
     plt.close()
 
+    if logger:
+        total_before = adata.n_obs
+        n_spatial_outlier = adata.obs["spatial_outlier"].sum()
+
+        logger.info(f"# total cells before filtering spatial outliers: {total_before}")
+        logger.info(f"# spatial_outlier:       {n_spatial_outlier}")
+
     if remove_outliers:
         adata = adata[~adata.obs["spatial_outlier"]].copy()
+
+    if logger:
+        total_after = adata.n_obs
+        logger.info(f"# total cells after filtering spatial outliers:  {total_after}")
 
     return adata
 
@@ -573,7 +584,7 @@ def filter_low_quality_cells(
         n_low_quality = adata.obs["low_quality_cell"].sum()
         n_volume_outlier = adata.obs["volume_outlier_cell"].sum()
 
-        logger.info(f"# total cells before filtering: {total_before}")
+        logger.info(f"# total cells before filtering low-quality or volume outliers: {total_before}")
         logger.info(f"# low_quality_cell:             {n_low_quality}")
         logger.info(f"# volume_outlier_cell:       {n_volume_outlier}")
 
@@ -584,7 +595,7 @@ def filter_low_quality_cells(
 
     if logger:
         total_after = adata.n_obs
-        logger.info(f"# total cells after filtering:  {total_after}")
+        logger.info(f"# total cells after filtering low-quality or volume outliers:  {total_after}")
 
     return adata
 
@@ -793,7 +804,7 @@ def dimensionality_reduction(adata: AnnData, save_path: str, logger=None) -> Ann
     pt_size_umap = 320000 / adata.shape[0]
 
     fig, axs = plt.subplots(
-        3, 3, figsize=(18, 16), gridspec_kw={"wspace": 0.6, "hspace": 0.3}
+        3, 3, figsize=(21, 19), gridspec_kw={"wspace": 0.6, "hspace": 0.3}
     )
 
     color_schemes = ["sample", "condition", "cell_type_mmc_raw_revised"]
@@ -821,7 +832,7 @@ def dimensionality_reduction(adata: AnnData, save_path: str, logger=None) -> Ann
         for col, color_scheme in enumerate(color_schemes):
             with plt.ioff():
                 with plt.style.context("default"):
-                    with mpl.rc_context({"figure.figsize": (6, 6)}):
+                    with mpl.rc_context({"figure.figsize": (7,7)}):
                         sc.pl.embedding(
                             adata,
                             ax=axs[row, col],
@@ -852,7 +863,7 @@ def integration_harmony(
 ) -> AnnData:
     """Harmony integration by batch_key.
 
-    Also exports 3 UMAP plots (unintegrated, integrated, 3D).
+    Also exports 3 UMAP plots (unintegrated, integrated 2D, integrated 3D).
 
     Args:
         adata (AnnData): AnnData data object. Must have 'zscore' layer and 'X_pca' obsm
