@@ -1,5 +1,8 @@
 import json
 from pathlib import Path
+from sys import argv
+
+recompute = argv[1]
 
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
@@ -29,6 +32,6 @@ cd ~/gitrepos/cellseg-benchmark
 git pull
 git checkout Ficture
 mamba activate cellseg_benchmark
-python scripts/ficture_infos.py {key} {value}
+python scripts/ficture_infos.py {key} {value} {recompute}
 """)
     f.close()

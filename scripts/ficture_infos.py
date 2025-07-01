@@ -14,9 +14,11 @@ dask.config.set({"dataframe.query-planning": False})
 
 from spatialdata import SpatialData, read_zarr
 from spatialdata.models import Image2DModel, ShapesModel
+from spatialdata.transformations import Affine
 
 from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
 from cellseg_benchmark.sdata_utils import prepare_ficture
+from cellseg_benchmark._constants import image_based
 
 warnings.filterwarnings("ignore")
 
@@ -28,6 +30,7 @@ logger.addHandler(handler)
 
 sample = sys.argv[1]
 data_path = sys.argv[2]
+recompute = True if sys.argv[3]=="true" else False
 
 results_path = join("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark", "samples", sample, "results")
 
@@ -35,7 +38,9 @@ logger.info("Check Segementations for prior ficture results.")
 compute_ficture = []
 for dir in os.listdir(results_path):
     if exists(join(results_path, dir, "sdata.zarr")):
-        if not isdir(join(results_path, dir, "Ficture_stats")):
+        if recompute:
+            compute_ficture.append(dir)
+        elif not isdir(join(results_path, dir, "Ficture_stats")):
             compute_ficture.append(dir)
 
 recompute_gen_stats = not exists(join(results_path, "Ficture", "general_stats.csv"))
@@ -74,12 +79,25 @@ if compute_ficture:
     del area_covered, stats
 
     logger.info("Read shapes")
+    transform = pd.read_csv(
+        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
+        sep=" ",
+        header=None,
+    )
+    transform = Affine(
+        transform,
+        input_axes=("x", "y"),
+        output_axes=("x", "y"),
+    )
     for dir in compute_ficture:
         tmp = read_zarr(join(results_path, dir, "sdata.zarr"), selection=("shapes",))
         if dir.startswith("vpt_3D"):
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(
-                tmp[list(tmp.shapes.keys())[0]][["EntityID", "geometry"]].dissolve(by="EntityID") #project boundaries onto 2D
+                tmp[list(tmp.shapes.keys())[0]][["EntityID", "geometry"]].dissolve(by="EntityID"), #project boundaries onto 2D
+                transformations={'global': transform}
             )
+        elif not any([dir.startswith(x) for x in image_based]):
+            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[list(tmp.shapes.keys())[0]], transformations={'global': transform})
         else:
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[list(tmp.shapes.keys())[0]])
     del tmp
