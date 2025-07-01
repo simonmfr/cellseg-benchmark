@@ -16,10 +16,10 @@ for key, value in data.items():
     ) #TODO: Remove git checkout
     f.write(f"""#!/bin/bash
 
-#SBATCH -p lrz-cpu
-#SBATCH --qos=cpu
-#SBATCH -t 1-12:00:00
+#SBATCH -p lrz-hgx-a100-80x4
+#SBATCH -t 1-00:00:00
 #SBATCH --mem=900G
+#SBATCH --gres=gpu:1
 #SBATCH -J ficture_stats_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/ficture_stats_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/ficture_stats_{key}.err
