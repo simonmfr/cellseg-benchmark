@@ -85,7 +85,7 @@ if compute_ficture:
         join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
-    )
+    ).values
     transform = Affine(
         transform,
         input_axes=("x", "y"),
