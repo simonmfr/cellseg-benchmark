@@ -8,6 +8,7 @@ from re import split
 import dask
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 dask.config.set({"dataframe.query-planning": False})
 
@@ -81,7 +82,7 @@ if compute_ficture:
             sdata[f"boundaries_{dir}"] = tmp[list(tmp.shapes.keys())[0]]
     del tmp
 
-    for key in sdata.shapes.keys():
+    for key in tqdm(sdata.shapes.keys()):
         logger.info("Working on {}".format("_".join(split("_", key)[1:])))
         covered = aggregate_channels(
             sdata, image_key="ficture_image_1", shapes_key=key, mode="sum"
