@@ -36,6 +36,7 @@ boundaries.rename_geometry("geometry", inplace=True)
 sdata['boundaries_vpt_3D'] = ShapesModel.parse(boundaries)
 sdata["table"].uns["spatialdata_attrs"]["region"] = "boundaries_vpt_3D"
 sdata['table'].obs[sdata['table'].uns["spatialdata_attrs"]["region_key"]] = "boundaries_vpt_3D"
+sdata['table'].obs[sdata['table'].uns["spatialdata_attrs"]["region_key"]] = sdata['table'].obs[sdata['table'].uns["spatialdata_attrs"]["region_key"]].astype("category")
 
 logger.info(f"Saving data")
 sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
