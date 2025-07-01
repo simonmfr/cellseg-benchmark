@@ -271,11 +271,28 @@ def integrate_segmentation_data(
     return sdata_main
 
 
-def build_shapes(sdata, sdata_main, seg_method, write_to_disk, logger=None):
+def build_shapes(sdata, sdata_main, seg_method, sdata_path, write_to_disk, logger=None):
     """Insert shapes of segmentation method into sdata_main."""
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
 
-    if boundary_key in sdata.shapes.keys():
+    if seg_method.startswith("Proseg"):
+        path = join(
+            sdata_path,
+            "results",
+            seg_method,
+            "sdata.zarr",
+            ".sopa_cache",
+            "transcript_patches",
+            "0",
+            "cell-polygons-layers.geojson.gz",
+        )
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            geojson_text = f.read()
+        geojson_io = io.StringIO(geojson_text)
+        gdf = gpd.read_file(geojson_io)
+        gdf = gdf.merge(sdata.obs[["cell", "cell_id"]], left_on="cell", right_on="cell")
+        sdata_main[f"boundaries_{seg_method}"] = gdf
+    elif boundary_key in sdata.shapes.keys():
         sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
         if write_to_disk:
             if (
