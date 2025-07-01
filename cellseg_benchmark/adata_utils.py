@@ -629,6 +629,7 @@ def filter_genes(adata, save_path, logger=None):
 def normalize_counts(
     adata: AnnData,
     save_path: str,
+    seg_method: str,
     *,
     target_sum: int = 250,
     logger=None,
@@ -645,6 +646,7 @@ def normalize_counts(
         adata (AnnData): AnnData with raw integer counts in ``adata.X`` and a
             ``volume`` column in ``adata.obs``.
         save_path (str): Directory for diagnostic plots.
+        seg_method (str): Name of segmentation method for processing logic.
         target_sum (int, optional): Target sum per cell after rescaling.
             Defaults to 250 as in Allen et al.
         logger (logging.Logger, optional): Python logging instance. Defaults to None.
@@ -658,8 +660,13 @@ def normalize_counts(
     if sp.issparse(adata.X) and not isinstance(adata.X, sp.csr_matrix):
         adata.X = adata.X.tocsr()
 
-    if not np.issubdtype(adata.X.dtype, np.integer):
-        raise TypeError(f"adata.X must contain integer counts, found {adata.X.dtype}")
+    if (
+        not np.issubdtype(adata.X.dtype, np.integer)
+        and "proseg" not in seg_method.lower()
+    ):  # exception for proseg: counts are non-integer posterior expectations
+        raise TypeError(
+            f"adata.X must contain integer counts, found instead: {adata.X.dtype}"
+        )
 
     # 1 Volume normalisation
     adata.layers["counts"] = adata.X
