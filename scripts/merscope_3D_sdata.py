@@ -32,7 +32,7 @@ sdata = merscope(
 )
 boundaries = read_parquet(join(save_path, "analysis_outputs", "cellpose2_micron_space.parquet"),
                                           columns=("ID", "EntityID", "ZIndex", "ZLevel", "Geometry"))
-boundaries.rename_geometry("geometry")
+boundaries.rename_geometry("geometry", inplace=True)
 sdata['boundaries_vpt_3D'] = ShapesModel.parse(boundaries)
 sdata["table"].uns["spatialdata_attrs"]["region"] = "boundaries_vpt_3D"
 
