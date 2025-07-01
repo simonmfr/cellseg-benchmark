@@ -48,6 +48,8 @@ recompute_gen_stats = not exists(join(results_path, "Ficture", "general_stats.cs
 if not (compute_ficture or recompute_gen_stats):
     logger.info("All ficture information is computed.")
     quit()
+else:
+    logger.info(f"Identified {len(compute_ficture)} Segmentations to compute Ficture for.")
 
 logger.info("Preparing Ficture")
 stats = prepare_ficture(data_path, results_path, logger=logger)
