@@ -58,7 +58,7 @@ for method in methods:
 #SBATCH -o {log_path}/%x.log
 #SBATCH --container-image="{container_image}"
 cd ~/gitrepos/cellseg-benchmark
-git pull origin merge_adata
+git pull origin integration
 mamba activate cellseg_benchmark
 python scripts/merge_adata.py {method}
 """)
