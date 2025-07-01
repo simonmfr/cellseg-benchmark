@@ -13,7 +13,7 @@ from tqdm import tqdm
 dask.config.set({"dataframe.query-planning": False})
 
 from spatialdata import SpatialData, read_zarr
-from spatialdata.models import Image2DModel
+from spatialdata.models import Image2DModel, ShapesModel
 
 from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
 from cellseg_benchmark.sdata_utils import prepare_ficture
@@ -77,9 +77,11 @@ if compute_ficture:
     for dir in compute_ficture:
         tmp = read_zarr(join(results_path, dir, "sdata.zarr"), selection=("shapes",))
         if dir.startswith("vpt_3D"):
-            sdata[f"boundaries_{dir}"] = tmp[list(tmp.shapes.keys())[0]][["EntityID", "geometry"]].dissolve(by="EntityID") #project boundaries onto 2D
+            sdata[f"boundaries_{dir}"] = ShapesModel.parse(
+                tmp[list(tmp.shapes.keys())[0]][["EntityID", "geometry"]].dissolve(by="EntityID") #project boundaries onto 2D
+            )
         else:
-            sdata[f"boundaries_{dir}"] = tmp[list(tmp.shapes.keys())[0]]
+            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[list(tmp.shapes.keys())[0]])
     del tmp
 
     for key in tqdm(sdata.shapes.keys()):
