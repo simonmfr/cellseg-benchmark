@@ -28,7 +28,6 @@ for key, value in data.items():
 
 source $HOME/.bashrc
 conda activate ficture
-mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_pure
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/proseg_pure.py {value} {key}
+bash /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/ficture.sh {key} {value}/detected_transcripts.csv
             """)
     f.close()

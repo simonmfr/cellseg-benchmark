@@ -1,10 +1,11 @@
+import argparse
 import json
 import logging
 import warnings
 from pathlib import Path
-import argparse
 
 from spatialdata import read_zarr
+
 from cellseg_benchmark.adata_utils import (
     dimensionality_reduction,
     filter_genes,
@@ -25,9 +26,13 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s
 logger.addHandler(handler)
 
 # CLI args
-parser = argparse.ArgumentParser(description="Integrate adatas from a selected segmentation method.")
+parser = argparse.ArgumentParser(
+    description="Integrate adatas from a selected segmentation method."
+)
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
-parser.add_argument("seg_method", help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'")
+parser.add_argument(
+    "seg_method", help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'"
+)
 args = parser.parse_args()
 
 # Paths
@@ -40,7 +45,7 @@ save_path.mkdir(parents=True, exist_ok=True)
 with open(base_path / "sample_paths.json") as f:
     sample_paths_file = json.load(f)
 
-excluded_samples = { #TODO: move to yaml
+excluded_samples = {  # TODO: move to yaml
     "foxf2": ["foxf2_s2_r0", "foxf2_s3_r0", "foxf2_s3_r1"],
     "aging": [],
 }.get(args.cohort, [])
@@ -71,12 +76,17 @@ del sdata_list
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 adata = filter_spatial_outlier_cells(
-    adata, data_dir=str(base_path), sample_paths_file=sample_paths_file,
-    save_path=save_path / "plots", logger=logger
+    adata,
+    data_dir=str(base_path),
+    sample_paths_file=sample_paths_file,
+    save_path=save_path / "plots",
+    logger=logger,
 )
 adata = filter_low_quality_cells(adata, save_path=save_path / "plots", logger=logger)
 adata = filter_genes(adata, save_path=save_path / "plots", logger=logger)
-adata = normalize_counts(adata, save_path=save_path / "plots", seg_method=args.seg_method, logger=logger)
+adata = normalize_counts(
+    adata, save_path=save_path / "plots", seg_method=args.seg_method, logger=logger
+)
 adata = dimensionality_reduction(adata, save_path=save_path / "plots", logger=logger)
 adata = integration_harmony(
     adata, batch_key="sample", save_path=save_path / "plots", logger=logger

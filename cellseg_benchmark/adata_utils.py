@@ -584,7 +584,9 @@ def filter_low_quality_cells(
         n_low_quality = adata.obs["low_quality_cell"].sum()
         n_volume_outlier = adata.obs["volume_outlier_cell"].sum()
 
-        logger.info(f"# total cells before filtering low-quality or volume outliers: {total_before}")
+        logger.info(
+            f"# total cells before filtering low-quality or volume outliers: {total_before}"
+        )
         logger.info(f"# low_quality_cell:             {n_low_quality}")
         logger.info(f"# volume_outlier_cell:       {n_volume_outlier}")
 
@@ -595,7 +597,9 @@ def filter_low_quality_cells(
 
     if logger:
         total_after = adata.n_obs
-        logger.info(f"# total cells after filtering low-quality or volume outliers:  {total_after}")
+        logger.info(
+            f"# total cells after filtering low-quality or volume outliers:  {total_after}"
+        )
 
     return adata
 
@@ -832,7 +836,7 @@ def dimensionality_reduction(adata: AnnData, save_path: str, logger=None) -> Ann
         for col, color_scheme in enumerate(color_schemes):
             with plt.ioff():
                 with plt.style.context("default"):
-                    with mpl.rc_context({"figure.figsize": (7,7)}):
+                    with mpl.rc_context({"figure.figsize": (7, 7)}):
                         sc.pl.embedding(
                             adata,
                             ax=axs[row, col],

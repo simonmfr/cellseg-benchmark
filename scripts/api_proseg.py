@@ -57,8 +57,12 @@ def main(data_path, sample, base_segmentation, proseg_flags):
         sdata, delete_cache=False, command_line_suffix=proseg_flags
     )
     sopa.aggregate(
-        sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10,
-        points_key=list(sdata.points.keys())[0], image_key=list(sdata.images.keys())[0]
+        sdata,
+        gene_column="gene",
+        aggregate_channels=True,
+        min_transcripts=10,
+        points_key=list(sdata.points.keys())[0],
+        image_key=list(sdata.images.keys())[0],
     )
     sopa.io.explorer.write(
         join(path, f"Proseg_{base_segmentation}", "sdata.explorer"),

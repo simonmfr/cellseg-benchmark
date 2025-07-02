@@ -16,8 +16,9 @@ from spatialdata.transformations import Identity, get_transformation, set_transf
 from tifffile import imread
 from tqdm import tqdm
 
-from .ficture_utils import create_factor_level_image, parse_metadata
 from ._constants import image_based, methods_3D
+from .ficture_utils import create_factor_level_image, parse_metadata
+
 
 def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str):
     """Load and save a MERSCOPE sample as sdata with specified z_layers configuration. Only loads transcripts and mosaic_images."""
@@ -223,17 +224,18 @@ def integrate_segmentation_data(
                         seg_method, sdata_main, sdata_path, write_to_disk=write_to_disk
                     )
                 if os.path.exists(
-                    join(
-                        sdata_path,
-                        "results",
-                        seg_method,
-                        "Ficture_stats"
-                    )
+                    join(sdata_path, "results", seg_method, "Ficture_stats")
                 ):
                     logger.info("Adding Ficture stats to {}...".format(seg_method))
-                    add_ficture(sdata_main, seg_method, sdata_path, write_to_disk=write_to_disk)
+                    add_ficture(
+                        sdata_main, seg_method, sdata_path, write_to_disk=write_to_disk
+                    )
                 else:
-                    logger.warning("No Ficture_stats files found for {}. Skipping.".format(seg_method))
+                    logger.warning(
+                        "No Ficture_stats files found for {}. Skipping.".format(
+                            seg_method
+                        )
+                    )
             elif len(sdata.tables) > 1:
                 if logger:
                     logger.warning(
@@ -371,16 +373,14 @@ def add_cell_type_annotation(
     return sdata_main
 
 
-def add_ficture(
-    sdata_main, seg_method: str, sdata_path: str, write_to_disk
-):
+def add_ficture(sdata_main, seg_method: str, sdata_path: str, write_to_disk):
     """Add ficture information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
         name = file.split(".")[0]
-        adata.obsm[name] = pd.read_csv(join(sdata_path, "results", seg_method, "Ficture_stats",
-                                            file), index_col=0
-                                       )
+        adata.obsm[name] = pd.read_csv(
+            join(sdata_path, "results", seg_method, "Ficture_stats", file), index_col=0
+        )
     sdata_main[f"adata_{seg_method}"].obs = adata
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
@@ -388,6 +388,7 @@ def add_ficture(
         else:
             sdata_main.write_element(f"adata_{seg_method}")
     return sdata_main
+
 
 def calculate_volume(
     seg_method: str, sdata_main, sdata_path, write_to_disk=False, logger=None
@@ -431,15 +432,19 @@ def calculate_volume(
             boundaries = sdata_main.transform_element_to_coordinate_system(
                 f"boundaries_{seg_method}", target_coordinate_system="micron"
             )
-            slice_height = (
-                    10 / boundaries[["ZIndex"]].groupby(level=0).count().max()
+            slice_height = 10 / boundaries[["ZIndex"]].groupby(level=0).count().max()
+            boundaries["volume_per_slice"] = [
+                x.area * slice_height for x in boundaries["Geometry"]
+            ]
+            area = (
+                boundaries[["EntityID", "volume_per_slice"]].groupby("EntityID").sum()
             )
-            boundaries["volume_per_slice"] = [x.area * slice_height for x in boundaries["Geometry"]]
-            area = boundaries[["EntityID", "volume_per_slice"]].groupby("EntityID").sum()
             area.rename(columns={"volume_per_slice": "volume"}, inplace=True)
             if "volume" in adata.obs.columns:
                 del adata.obs["volume"]
-            tmp = adata.obs.merge(area, how="left", left_index=True, right_on="EntityID")
+            tmp = adata.obs.merge(
+                area, how="left", left_index=True, right_on="EntityID"
+            )
             tmp.index = adata.obs.index
             adata.obs = tmp
     else:

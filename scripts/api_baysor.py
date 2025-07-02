@@ -40,7 +40,7 @@ def main(data_path, base_segmentation, confidence, sample):
         patch_width=1000,
         patch_overlap=20,
         prior_shapes_key="cellpose_boundaries",
-        points_key=list(sdata.points.keys())[0]
+        points_key=list(sdata.points.keys())[0],
     )
 
     sopa.settings.parallelization_backend = "dask"
@@ -55,8 +55,12 @@ def main(data_path, base_segmentation, confidence, sample):
     sopa.segmentation.baysor(sdata, config=config, delete_cache=True, force=True)
 
     sopa.aggregate(
-        sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10, points_key=list(sdata.points.keys())[0],
-        image_key=list(sdata.images.keys())[0]
+        sdata,
+        gene_column="gene",
+        aggregate_channels=True,
+        min_transcripts=10,
+        points_key=list(sdata.points.keys())[0],
+        image_key=list(sdata.images.keys())[0],
     )
     sopa.io.explorer.write(
         join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.explorer"),

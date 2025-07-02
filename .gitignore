@@ -215,3 +215,4 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 scripts/msfonts/fontinst.exe
+.idea/workspace.xml

@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import warnings
-from os.path import join, isdir, exists
+from os.path import exists, isdir, join
 from re import split
 
 import dask
@@ -16,9 +16,9 @@ from spatialdata import SpatialData, read_zarr
 from spatialdata.models import Image2DModel, ShapesModel
 from spatialdata.transformations import Affine, set_transformation
 
+from cellseg_benchmark._constants import image_based
 from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
 from cellseg_benchmark.sdata_utils import prepare_ficture
-from cellseg_benchmark._constants import image_based
 
 warnings.filterwarnings("ignore")
 
@@ -30,9 +30,14 @@ logger.addHandler(handler)
 
 sample = sys.argv[1]
 data_path = sys.argv[2]
-recompute = True if sys.argv[3]=="true" else False
+recompute = True if sys.argv[3] == "true" else False
 
-results_path = join("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark", "samples", sample, "results")
+results_path = join(
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark",
+    "samples",
+    sample,
+    "results",
+)
 
 logger.info("Check Segementations for prior ficture results.")
 compute_ficture = []
@@ -49,7 +54,9 @@ if not (compute_ficture or recompute_gen_stats):
     logger.info("All ficture information is computed.")
     quit()
 else:
-    logger.info(f"Identified {len(compute_ficture)} Segmentations to compute Ficture for.")
+    logger.info(
+        f"Identified {len(compute_ficture)} Segmentations to compute Ficture for."
+    )
 
 logger.info("Preparing Ficture")
 stats = prepare_ficture(data_path, results_path, logger=logger)
@@ -92,16 +99,24 @@ if compute_ficture:
         output_axes=("x", "y"),
     )
     for dir in compute_ficture:
-        tmp = read_zarr(join(results_path, dir, "sdata.zarr"), selection=("shapes","tables"))
+        tmp = read_zarr(
+            join(results_path, dir, "sdata.zarr"), selection=("shapes", "tables")
+        )
         boundary_key = tmp["table"].uns["spatialdata_attrs"]["region"]
         if dir.startswith("vpt_3D"):
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(
-                tmp[boundary_key][["EntityID", "geometry"]].dissolve(by="EntityID"), #project boundaries onto 2D
+                tmp[boundary_key][["EntityID", "geometry"]].dissolve(
+                    by="EntityID"
+                ),  # project boundaries onto 2D
             )
-            set_transformation(sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global")
+            set_transformation(
+                sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global"
+            )
         elif not any([dir.startswith(x) for x in image_based]):
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[boundary_key])
-            set_transformation(sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global")
+            set_transformation(
+                sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global"
+            )
         else:
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[boundary_key])
     del tmp
@@ -121,7 +136,11 @@ if compute_ficture:
             sdata, image_key="ficture_image_2", shapes_key=key, mode="average"
         )
         var = aggregate_channels(
-            sdata, image_key="ficture_image_1", shapes_key=key, mode="variance", means=mean
+            sdata,
+            image_key="ficture_image_1",
+            shapes_key=key,
+            mode="variance",
+            means=mean,
         )
         var_weight = aggregate_channels(
             sdata,
