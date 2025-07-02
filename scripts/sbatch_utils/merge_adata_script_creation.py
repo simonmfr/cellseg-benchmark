@@ -3,7 +3,7 @@ from pathlib import Path
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
 container_image = f"{base_path}/misc/cellseg_benchmark.sqsh"
-log_path = f"{base_path}/misc/logs/outputs"
+log_path = f"{base_path}/misc/logs/merged"
 
 methods = [
     "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8",
@@ -38,23 +38,27 @@ Path(sbatch_path).mkdir(parents=False, exist_ok=True)
 for method in methods:
     if method == "Negative_Control_Rastered_5":
         time_limit = "2-00:00:00"
-    elif any(keyword in method for keyword in ["Baysor", "Cellpose"]) or \
-         method in ["Negative_Control_Rastered_10", "Negative_Control_Voronoi"]:
+    elif any(keyword in method for keyword in ["Baysor", "Cellpose"]) or method in [
+        "Negative_Control_Rastered_10",
+        "Negative_Control_Voronoi",
+    ]:
         time_limit = "12:00:00"
     else:
         time_limit = "04:00:00"
-    
+
+    memory = "300G" if "Negative_Control" in method else "200G"
+
     with open(f"{sbatch_path}/{method}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t {time_limit}
-#SBATCH --mem=200G
+#SBATCH --mem={memory}
 #SBATCH -J merge_adata_{method}
 #SBATCH -o {log_path}/%x.log
 #SBATCH --container-image="{container_image}"
 cd ~/gitrepos/cellseg-benchmark
-git pull
+git pull origin integration
 mamba activate cellseg_benchmark
 python scripts/merge_adata.py {method}
 """)

@@ -1,5 +1,8 @@
 import json
 from pathlib import Path
+from sys import argv
+
+recompute = argv[1]
 
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
@@ -13,13 +16,13 @@ for key, value in data.items():
     f = open(
         f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_ficture_stats/{key}.sbatch",
         "w",
-    )
+    ) #TODO: Remove git checkout
     f.write(f"""#!/bin/bash
 
-#SBATCH -p lrz-cpu
-#SBATCH --qos=cpu
-#SBATCH -t 18:00:00
-#SBATCH --mem=700G
+#SBATCH -p lrz-hgx-a100-80x4
+#SBATCH -t 1-00:00:00
+#SBATCH --mem=900G
+#SBATCH --gres=gpu:1
 #SBATCH -J ficture_stats_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/ficture_stats_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/ficture_stats_{key}.err
@@ -27,7 +30,8 @@ for key, value in data.items():
 
 cd ~/gitrepos/cellseg-benchmark
 git pull
+git checkout Ficture
 mamba activate cellseg_benchmark
-python scripts/ficture_infos.py {key} {value}
+python scripts/ficture_infos.py {key} {value} {recompute}
 """)
     f.close()
