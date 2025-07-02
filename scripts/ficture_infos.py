@@ -14,7 +14,7 @@ dask.config.set({"dataframe.query-planning": False})
 
 from spatialdata import SpatialData, read_zarr
 from spatialdata.models import Image2DModel, ShapesModel
-from spatialdata.transformations import Affine
+from spatialdata.transformations import Affine, set_transformation
 
 from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
 from cellseg_benchmark.sdata_utils import prepare_ficture
@@ -96,10 +96,11 @@ if compute_ficture:
         if dir.startswith("vpt_3D"):
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(
                 tmp[list(tmp.shapes.keys())[0]][["EntityID", "geometry"]].dissolve(by="EntityID"), #project boundaries onto 2D
-                transformations={'global': transform}
             )
+            set_transformation(sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global")
         elif not any([dir.startswith(x) for x in image_based]):
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[list(tmp.shapes.keys())[0]], transformations={'global': transform})
+            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[list(tmp.shapes.keys())[0]])
+            set_transformation(sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global")
         else:
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[list(tmp.shapes.keys())[0]])
     del tmp
