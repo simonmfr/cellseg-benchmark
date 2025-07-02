@@ -173,7 +173,7 @@ def integrate_segmentation_data(
 
         if f"boundaries_{seg_method}" not in sdata_main:
             sdata_main = build_shapes(
-                sdata, sdata_main, seg_method, write_to_disk=write_to_disk
+                sdata, sdata_main, seg_method, sdata_path, write_to_disk=write_to_disk
             )
         else:
             if logger:

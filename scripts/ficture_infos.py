@@ -92,17 +92,18 @@ if compute_ficture:
         output_axes=("x", "y"),
     )
     for dir in compute_ficture:
-        tmp = read_zarr(join(results_path, dir, "sdata.zarr"), selection=("shapes",))
+        tmp = read_zarr(join(results_path, dir, "sdata.zarr"), selection=("shapes","tables"))
+        boundary_key = tmp["table"].uns["spatialdata_attrs"]["region"]
         if dir.startswith("vpt_3D"):
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(
-                tmp[list(tmp.shapes.keys())[0]][["EntityID", "geometry"]].dissolve(by="EntityID"), #project boundaries onto 2D
+                tmp[boundary_key][["EntityID", "geometry"]].dissolve(by="EntityID"), #project boundaries onto 2D
             )
             set_transformation(sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global")
         elif not any([dir.startswith(x) for x in image_based]):
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[list(tmp.shapes.keys())[0]])
+            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[boundary_key])
             set_transformation(sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global")
         else:
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[list(tmp.shapes.keys())[0]])
+            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[boundary_key])
     del tmp
 
     for key in tqdm(sdata.shapes.keys()):
