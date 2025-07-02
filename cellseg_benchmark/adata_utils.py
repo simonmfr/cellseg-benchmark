@@ -21,10 +21,10 @@ from cellseg_benchmark.cell_annotation_utils import cell_type_colors
 
 def merge_adatas(
     sdatas: List[Tuple[str, SpatialData]],
-    key: str,
+    seg_method: str,
     sample_paths_file: dict,
     logger: logging.Logger = None,
-    do_qc=False,
+    plot_qc=False,
     save_path=None,
 ) -> AnnData:
     """Merge AnnData objects extracted from multiple SpatialData objects into a single AnnData.
@@ -37,14 +37,14 @@ def merge_adatas(
     Args:
         sdatas (List[Tuple[str, SpatialData]]): List of tuples, each containing a unique
             sample name (str) and a SpatialData object. Each SpatialData is expected to
-            have an AnnData accessible via `sdata[f"adata_{key}"]`.
-        key (str): Segmentation method key.
+            have an AnnData accessible via `sdata[f"adata_{seg_method}"]`.
+        seg_method (str): Segmentation method key.
         sample_paths_file (dict): Dict that maps sample_name to Merscope output data path.
         logger (logging.Logger, optional): Logger instance for informational and warning
             messages. If None, logging is disabled. Defaults to None.
-        do_qc (bool, optional): If True, triggers QC plotting via `plot_qc`. Defaults to False.
+        plot_qc (bool, optional): If True, triggers QC plotting via `plot_qc`. Defaults to False.
         save_path (str, optional): File path or directory where QC plots will be saved
-            if `do_qc` is True. Defaults to None.
+            if `plot_qc` is True. Defaults to None.
 
     Returns:
         AnnData: A merged AnnData object containing concatenated cells from all input datasets.
@@ -53,13 +53,13 @@ def merge_adatas(
 
     y_limits = [0, 0, 0, 0]
     if logger:
-        logger.info(f"Merging adatas of {key}")
+        logger.info(f"Merging adatas of {seg_method}")
     for name, sdata in tqdm(sdatas):
-        if f"adata_{key}" not in sdata.tables.keys():
+        if f"adata_{seg_method}" not in sdata.tables.keys():
             if logger:
-                logger.warning(f"Skipping {name}. No such key: {key}")
+                logger.warning(f"Skipping {name}. No such key: {seg_method}")
             continue
-        adata = sdata[f"adata_{key}"]
+        adata = sdata[f"adata_{seg_method}"]
         samples = name.split("_")
         adata.obs["cohort"] = samples[0]
         adata.obs["slide"] = samples[1]
@@ -72,7 +72,7 @@ def merge_adatas(
         adata.obs["sample"] = name
         adatas.append(adata)
 
-        if do_qc:
+        if plot_qc:
             y_limits[0] = max(
                 y_limits[0], max(np.histogram(adata.obs["n_counts"], bins=60)[0])
             )
@@ -110,8 +110,8 @@ def merge_adatas(
     adata.obs_names_make_unique()
     if logger:
         n = len(adata.obs["sample"].unique())
-        logger.info(f"{key}: # of cells: {len(adata)}, # of samples: {n}")
-    if do_qc:
+        logger.info(f"{seg_method}: # of cells: {len(adata)}, # of samples: {n}")
+    if plot_qc:
         plot_qc(adata, save_path, y_limits, logger)
     return adata
 
