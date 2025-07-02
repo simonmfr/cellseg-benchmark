@@ -2,6 +2,7 @@ import sys
 from os.path import join
 from os import listdir
 from pathlib import Path
+
 from spatialdata_io import merscope
 from spatialdata.models import ShapesModel
 from geopandas import read_parquet
@@ -26,9 +27,11 @@ sdata = merscope(
     vpt_outputs={
         "cell_by_gene": Path(join(save_path, "analysis_outputs", "cell_by_gene.csv")),
         "cell_metadata": Path(join(save_path, "analysis_outputs", "cell_metadata.csv")),
-        "cell_boundaries": Path(join(save_path, "analysis_outputs", "cellpose2_micron_space.parquet")),
+        "cell_boundaries": Path(
+            join(save_path, "analysis_outputs", "cellpose2_micron_space.parquet")
+        ),
     },
-    z_layers=[0,1,2,3,4,5,6]
+    z_layers=[0, 1, 2, 3, 4, 5, 6],
 )
 boundaries = read_parquet(join(save_path, "analysis_outputs", "cellpose2_micron_space.parquet"),
                                           columns=("ID", "EntityID", "ZIndex", "ZLevel", "Geometry"))

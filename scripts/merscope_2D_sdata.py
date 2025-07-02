@@ -18,7 +18,9 @@ sdata = merscope(
     vpt_outputs={
         "cell_by_gene": Path(join(save_path, "analysis_outputs", "cell_by_gene.csv")),
         "cell_metadata": Path(join(save_path, "analysis_outputs", "cell_metadata.csv")),
-        "cell_boundaries": Path(join(save_path, "analysis_outputs", "cellpose2_micron_space.parquet")),
+        "cell_boundaries": Path(
+            join(save_path, "analysis_outputs", "cellpose2_micron_space.parquet")
+        ),
     },
 )
 translation = read_csv(
