@@ -1,3 +1,4 @@
+import os
 import sys
 from os.path import join
 from pathlib import Path
@@ -11,6 +12,7 @@ from spatialdata_io import merscope
 data_path = sys.argv[1]
 save_path = sys.argv[2]
 
+assert any([".vzg" in file for file in os.listdir(save_path)]), "not correctly computed"
 sdata = merscope(
     data_path,
     vpt_outputs={
@@ -24,7 +26,7 @@ translation = read_csv(
     sep=" ",
     header=None,
 )
-sdata.write(join(save_path, "sdata.zarr"))
+sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
 sdata = read_zarr(join(save_path, "sdata.zarr"))
 
 write(

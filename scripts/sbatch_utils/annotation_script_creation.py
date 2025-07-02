@@ -14,15 +14,20 @@ Path(
 ).mkdir(parents=True, exist_ok=True)
 
 times = {}
+mem = {}
 for f in listdir(path):
     if f == "Negative_Control_Rastered_5":
         times[f] = "1-12:00:00"
+        mem[f] = "100G"
     elif "Baysor" in f:
         times[f] = "02:00:00"
+        mem[f] = "25G"
     elif f == "Negative_Control_Rastered_10" or f == "Negative_Control_Voronoi":
         times[f] = "04:00:00"
+        mem[f] = "25G"
     else:
         times[f] = "01:00:00"
+        mem[f] = "25G"
 
 for method in listdir(path):
     if isdir(join(path, method, "sdata.zarr")):
@@ -35,7 +40,7 @@ for method in listdir(path):
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t {times[method]}
-#SBATCH --mem=25G
+#SBATCH --mem={mem[method]}
 #SBATCH --cpus-per-task=5
 #SBATCH -J annotation_{sample}_{method}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/annotation_{sample}_{method}.out
