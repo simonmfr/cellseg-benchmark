@@ -17,10 +17,7 @@ from tifffile import imread
 from tqdm import tqdm
 
 from .ficture_utils import create_factor_level_image, parse_metadata
-from .metrics.ficture_intensities import ficture_intensities
-
-image_based = ["Cellpose", "Negative_Control"]
-
+from ._constants import image_based, methods_3D
 
 def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str):
     """Load and save a MERSCOPE sample as sdata with specified z_layers configuration. Only loads transcripts and mosaic_images."""
@@ -130,8 +127,6 @@ def integrate_segmentation_data(
     sdata_main: sd.SpatialData,
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
-    n_ficture: int = 21,
-    var: bool = True,
     logger: Optional[logging.Logger] = None,
 ):
     """Integrate segmentation data from multiple methods into the main spatial data object.
@@ -149,7 +144,6 @@ def integrate_segmentation_data(
     Returns:
         Updated sdata_main object
     """
-    ficture_arguments = prepare_ficture(data_path, sdata_path, n_ficture, logger=logger)
     for seg_method in tqdm(seg_methods):
         if logger is not None:
             logger.info(f"Adding {seg_method}...")
@@ -179,7 +173,7 @@ def integrate_segmentation_data(
 
         if f"boundaries_{seg_method}" not in sdata_main:
             sdata_main = build_shapes(
-                sdata, sdata_main, seg_method, write_to_disk=write_to_disk
+                sdata, sdata_main, seg_method, sdata_path, write_to_disk=write_to_disk
             )
         else:
             if logger:
@@ -228,18 +222,18 @@ def integrate_segmentation_data(
                     sdata_main = calculate_volume(
                         seg_method, sdata_main, sdata_path, write_to_disk=write_to_disk
                     )
-
-                if len(ficture_arguments) > 0:
-                    sdata_main = add_ficture(
-                        sdata,
-                        sdata_main,
+                if os.path.exists(
+                    join(
+                        sdata_path,
+                        "results",
                         seg_method,
-                        ficture_arguments,
-                        n_ficture,
-                        var,
-                        write_to_disk=write_to_disk,
+                        "Ficture_stats"
                     )
-
+                ):
+                    logger.info("Adding Ficture stats to {}...".format(seg_method))
+                    add_ficture(sdata_main, seg_method, sdata_path, write_to_disk=write_to_disk)
+                else:
+                    logger.warning("No Ficture_stats files found for {}. Skipping.".format(seg_method))
             elif len(sdata.tables) > 1:
                 if logger:
                     logger.warning(
@@ -277,11 +271,28 @@ def integrate_segmentation_data(
     return sdata_main
 
 
-def build_shapes(sdata, sdata_main, seg_method, write_to_disk, logger=None):
+def build_shapes(sdata, sdata_main, seg_method, sdata_path, write_to_disk, logger=None):
     """Insert shapes of segmentation method into sdata_main."""
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
 
-    if boundary_key in sdata.shapes.keys():
+    if seg_method.startswith("Proseg"):
+        path = join(
+            sdata_path,
+            "results",
+            seg_method,
+            "sdata.zarr",
+            ".sopa_cache",
+            "transcript_patches",
+            "0",
+            "cell-polygons-layers.geojson.gz",
+        )
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            geojson_text = f.read()
+        geojson_io = io.StringIO(geojson_text)
+        gdf = gpd.read_file(geojson_io)
+        gdf = gdf.merge(sdata.obs[["cell", "cell_id"]], left_on="cell", right_on="cell")
+        sdata_main[f"boundaries_{seg_method}"] = gdf
+    elif boundary_key in sdata.shapes.keys():
         sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
         if write_to_disk:
             if (
@@ -361,22 +372,16 @@ def add_cell_type_annotation(
 
 
 def add_ficture(
-    sdata, sdata_main, seg_method, ficture_arguments, n_ficture, var, write_to_disk
+    sdata_main, seg_method: str, sdata_path: str, write_to_disk
 ):
     """Add ficture information to sdata_main."""
-    stats = ficture_intensities(
-        sdata,
-        ficture_arguments[0],
-        seg_method,
-        n_ficture,
-        ficture_arguments[1],
-        var=var,
-    )
-    sdata_main[f"adata_{seg_method}"].obsm[f"ficture{n_ficture}_mean"] = stats[0]
-    if var:
-        sdata_main[f"adata_{seg_method}"].obsm[f"ficture{n_ficture}_variance"] = stats[
-            1
-        ]
+    adata = sdata_main[f"adata_{seg_method}"]
+    for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
+        name = file.split(".")[0]
+        adata.obsm[name] = pd.read_csv(join(sdata_path, "results", seg_method, "Ficture_stats",
+                                            file), index_col=0
+                                       )
+    sdata_main[f"adata_{seg_method}"].obs = adata
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
             update_element(sdata_main, f"adata_{seg_method}")
@@ -384,17 +389,13 @@ def add_ficture(
             sdata_main.write_element(f"adata_{seg_method}")
     return sdata_main
 
-
-methods_3D = ["Proseg"]
-
-
 def calculate_volume(
-    seg_method, sdata_main, sdata_path, write_to_disk=False, logger=None
+    seg_method: str, sdata_main, sdata_path, write_to_disk=False, logger=None
 ):  #
     """Calculate volume of sdata."""
     adata = sdata_main[f"adata_{seg_method}"]
-    if any([x in seg_method for x in methods_3D]):
-        if "Proseg" in seg_method:  # boundaries in microns
+    if any([seg_method.startswith(x) for x in methods_3D]):
+        if seg_method.startswith("Proseg"):  # boundaries in microns
             path = join(
                 sdata_path,
                 "results",
@@ -424,6 +425,21 @@ def calculate_volume(
             if "volume" in adata.obs.columns:
                 del adata.obs["volume"]
             tmp = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
+            tmp.index = adata.obs.index
+            adata.obs = tmp
+        elif seg_method.startswith("vpt_3D"):
+            boundaries = sdata_main.transform_element_to_coordinate_system(
+                f"boundaries_{seg_method}", target_coordinate_system="micron"
+            )
+            slice_height = (
+                    10 / boundaries[["ZIndex"]].groupby(level=0).count().max()
+            )
+            boundaries["volume_per_slice"] = [x.area * slice_height for x in boundaries["Geometry"]]
+            area = boundaries[["EntityID", "volume_per_slice"]].groupby("EntityID").sum()
+            area.rename(columns={"volume_per_slice": "volume"}, inplace=True)
+            if "volume" in adata.obs.columns:
+                del adata.obs["volume"]
+            tmp = adata.obs.merge(area, how="left", left_index=True, right_on="EntityID")
             tmp.index = adata.obs.index
             adata.obs = tmp
     else:
@@ -643,7 +659,7 @@ def pixel_to_microns(
 
 def prepare_ficture(
     data_path,
-    sdata_path,
+    results_path,
     n_ficture=21,
     logger=None,
     factors: Optional[List[int]] = None,
@@ -652,7 +668,7 @@ def prepare_ficture(
 
     Args:
         data_path: Path to merscope data
-        sdata_path: path to master sdata directory
+        results_path: path to Segmentation folder
         n_ficture: number of factors of ficture run
         logger: logger instance
         factors: if provided, only these ficture images will be generated.
@@ -669,9 +685,9 @@ def prepare_ficture(
         header=None,
     )
 
-    if "Ficture" not in os.listdir(join(sdata_path, "results")):
+    if "Ficture" not in os.listdir(results_path):
         return []
-    ficture_path = join(sdata_path, "results", "Ficture", "output")
+    ficture_path = join(results_path, "Ficture", "output")
     for file in listdir(ficture_path):
         if n_ficture == int(split(r"\.|F", file)[1]):
             ficture_path = join(ficture_path, file)

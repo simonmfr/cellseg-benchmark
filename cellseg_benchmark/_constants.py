@@ -1569,3 +1569,7 @@ gwas_hits = {
         "Col4a2",
     ],
 }
+
+methods_3D = ["Proseg", "vpt_3D"]
+
+image_based = ["Cellpose", "Negative_Control"]
