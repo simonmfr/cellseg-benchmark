@@ -103,8 +103,8 @@ if compute_ficture:
                     by="EntityID"
             ),  # project boundaries onto 2D
             bound["geometry"] = bound["geometry"].affine_transform(
-                [transform[0:0], transform[0:1], transform[1:0],
-                 transform[1:1], transform[0:2], transform[1:2]]
+                [transform[0,0], transform[0,1], transform[1,0],
+                 transform[1,1], transform[0,2], transform[1,2]]
             )
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(bound)
         elif not any([dir.startswith(x) for x in image_based]):
