@@ -60,5 +60,5 @@ for method in methods:
 cd ~/gitrepos/cellseg-benchmark
 git pull origin integration
 mamba activate cellseg_benchmark
-python scripts/merge_adata.py {method}
+python scripts/merge_adata.py foxf2 {method}
 """)
