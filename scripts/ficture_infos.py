@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 dask.config.set({"dataframe.query-planning": False})
 
-from spatialdata import SpatialData, read_zarr
+from spatialdata import SpatialData, read_zarr, transform
 from spatialdata.models import Image2DModel, ShapesModel
 from spatialdata.transformations import Affine, set_transformation
 
@@ -104,19 +104,21 @@ if compute_ficture:
         )
         boundary_key = tmp["table"].uns["spatialdata_attrs"]["region"]
         if dir.startswith("vpt_3D"):
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(
-                tmp[boundary_key][["EntityID", "geometry"]].dissolve(
+            bound = tmp[boundary_key][["EntityID", "geometry"]].dissolve(
                     by="EntityID"
-                ),  # project boundaries onto 2D
+            ),  # project boundaries onto 2D
+            bound["geometry"] = bound["geometry"].affine_transform(
+                [transform[0:0], transform[0:1], transform[1:0],
+                 transform[1:1], transform[0:2], transform[1:2]]
             )
-            set_transformation(
-                sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global"
-            )
+            sdata[f"boundaries_{dir}"] = ShapesModel.parse(bound)
         elif not any([dir.startswith(x) for x in image_based]):
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[boundary_key])
-            set_transformation(
-                sdata[f"boundaries_{dir}"], transform, to_coordinate_system="global"
-            )
+            bound = tmp[boundary_key]
+            bound["geometry"] = bound["geometry"].affine_transform(
+                [transform[0:0], transform[0:1], transform[1:0],
+                 transform[1:1], transform[0:2], transform[1:2]]
+                                                                   )
+            sdata[f"boundaries_{dir}"] = ShapesModel.parse(bound)
         else:
             sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[boundary_key])
     del tmp
