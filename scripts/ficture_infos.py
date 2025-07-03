@@ -93,11 +93,6 @@ if compute_ficture:
         sep=" ",
         header=None,
     ).values
-    transform = Affine(
-        transform,
-        input_axes=("x", "y"),
-        output_axes=("x", "y"),
-    )
     for dir in compute_ficture:
         tmp = read_zarr(
             join(results_path, dir, "sdata.zarr"), selection=("shapes", "tables")
