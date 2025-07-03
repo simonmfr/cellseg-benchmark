@@ -94,7 +94,9 @@ adata = integration_harmony(
 
 # Save result
 logger.info("Saving integrated object...")
-adata.obs["fov"] = adata.obs.get("fov", "").astype(str)
+if "fov" not in adata.obs.columns:
+    adata.obs["fov"] = ""
+adata.obs["fov"] = adata.obs["fov"].astype(str)
 output_path = save_path / "adatas"
 output_path.mkdir(parents=True, exist_ok=True)
 adata.write(output_path / "adata_integrated.h5ad.gz", compression="gzip")
