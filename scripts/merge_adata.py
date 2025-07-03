@@ -69,7 +69,7 @@ adata = merge_adatas(
     seg_method=args.seg_method,
     sample_paths_file=sample_paths_file,
     logger=logger,
-    plot_qc=True,
+    plot_qc_stats=True,
     save_path=save_path / "plots",
 )
 del sdata_list
