@@ -5,8 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="048a8a57-1aa6-47da-ad84-3860fc806524" name="Changes" comment="sdata save issue fix">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/notebooks/ficture_stats.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ficture_stats.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/sbatch_utils/ficture_infos_script_creation.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/sbatch_utils/ficture_infos_script_creation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/ficture_infos.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/ficture_infos.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
