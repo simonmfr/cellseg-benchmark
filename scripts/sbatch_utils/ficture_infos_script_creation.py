@@ -20,7 +20,8 @@ for key, value in data.items():
     f.write(f"""#!/bin/bash
 
 #SBATCH -p lrz-hgx-a100-80x4
-#SBATCH -t 1-00:00:00
+#SBATCH --exclude=lrz-hgx-a100-002
+#SBATCH -t 03:00:00
 #SBATCH --mem=900G
 #SBATCH --gres=gpu:1
 #SBATCH -J ficture_stats_{key}
