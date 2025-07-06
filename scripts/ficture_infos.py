@@ -97,7 +97,7 @@ if compute_ficture:
         tmp = read_zarr(
             join(results_path, dir, "sdata.zarr"), selection=("shapes", "tables")
         )
-        boundary_key = tmp["table"].uns["spatialdata_attrs"]["region"]
+        boundary_key = tmp[list(tmp.tables.keys())[0]].uns["spatialdata_attrs"]["region"]
         if dir.startswith("vpt_3D"):
             bound = tmp[boundary_key][["EntityID", "geometry"]].dissolve(
                     by="EntityID"
