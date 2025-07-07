@@ -26,8 +26,10 @@ def compute_f1(data, correct_celltypes=None):
                 FN = 1 - TP - FP
                 f1_stats[i, j] = f1_score(TP, FP, FN)
 
-        return pd.DataFrame(f1_stats, index=data["cell type"].unique(),
-                            columns=data.drop(columns=["cell type"]).columns)
+        f1_stats = pd.DataFrame(f1_stats, index=data["cell type"].unique(),
+                                columns=data.drop(columns=["cell type"]).columns)
+        f1_stats.sort_index(inplace=True)
+        return f1_stats
 
     rates = {}
 
