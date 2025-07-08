@@ -7,9 +7,8 @@
     <list default="true" id="048a8a57-1aa6-47da-ad84-3860fc806524" name="Changes" comment="sdata save issue fix">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/cellseg_benchmark/metrics/F1_score.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/metrics/F1_score.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/sdata_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/sdata_utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/notebooks/ficture_stats.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ficture_stats.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/ficture_infos.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/ficture_infos.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/sbatch_utils/ficture_infos_script_creation.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/sbatch_utils/ficture_infos_script_creation.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -158,7 +157,7 @@
       <workItem from="1748850814108" duration="2511000" />
       <workItem from="1748878978770" duration="8404000" />
       <workItem from="1751826943532" duration="1113000" />
-      <workItem from="1751879678419" duration="28857000" />
+      <workItem from="1751879678419" duration="33107000" />
     </task>
     <servers />
   </component>
