@@ -12,9 +12,8 @@ from tqdm import tqdm
 
 dask.config.set({"dataframe.query-planning": False})
 
-from spatialdata import SpatialData, read_zarr, transform
+from spatialdata import SpatialData, read_zarr
 from spatialdata.models import Image2DModel, ShapesModel
-from spatialdata.transformations import Affine, set_transformation
 
 from cellseg_benchmark._constants import image_based
 from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
@@ -93,12 +92,12 @@ if compute_ficture:
         sep=" ",
         header=None,
     ).values
-    for dir in compute_ficture:
+    for method in compute_ficture:
         tmp = read_zarr(
-            join(results_path, dir, "sdata.zarr"), selection=("shapes", "tables")
+            join(results_path, method, "sdata.zarr"), selection=("shapes", "tables")
         )
         boundary_key = tmp[list(tmp.tables.keys())[0]].uns["spatialdata_attrs"]["region"]
-        if dir.startswith("vpt_3D"):
+        if method.startswith("vpt_3D"):
             bound = tmp[boundary_key][["EntityID", "geometry"]].dissolve(
                     by="EntityID"
             )  # project boundaries onto 2D
@@ -106,16 +105,9 @@ if compute_ficture:
                 [transform[0,0], transform[0,1], transform[1,0],
                  transform[1,1], transform[0,2], transform[1,2]]
                 )
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(bound)
-        elif not any([dir.startswith(x) for x in image_based]):
-            bound = tmp[boundary_key]
-            bound["geometry"] = bound["geometry"].affine_transform(
-                [transform[0,0], transform[0,1], transform[1,0],
-                 transform[1,1], transform[0,2], transform[1,2]]
-                )
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(bound)
+            sdata[f"boundaries_{method}"] = ShapesModel.parse(bound)
         else:
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[boundary_key])
+            sdata[f"boundaries_{method}"] = ShapesModel.parse(tmp[boundary_key])
     del tmp
 
     for key in tqdm(sdata.shapes.keys()):

@@ -690,7 +690,7 @@ def prepare_ficture(
         header=None,
     )
 
-    if "Ficture" not in os.listdir(results_path):
+    if "Ficture" not in listdir(results_path):
         return []
     ficture_path = join(results_path, "Ficture", "output")
     for file in listdir(ficture_path):
@@ -712,6 +712,7 @@ def prepare_ficture(
     scale = float(metadata["SCALE"])
     offset_x = float(metadata["OFFSET_X"])
     offset_y = float(metadata["OFFSET_Y"])
+    #assume, that transform[0,1], transform[1,0] = 0
     ficture_pixels["X_pixel"] = (
         ficture_pixels["X"] / scale * transform.iloc[0, 0]
         + offset_x * transform.iloc[0, 0]
