@@ -86,7 +86,8 @@ if compute_ficture:
     sdata = SpatialData()
     sdata["ficture_image_1"] = Image2DModel.parse(area_covered)
 #    sdata["ficture_image_2"] = Image2DModel.parse(stats[0])
-    del area_covered, stats
+#    del area_covered, stats
+    del area_covered,
 
     logger.info("Read shapes")
     transform = pd.read_csv(
