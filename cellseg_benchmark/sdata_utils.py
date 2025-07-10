@@ -727,8 +727,8 @@ def prepare_ficture(
 
     unique_factors = (
         list(np.unique(ficture_pixels["K1"]))
-        + list(np.unique(ficture_pixels["K2"]))
-        + list(np.unique(ficture_pixels["K3"]))
+#        + list(np.unique(ficture_pixels["K2"]))
+#        + list(np.unique(ficture_pixels["K3"]))
     )
     unique_factors = list(set(unique_factors))
     if factors is not None:

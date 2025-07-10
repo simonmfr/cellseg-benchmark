@@ -21,7 +21,7 @@ for key, value in data.items():
 
 #SBATCH -p lrz-hgx-a100-80x4
 #SBATCH --exclude=lrz-hgx-a100-002
-#SBATCH -t 06:00:00
+#SBATCH -t 09:00:00
 #SBATCH --mem=900G
 #SBATCH --gres=gpu:1
 #SBATCH -J ficture_stats_{key}
