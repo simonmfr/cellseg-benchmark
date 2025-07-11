@@ -1,13 +1,16 @@
 import gzip
+from typing import Dict
 
+from dask.dataframe import DataFrame
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+from scipy.spatial import KDTree
 from spatialdata.models import PointsModel
 from tqdm import tqdm
 
 
-def parse_metadata(file_path):
+def parse_metadata(file_path: str) -> Dict[str, str]:
     """Parse metadata from the first three lines of FICTURE pixel-level tsv.gz file.
 
     Args:
@@ -28,7 +31,7 @@ def parse_metadata(file_path):
     return metadata
 
 
-def load_pixel_tsv(file_path, skiprows=3, chunksize=10000):
+def load_pixel_tsv(file_path: str, skiprows: int=3, chunksize: int=10000) -> pd.DataFrame:
     """Load FICTURE pixel-level tsv.gz file with progress bar.
 
     Args:
@@ -56,7 +59,7 @@ def load_pixel_tsv(file_path, skiprows=3, chunksize=10000):
         )
 
 
-def process_coordinates(df, metadata):
+def process_coordinates(df: pd.DataFrame, metadata: Dict[str, str]) -> pd.DataFrame:
     """Transform FICTURE pixel coordinates to micrometer scale and rename columns.
 
     Args:
@@ -76,7 +79,7 @@ def process_coordinates(df, metadata):
     return df.rename(columns={"X_um": "x", "Y_um": "y", "X": "X_px", "Y": "Y_px"})
 
 
-def get_pixel_level_factors(pixel_level_factors_file):
+def get_pixel_level_factors(pixel_level_factors_file: str) -> DataFrame:
     """Load and format FICTURE pixel-level file to micrometer scale and return a parsed SpatialData PointsModel.
 
     Args:
@@ -91,7 +94,7 @@ def get_pixel_level_factors(pixel_level_factors_file):
     return PointsModel.parse(dask_df)
 
 
-def get_transcript_level_factors(transcripts, tree, df, metadata, current_factor):
+def get_transcript_level_factors(transcripts: pd.DataFrame, tree: KDTree, df: pd.DataFrame, metadata: pd.DataFrame, current_factor: int) -> pd.DataFrame:
     """Assigns factor values to transcripts based on their nearest spatial location."""
     # query tree to get nearest pixels and according factor assignment
     query = np.array([transcripts["x"], transcripts["y"]]).T
@@ -103,7 +106,7 @@ def get_transcript_level_factors(transcripts, tree, df, metadata, current_factor
     return transcripts.assign(**{f"{current_factor}_factors": factor})
 
 
-def create_factor_level_image(data, factor, DAPI_shape) -> np.ndarray:
+def create_factor_level_image(data, factor, DAPI_shape, top_n_factors: int) -> np.ndarray:
     """Compute image for given factor.
 
     Args:
@@ -114,9 +117,15 @@ def create_factor_level_image(data, factor, DAPI_shape) -> np.ndarray:
     Returns: image of factor
 
     """
-    K1_ind = data["K1"] == factor
-    K1 = data[K1_ind]
-    K1["probability"] = K1["P1"].copy()
+    filtered_data = []
+    for i in range(1, top_n_factors + 1):
+        filtered_data.append(pd.concat([
+            data.loc[data[f"K{i}"] == factor, ["Y_pixel", "X_pixel"]],
+            data.loc[data[f"K{i}"] == factor, f"P{i}"].rename(columns={f"P{i}": "probability"}
+                                                              , inplace=False)
+        ], axis=1)
+        )
+    filtered_data = pd.concat(filtered_data, axis=0)
 
 #    K2_ind = data["K2"] == factor
 #    K2 = data[K2_ind]
@@ -130,8 +139,8 @@ def create_factor_level_image(data, factor, DAPI_shape) -> np.ndarray:
 #        ["Y_pixel", "X_pixel", "probability"]
 #    ]
 #    del K1, K2, K3
-    filtered_data = K1[["Y_pixel", "X_pixel", "probability"]]
-    del K1
+#    filtered_data = K1[["Y_pixel", "X_pixel", "probability"]]
+#    del K1
 
     bins_y = np.linspace(0, DAPI_shape[1], num=DAPI_shape[1] + 1)
     bins_x = np.linspace(0, DAPI_shape[0], num=DAPI_shape[0] + 1)
