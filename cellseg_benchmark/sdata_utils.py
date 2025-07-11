@@ -665,6 +665,7 @@ def pixel_to_microns(
 def prepare_ficture(
     data_path,
     results_path,
+    top_n_factors=3,
     n_ficture=21,
     logger=None,
     factors: Optional[List[int]] = None,
@@ -725,12 +726,17 @@ def prepare_ficture(
     )
     del transform, metadata
 
-    unique_factors = (
-        list(np.unique(ficture_pixels["K1"]))
+#    unique_factors = (
+#        list(np.unique(ficture_pixels["K1"]))
 #        + list(np.unique(ficture_pixels["K2"]))
 #        + list(np.unique(ficture_pixels["K3"]))
-    )
-    unique_factors = list(set(unique_factors))
+#    )
+#    unique_factors = list(set(unique_factors))
+    unique_factors = set()
+    for i in range(1, top_n_factors + 1):
+        unique_factors= unique_factors.union(set(np.unique(ficture_pixels[f"K{i}"])))
+    unique_factors = list(unique_factors)
+
     if factors is not None:
         assert all([x in unique_factors for x in factors])
         unique_factors = list(set(factors))
