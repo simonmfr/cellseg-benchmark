@@ -40,11 +40,11 @@ results_path = join(
 
 logger.info("Check Segementations for prior ficture results.")
 compute_ficture = []
-for dir in os.listdir(results_path):
-    if exists(join(results_path, dir, "sdata.zarr")):
+for method in os.listdir(results_path):
+    if exists(join(results_path, method, "sdata.zarr")):
         if recompute:
             compute_ficture.append(dir)
-        elif not isdir(join(results_path, dir, "Ficture_stats")):
+        elif not isdir(join(results_path, method, "Ficture_stats")):
             compute_ficture.append(dir)
 
 recompute_gen_stats = not exists(join(results_path, "Ficture", "general_stats.csv"))
@@ -61,10 +61,10 @@ logger.info("Preparing Ficture")
 stats = prepare_ficture(data_path, results_path, top_n_factors=1, logger=logger)
 
 logger.info("Converting images")
-area_covered = stats[0] > 0
+area_covered = stats["images"] > 0
 del stats
 stats = prepare_ficture(data_path, results_path, logger=logger)
-stats[0] = stats[0].astype(np.float16) / (
+stats["images"] = stats["images"].astype(np.float16) / (
     np.finfo(np.float16).max.astype(np.uint16) - 5
 )  # reverse ficture normalization
 if recompute_gen_stats:
@@ -86,7 +86,7 @@ if compute_ficture:
     logger.info("Build temporary SpatialData")
     sdata = SpatialData()
     sdata["ficture_image_1"] = Image2DModel.parse(area_covered)
-    sdata["ficture_image_2"] = Image2DModel.parse(stats[0])
+    sdata["ficture_image_2"] = Image2DModel.parse(stats["images"])
     del area_covered, stats
 #    del area_covered,
 

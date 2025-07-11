@@ -1,3 +1,5 @@
+from typing import Tuple, Union
+
 import dask
 import geopandas as gpd
 import numpy as np
@@ -20,7 +22,7 @@ def ficture_intensities(
     n_factors: int,
     unique_factors: list,
     var: bool = True,
-):
+) -> Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]:
     """Compute the mean and optionally the variance of the ficture intensities per cell.
 
     Args:

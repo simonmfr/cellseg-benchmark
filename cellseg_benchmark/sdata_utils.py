@@ -5,7 +5,7 @@ import os
 from os import listdir
 from os.path import join
 from re import split
-from typing import List, Optional
+from typing import List, Optional, Union, Dict
 
 import geopandas as gpd
 import numpy as np
@@ -20,7 +20,7 @@ from ._constants import image_based, methods_3D
 from .ficture_utils import create_factor_level_image, parse_metadata
 
 
-def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str):
+def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str) -> None:
     """Load and save a MERSCOPE sample as sdata with specified z_layers configuration. Only loads transcripts and mosaic_images."""
     if zmode not in {"z3", "3d"}:
         raise ValueError(f"Invalid zmode: {zmode}")
@@ -71,8 +71,8 @@ def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str
 
 
 def process_merlin_segmentation(
-    sample_name, sample_paths, sdata_main, write_to_disk=True
-):
+    sample_name: str, sample_paths: Dict[str], sdata_main: sd.SpatialData, write_to_disk: bool=True
+)-> None:
     """Process Merlin-specific segmentation data and add it to the main spatial data object.
 
     Args:
@@ -129,7 +129,7 @@ def integrate_segmentation_data(
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
-):
+) -> sd.SpatialData:
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
     Args:
@@ -138,8 +138,6 @@ def integrate_segmentation_data(
         sdata_main: Main spatial data object to update
         write_to_disk: Whether to write elements to disk immediately
         data_path: Optional path to directory to get transformation for adatas
-        n_ficture: Number of fictures
-        var: Whether to compute variance of ficture factors
         logger: Optional logger object to write messages to console
 
     Returns:
@@ -273,7 +271,8 @@ def integrate_segmentation_data(
     return sdata_main
 
 
-def build_shapes(sdata, sdata_main, seg_method, sdata_path, write_to_disk, logger=None):
+def build_shapes(sdata: sd.SpatialData, sdata_main: sd.SpatialData, seg_method: str, sdata_path: str,
+                 write_to_disk: bool, logger: logging.Logger=None):
     """Insert shapes of segmentation method into sdata_main."""
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
 
@@ -292,7 +291,7 @@ def build_shapes(sdata, sdata_main, seg_method, sdata_path, write_to_disk, logge
             geojson_text = f.read()
         geojson_io = io.StringIO(geojson_text)
         gdf = gpd.read_file(geojson_io)
-        gdf = gdf.merge(sdata.obs[["cell", "cell_id"]], left_on="cell", right_on="cell")
+        gdf = gdf.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
         sdata_main[f"boundaries_{seg_method}"] = gdf
     elif boundary_key in sdata.shapes.keys():
         sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
@@ -320,8 +319,8 @@ def build_shapes(sdata, sdata_main, seg_method, sdata_path, write_to_disk, logge
 
 
 def add_cell_type_annotation(
-    sdata_main, sdata_path: str, seg_method, write_to_disk, logger=None
-):
+    sdata_main: sd.SpatialData, sdata_path: str, seg_method: str, write_to_disk: bool, logger: logging.Logger=None
+) -> sd.SpatialData:
     """Add cell type annotations to sdata_main, including adding volumes."""
     cell_type_information = [
         "cell_type_mmc_incl_low_quality_revised",
@@ -373,7 +372,7 @@ def add_cell_type_annotation(
     return sdata_main
 
 
-def add_ficture(sdata_main, seg_method: str, sdata_path: str, write_to_disk):
+def add_ficture(sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, write_to_disk: bool) -> sd.SpatialData:
     """Add ficture information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
@@ -391,8 +390,8 @@ def add_ficture(sdata_main, seg_method: str, sdata_path: str, write_to_disk):
 
 
 def calculate_volume(
-    seg_method: str, sdata_main, sdata_path, write_to_disk=False, logger=None
-):  #
+    seg_method: str, sdata_main: sd.SpatialData, sdata_path: str, write_to_disk=False, logger=None
+) -> sd.SpatialData:  #
     """Calculate volume of sdata."""
     adata = sdata_main[f"adata_{seg_method}"]
     if any([seg_method.startswith(x) for x in methods_3D]):
@@ -470,7 +469,7 @@ def calculate_volume(
 
 def assign_transformations(
     sdata_main: sd.SpatialData, seg_method: str, write_to_disk: bool
-):
+) -> None:
     """Assign transformations to spatial data.
 
     Args:
@@ -516,7 +515,7 @@ def assign_transformations(
     return
 
 
-def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
+def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path: str) -> None:
     """Add coordinate transforms to adata.
 
     Args:
@@ -561,7 +560,7 @@ def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path):
     return
 
 
-def update_element(sdata, element_name):
+def update_element(sdata: sd.SpatialData, element_name: str) -> None:
     """Workaround for updating a backed element in sdata.
 
     Adapted from https://github.com/scverse/spatialdata/blob/main/tests/io/test_readwrite.py#L156
@@ -595,7 +594,7 @@ def pixel_to_microns(
     shape_patterns: List[str] = None,
     exclude_patterns: List[str] = None,
     overwrite: bool = False,
-):
+) -> None:
     """Transform Cellpose boundaries from pixels to microns.
 
     Parameters:
@@ -663,13 +662,13 @@ def pixel_to_microns(
 
 
 def prepare_ficture(
-    data_path,
-    results_path,
-    top_n_factors=3,
-    n_ficture=21,
-    logger=None,
+    data_path: str,
+    results_path: str,
+    top_n_factors: int=3,
+    n_ficture: int=21,
+    logger: logging.Logger=None,
     factors: Optional[List[int]] = None,
-):
+) -> Dict[str, Union[np.ndarray, List[int]]]:
     """Generate ficture images stack and other ficture information.
 
     Args:
@@ -692,7 +691,7 @@ def prepare_ficture(
     )
 
     if "Ficture" not in listdir(results_path):
-        return []
+        return {}
     ficture_path = join(results_path, "Ficture", "output")
     for file in listdir(ficture_path):
         if n_ficture == int(split(r"\.|F", file)[1]):
@@ -726,12 +725,6 @@ def prepare_ficture(
     )
     del transform, metadata
 
-#    unique_factors = (
-#        list(np.unique(ficture_pixels["K1"]))
-#        + list(np.unique(ficture_pixels["K2"]))
-#        + list(np.unique(ficture_pixels["K3"]))
-#    )
-#    unique_factors = list(set(unique_factors))
     unique_factors = set()
     for i in range(1, top_n_factors + 1):
         unique_factors= unique_factors.union(set(np.unique(ficture_pixels[f"K{i}"])))
@@ -747,14 +740,14 @@ def prepare_ficture(
         try:
             image_stack
         except NameError:
-            image_stack = create_factor_level_image(ficture_pixels, factor, DAPI_shape)
+            image_stack = create_factor_level_image(ficture_pixels, factor, DAPI_shape, top_n_factors)
         else:
             image_stack = np.concatenate(
                 (
                     image_stack,
-                    create_factor_level_image(ficture_pixels, factor, DAPI_shape),
+                    create_factor_level_image(ficture_pixels, factor, DAPI_shape, top_n_factors),
                 ),
                 axis=0,
                 dtype=np.uint16,
             )
-    return [image_stack, unique_factors]
+    return {"images":image_stack, "factors": unique_factors}
