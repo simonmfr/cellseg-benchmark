@@ -71,7 +71,7 @@ def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str
 
 
 def process_merlin_segmentation(
-    sample_name: str, sample_paths: Dict[str], sdata_main: sd.SpatialData, write_to_disk: bool=True
+    sample_name: str, sample_paths: Dict[str, str], sdata_main: sd.SpatialData, write_to_disk: bool=True
 )-> None:
     """Process Merlin-specific segmentation data and add it to the main spatial data object.
 
