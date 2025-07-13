@@ -43,9 +43,9 @@ compute_ficture = []
 for method in os.listdir(results_path):
     if exists(join(results_path, method, "sdata.zarr")):
         if recompute:
-            compute_ficture.append(dir)
+            compute_ficture.append(method)
         elif not isdir(join(results_path, method, "Ficture_stats")):
-            compute_ficture.append(dir)
+            compute_ficture.append(method)
 
 recompute_gen_stats = not exists(join(results_path, "Ficture", "general_stats.csv"))
 
