@@ -121,7 +121,7 @@ def create_factor_level_image(data, factor, DAPI_shape, top_n_factors: int) -> n
     for i in range(1, top_n_factors + 1):
         filtered_data.append(pd.concat([
             data.loc[data[f"K{i}"] == factor, ["Y_pixel", "X_pixel"]],
-            data.loc[data[f"K{i}"] == factor, f"P{i}"].rename(columns={f"P{i}": "probability"}
+            data.loc[data[f"K{i}"] == factor, f"P{i}"].rename(f"P{i}": "probability"
                                                               , inplace=False)
         ], axis=1)
         )
