@@ -380,7 +380,7 @@ def add_ficture(sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, wr
         adata.obsm[name] = pd.read_csv(
             join(sdata_path, "results", seg_method, "Ficture_stats", file), index_col=0
         )
-    sdata_main[f"adata_{seg_method}"].obs = adata
+    sdata_main[f"adata_{seg_method}"] = adata
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
             update_element(sdata_main, f"adata_{seg_method}")
