@@ -13,6 +13,7 @@ import pandas as pd
 import spatialdata as sd
 import spatialdata_io
 from spatialdata.transformations import Identity, get_transformation, set_transformation
+from spatialdata.models import ShapesModel
 from tifffile import imread
 from tqdm import tqdm
 
@@ -292,7 +293,8 @@ def build_shapes(sdata: sd.SpatialData, sdata_main: sd.SpatialData, seg_method: 
         geojson_io = io.StringIO(geojson_text)
         gdf = gpd.read_file(geojson_io)
         gdf = gdf.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
-        sdata_main[f"boundaries_{seg_method}"] = gdf
+        sdata_main[f"boundaries_{seg_method}"] = ShapesModel.parse(gdf)
+        assign_transformations(sdata_main, seg_method, write_to_disk)
     elif boundary_key in sdata.shapes.keys():
         sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
         if write_to_disk:
@@ -372,7 +374,7 @@ def add_cell_type_annotation(
     return sdata_main
 
 
-def add_ficture(sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, write_to_disk: bool, logger: logging.Logger=None) -> sd.SpatialData:
+def add_ficture(sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, write_to_disk: bool) -> sd.SpatialData:
     """Add ficture information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
