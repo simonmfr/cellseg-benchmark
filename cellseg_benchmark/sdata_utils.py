@@ -375,16 +375,13 @@ def add_cell_type_annotation(
 def add_ficture(sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, write_to_disk: bool, logger: logging.Logger=None) -> sd.SpatialData:
     """Add ficture information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
-    adata_index = set(adata.obs.index)
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
         name = file.split(".")[0]
         ficture_stats = pd.read_csv(
             join(sdata_path, "results", seg_method, "Ficture_stats", file), index_col=0
         )
-        drop_index = list(set(ficture_stats.index)-adata_index)
-        if logger and drop_index:
-            logger.warning(f"dropped {len(drop_index)} ficture stats for {seg_method}")
-        adata.obsm[name] = ficture_stats.drop(drop_index, inplace=False)
+        ficture_stats.index = ficture_stats.index.astype(str)
+        adata.obsm[name] = ficture_stats
     sdata_main[f"adata_{seg_method}"] = adata
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
