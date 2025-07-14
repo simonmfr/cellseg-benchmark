@@ -1,10 +1,10 @@
 import gzip
 from typing import Dict
 
-from dask.dataframe import DataFrame
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+from dask.dataframe import DataFrame
 from scipy.spatial import KDTree
 from spatialdata.models import PointsModel
 from tqdm import tqdm
@@ -31,7 +31,9 @@ def parse_metadata(file_path: str) -> Dict[str, str]:
     return metadata
 
 
-def load_pixel_tsv(file_path: str, skiprows: int=3, chunksize: int=10000) -> pd.DataFrame:
+def load_pixel_tsv(
+    file_path: str, skiprows: int = 3, chunksize: int = 10000
+) -> pd.DataFrame:
     """Load FICTURE pixel-level tsv.gz file with progress bar.
 
     Args:
@@ -94,7 +96,13 @@ def get_pixel_level_factors(pixel_level_factors_file: str) -> DataFrame:
     return PointsModel.parse(dask_df)
 
 
-def get_transcript_level_factors(transcripts: pd.DataFrame, tree: KDTree, df: pd.DataFrame, metadata: pd.DataFrame, current_factor: int) -> pd.DataFrame:
+def get_transcript_level_factors(
+    transcripts: pd.DataFrame,
+    tree: KDTree,
+    df: pd.DataFrame,
+    metadata: pd.DataFrame,
+    current_factor: int,
+) -> pd.DataFrame:
     """Assigns factor values to transcripts based on their nearest spatial location."""
     # query tree to get nearest pixels and according factor assignment
     query = np.array([transcripts["x"], transcripts["y"]]).T
@@ -106,40 +114,49 @@ def get_transcript_level_factors(transcripts: pd.DataFrame, tree: KDTree, df: pd
     return transcripts.assign(**{f"{current_factor}_factors": factor})
 
 
-def create_factor_level_image(data, factor, DAPI_shape, top_n_factors: int) -> np.ndarray:
+def create_factor_level_image(
+    data, factor, DAPI_shape, top_n_factors: int
+) -> np.ndarray:
     """Compute image for given factor.
 
     Args:
         data: ficture data
         factor: factor to compute image for
         DAPI_shape: target shape
+        top_n_factors: number of top factors work with
 
     Returns: image of factor
 
     """
     filtered_data = []
     for i in range(1, top_n_factors + 1):
-        filtered_data.append(pd.concat([
-            data.loc[data[f"K{i}"] == factor, ["Y_pixel", "X_pixel"]],
-            data.loc[data[f"K{i}"] == factor, f"P{i}"].rename("probability" , inplace=False)
-        ], axis=1)
+        filtered_data.append(
+            pd.concat(
+                [
+                    data.loc[data[f"K{i}"] == factor, ["Y_pixel", "X_pixel"]],
+                    data.loc[data[f"K{i}"] == factor, f"P{i}"].rename(
+                        "probability", inplace=False
+                    ),
+                ],
+                axis=1,
+            )
         )
     filtered_data = pd.concat(filtered_data, axis=0)
 
-#    K2_ind = data["K2"] == factor
-#    K2 = data[K2_ind]
-#    K2["probability"] = K2["P2"].copy()
+    #    K2_ind = data["K2"] == factor
+    #    K2 = data[K2_ind]
+    #    K2["probability"] = K2["P2"].copy()
 
-#    K3_ind = data["K3"] == factor
-#    K3 = data[K3_ind]
-#    K3["probability"] = K3["P3"].copy()
+    #    K3_ind = data["K3"] == factor
+    #    K3 = data[K3_ind]
+    #    K3["probability"] = K3["P3"].copy()
 
-#    filtered_data = pd.concat([K1, K2, K3], axis=0)[
-#        ["Y_pixel", "X_pixel", "probability"]
-#    ]
-#    del K1, K2, K3
-#    filtered_data = K1[["Y_pixel", "X_pixel", "probability"]]
-#    del K1
+    #    filtered_data = pd.concat([K1, K2, K3], axis=0)[
+    #        ["Y_pixel", "X_pixel", "probability"]
+    #    ]
+    #    del K1, K2, K3
+    #    filtered_data = K1[["Y_pixel", "X_pixel", "probability"]]
+    #    del K1
 
     bins_y = np.linspace(0, DAPI_shape[1], num=DAPI_shape[1] + 1)
     bins_x = np.linspace(0, DAPI_shape[0], num=DAPI_shape[0] + 1)

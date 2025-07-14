@@ -5,15 +5,15 @@ import os
 from os import listdir
 from os.path import join
 from re import split
-from typing import List, Optional, Union, Dict
+from typing import Dict, List, Optional, Union
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import spatialdata as sd
 import spatialdata_io
-from spatialdata.transformations import Identity, get_transformation, set_transformation
 from spatialdata.models import ShapesModel
+from spatialdata.transformations import Identity, get_transformation, set_transformation
 from tifffile import imread
 from tqdm import tqdm
 
@@ -21,7 +21,9 @@ from ._constants import image_based, methods_3D
 from .ficture_utils import create_factor_level_image, parse_metadata
 
 
-def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str) -> None:
+def process_merscope(
+    sample_name: str, data_dir: str, data_path: str, zmode: str
+) -> None:
     """Load and save a MERSCOPE sample as sdata with specified z_layers configuration. Only loads transcripts and mosaic_images."""
     if zmode not in {"z3", "3d"}:
         raise ValueError(f"Invalid zmode: {zmode}")
@@ -72,8 +74,11 @@ def process_merscope(sample_name: str, data_dir: str, data_path: str, zmode: str
 
 
 def process_merlin_segmentation(
-    sample_name: str, sample_paths: Dict[str, str], sdata_main: sd.SpatialData, write_to_disk: bool=True
-)-> None:
+    sample_name: str,
+    sample_paths: Dict[str, str],
+    sdata_main: sd.SpatialData,
+    write_to_disk: bool = True,
+) -> None:
     """Process Merlin-specific segmentation data and add it to the main spatial data object.
 
     Args:
@@ -272,8 +277,14 @@ def integrate_segmentation_data(
     return sdata_main
 
 
-def build_shapes(sdata: sd.SpatialData, sdata_main: sd.SpatialData, seg_method: str, sdata_path: str,
-                 write_to_disk: bool, logger: logging.Logger=None):
+def build_shapes(
+    sdata: sd.SpatialData,
+    sdata_main: sd.SpatialData,
+    seg_method: str,
+    sdata_path: str,
+    write_to_disk: bool,
+    logger: logging.Logger = None,
+):
     """Insert shapes of segmentation method into sdata_main."""
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
 
@@ -321,7 +332,11 @@ def build_shapes(sdata: sd.SpatialData, sdata_main: sd.SpatialData, seg_method: 
 
 
 def add_cell_type_annotation(
-    sdata_main: sd.SpatialData, sdata_path: str, seg_method: str, write_to_disk: bool, logger: logging.Logger=None
+    sdata_main: sd.SpatialData,
+    sdata_path: str,
+    seg_method: str,
+    write_to_disk: bool,
+    logger: logging.Logger = None,
 ) -> sd.SpatialData:
     """Add cell type annotations to sdata_main, including adding volumes."""
     cell_type_information = [
@@ -374,7 +389,9 @@ def add_cell_type_annotation(
     return sdata_main
 
 
-def add_ficture(sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, write_to_disk: bool) -> sd.SpatialData:
+def add_ficture(
+    sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, write_to_disk: bool
+) -> sd.SpatialData:
     """Add ficture information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
@@ -394,7 +411,11 @@ def add_ficture(sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, wr
 
 
 def calculate_volume(
-    seg_method: str, sdata_main: sd.SpatialData, sdata_path: str, write_to_disk=False, logger=None
+    seg_method: str,
+    sdata_main: sd.SpatialData,
+    sdata_path: str,
+    write_to_disk=False,
+    logger=None,
 ) -> sd.SpatialData:  #
     """Calculate volume of sdata."""
     adata = sdata_main[f"adata_{seg_method}"]
@@ -519,7 +540,9 @@ def assign_transformations(
     return
 
 
-def transform_adata(sdata_main: sd.SpatialData, seg_method: str, data_path: str) -> None:
+def transform_adata(
+    sdata_main: sd.SpatialData, seg_method: str, data_path: str
+) -> None:
     """Add coordinate transforms to adata.
 
     Args:
@@ -668,9 +691,9 @@ def pixel_to_microns(
 def prepare_ficture(
     data_path: str,
     results_path: str,
-    top_n_factors: int=3,
-    n_ficture: int=21,
-    logger: logging.Logger=None,
+    top_n_factors: int = 3,
+    n_ficture: int = 21,
+    logger: logging.Logger = None,
     factors: Optional[List[int]] = None,
 ) -> Dict[str, Union[np.ndarray, List[int]]]:
     """Generate ficture images stack and other ficture information.
@@ -678,6 +701,7 @@ def prepare_ficture(
     Args:
         data_path: Path to merscope data
         results_path: path to Segmentation folder
+        top_n_factors: only consider top n factors for ficture picture
         n_ficture: number of factors of ficture run
         logger: logger instance
         factors: if provided, only these ficture images will be generated.
@@ -716,7 +740,7 @@ def prepare_ficture(
     scale = float(metadata["SCALE"])
     offset_x = float(metadata["OFFSET_X"])
     offset_y = float(metadata["OFFSET_Y"])
-    #assume, that transform[0,1], transform[1,0] = 0
+    # assume, that transform[0,1], transform[1,0] = 0
     ficture_pixels["X_pixel"] = (
         ficture_pixels["X"] / scale * transform.iloc[0, 0]
         + offset_x * transform.iloc[0, 0]
@@ -731,7 +755,7 @@ def prepare_ficture(
 
     unique_factors = set()
     for i in range(1, top_n_factors + 1):
-        unique_factors= unique_factors.union(set(np.unique(ficture_pixels[f"K{i}"])))
+        unique_factors = unique_factors.union(set(np.unique(ficture_pixels[f"K{i}"])))
     unique_factors = list(unique_factors)
 
     if factors is not None:
@@ -744,14 +768,18 @@ def prepare_ficture(
         try:
             image_stack
         except NameError:
-            image_stack = create_factor_level_image(ficture_pixels, factor, DAPI_shape, top_n_factors)
+            image_stack = create_factor_level_image(
+                ficture_pixels, factor, DAPI_shape, top_n_factors
+            )
         else:
             image_stack = np.concatenate(
                 (
                     image_stack,
-                    create_factor_level_image(ficture_pixels, factor, DAPI_shape, top_n_factors),
+                    create_factor_level_image(
+                        ficture_pixels, factor, DAPI_shape, top_n_factors
+                    ),
                 ),
                 axis=0,
                 dtype=np.uint16,
             )
-    return {"images":image_stack, "factors": unique_factors}
+    return {"images": image_stack, "factors": unique_factors}
