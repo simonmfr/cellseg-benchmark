@@ -46,3 +46,4 @@ su.integrate_segmentation_data(
     data_path=data_path,
     logger=logger,
 )
+logger.info("Finished")
