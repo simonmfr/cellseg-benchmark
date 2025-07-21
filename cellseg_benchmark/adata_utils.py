@@ -42,7 +42,7 @@ def merge_adatas(
         sample_paths_file (dict): Dict that maps sample_name to Merscope output data path.
         logger (logging.Logger, optional): Logger instance for informational and warning
             messages. If None, logging is disabled. Defaults to None.
-        plot_qc_stats (bool, optional): If True, triggers QC plotting via `plot_qc`. Defaults to False.
+        plot_qc_stats (bool, optional): If True, triggers QC plotting via the `plot_qc` function internally. Defaults to False.
         save_path (str, optional): File path or directory where QC plots will be saved
             if `plot_qc_stats` is True. Defaults to None.
 
