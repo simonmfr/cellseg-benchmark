@@ -12,11 +12,10 @@ from tqdm import tqdm
 
 dask.config.set({"dataframe.query-planning": False})
 
-from spatialdata import SpatialData, read_zarr, transform
+from spatialdata import SpatialData, read_zarr
 from spatialdata.models import Image2DModel, ShapesModel
 from spatialdata.transformations import Affine, set_transformation
 
-from cellseg_benchmark._constants import image_based
 from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
 from cellseg_benchmark.sdata_utils import prepare_ficture
 
@@ -41,12 +40,12 @@ results_path = join(
 
 logger.info("Check Segementations for prior ficture results.")
 compute_ficture = []
-for dir in os.listdir(results_path):
-    if exists(join(results_path, dir, "sdata.zarr")):
+for method in os.listdir(results_path):
+    if exists(join(results_path, method, "sdata.zarr")):
         if recompute:
-            compute_ficture.append(dir)
-        elif not isdir(join(results_path, dir, "Ficture_stats")):
-            compute_ficture.append(dir)
+            compute_ficture.append(method)
+        elif not isdir(join(results_path, method, "Ficture_stats")):
+            compute_ficture.append(method)
 
 recompute_gen_stats = not exists(join(results_path, "Ficture", "general_stats.csv"))
 
@@ -59,11 +58,13 @@ else:
     )
 
 logger.info("Preparing Ficture")
-stats = prepare_ficture(data_path, results_path, logger=logger)
+stats = prepare_ficture(data_path, results_path, top_n_factors=1, logger=logger)
 
 logger.info("Converting images")
-area_covered = stats[0] > 0
-stats[0] = stats[0].astype(np.float16) / (
+area_covered = stats["images"] > 0
+del stats
+stats = prepare_ficture(data_path, results_path, logger=logger)
+stats["images"] = stats["images"].astype(np.float16) / (
     np.finfo(np.float16).max.astype(np.uint16) - 5
 )  # reverse ficture normalization
 if recompute_gen_stats:
@@ -72,20 +73,22 @@ if recompute_gen_stats:
         data=np.concat(
             [
                 area_covered.sum(axis=(1, 2))[np.newaxis, :],
-                stats[0].sum(axis=(1, 2))[np.newaxis, :],
+                #                stats[0].sum(axis=(1, 2))[np.newaxis, :],
             ],
             axis=0,
         ),
         columns=list(range(21)),
-        index=["factor_area", "factor_area_weighted"],
+        index=["factor_area"],
+        #        index=["factor_area", "factor_area_weighted"],
     ).to_csv(join(results_path, "Ficture", "general_stats.csv"))
 
 if compute_ficture:
     logger.info("Build temporary SpatialData")
     sdata = SpatialData()
     sdata["ficture_image_1"] = Image2DModel.parse(area_covered)
-    sdata["ficture_image_2"] = Image2DModel.parse(stats[0])
+    sdata["ficture_image_2"] = Image2DModel.parse(stats["images"])
     del area_covered, stats
+    #    del area_covered,
 
     logger.info("Read shapes")
     transform = pd.read_csv(
@@ -93,29 +96,23 @@ if compute_ficture:
         sep=" ",
         header=None,
     ).values
-    for dir in compute_ficture:
+    for method in compute_ficture:
         tmp = read_zarr(
-            join(results_path, dir, "sdata.zarr"), selection=("shapes", "tables")
+            join(results_path, method, "sdata.zarr"), selection=("shapes", "tables")
         )
-        boundary_key = tmp["table"].uns["spatialdata_attrs"]["region"]
-        if dir.startswith("vpt_3D"):
-            bound = tmp[boundary_key][["EntityID", "geometry"]].dissolve(
-                    by="EntityID"
-            ),  # project boundaries onto 2D
-            bound["geometry"] = bound["geometry"].affine_transform(
-                [transform[0,0], transform[0,1], transform[1,0],
-                 transform[1,1], transform[0,2], transform[1,2]]
+        boundary_key = tmp[list(tmp.tables.keys())[0]].uns["spatialdata_attrs"][
+            "region"
+        ]
+        if method.startswith("vpt_3D"):
+            bound = tmp[boundary_key][["EntityID", "geometry"]].dissolve(by="EntityID")
+            sdata[f"boundaries_{method}"] = ShapesModel.parse(bound)
+            set_transformation(
+                sdata[f"boundaries_{method}"],
+                Affine(transform, input_axes=("x", "y"), output_axes=("x", "y")),
+                to_coordinate_system="global",
             )
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(bound)
-        elif not any([dir.startswith(x) for x in image_based]):
-            bound = tmp[boundary_key]
-            bound["geometry"] = bound["geometry"].affine_transform(
-                [transform[0,0], transform[0,1], transform[1,0],
-                 transform[1,1], transform[0,2], transform[1,2]]
-                                                                   )
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(bound)
         else:
-            sdata[f"boundaries_{dir}"] = ShapesModel.parse(tmp[boundary_key])
+            sdata[f"boundaries_{method}"] = ShapesModel.parse(tmp[boundary_key])
     del tmp
 
     for key in tqdm(sdata.shapes.keys()):
@@ -123,46 +120,46 @@ if compute_ficture:
         covered = aggregate_channels(
             sdata, image_key="ficture_image_1", shapes_key=key, mode="sum"
         )
-        covered_weight = aggregate_channels(
-            sdata, image_key="ficture_image_2", shapes_key=key, mode="sum"
-        )
-        mean = aggregate_channels(
-            sdata, image_key="ficture_image_1", shapes_key=key, mode="average"
-        )
+        #        covered_weight = aggregate_channels(
+        #            sdata, image_key="ficture_image_2", shapes_key=key, mode="sum"
+        #        )
+        #        mean = aggregate_channels(
+        #            sdata, image_key="ficture_image_1", shapes_key=key, mode="average"
+        #        )
         mean_weight = aggregate_channels(
             sdata, image_key="ficture_image_2", shapes_key=key, mode="average"
         )
-        var = aggregate_channels(
-            sdata,
-            image_key="ficture_image_1",
-            shapes_key=key,
-            mode="variance",
-            means=mean,
-        )
-        var_weight = aggregate_channels(
-            sdata,
-            image_key="ficture_image_2",
-            shapes_key=key,
-            mode="variance",
-            means=mean_weight,
-        )
+        #        var = aggregate_channels(
+        #            sdata,
+        #            image_key="ficture_image_1",
+        #            shapes_key=key,
+        #            mode="variance",
+        #            means=mean,
+        #        )
+        #        var_weight = aggregate_channels(
+        #            sdata,
+        #            image_key="ficture_image_2",
+        #            shapes_key=key,
+        #            mode="variance",
+        #            means=mean_weight,
+        #        )
 
         os.makedirs(
             join(results_path, "_".join(split("_", key)[1:]), "Ficture_stats"),
             exist_ok=True,
         )
-        pd.DataFrame(
-            mean,
-            index=sdata[key].index.to_list(),
-            columns=[f"fictureF21_{i}_mean_intensity" for i in range(21)],
-        ).to_csv(
-            join(
-                results_path,
-                "_".join(split("_", key)[1:]),
-                "Ficture_stats",
-                "means.csv",
-            )
-        )
+        #        pd.DataFrame(
+        #            mean,
+        #            index=sdata[key].index.to_list(),
+        #            columns=[f"fictureF21_{i}_mean_intensity" for i in range(21)],
+        #        ).to_csv(
+        #            join(
+        #                results_path,
+        #                "_".join(split("_", key)[1:]),
+        #                "Ficture_stats",
+        #                "means.csv",
+        #            )
+        #        )
         pd.DataFrame(
             mean_weight,
             index=sdata[key].index.to_list(),
@@ -175,30 +172,30 @@ if compute_ficture:
                 "means_weight.csv",
             )
         )
-        pd.DataFrame(
-            var,
-            index=sdata[key].index.to_list(),
-            columns=[f"fictureF21_{i}_variance_intensity" for i in range(21)],
-        ).to_csv(
-            join(
-                results_path,
-                "_".join(split("_", key)[1:]),
-                "Ficture_stats",
-                "vars.csv",
-            )
-        )
-        pd.DataFrame(
-            var_weight,
-            index=sdata[key].index.to_list(),
-            columns=[f"fictureF21_{i}_variance_intensity_weighted" for i in range(21)],
-        ).to_csv(
-            join(
-                results_path,
-                "_".join(split("_", key)[1:]),
-                "Ficture_stats",
-                "vars_weight.csv",
-            )
-        )
+        #        pd.DataFrame(
+        #            var,
+        #            index=sdata[key].index.to_list(),
+        #            columns=[f"fictureF21_{i}_variance_intensity" for i in range(21)],
+        #        ).to_csv(
+        #            join(
+        #                results_path,
+        #                "_".join(split("_", key)[1:]),
+        #                "Ficture_stats",
+        #                "vars.csv",
+        #            )
+        #        )
+        #        pd.DataFrame(
+        #            var_weight,
+        #            index=sdata[key].index.to_list(),
+        #            columns=[f"fictureF21_{i}_variance_intensity_weighted" for i in range(21)],
+        #        ).to_csv(
+        #            join(
+        #                results_path,
+        #                "_".join(split("_", key)[1:]),
+        #                "Ficture_stats",
+        #                "vars_weight.csv",
+        #            )
+        #        )
         pd.DataFrame(
             covered,
             index=sdata[key].index.to_list(),
@@ -211,16 +208,16 @@ if compute_ficture:
                 "area.csv",
             )
         )
-        pd.DataFrame(
-            covered_weight,
-            index=sdata[key].index.to_list(),
-            columns=[f"fictureF21_{i}_area_weighted" for i in range(21)],
-        ).to_csv(
-            join(
-                results_path,
-                "_".join(split("_", key)[1:]),
-                "Ficture_stats",
-                "area_weight.csv",
-            )
-        )
+#        pd.DataFrame(
+#            covered_weight,
+#            index=sdata[key].index.to_list(),
+#            columns=[f"fictureF21_{i}_area_weighted" for i in range(21)],
+#        ).to_csv(
+#            join(
+#                results_path,
+#                "_".join(split("_", key)[1:]),
+#                "Ficture_stats",
+#                "area_weight.csv",
+#            )
+#        )
 logger.info("Finished importing ficture infos.")

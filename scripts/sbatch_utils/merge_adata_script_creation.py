@@ -1,4 +1,5 @@
 from pathlib import Path
+from sys import argv
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
@@ -6,31 +7,31 @@ container_image = f"{base_path}/misc/cellseg_benchmark.sqsh"
 log_path = f"{base_path}/misc/logs/merged"
 
 methods = [
-    "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8",
-    "Cellpose_1_nuclei_model",
-    "Baysor_2D_Cellpose_2_DAPI_PolyT_0.2",
+    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
+    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8",
+    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2",
     "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.8",
-    "Negative_Control_Rastered_5",
+    "Baysor_2D_Cellpose_1_nuclei_model_1.0",
+    "Baysor_2D_Cellpose_2_DAPI_PolyT_0.2",
+    "Baysor_2D_Cellpose_2_DAPI_PolyT_0.8",
+    "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.2",
+    "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8",
+    "Cellpose_1_DAPI_PolyT",
+    "Cellpose_1_DAPI_Transcripts",
+    "Cellpose_1_nuclei_model",
+    "Cellpose_1_Merlin",
     "Cellpose_2_DAPI_PolyT",
+    "Cellpose_2_DAPI_Transcripts",
     "Proseg_pure",
     "Proseg_Cellpose_1_DAPI_Transcripts",
-    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2",
-    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
-    "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.2",
-    "Cellpose_1_DAPI_PolyT",
-    "Negative_Control_Rastered_10",
-    "Negative_Control_Voronoi",
-    "Proseg_Cellpose_2_DAPI_Transcripts",
-    "Proseg_Cellpose_1_nuclei_model",
-    "Cellpose_2_DAPI_Transcripts",
-    "Cellpose_1_Merlin",
-    "Negative_Control_Rastered_25",
-    "Cellpose_1_DAPI_Transcripts",
-    "Baysor_2D_Cellpose_2_DAPI_PolyT_0.8",
-    "Baysor_2D_Cellpose_1_nuclei_model_1.0",
-    "Proseg_Cellpose_2_DAPI_PolyT",
-    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8",
     "Proseg_Cellpose_1_DAPI_PolyT",
+    "Proseg_Cellpose_1_nuclei_model",
+    "Proseg_Cellpose_2_DAPI_PolyT",
+    "Proseg_Cellpose_2_DAPI_Transcripts",
+    "Negative_Control_Rastered_5",
+    "Negative_Control_Rastered_10",
+    "Negative_Control_Rastered_25",
+    "Negative_Control_Voronoi",
 ]
 
 Path(sbatch_path).mkdir(parents=False, exist_ok=True)
@@ -48,17 +49,16 @@ for method in methods:
 
     memory = "300G" if "Negative_Control" in method else "200G"
 
-    with open(f"{sbatch_path}/{method}.sbatch", "w") as f:
+    with open(f"{sbatch_path}/{argv[1]}_{method}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t {time_limit}
 #SBATCH --mem={memory}
-#SBATCH -J merge_adata_{method}
+#SBATCH -J merge_adata_{argv[1]}_{method}
 #SBATCH -o {log_path}/%x.log
 #SBATCH --container-image="{container_image}"
 cd ~/gitrepos/cellseg-benchmark
-git pull origin integration
 mamba activate cellseg_benchmark
-python scripts/merge_adata.py foxf2 {method}
+python scripts/merge_adata.py {argv[1]} {method}
 """)

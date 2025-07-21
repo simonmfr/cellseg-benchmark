@@ -279,7 +279,7 @@ else
     BGZIP_CMD="$(which bgzip)"
     TABIX_CMD="$(which tabix)"
 
-    (echo -e "${header}" && zcat "${input_slda_formatted}" | tail -n +2 | perl -slane -MMath::Round=nearest '$F[0]=int((nearest(0.1,$F[1])-$offx)/$bsize) * $bsize; $F[1]=int((nearest(0.1,$F[1])-$offx)*$scale); $F[1]=($F[1]>=0)?$F[1]:0; $F[2]=int((nearest(0.1,$F[2])-$offy)*$scale); $F[2]=($F[2]>=0)?$F[2]:0; print join("\t", @F);' -- -bsize=${bsize} -scale=${scale} -offx=${offsetx} -offy=${offsety} | sort -S 4G -k1,1g -k3,3g ) | "${BGZIP_CMD}" -c > "${output_slda_formatted_sorted}"
+    (echo -e "${header}" && zcat "${input_slda_formatted}" | tail -n +2 | perl -MGetopt::Long -MMath::Round -lane 'BEGIN {GetOptions("bsize=f" => \$bsize, "scale=f" => \$scale, "offx=f"  => \$offx, "offy=f"  => \$offy,);}$F[0] = int((nearest(0.1,$F[1])-$offx)/$bsize) * $bsize; $F[1] = int((nearest(0.1,$F[1])-$offx)*$scale); $F[1] = ($F[1]>=0)?$F[1]:0; $F[2] = int((nearest(0.1,$F[2])-$offy)*$scale); $F[2] = ($F[2]>=0)?$F[2]:0; print join("\t", @F);' -- --bsize=${bsize} --scale=${scale} --offx=${offsetx} --offy=${offsety} | sort -S 4G -k1,1g -k3,3g ) | "${BGZIP_CMD}" -c > "${output_slda_formatted_sorted}"
 
     "${TABIX_CMD}" -f -s1 -b3 -e3 "${output_slda_formatted_sorted}"
     echo "SLDA output formatting and indexing done."
