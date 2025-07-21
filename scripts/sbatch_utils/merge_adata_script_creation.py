@@ -49,13 +49,13 @@ for method in methods:
 
     memory = "300G" if "Negative_Control" in method else "200G"
 
-    with open(f"{sbatch_path}/{method}.sbatch", "w") as f:
+    with open(f"{sbatch_path}/{argv[1]}_{method}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t {time_limit}
 #SBATCH --mem={memory}
-#SBATCH -J merge_adata_{method}
+#SBATCH -J merge_adata_{argv[1]}_{method}
 #SBATCH -o {log_path}/%x.log
 #SBATCH --container-image="{container_image}"
 cd ~/gitrepos/cellseg-benchmark
