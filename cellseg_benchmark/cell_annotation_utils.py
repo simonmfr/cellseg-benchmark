@@ -28,7 +28,7 @@ cell_type_colors = {
     "Oligodendrocytes": "#4564FF",
     "OPCs": "#0095FF",
     "Microglia": "#00C088",
-    "BAMs": "#00F3D8",
+    "BAMs": "#20B2AA",
     "Immune-Other": "#98DF8A",
     "Neurons-Gaba": "#B449F8",
     "Neurons-Glut": "#CEB3FF",

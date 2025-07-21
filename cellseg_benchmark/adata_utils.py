@@ -24,7 +24,7 @@ def merge_adatas(
     seg_method: str,
     sample_paths_file: dict,
     logger: logging.Logger = None,
-    plot_qc=False,
+    plot_qc_stats=False,
     save_path=None,
 ) -> AnnData:
     """Merge AnnData objects extracted from multiple SpatialData objects into a single AnnData.
@@ -42,9 +42,9 @@ def merge_adatas(
         sample_paths_file (dict): Dict that maps sample_name to Merscope output data path.
         logger (logging.Logger, optional): Logger instance for informational and warning
             messages. If None, logging is disabled. Defaults to None.
-        plot_qc (bool, optional): If True, triggers QC plotting via `plot_qc`. Defaults to False.
+        plot_qc_stats (bool, optional): If True, triggers QC plotting via the `plot_qc` function internally. Defaults to False.
         save_path (str, optional): File path or directory where QC plots will be saved
-            if `plot_qc` is True. Defaults to None.
+            if `plot_qc_stats` is True. Defaults to None.
 
     Returns:
         AnnData: A merged AnnData object containing concatenated cells from all input datasets.
@@ -72,7 +72,7 @@ def merge_adatas(
         adata.obs["sample"] = name
         adatas.append(adata)
 
-        if plot_qc:
+        if plot_qc_stats:
             y_limits[0] = max(
                 y_limits[0], max(np.histogram(adata.obs["n_counts"], bins=60)[0])
             )
@@ -111,7 +111,7 @@ def merge_adatas(
     if logger:
         n = len(adata.obs["sample"].unique())
         logger.info(f"{seg_method}: # of cells: {len(adata)}, # of samples: {n}")
-    if plot_qc:
+    if plot_qc_stats:
         plot_qc(adata, save_path, y_limits, logger)
     return adata
 
