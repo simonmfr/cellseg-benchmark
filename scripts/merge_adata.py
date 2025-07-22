@@ -6,6 +6,7 @@ from pathlib import Path
 
 from spatialdata import read_zarr
 
+
 from cellseg_benchmark.adata_utils import (
     dimensionality_reduction,
     filter_genes,
