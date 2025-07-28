@@ -2,6 +2,7 @@ import logging
 import math
 from os.path import isfile, join
 from typing import List, Tuple
+import re
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -61,10 +62,20 @@ def merge_adatas(
             continue
         adata = sdata[f"adata_{seg_method}"]
         samples = name.split("_")
-        adata.obs["cohort"] = samples[0]
-        adata.obs["slide"] = samples[1]
-        adata.obs["region"] = samples[2]
-        adata.obs["condition"] = sample_paths_file[name].split("/")[-2].split("-")[-2]
+        cohort, slide, region = samples[0], samples[1], samples[2]
+        adata.obs["cohort"] = cohort
+        adata.obs["slide"] = slide
+        adata.obs["region"] = region
+        adata.obs["sample"] = name
+        if cohort == "aging":
+            # Assume, that all region names contain months in the end (e.g. region_0-WT279_12m)
+            adata.obs["condition"] = int(re.split("[_\-]", sample_paths_file[name].split("/")[-1])[-1].split("m")[0])
+        else:
+            # Assume that the last "-"-seperated entries are indicating the condition of the sample (in order of the regions). E.g. 20240805_Foxf2-Slide07-cp-WT-GLKO
+            # Requires region names to follow example: region_1-KO885
+            # foxf2_s2 is not correctly named, but as only the first entry is missing in the naming, it still works
+            index = int(re.split("[_\-]", sample_paths_file[name].split("/")[-1])[1]) - sum([f"{cohort}_{slide}" in x for x in sample_paths_file.keys()])
+            adata.obs["condition"] = sample_paths_file[name].split("/")[-2].split("-")[index]
         if isinstance(adata.X, np.ndarray):
             adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
         adata.obs["n_counts"] = adata.X.sum(axis=1)
@@ -92,7 +103,7 @@ def merge_adatas(
             )
 
     adata = concat(adatas, join="outer", merge="first")
-    for i in set(["cell_id", "cell_id_x", "cell_id_y"]) & set(adata.obs.columns):
+    for i in {"cell_id", "cell_id_x", "cell_id_y"} & set(adata.obs.columns):
         del adata.obs[i]
     adata.obs["cell_type_mmc_raw_revised"] = pd.Categorical(
         adata.obs["cell_type_mmc_raw_revised"], categories=list(cell_type_colors.keys())
