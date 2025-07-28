@@ -439,7 +439,7 @@ def calculate_volume(
             z_level_name = "layer"
             cell_identifier = "cell_id"
         elif seg_method.startswith("vpt_3D"):
-            z_level_name = "ZLevel"
+            z_level_name = "ZIndex"
             cell_identifier = "EntityID"
         logger.info(f"collecting volume metadata for {seg_method}")
         global_z_min, global_z_max = boundaries[z_level_name].min(), boundaries[z_level_name].max()
@@ -451,11 +451,11 @@ def calculate_volume(
             try:
                 polygons = group["geometry"].tolist()
                 morphology_data = _compute_3d_metrics(group, polygons, z_spacing, global_z_min=global_z_min,
-                                                          global_z_max=global_z_max, verbose=verbose)
+                                                          global_z_max=global_z_max)
                 morphology_data["cell_id"] = entity_id
                 morphology_rows.append(morphology_data)
             except Exception as e:
-                warnings.warn(f"Failed to process entity {entity_id}: {str(e)}")
+                logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
                 continue
 
     else:
@@ -471,7 +471,7 @@ def calculate_volume(
                 morphology_data["cell_id"] = entity_id
                 morphology_rows.append(morphology_data)
             except Exception as e:
-                warnings.warn(f"Failed to process entity {entity_id}: {str(e)}")
+                logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
                 continue
 
     if morphology_rows:
