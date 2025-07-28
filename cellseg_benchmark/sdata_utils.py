@@ -233,7 +233,7 @@ def integrate_segmentation_data(
                         )
                 if "volume" not in sdata_main[f"adata_{seg_method}"].obs.columns:
                     sdata_main = calculate_volume(
-                        seg_method, sdata_main, sdata_path, write_to_disk=write_to_disk
+                        seg_method, sdata_main, write_to_disk=write_to_disk, logger=logger
                     )
                 if os.path.exists(
                     join(sdata_path, "results", seg_method, "Ficture_stats")
@@ -429,77 +429,59 @@ def add_ficture(
 def calculate_volume(
     seg_method: str,
     sdata_main: sd.SpatialData,
-    sdata_path: str,
-    write_to_disk=False,
-    logger=None,
-) -> sd.SpatialData:  #
-    """Calculate volume of sdata."""
-    adata = sdata_main[f"adata_{seg_method}"]
+    z_spacing: float = 1.5,
+    write_to_disk: bool = False,
+    logger: logging.Logger = None,
+):
+    boundaries = sd.transform(sdata_main[f"boundaries_{seg_method}"], to_coordinate_system="micron")
     if any([seg_method.startswith(x) for x in methods_3D]):
-        if seg_method.startswith("Proseg"):  # boundaries in microns
-            path = join(
-                sdata_path,
-                "results",
-                seg_method,
-                "sdata.zarr",
-                ".sopa_cache",
-                "transcript_patches",
-                "0",
-                "cell-polygons-layers.geojson.gz",
-            )
-            with gzip.open(path, "rt", encoding="utf-8") as f:
-                geojson_text = f.read()
-
-            geojson_io = io.StringIO(geojson_text)
-
-            gdf = gpd.read_file(geojson_io)
-            counts = gdf.cell
-            ind = list(gdf.cell)
-            counts.index = ind
-            counts = counts.groupby(level=0).count()
-            slice_height = (
-                10 / counts.max()
-            )  # 10 um total. Assume at least one detected cell stretches whole slice
-            gdf["volume_per_slice"] = [x.area * slice_height for x in gdf["geometry"]]
-            area = gdf[["cell", "volume_per_slice"]].groupby("cell").sum()
-            area.rename(columns={"volume_per_slice": "volume"}, inplace=True)
-            if "volume" in adata.obs.columns:
-                del adata.obs["volume"]
-            tmp = adata.obs.merge(area, how="left", left_on="cell", right_on="cell")
-            tmp.index = adata.obs.index
-            adata.obs = tmp
+        if seg_method.startswith("Proseg"):
+            z_level_name = "layer"
+            cell_identifier = "cell_id"
         elif seg_method.startswith("vpt_3D"):
-            boundaries = sdata_main.transform_element_to_coordinate_system(
-                f"boundaries_{seg_method}", target_coordinate_system="micron"
-            )
-            slice_height = 10 / boundaries[["ZIndex"]].groupby(level=0).count().max()
-            boundaries["volume_per_slice"] = [
-                x.area * slice_height for x in boundaries["Geometry"]
-            ]
-            area = (
-                boundaries[["EntityID", "volume_per_slice"]].groupby("EntityID").sum()
-            )
-            area.rename(columns={"volume_per_slice": "volume"}, inplace=True)
-            if "volume" in adata.obs.columns:
-                del adata.obs["volume"]
-            tmp = adata.obs.merge(
-                area, how="left", left_index=True, right_on="EntityID"
-            )
-            tmp.index = adata.obs.index
-            adata.obs = tmp
+            z_level_name = "ZLevel"
+            cell_identifier = "EntityID"
+        logger.info(f"collecting volume metadata for {seg_method}")
+        global_z_min, global_z_max = boundaries[z_level_name].min(), boundaries[z_level_name].max()
+        grouped = boundaries.groupby(cell_identifier)
+        morphology_rows = []
+
+        logger.info(f"calculate volume metrics {seg_method}")
+        for entity_id, group in grouped:
+            try:
+                polygons = group["geometry"].tolist()
+                morphology_data = _compute_3d_metrics(group, polygons, z_spacing, global_z_min=global_z_min,
+                                                          global_z_max=global_z_max, verbose=verbose)
+                morphology_data["cell_id"] = entity_id
+                morphology_rows.append(morphology_data)
+            except Exception as e:
+                warnings.warn(f"Failed to process entity {entity_id}: {str(e)}")
+                continue
+
     else:
-        try:
-            boundaries = sdata_main.transform_element_to_coordinate_system(
-                f"boundaries_{seg_method}", target_coordinate_system="micron"
-            )
-        except KeyError:
-            if logger:
-                logger.warning(
-                    "Volume cannot be computed for {}. Skipping.".format(seg_method)
-                )
-            return sdata_main
-        adata.obs["volume"] = boundaries.geometry.area * 10
-    sdata_main[f"adata_{seg_method}"] = adata
+        grouped = boundaries.groupby(level=0)
+        morphology_rows = []
+
+        logger.info(f"calculate volume metrics {seg_method}")
+        for entity_id, group in grouped:
+            try:
+                polygons = group["geometry"].tolist()
+                morphology_data = _compute_2d_metrics(polygons[0], z_spacing)
+
+                morphology_data["cell_id"] = entity_id
+                morphology_rows.append(morphology_data)
+            except Exception as e:
+                warnings.warn(f"Failed to process entity {entity_id}: {str(e)}")
+                continue
+
+    if morphology_rows:
+        df_morph = pd.DataFrame(morphology_rows).set_index("cell_id")
+        df_morph.drop(columns="dimensionality", inplace=True)
+
+        adata = sdata_main.tables[f"adata_{seg_method}"]
+        adata.obs = adata.obs.merge(df_morph, left_index=True, right_index=True)
+        sdata_main[f"adata_{seg_method}"] = adata
+
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
             update_element(sdata_main, f"adata_{seg_method}")
@@ -892,7 +874,7 @@ def compute_cell_morphology(
 
     return results_dict if return_results else None
 
-def _compute_2d_metrics(geom, z_spacing):
+def _compute_2d_metrics(geom, z_spacing: float):
     """Compute 2D morphology metrics with improved robustness."""
     try:
         if geom.geom_type == 'MultiPolygon':
@@ -909,7 +891,7 @@ def _compute_2d_metrics(geom, z_spacing):
         metrics = {
             "dimensionality": "2D",
             "area": area,
-            "volume_sum": area * z_spacing,
+            "volume_sum": area * z_spacing, #TODO: check if valid
             "volume_final": area * z_spacing,
             "num_z_planes": 1,
             "size_normalized": np.sqrt(area),
