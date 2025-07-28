@@ -484,7 +484,9 @@ def calculate_volume(
                 continue
 
     if morphology_rows:
-        df_morph = pd.DataFrame(morphology_rows).set_index("cell_id")
+        df_morph = pd.DataFrame(morphology_rows)
+        df_morph["cell_id"] = df_morph['cell_id'].astype(str)
+        df_morph.index = df_morph["cell_id"]
         df_morph.drop(columns="dimensionality", inplace=True)
 
         adata = sdata_main.tables[f"adata_{seg_method}"]
