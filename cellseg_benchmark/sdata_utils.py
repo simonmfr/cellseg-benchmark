@@ -1,3 +1,5 @@
+import ast
+import math
 import gzip
 import io
 import logging
@@ -6,8 +8,12 @@ from os import listdir
 from os.path import join
 from re import split
 from typing import Dict, List, Optional, Union
+import warnings
 
 import geopandas as gpd
+from shapely.geometry import Polygon, MultiPolygon, Point
+from shapely.ops import unary_union
+from scipy.spatial import ConvexHull
 import numpy as np
 import pandas as pd
 import spatialdata as sd
@@ -16,6 +22,8 @@ from spatialdata.models import ShapesModel
 from spatialdata.transformations import Identity, get_transformation, set_transformation
 from tifffile import imread
 from tqdm import tqdm
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from ._constants import image_based, methods_3D
 from .ficture_utils import create_factor_level_image, parse_metadata
@@ -791,3 +799,267 @@ def prepare_ficture(
                 dtype=np.uint16,
             )
     return {"images": image_stack, "factors": unique_factors}
+
+
+def compute_cell_morphology(
+    sdata, add_to_adata=False, z_spacing=1.5, verbose=True, return_results=False
+):
+    """
+    Compute 2D or 3D morphology metrics from shape boundaries in a SpatialData object.
+
+    Metrics per cell include:
+    - dimensionality: '2D' or '3D', depending on whether the cell spans multiple Z planes.
+    - area: Total surface area (2D: shape area; 3D: approximated surface area).
+    - volume_sum: Naive volume by summing areas and multiplying with z_spacing.
+    - volume_trapz: Trapezoidal volume integration across z-planes (3D only).
+    - volume_final: Final volume estimate (trapz if 3D, volume_sum if 2D).
+    - num_z_planes: Number of Z planes a cell spans.
+    - size_normalized: Edge length of a square (2D) or cube (3D) with same area or volume as the cell.
+    - surface_to_volume_ratio: Ratio of surface area to volume.
+    - sphericity: Shape compactness; 1 for a perfect sphere (3D only).
+    - solidity: Volume compared to its convex hull volume (compactness).
+    - elongation: PCA-based anisotropy estimate (0 = isotropic, 1 = elongated).
+    """    
+    results_dict = {}
+
+    for boundaries_name, boundaries in sdata.shapes.items():
+        if not boundaries_name.startswith("boundaries_"):
+            continue
+
+        dataset_name = boundaries_name.replace("boundaries_", "")
+        table_name = f"adata_{dataset_name}"
+
+        if table_name not in sdata.tables:
+            warnings.warn(f"Missing adata {table_name}. Skipping {boundaries_name}.")
+            continue
+
+        if boundaries.empty or "geometry" not in boundaries:
+            warnings.warn(f"Empty/invalid geometry in {boundaries_name}. Skipping.")
+            continue
+
+        # Parse geometry from strings if needed
+        boundaries = boundaries.copy()
+        boundaries["geometry"] = boundaries["geometry"].apply(
+            lambda x: Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
+        )
+
+        if "EntityID" not in boundaries:
+            warnings.warn(f"Missing EntityID in {boundaries_name}. Skipping.")
+            continue
+
+        global_z_min = boundaries["ZIndex"].min()
+        global_z_max = boundaries["ZIndex"].max()
+        
+        grouped = boundaries.groupby("EntityID")
+        morphology_rows = []
+
+        for entity_id, group in grouped:
+            try:
+                is_entity_3d = "ZIndex" in group and group["ZIndex"].nunique() > 1
+                polygons = group["geometry"].tolist()
+
+                if not polygons:
+                    continue
+
+                if is_entity_3d:
+                    morphology_data = _compute_3d_metrics(group, polygons, z_spacing, global_z_min=global_z_min, global_z_max=global_z_max, verbose=verbose)
+                else:
+                    morphology_data = _compute_2d_metrics(polygons[0], z_spacing)
+
+                morphology_data["EntityID"] = entity_id
+                morphology_rows.append(morphology_data)
+            except Exception as e:
+                warnings.warn(f"Failed to process entity {entity_id}: {str(e)}")
+                continue
+
+        if morphology_rows:
+            df_morph = pd.DataFrame(morphology_rows).set_index("EntityID")
+
+            if add_to_adata:
+                adata = sdata.tables[table_name]
+                adata_ids = adata.obs.index.astype(str)
+                common = adata_ids.intersection(df_morph.index.astype(str))
+                for col in df_morph.columns:
+                    adata.obs[f"cell_{col}"] = np.nan
+                    adata.obs.loc[common, f"cell_{col}"] = df_morph.loc[common, col]
+
+            if verbose:
+                dim_counts = df_morph["dimensionality"].value_counts().to_dict()
+                print(f"Added morphology metrics for {dataset_name}: {dim_counts}")
+
+            if return_results:
+                results_dict[dataset_name] = df_morph
+
+    return results_dict if return_results else None
+
+def _compute_2d_metrics(geom, z_spacing):
+    """Compute 2D morphology metrics with improved robustness."""
+    try:
+        if geom.geom_type == 'MultiPolygon':
+            geom = unary_union(geom)
+            if geom.geom_type == 'MultiPolygon':
+                geom = max(geom.geoms, key=lambda p: p.area)
+
+        if geom.is_empty or geom.geom_type != 'Polygon':
+            return {}
+
+        area = geom.area
+        perimeter = geom.length
+
+        metrics = {
+            "dimensionality": "2D",
+            "area": area,
+            "volume_sum": area * z_spacing,
+            "volume_final": area * z_spacing,
+            "num_z_planes": 1,
+            "size_normalized": np.sqrt(area),
+            "surface_to_volume_ratio": perimeter / area if area > 0 else np.nan,
+        }
+
+        metrics["sphericity"] = (
+            4 * math.pi * area / (perimeter ** 2) if perimeter > 0 else np.nan
+        )
+
+        try:
+            convex_hull = geom.buffer(0).convex_hull
+            metrics["solidity"] = area / convex_hull.area if convex_hull.area > 0 else np.nan
+        except:
+            metrics["solidity"] = np.nan
+
+        try:
+            hull_points = np.array(convex_hull.exterior.coords[:-1])
+            if len(hull_points) >= 3:
+                hull_points = StandardScaler().fit_transform(hull_points)
+                pca = PCA(n_components=2)
+                pca.fit(hull_points)
+                eigenvalues = pca.explained_variance_
+                metrics["elongation"] = (
+                    1 - np.sqrt(eigenvalues[1] / eigenvalues[0]) if eigenvalues[0] > 0 else np.nan
+                )
+            else:
+                metrics["elongation"] = np.nan
+        except:
+            metrics["elongation"] = np.nan
+
+        return metrics
+    except Exception as e:
+        warnings.warn(f"Failed to compute 2D metrics: {str(e)}")
+        return {}
+
+def _compute_trapz_with_conditional_caps(areas, z_indices, z_spacing, z_min, z_max):
+    """Compute trapezoidal cell volume + add half caps only if top/bottom areas are at imaging boundaries (hence, assuming cell is truncated)."""
+    if len(areas) == 1:
+        return areas[0] * z_spacing
+    volume = np.trapezoid(areas, dx=z_spacing)
+    if z_indices[0] == z_min:
+        volume += 0.5 * z_spacing * areas[0]
+    if z_indices[-1] == z_max:
+        volume += 0.5 * z_spacing * areas[-1]
+    return volume
+
+
+def _compute_3d_metrics(group, polygons, z_spacing, global_z_min, global_z_max, verbose=False):
+    """Compute 3D morphology metrics with robust and dual volume estimation."""
+    try:
+        group = group.sort_values("ZIndex")
+        z_indices = group["ZIndex"].to_numpy()
+
+        areas = np.array([p.area if p.geom_type == 'Polygon' else
+                          sum(part.area for part in p.geoms)
+                          for p in polygons])
+
+        volume_sum = np.sum(areas) * z_spacing
+        volume_trapz = _compute_trapz_with_conditional_caps(
+            areas, z_indices, z_spacing, global_z_min, global_z_max)
+
+        perimeters = np.array([p.length if p.geom_type == 'Polygon' else
+                               sum(part.length for part in p.geoms)
+                               for p in polygons])
+
+        total_height = (len(areas) - 1) * z_spacing
+        lateral_surface = np.mean(perimeters) * total_height if len(perimeters) > 1 else 0
+        top_bottom_surface = areas[0] + areas[-1] if len(areas) > 0 else 0
+        surface_area = lateral_surface + top_bottom_surface
+
+        metrics = {
+            "dimensionality": "3D",
+            "area": surface_area,
+            "volume_sum": volume_sum,
+            "volume_trapz": volume_trapz,
+            "volume_final": volume_trapz,
+            "num_z_planes": len(areas),
+            "size_normalized": np.cbrt(volume_trapz) if volume_trapz > 0 else np.nan,
+            "surface_to_volume_ratio": surface_area / volume_trapz if volume_trapz > 0 else np.nan,
+            "sphericity": (
+                (math.pi ** (1/3)) * (6 * volume_trapz) ** (2/3) / surface_area
+                if volume_trapz > 0 and surface_area > 0 else np.nan
+            )
+        }
+
+        all_points = []
+        for i, polygon in enumerate(polygons):
+            if polygon.is_empty or not polygon.is_valid:
+                continue
+            try:
+                if polygon.geom_type == 'Polygon':
+                    coords = np.array(polygon.exterior.coords[:-1])
+                else:
+                    coords = np.concatenate(
+                        [np.array(part.exterior.coords[:-1]) for part in polygon.geoms]
+                    )
+                if len(coords) < 3:
+                    continue
+                z = z_indices[i] * z_spacing
+                z_coords = np.full(len(coords), z)
+                points_3d = np.column_stack([coords, z_coords])
+                all_points.extend(points_3d)
+            except:
+                continue
+
+        if not all_points:
+            metrics.update({"solidity": np.nan, "elongation": np.nan})
+            return metrics
+
+        all_points = np.array(all_points)
+        all_points = all_points - np.mean(all_points, axis=0)
+
+        try:
+            if np.ptp(all_points[:, 2]) < z_spacing * 3:
+                metrics["solidity"] = np.nan
+            else:
+                hull = ConvexHull(all_points)
+                hull_volume = hull.volume
+
+                if hull_volume > 0:
+                    solidity = volume_trapz / hull_volume
+                    if solidity > 1.0 and verbose:
+                        warnings.warn(
+                            f"[3D] Solidity > 1.0: Volume (trapz)={volume_trapz:.2f}, "
+                            f"Hull Volume={hull_volume:.2f}, Solidity={solidity:.2f}"
+                        )
+                    metrics["solidity"] = solidity
+                else:
+                    metrics["solidity"] = np.nan
+        except Exception:
+            metrics["solidity"] = np.nan
+
+        try:
+            pca = PCA(n_components=3)
+            pca.fit(all_points)
+            eigenvalues = np.sort(pca.explained_variance_)[::-1]
+
+            if eigenvalues[2] > 1e-6:
+                metrics["elongation"] = 1 - np.sqrt(eigenvalues[2] / eigenvalues[0])
+            elif eigenvalues[1] > 1e-6:
+                metrics["elongation"] = 1 - np.sqrt(eigenvalues[1] / eigenvalues[0])
+            else:
+                metrics["elongation"] = 1.0
+        except Exception as e:
+            warnings.warn(f"Failed to compute elongation: {str(e)}")
+            metrics["elongation"] = np.nan
+
+        return metrics
+
+    except Exception as e:
+        warnings.warn(f"Failed to compute 3D metrics: {str(e)}")
+        return {}
