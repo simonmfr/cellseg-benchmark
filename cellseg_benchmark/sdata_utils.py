@@ -416,7 +416,7 @@ def add_ficture(
             join(sdata_path, "results", seg_method, "Ficture_stats", file), index_col=0
         )
         ficture_stats.index = ficture_stats.index.astype(str)
-        adata.obsm[name] = ficture_stats
+        adata.obsm[f"ficture_{name}"] = ficture_stats
     sdata_main[f"adata_{seg_method}"] = adata
     if write_to_disk:
         if join("tables", f"adata_{seg_method}") in sdata_main.elements_paths_on_disk():
@@ -441,12 +441,14 @@ def calculate_volume(
         elif seg_method.startswith("vpt_3D"):
             z_level_name = "ZIndex"
             cell_identifier = "EntityID"
-        logger.info(f"collecting volume metadata for {seg_method}")
+        if logger:
+            logger.info(f"collecting volume metadata for {seg_method}")
         global_z_min, global_z_max = boundaries[z_level_name].min(), boundaries[z_level_name].max()
         grouped = boundaries.groupby(cell_identifier)
         morphology_rows = []
 
-        logger.info(f"calculate volume metrics {seg_method}")
+        if logger:
+            logger.info(f"calculate volume metrics {seg_method}")
         for entity_id, group in grouped:
             try:
                 polygons = group["geometry"].tolist()
@@ -455,14 +457,18 @@ def calculate_volume(
                 morphology_data["cell_id"] = entity_id
                 morphology_rows.append(morphology_data)
             except Exception as e:
-                logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
+                if logger:
+                    logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
+                else:
+                    print(f"Failed to process entity {entity_id}: {str(e)}")
                 continue
 
     else:
         grouped = boundaries.groupby(level=0)
         morphology_rows = []
 
-        logger.info(f"calculate volume metrics {seg_method}")
+        if logger:
+            logger.info(f"calculate volume metrics {seg_method}")
         for entity_id, group in grouped:
             try:
                 polygons = group["geometry"].tolist()
@@ -471,7 +477,10 @@ def calculate_volume(
                 morphology_data["cell_id"] = entity_id
                 morphology_rows.append(morphology_data)
             except Exception as e:
-                logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
+                if logger:
+                    logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
+                else:
+                    print(f"Failed to process entity {entity_id}: {str(e)}")
                 continue
 
     if morphology_rows:
