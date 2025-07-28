@@ -305,6 +305,14 @@ def build_shapes(
         gdf = gpd.read_file(geojson_io)
         gdf = gdf.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
         sdata_main[f"boundaries_{seg_method}"] = ShapesModel.parse(gdf)
+        if write_to_disk:
+            if (
+                join("shapes", f"boundaries_{seg_method}")
+                in sdata_main.elements_paths_on_disk()
+            ):
+                update_element(sdata_main, f"boundaries_{seg_method}")
+            else:
+                sdata_main.write_element(f"boundaries_{seg_method}")
         assign_transformations(sdata_main, seg_method, write_to_disk)
     elif boundary_key in sdata.shapes.keys():
         sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
