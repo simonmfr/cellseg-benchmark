@@ -186,7 +186,12 @@ def integrate_segmentation_data(
 
         if f"boundaries_{seg_method}" not in sdata_main:
             sdata_main = build_shapes(
-                sdata, sdata_main, seg_method, sdata_path, write_to_disk=write_to_disk, logger=logger
+                sdata,
+                sdata_main,
+                seg_method,
+                sdata_path,
+                write_to_disk=write_to_disk,
+                logger=logger,
             )
         else:
             if logger:
@@ -220,7 +225,11 @@ def integrate_segmentation_data(
                     )
                 ):
                     sdata_main = add_cell_type_annotation(
-                        sdata_main, sdata_path, seg_method, write_to_disk=write_to_disk, logger=logger
+                        sdata_main,
+                        sdata_path,
+                        seg_method,
+                        write_to_disk=write_to_disk,
+                        logger=logger,
                     )
                 else:
                     if logger:
@@ -234,10 +243,15 @@ def integrate_segmentation_data(
                             f"No annotation files found for {seg_method}. Skipping annotation."
                         )
                 if "volume_final" not in sdata_main[f"adata_{seg_method}"].obs.columns:
+                    if any([seg_method.startswith(x) for x in methods_3D]):
+                        n_planes_2d = None
+                    else:
+                        n_planes_2d = 7
                     sdata_main = calculate_volume(
                         seg_method,
                         sdata_main,
                         write_to_disk=write_to_disk,
+                        n_planes_2d=n_planes_2d,
                         logger=logger,
                     )
                 if os.path.exists(
@@ -440,6 +454,7 @@ def calculate_volume(
     sdata_main: sd.SpatialData,
     z_spacing: float = 1.5,
     write_to_disk: bool = False,
+    n_planes_2d: Optional[int] = None,
     logger: logging.Logger = None,
 ):
     """Calculate volume of cells in sdata_main."""
@@ -484,6 +499,7 @@ def calculate_volume(
                 continue
 
     else:
+        assert n_planes_2d is not None, "provide n_planes_2d parameter for 2D methods"
         grouped = boundaries.groupby(level=0)
         morphology_rows = []
 
@@ -492,7 +508,9 @@ def calculate_volume(
         for entity_id, group in grouped:
             try:
                 polygons = group["geometry"].tolist()
-                morphology_data = _compute_2d_metrics(polygons[0], z_spacing)
+                morphology_data = _compute_2d_metrics(
+                    polygons[0], z_spacing * n_planes_2d
+                )
 
                 morphology_data["cell_id"] = entity_id
                 morphology_rows.append(morphology_data)
@@ -931,7 +949,7 @@ def _compute_2d_metrics(geom, z_spacing: float):
         metrics = {
             "dimensionality": "2D",
             "area": area,
-            "volume_sum": area * z_spacing,  # TODO: check if valid
+            "volume_sum": area * z_spacing,
             "volume_final": area * z_spacing,
             "num_z_planes": 1,
             "size_normalized": np.sqrt(area),
