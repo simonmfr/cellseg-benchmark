@@ -39,7 +39,7 @@ translation = read_csv(
     sep=" ",
     header=None,
 )
-sdata.write(join(args.save_path, "sdata.zarr"))
+sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)
 sdata = read_zarr(join(args.save_path, "sdata.zarr"))
 
 if args.explorer:
