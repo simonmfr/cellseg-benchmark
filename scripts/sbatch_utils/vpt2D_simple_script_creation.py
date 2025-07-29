@@ -1,28 +1,32 @@
+import argparse
 import json
-import sys
 from os import listdir
 from os.path import join
 from pathlib import Path
 
-staining = sys.argv[1]
+parser = argparse.ArgumentParser(
+    description="Prepare scripts for vpt pipeline. Only cell-boundary staining."
+)
+parser.add_argument("staining", help="Name of cell-boundary staining.")
+args = parser.parse_args()
 
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
 ) as f:
     data = json.load(f)
 
-experiment_json_path = f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/vpt_experiment_jsons/{staining}.json"
+experiment_json_path = f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/vpt_experiment_jsons/{args.staining}.json"
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
-    res_path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/vpt_2D_DAPI_{staining}"
+    res_path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/vpt_2D_DAPI_{args.staining}"
     for dire in listdir(value):
         if dire.endswith(".vzg"):
             vzg_path = join(value, dire)
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple/{key}_{staining}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple/{key}_{args.staining}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -33,9 +37,9 @@ for key, value in data.items():
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=40
-#SBATCH -J vtp2D_{key}_{staining}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt2D_{key}_{staining}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt2D_{key}_{staining}.err
+#SBATCH -J vtp2D_{key}_{args.staining}
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt2D_{key}_{args.staining}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt2D_{key}_{args.staining}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/vpt.sqsh"
 
 mamba activate vpt

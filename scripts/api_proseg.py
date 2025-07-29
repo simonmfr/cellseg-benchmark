@@ -1,5 +1,5 @@
+import argparse
 import os
-import sys
 from os.path import join
 from subprocess import run
 
@@ -7,10 +7,20 @@ import sopa
 from pandas import read_csv
 from spatialdata import read_zarr
 
-data_path = sys.argv[1]
-sample = sys.argv[2]
-base_segmentation = sys.argv[3]
-proseg_flags = " ".join(sys.argv[4:])
+parser = argparse.ArgumentParser(
+    description="Compute ProSeg segmentation with a prior."
+)
+parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("sample", help="Sample name.")
+parser.add_argument(
+    "base_segmentation", help="prior segmentation to use for initialisaton."
+)
+parser.add_argument(
+    "proseg_flags", nargs=argparse.REMAINDER, help="Additional flags to pass to proseg."
+)
+args = parser.parse_args()
+
+proseg_flags = " ".join(args.proseg_flags)
 
 
 def main(data_path, sample, base_segmentation, proseg_flags):
@@ -94,4 +104,4 @@ def main(data_path, sample, base_segmentation, proseg_flags):
 
 
 if __name__ == "__main__":
-    main(data_path, sample, base_segmentation, proseg_flags)
+    main(args.data_path, args.sample, args.base_segmentation, proseg_flags)

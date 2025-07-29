@@ -1,4 +1,4 @@
-import sys
+import argparse
 from os.path import join
 from pathlib import Path
 
@@ -13,20 +13,27 @@ from spatialdata import read_zarr
 from spatialdata.models import ShapesModel
 from tifffile import imread
 
-data_path = sys.argv[1]
-save_path = sys.argv[2]
+parser = argparse.ArgumentParser(
+    description="Compute Voronoi segmentation based on Negative Control 10um."
+)
+parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("save_path", help="Path to output folder.")
+parser.add_argument(
+    "--explorer", type=bool, default=False, help="Compute explorer files."
+)
+args = parser.parse_args()
 
-sdata = merscope(data_path)
-shape = imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
+sdata = merscope(args.data_path)
+shape = imread(join(args.data_path, "images/mosaic_DAPI_z3.tif")).shape
 translation = read_csv(
-    join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+    join(args.data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
     sep=" ",
     header=None,
 )
 
 N = read_zarr(
     join(
-        str(Path(save_path).parent.resolve()),
+        str(Path(args.save_path).parent.resolve()),
         "Negative_Control_Rastered_10",
         "sdata.zarr",
     )
@@ -46,12 +53,15 @@ gdf = GeoDataFrame({"geometry": [polygon for polygon in polygons]})
 
 sdata["cellpose_boundaries"] = ShapesModel.parse(gdf)
 aggregate(sdata, shapes_key="cellpose_boundaries")
-sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
+sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)
 
-# write(
-#    join(save_path, "sdata.explorer"),
-#    sdata,
-#    gene_column="gene",
-#    save_h5ad=True,
-#    pixel_size=1 / translation.loc[0, 0],
-# )
+if args.explorer:
+    from sopa.io.explorer import write
+
+    write(
+        join(args.save_path, "sdata.explorer"),
+        sdata,
+        gene_column="gene",
+        save_h5ad=True,
+        pixel_size=1 / translation.loc[0, 0],
+    )

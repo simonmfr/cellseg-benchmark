@@ -1,7 +1,7 @@
+import argparse
 import logging
 import os
 import shutil
-import sys
 from os.path import join
 from pathlib import Path
 from subprocess import run
@@ -19,9 +19,17 @@ from sopa.utils import (
 )
 from spatialdata import SpatialData, read_zarr
 
-data_path = sys.argv[1]
-sample = sys.argv[2]
-proseg_flags = " ".join(sys.argv[3:])
+parser = argparse.ArgumentParser(
+    description="Compute ProSeg segmentation without any prior segmentation."
+)
+parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("sample", help="Sample name.")
+parser.add_argument(
+    "proseg_flags", nargs=argparse.REMAINDER, help="Additional flags to pass to proseg."
+)
+args = parser.parse_args()
+
+proseg_flags = " ".join(args.proseg_flags)
 
 log = logging.getLogger(__name__)
 
@@ -140,4 +148,4 @@ def main(data_path, sample, proseg_flags):
 
 
 if __name__ == "__main__":
-    main(data_path, sample, proseg_flags)
+    main(args.data_path, args.sample, proseg_flags)

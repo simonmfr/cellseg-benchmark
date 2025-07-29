@@ -8,11 +8,11 @@
 6) Export results as csv
 """
 
+import argparse
 import json
 import logging
 import math
 import os
-import sys
 import warnings
 from datetime import date
 
@@ -43,27 +43,31 @@ handler.setLevel(logging.INFO)
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
-if len(sys.argv) < 4:
-    raise AttributeError(
-        f"Missing required arguments. Usage: python {os.path.basename(__file__)} sample_name method_name data_dir [mad_factor]"
-    )
-
 if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])
     logger.info("Using SLURM_CPUS_PER_TASK={}".format(sc.settings.n_jobs))
 
 warnings.filterwarnings("ignore")
 
-sample_name = sys.argv[1]
-method_name = sys.argv[2]
-data_dir = sys.argv[3]
+parser = argparse.ArgumentParser(description="Compute mapmycells-output.")
+parser.add_argument("sample_name", help="Sample name.")
+parser.add_argument(
+    "method_name", help="Name of the method for which to compute cell type annotations."
+)
+parser.add_argument("data_dir", help="Sample name.")
+parser.add_argument(
+    "--mad_factor",
+    default=3,
+    type=int,
+    help="Median absolute deviation factor for annotation.",
+)
+args = parser.parse_args()
 
-try:
-    mad_factor = int(sys.argv[4]) if int(sys.argv[4]) > 0 else 3
-except IndexError:
-    mad_factor = 3  # Default value if not provided
+mad_factor = args.mad_factor if args.mad_factor > 0 else 3
 
-path = os.path.join(data_dir, "samples", sample_name, "results", method_name)
+path = os.path.join(
+    args.data_dir, "samples", args.sample_name, "results", args.method_name
+)
 annotation_path = os.path.join(path, "cell_type_annotation")
 os.makedirs(annotation_path, exist_ok=True)
 
@@ -78,10 +82,10 @@ adata = anno_utils.map_gene_symbols_to_ensembl(adata, logger=logger)
 logger.info("Running MapMyCells on mouse brain atlas")
 anno_utils.run_mapmycells(
     adata,
-    sample_name=sample_name,
-    method_name=method_name,
+    sample_name=args.sample_name,
+    method_name=args.method_name,
     annotation_path=annotation_path,
-    data_dir=data_dir,
+    data_dir=args.data_dir,
 )
 
 logger.info("Processing MapMyCells output")
@@ -89,7 +93,7 @@ logger.info("Processing MapMyCells output")
 json_path = os.path.join(
     annotation_path,
     "mapmycells_out",
-    f"{today}_MapMyCells_{sample_name}_{method_name}.json",
+    f"{today}_MapMyCells_{args.sample_name}_{args.method_name}.json",
 )
 with open(json_path, "rb") as src:
     json_results = json.load(src)
@@ -328,7 +332,7 @@ adata, annotation_results, normalized_percentage = anno_utils.revise_annotations
     score_threshold=0.5,
     top_n_genes=50,
     ABCAtlas_marker_df_path=os.path.join(
-        data_dir,
+        args.data_dir,
         "misc",
         "scRNAseq_ref_ABCAtlas_Yao2023Nature",
         "marker_genes_df",

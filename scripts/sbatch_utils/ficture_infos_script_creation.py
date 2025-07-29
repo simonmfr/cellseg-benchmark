@@ -1,8 +1,14 @@
+import argparse
 import json
 from pathlib import Path
-from sys import argv
 
-recompute = argv[1]
+parser = argparse.ArgumentParser(
+    description="scripts for computing ficture statistics."
+)
+parser.add_argument(
+    "--recompute", action="store_true", help="Consider genotype differentiation"
+)
+args = parser.parse_args()
 
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
@@ -32,6 +38,6 @@ for key, value in data.items():
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
-python scripts/ficture_infos.py {key} {value} {recompute}
+python scripts/ficture_infos.py {key} {value} {"--recompute" if args.recompute else ""}
 """)
     f.close()

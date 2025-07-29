@@ -1,5 +1,15 @@
+import argparse
 from pathlib import Path
-from sys import argv
+
+parser = argparse.ArgumentParser(
+    description="scripts for merging one method from different samples."
+)
+parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
+parser.add_argument("--age", action="store_true", help="Consider age differentiation")
+parser.add_argument(
+    "--genotype", action="store_true", help="Consider genotype differentiation"
+)
+args = parser.parse_args()
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
@@ -32,6 +42,12 @@ methods = [
     "Negative_Control_Rastered_10",
     "Negative_Control_Rastered_25",
     "Negative_Control_Voronoi",
+    "vpt_2D_DAPI_PolyT",
+    "vpt_2D_DAPI_nuclei",
+    "vpt_2D_DAPI_PolyT_nuclei",
+    "vpt_3D_DAPI_PolyT",
+    "vpt_3D_DAPI_nuclei",
+    "vpt_3D_DAPI_PolyT_nuclei",
 ]
 
 Path(sbatch_path).mkdir(parents=False, exist_ok=True)
@@ -49,16 +65,16 @@ for method in methods:
 
     memory = "300G" if "Negative_Control" in method else "200G"
 
-    with open(f"{sbatch_path}/{argv[1]}_{method}.sbatch", "w") as f:
+    with open(f"{sbatch_path}/{args.cohort}_{method}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t {time_limit}
 #SBATCH --mem={memory}
-#SBATCH -J merge_adata_{argv[1]}_{method}
+#SBATCH -J merge_adata_{args.cohort}_{method}
 #SBATCH -o {log_path}/%x.log
 #SBATCH --container-image="{container_image}"
 cd ~/gitrepos/cellseg-benchmark
 mamba activate cellseg_benchmark
-python scripts/merge_adata.py {argv[1]} {method}
+python scripts/merge_adata.py {args.cohort} {method} {"--age" if args.cohort == "aging" else "--genotype"}
 """)

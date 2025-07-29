@@ -1,5 +1,5 @@
+import argparse
 import os
-import sys
 from os.path import join
 from subprocess import run
 
@@ -7,10 +7,14 @@ import sopa
 import toml
 from spatialdata import read_zarr
 
-data_path = sys.argv[1]
-base_segmentation = sys.argv[2]
-confidence = float(sys.argv[3])
-sample = sys.argv[4]
+parser = argparse.ArgumentParser(description="Compute Baysor segmentation.")
+parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument(
+    "base_segmentation", help="prior segmentation to use for initialisaton."
+)
+parser.add_argument("confidence", type=float, help="confidence of prior segmentation.")
+parser.add_argument("sample", help="sample name.")
+args = parser.parse_args()
 
 
 def main(data_path, base_segmentation, confidence, sample):
@@ -87,4 +91,4 @@ def main(data_path, base_segmentation, confidence, sample):
 
 
 if __name__ == "__main__":
-    main(data_path, base_segmentation, confidence, sample)
+    main(args.data_path, args.base_segmentation, args.confidence, args.sample)

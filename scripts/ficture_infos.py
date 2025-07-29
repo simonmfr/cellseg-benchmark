@@ -1,6 +1,6 @@
+import argparse
 import logging
 import os
-import sys
 import warnings
 from os.path import exists, isdir, join
 from re import split
@@ -27,14 +27,18 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
-sample = sys.argv[1]
-data_path = sys.argv[2]
-recompute = True if sys.argv[3] == "true" else False
+parser = argparse.ArgumentParser(description="Compute Ficture statistics.")
+parser.add_argument("sample", help="sample name.")
+parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument(
+    "--recompute", default=False, type="store_true", help="Recompute all stats."
+)
+args = parser.parse_args()
 
 results_path = join(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark",
     "samples",
-    sample,
+    args.sample,
     "results",
 )
 
@@ -42,7 +46,7 @@ logger.info("Check Segementations for prior ficture results.")
 compute_ficture = []
 for method in os.listdir(results_path):
     if exists(join(results_path, method, "sdata.zarr")):
-        if recompute:
+        if args.recompute:
             compute_ficture.append(method)
         elif not isdir(join(results_path, method, "Ficture_stats")):
             compute_ficture.append(method)
@@ -58,12 +62,12 @@ else:
     )
 
 logger.info("Preparing Ficture")
-stats = prepare_ficture(data_path, results_path, top_n_factors=1, logger=logger)
+stats = prepare_ficture(args.data_path, results_path, top_n_factors=1, logger=logger)
 
 logger.info("Converting images")
 area_covered = stats["images"] > 0
 del stats
-stats = prepare_ficture(data_path, results_path, logger=logger)
+stats = prepare_ficture(args.data_path, results_path, logger=logger)
 stats["images"] = stats["images"].astype(np.float16) / (
     np.finfo(np.float16).max.astype(np.uint16) - 5
 )  # reverse ficture normalization
@@ -92,7 +96,7 @@ if compute_ficture:
 
     logger.info("Read shapes")
     transform = pd.read_csv(
-        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
+        join(args.data_path, "images/micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     ).values
