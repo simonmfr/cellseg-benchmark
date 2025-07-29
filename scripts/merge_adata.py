@@ -33,6 +33,18 @@ parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 parser.add_argument(
     "seg_method", help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'"
 )
+parser.add_argument(
+    "--age",
+    default=False,
+    action="store_true",
+    help="Age information is available. Otherwise, assume age: 6m.",
+)
+parser.add_argument(
+    "--genotype",
+    default=False,
+    action="store_true",
+    help="Genotype information is available. Otherwise, assume WT.",
+)
 args = parser.parse_args()
 
 # Paths
@@ -55,7 +67,7 @@ logger.info("Loading data...")
 sdata_list = []
 available_names = set()
 
-for sample_dir in samples_path.glob(f"{args.cohort}*"): # restriction to cohort folders
+for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort folders
     if sample_dir.name in excluded_samples:
         continue
     sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
@@ -70,6 +82,8 @@ adata = merge_adatas(
     sample_paths_file=sample_paths_file,
     logger=logger,
     plot_qc_stats=True,
+    age=args.age,
+    genotype=args.genotype,
     save_path=save_path / "plots",
 )
 del sdata_list

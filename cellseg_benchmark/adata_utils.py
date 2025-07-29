@@ -1,8 +1,8 @@
 import logging
 import math
+import re
 from os.path import isfile, join
 from typing import List, Tuple
-import re
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -26,6 +26,8 @@ def merge_adatas(
     sample_paths_file: dict,
     logger: logging.Logger = None,
     plot_qc_stats=False,
+    genotype: bool = False,
+    age: bool = False,
     save_path=None,
 ) -> AnnData:
     """Merge AnnData objects extracted from multiple SpatialData objects into a single AnnData.
@@ -44,6 +46,8 @@ def merge_adatas(
         logger (logging.Logger, optional): Logger instance for informational and warning
             messages. If None, logging is disabled. Defaults to None.
         plot_qc_stats (bool, optional): If True, triggers QC plotting via the `plot_qc` function internally. Defaults to False.
+        genotype (bool, optional): If True, genotype information is available
+        age (bool, optional): If True, age information is available
         save_path (str, optional): File path or directory where QC plots will be saved
             if `plot_qc_stats` is True. Defaults to None.
 
@@ -67,15 +71,28 @@ def merge_adatas(
         adata.obs["slide"] = slide
         adata.obs["region"] = region
         adata.obs["sample"] = name
-        if cohort == "aging":
+        if age:
             # Assume, that all region names contain months in the end (e.g. region_0-WT279_12m)
-            adata.obs["condition"] = int(re.split("[_\-]", sample_paths_file[name].split("/")[-1])[-1].split("m")[0])
+            adata.obs["age"] = int(
+                re.split("[_\-]", sample_paths_file[name].split("/")[-1])[-1].split(
+                    "m"
+                )[0]
+            )
         else:
+            adata.obs["age"] = 6
+        if genotype:
             # Assume that the last "-"-seperated entries are indicating the condition of the sample (in order of the regions). E.g. 20240805_Foxf2-Slide07-cp-WT-GLKO
             # Requires region names to follow example: region_1-KO885
             # foxf2_s2 is not correctly named, but as only the first entry is missing in the naming, it still works
-            index = int(re.split("[_\-]", sample_paths_file[name].split("/")[-1])[1]) - sum([f"{cohort}_{slide}" in x for x in sample_paths_file.keys()])
-            adata.obs["condition"] = sample_paths_file[name].split("/")[-2].split("-")[index]
+            index = int(
+                re.split("[_\-]", sample_paths_file[name].split("/")[-1])[1]
+            ) - sum([f"{cohort}_{slide}" in x for x in sample_paths_file.keys()])
+            adata.obs["genotype"] = (
+                sample_paths_file[name].split("/")[-2].split("-")[index]
+            )
+        else:
+            adata.obs["genotype"] = "WT"
+        adata.obs["condition"] = adata.obs["genotype"] + "_" + adata.obs["age"]
         if isinstance(adata.X, np.ndarray):
             adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
         adata.obs["n_counts"] = adata.X.sum(axis=1)
