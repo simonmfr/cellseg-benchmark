@@ -530,6 +530,8 @@ def calculate_volume(
         adata = sdata_main.tables[f"adata_{seg_method}"]
         if "area" in adata.obs.columns:
             adata.obs.drop(columns="area", inplace=True)
+        if "solidity" in adata.obs.columns:
+            adata.obs.drop(columns="solidity", inplace=True)
         adata.obs = adata.obs.merge(df_morph, left_index=True, right_index=True)
         sdata_main[f"adata_{seg_method}"] = adata
 
