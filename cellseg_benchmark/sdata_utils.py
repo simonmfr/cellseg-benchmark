@@ -525,7 +525,10 @@ def calculate_volume(
         df_morph = pd.DataFrame(morphology_rows)
         df_morph["cell_id"] = df_morph["cell_id"].astype(str)
         df_morph.index = df_morph["cell_id"]
-        df_morph.drop(columns=["dimensionality", "cell_id"], inplace=True)
+        if "dimensionality" in df_morph.columns:
+            df_morph.drop(columns=["dimensionality", "cell_id"], inplace=True)
+        else:
+            df_morph.drop(columns=["cell_id"], inplace=True)
 
         adata = sdata_main.tables[f"adata_{seg_method}"]
         if "area" in adata.obs.columns:
