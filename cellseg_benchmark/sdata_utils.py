@@ -482,7 +482,11 @@ def calculate_volume(
             boundaries[z_level_name].min(),
             boundaries[z_level_name].max(),
         )
-        grouped = boundaries.groupby(cell_identifier)
+        try:
+            grouped = boundaries.groupby(cell_identifier)
+        except ValueError:
+            boundaries.index.rename(None, inplace=True)
+            grouped = boundaries.groupby(cell_identifier)
         morphology_rows = []
 
         if logger:
