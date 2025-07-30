@@ -37,7 +37,7 @@ plt.rcParams["font.weight"] = "normal"
 today = date.today().strftime("%Y%m%d")
 
 logger = logging.getLogger("annotation")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
@@ -45,7 +45,7 @@ logger.addHandler(handler)
 
 if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])
-    logger.info("Using SLURM_CPUS_PER_TASK={}".format(sc.settings.n_jobs))
+    logger.debug("Using SLURM_CPUS_PER_TASK={}".format(sc.settings.n_jobs))
 
 warnings.filterwarnings("ignore")
 
@@ -72,6 +72,7 @@ annotation_path = os.path.join(path, "cell_type_annotation")
 os.makedirs(annotation_path, exist_ok=True)
 
 adata = read_zarr(os.path.join(path, "sdata.zarr"))["table"]
+logger.debug(f"adata columns: {adata.obs.columns}")
 # Remove Blank genes
 adata = adata[:, ~adata.var_names.str.startswith("Blank")]
 adata.var["gene"] = adata.var.index
@@ -269,25 +270,25 @@ output_path = os.path.join(
 plt.savefig(output_path, dpi=200, bbox_inches="tight")
 plt.close()
 
-logger.info(
+logger.debug(
     "Number of mmc including mixed cells: {}".format(
         adata.obs["cell_type_mmc_incl_mixed"].value_counts()
     )
 )
-logger.info(
+logger.debug(
     "Number of mixed mmc: {}".format(adata.obs["cell_type_mmc_is_mixed"].value_counts())
 )
-logger.info(
+logger.debug(
     "Number of mmc with mixed names: {}".format(
         adata.obs["cell_type_mmc_mixed_names"].value_counts()
     )
 )
-logger.info(
+logger.debug(
     "Number of low-quality cells: {}".format(
         adata.obs["cell_type_mmc_is_low_quality"].value_counts()
     )
 )
-logger.info(
+logger.debug(
     "Number of cells including low-quality cells: {}".format(
         adata.obs["cell_type_mmc_incl_low_quality"].value_counts()
     )
@@ -503,6 +504,8 @@ normalized_percentage.to_csv(
     os.path.join(annotation_path, "mapmycells_leiden_crosstab_normalized.csv")
 )
 # subset columns
+if "cell_id" not in adata.obs.columns:
+    logger.error(f"No cell_ID column. Available columns: {adata.obs.columns}")
 adata.obs = adata.obs[
     [
         col
