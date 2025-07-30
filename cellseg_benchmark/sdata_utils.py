@@ -411,9 +411,17 @@ def add_cell_type_annotation(
             sdata_main[f"adata_{seg_method}"].obs.columns
         ):
             del sdata_main[f"adata_{seg_method}"].obs[col]
-    new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
-        cell_type, how="left", left_index=True, right_on="cell_id"
-    )
+    try:
+        if "cell_id" in sdata_main[f"adata_{seg_method}"].obs.columns:
+            sdata_main[f"adata_{seg_method}"].obs.drop(columns="cell_id", inplace=True)
+        new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
+            cell_type, how="left", left_index=True, right_on="cell_id"
+        )
+    except ValueError:
+        cell_type['cell_id'] = cell_type['cell_id'].astype(str)
+        new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
+            cell_type, how="left", left_index=True, right_on="cell_id"
+        )
     new_obs.index = sdata_main[f"adata_{seg_method}"].obs.index
     for col in new_obs.columns:
         if isinstance(new_obs[col].dtype, pd.CategoricalDtype):
