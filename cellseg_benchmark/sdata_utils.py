@@ -467,7 +467,7 @@ def calculate_volume(
             cell_identifier = "cell_id"
         elif seg_method.startswith("vpt_3D"):
             z_level_name = "ZIndex"
-            cell_identifier = "EntityID"
+            cell_identifier = "cell_id"
         if logger:
             logger.info(f"collecting volume metadata for {seg_method}")
         global_z_min, global_z_max = (
