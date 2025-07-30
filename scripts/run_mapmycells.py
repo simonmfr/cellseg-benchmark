@@ -37,9 +37,9 @@ plt.rcParams["font.weight"] = "normal"
 today = date.today().strftime("%Y%m%d")
 
 logger = logging.getLogger("annotation")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-handler.setLevel(logging.DEBUG)
+handler.setLevel(logging.INFO)
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
