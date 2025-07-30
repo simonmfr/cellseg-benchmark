@@ -116,7 +116,7 @@ def merge_adatas(
                 y_limits[2], max(np.histogram(adata.obs["n_genes"], bins=60)[0])
             )
             y_limits[3] = max(
-                y_limits[3], max(np.histogram(adata.obs["volume"], bins=100)[0])
+                y_limits[3], max(np.histogram(adata.obs["volume_final"], bins=100)[0])
             )
 
     adata = concat(adatas, join="outer", merge="first")
@@ -177,7 +177,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
                 adata_tmp.obs["n_counts"],
                 adata_tmp.obs["n_counts"][adata_tmp.obs["n_counts"] < 1000],
                 adata_tmp.obs["n_genes"],
-                adata_tmp.obs["volume"],
+                adata_tmp.obs["volume_final"],
             ],
             [60, 60, 60, 100],
             y_limits,
@@ -239,7 +239,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
             adata_tmp,
             x="n_counts",
             y="n_genes",
-            color="volume",
+            color="volume_final",
             ax=ax,
             show=False,
             legend_loc="none",
@@ -253,7 +253,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.1)
         cbar = fig.colorbar(im, cax=cax)
-        cbar.set_label("volume")
+        cbar.set_label("volume_final")
 
     for ax, row in zip(axs, rows):
         ax.annotate(
@@ -516,7 +516,7 @@ def filter_low_quality_cells(
     """Flags two types of problematic cells in `adata.obs`.
 
     - 'low_quality_cell': cells with fewer than `min_counts` counts or `min_genes` genes.
-    - 'volume_outlier_cell': cells with volume < 100 or > 3× median volume.
+    - 'volume_outlier_cell': cells with volume_final < 100 or > 3× median volume.
 
     If `remove_outliers` is True:
     - Volume outliers are removed.
@@ -542,7 +542,7 @@ def filter_low_quality_cells(
         adata.obs["n_genes"] < min_genes
     )
 
-    metric, n = "volume", 3
+    metric, n = "volume_final", 3
     adata.obs["volume_outlier_cell"] = (
         adata.obs[metric] > n * np.median(adata.obs[metric])
     ) | (adata.obs[metric] < 100)
@@ -656,7 +656,7 @@ def filter_genes(adata, save_path, logger=None):
             adata.obs["n_counts"],
             adata.obs["n_counts"][adata.obs["n_counts"] < 1000],
             adata.obs["n_genes"],
-            adata.obs["volume"],
+            adata.obs["volume_final"],
         ],
         [100, 100, 100, 100],  # bins
     ):
@@ -687,7 +687,7 @@ def normalize_counts(
 
     Args:
         adata (AnnData): AnnData with raw integer counts in ``adata.X`` and a
-            ``volume`` column in ``adata.obs``.
+            ``volume_final`` column in ``adata.obs``.
         save_path (str): Directory for diagnostic plots.
         seg_method (str): Name of segmentation method for processing logic.
         target_sum (int, optional): Target sum per cell after rescaling.
@@ -713,7 +713,7 @@ def normalize_counts(
 
     # 1 Volume normalisation
     adata.layers["counts"] = adata.X
-    inv_vol = (1.0 / adata.obs["volume"].to_numpy()).astype("float32")
+    inv_vol = (1.0 / adata.obs["volume_final"].to_numpy()).astype("float32")
     adata.layers["volume_norm"] = sp.csr_matrix(adata.X, dtype=np.float32).multiply(
         inv_vol[:, None]
     )
