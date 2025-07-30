@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("sample", help="sample name.")
 parser.add_argument("data_path", help="Path to data folder with merscope data.")
 parser.add_argument(
-    "z_mode", choices=["z3", "3d"], help="mode of master sdata. Either 'z3' or '3d'."
+    "zmode", choices=["z3", "3d"], help="mode of master sdata. Either 'z3' or '3d'."
 )
 parser.add_argument("data_dir", help="output data folder.")
 parser.add_argument(
