@@ -75,6 +75,7 @@ for method in methods:
 #SBATCH -o {log_path}/%x.log
 #SBATCH --container-image="{container_image}"
 cd ~/gitrepos/cellseg-benchmark
+git pull
 mamba activate cellseg_benchmark
 python scripts/merge_adata.py {args.cohort} {method} {"--age" if args.cohort == "aging" else "--genotype"}
 """)
