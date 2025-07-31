@@ -50,7 +50,7 @@ args = parser.parse_args()
 # Paths
 base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 samples_path = base_path / "samples"
-save_path = base_path / "analysis" / args.seg_method
+save_path = base_path / "analysis" / args.cohort / args.seg_method
 save_path.mkdir(parents=True, exist_ok=True)
 
 # Load sample paths
