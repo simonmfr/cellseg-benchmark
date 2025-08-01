@@ -27,7 +27,7 @@ log_path = f"{base_path}/misc/logs/merged"
 Path(sbatch_path).mkdir(parents=False, exist_ok=True)
 
 
-with open(f"{sbatch_path}/{args.cohort}_.sbatch", "w") as f:
+with open(f"{sbatch_path}/{args.cohort}.sbatch", "w") as f:
     f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
