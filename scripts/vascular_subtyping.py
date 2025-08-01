@@ -164,7 +164,7 @@ with rc_context({"figure.figsize": (7, 6)}):
 ec_adata = sub_adata[
     sub_adata.obs["ec_zonation"].isin(["capECs", "aECs", "vECs"])
 ].copy()
-logger.info(f"Cells removed (non-ECs): {adata.shape[0] - ec_adata.shape[0]}")
+logger.info(f"Cells removed (non-ECs): {sub_adata.shape[0] - ec_adata.shape[0]}")
 logger.info(f"Remaining ECs: {ec_adata.shape[0]}")
 
 ec_adata = clean_pca_umap(ec_adata)
@@ -237,32 +237,31 @@ with rc_context({"figure.figsize": (7, 6)}):
 logger.info("Merging EC zonation subtypes back into vascular dataset...")
 cell_type_zonation = "cell_type_incl_zonation"
 
-adata = sub_adata.copy()
-adata.obs = adata.obs.merge(
+sub_adata.obs = sub_adata.obs.merge(
     ec_adata.obs[["ec_zonation"]], left_index=True, right_index=True, how="left"
 )
-adata.obs[cell_type_zonation] = (
-    adata.obs["ec_zonation"].fillna(adata.obs[cell_type_col]).astype("category")
+sub_adata.obs[cell_type_zonation] = (
+    sub_adata.obs["ec_zonation"].fillna(sub_adata.obs[cell_type_col]).astype("category")
 )
-adata.obs.loc[
-    adata.obs["ec_zonation"].isna() & (adata.obs[cell_type_col] == "ECs"),
+sub_adata.obs.loc[
+    sub_adata.obs["ec_zonation"].isna() & (sub_adata.obs[cell_type_col] == "ECs"),
     cell_type_zonation,
 ] = "otherECs"
-adata.obs.drop(columns="ec_zonation", inplace=True)
+sub_adata.obs.drop(columns="ec_zonation", inplace=True)
 
-adata.obs[cell_type_zonation] = pd.Categorical(
-    adata.obs[cell_type_zonation], categories=list(cell_type_colors.keys())
+sub_adata.obs[cell_type_zonation] = pd.Categorical(
+    sub_adata.obs[cell_type_zonation], categories=list(cell_type_colors.keys())
 ).remove_unused_categories()
-adata.uns[f"{cell_type_zonation}_colors"] = [
-    cell_type_colors[ct] for ct in adata.obs[cell_type_zonation].cat.categories
+sub_adata.uns[f"{cell_type_zonation}_colors"] = [
+    cell_type_colors[ct] for ct in sub_adata.obs[cell_type_zonation].cat.categories
 ]
 
 with rc_context({"figure.figsize": (7, 6)}):
     sc.pl.embedding(
-        adata,
+        sub_adata,
         basis="X_umap_harmony_10_20",
         color=cell_type_zonation,
-        size=320000 / adata.shape[0],
+        size=320000 / sub_adata.shape[0],
         show=False,
     )
     plt.savefig(
@@ -276,20 +275,20 @@ with rc_context({"figure.figsize": (7, 6)}):
 logger.info("Exporting cell type proportions to csv...")
 
 pd.crosstab(
-    [adata.obs["condition"], adata.obs["sample"]],
-    adata.obs[cell_type_zonation],
+    [sub_adata.obs["condition"], sub_adata.obs["sample"]],
+    sub_adata.obs[cell_type_zonation],
     normalize="index",
 ).mul(100).round(1).to_csv(results_path / "fraction_vasc_cells_per_condition.csv")
 
 pd.crosstab(
-    adata.obs["condition"], adata.obs[cell_type_zonation], normalize="index"
+    sub_adata.obs["condition"], sub_adata.obs[cell_type_zonation], normalize="index"
 ).mul(100).round(1).to_csv(results_path / "fraction_vasc_cells_per_condition_sum.csv")
 
 logger.info("Exporting spatial plots...")
-for sample in adata.obs["sample"].unique():
+for sample in sub_adata.obs["sample"].unique():
     with rc_context({"figure.figsize": (10, 10)}):
         sc.pl.embedding(
-            adata[adata.obs["sample"] == sample],
+            sub_adata[sub_adata.obs["sample"] == sample],
             basis="spatial_microns",
             color=cell_type_zonation,
             size=9,
@@ -303,7 +302,7 @@ for sample in adata.obs["sample"].unique():
 
 # Save
 logger.info("Saving re-processed vascular subset to h5ad...")
-adata.obs["fov"] = adata.obs.get("fov", "").astype(str)
-adata.write(adata_path / "adata_integrated_vascular.h5ad.gz", compression="gzip")
+sub_adata.obs["fov"] = sub_adata.obs.get("fov", "").astype(str)
+sub_adata.write(adata_path / "adata_integrated_vascular.h5ad.gz", compression="gzip")
 
 logger.info("Done.")
