@@ -237,24 +237,27 @@ with rc_context({"figure.figsize": (7, 6)}):
 logger.info("Merging EC zonation subtypes back into vascular dataset...")
 cell_type_zonation = "cell_type_incl_zonation"
 
-#sub_adata.obs = sub_adata.obs.merge(
-#    ec_adata.obs[["ec_zonation"]], left_index=True, right_index=True, how="left"
-#)
 sub_adata.obs.drop(columns=["ec_zonation"], errors="ignore", inplace=True)
 sub_adata.obs = sub_adata.obs.join(ec_adata.obs[["ec_zonation"]], how="left")
 
-sub_adata.obs[cell_type_zonation] = (
-    sub_adata.obs["ec_zonation"].fillna(sub_adata.obs[cell_type_col]).astype("category")
-)
+ec_zonation_str = sub_adata.obs["ec_zonation"].astype(str)
+cell_type_str = sub_adata.obs[cell_type_col].astype(str)
+sub_adata.obs[cell_type_zonation] = ec_zonation_str.where(
+    sub_adata.obs["ec_zonation"].notna(), cell_type_str
+).astype("category")
+
+# relabel ambiguous ECs
 sub_adata.obs.loc[
-    sub_adata.obs["ec_zonation"].isna() & (sub_adata.obs[cell_type_col] == "ECs"),
+    (sub_adata.obs["ec_zonation"].isna()) & (sub_adata.obs[cell_type_col] == "ECs"),
     cell_type_zonation,
 ] = "otherECs"
 sub_adata.obs.drop(columns="ec_zonation", inplace=True)
 
+# Set ordered categories and color map
 sub_adata.obs[cell_type_zonation] = pd.Categorical(
     sub_adata.obs[cell_type_zonation], categories=list(cell_type_colors.keys())
 ).remove_unused_categories()
+
 sub_adata.uns[f"{cell_type_zonation}_colors"] = [
     cell_type_colors[ct] for ct in sub_adata.obs[cell_type_zonation].cat.categories
 ]
