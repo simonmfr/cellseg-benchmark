@@ -27,7 +27,7 @@ setup(
         "plotly",
         "pyvista",
     ],
-    python_requires="==3.10.*",
+    python_requires=">=3.10.*",
     classifiers=[
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent",
