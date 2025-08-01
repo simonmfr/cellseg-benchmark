@@ -11,37 +11,8 @@ import scanpy as sc
 import scipy.sparse as sp
 import seaborn as sns
 from matplotlib.pyplot import rc_context
+from scipy import stats
 from scipy.stats import median_abs_deviation
-
-cell_type_colors = {
-    "ECs": "#FF6464",
-    "Pericytes": "#F6EC2A",
-    "SMCs": "#29FBA7",
-    "VLMCs": "#85B0F9",
-    "ABCs": "#AEC9F5",
-    "Ependymal": "#FDC000",
-    "Tanycytes": "#FFE180",
-    "Choroid-Plexus": "#BF9800",
-    "Astrocytes": "#FE9A30",
-    "Astroependymal": "#FE9A30",
-    "Bergmann": "#FFD1A3",
-    "Oligodendrocytes": "#4564FF",
-    "OPCs": "#0095FF",
-    "Microglia": "#00C088",
-    "BAMs": "#20B2AA",
-    "Immune-Other": "#98DF8A",
-    "Neurons-Gaba": "#B449F8",
-    "Neurons-Glut": "#CEB3FF",
-    "Neurons-Glyc-Gaba": "#DCAEFF",
-    "Neurons-Dopa": "#FCA0FF",
-    # "Neurons-Immature": "#FF50E5",
-    "Neurons-Granule-Immature": "#FF50E5",
-    "Neurons-Other": "#FCA0FF",
-    "OECs": "#9EDAE5",
-    "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
-    "Undefined": "#D9D9D9",  # = below QC threshold
-    "Mixed": "#D9D9D9",
-}
 
 
 def assign_cell_types_to_clusters(
@@ -763,7 +734,11 @@ def revise_annotations(
 
     # Score cell types using marker genes
     adata = score_cell_types(
-        adata, marker_genes_dict=cell_type_dict, top_n_genes=top_n_genes, logger=logger
+        adata,
+        marker_genes_dict=cell_type_dict,
+        top_n_genes=top_n_genes,
+        layer=None,
+        logger=logger,
     )
 
     # Process each cell type annotation key
@@ -907,15 +882,95 @@ def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
     os.remove(temp_file_path)
 
 
-def score_cell_types(adata, marker_genes_dict, top_n_genes=25, logger=None):
-    """Score cells for marker gene expression using top n genes from marker_genes_dict."""
+def flag_contamination(
+    adata,
+    contamination_markers,
+    layer="volume_log1p_norm",
+    absolute_min=1,
+    z_threshold=2,
+    logger=None,
+):
+    """Flag cell-type-contaminated cells based on abnormal expression of cell-type markers.
+
+    Args:
+        adata (AnnData): Single-cell AnnData object.
+        contamination_markers (dict): Mapping of cell types to lists of marker genes.
+        layer (str): Expression layer to use.
+        absolute_min (float, optional): Minimum expression threshold for meaningful signal in adata.layers[layer].
+        z_threshold (float, optional): Z-score threshold for population outliers.
+        logger (logging.Logger, optional): Python logging instance.
+    """
+    if logger:
+        logger.info("Marker expression distribution check")
+        logger.info("=" * 50)
+
+    adata.obs["contaminated"] = False
+
+    for cell_type, markers in contamination_markers.items():
+        available = [m for m in markers if m in adata.var_names]
+
+        if not available:
+            if logger:
+                logger.info(f"{cell_type:<15} No markers found")
+            adata.obs[f"contaminated_{cell_type}"] = False
+            continue
+
+        marker_data = adata[:, available].layers[layer]
+        if hasattr(marker_data, "toarray"):
+            marker_data = marker_data.toarray()
+        expr = marker_data.mean(axis=1)
+
+        percentiles = np.percentile(expr, [90, 95, 99])
+        max_expr = expr.max()
+        n_above_1 = (expr > 1.0).sum()
+
+        if logger:
+            logger.info(
+                f"{cell_type:<15} Markers: {len(available):2d}/{len(markers):2d} | "
+                f"Expr > 1.0: {n_above_1:5d} | "
+                f"Pctl (90/95/99): {percentiles[0]:.2f}/"
+                f"{percentiles[1]:.2f}/{percentiles[2]:.2f} | "
+                f"Max: {max_expr:.2f}"
+            )
+
+        z_scores = stats.zscore(expr)
+        contaminated = (expr > absolute_min) & (z_scores > z_threshold)
+        adata.obs[f"contaminated_{cell_type}"] = contaminated
+        adata.obs["contaminated"] |= contaminated
+
+    if logger:
+        logger.info(
+            f"Contamination flagging criteria: mean expr > "
+            f"{absolute_min} & z-score > {z_threshold}"
+        )
+
+    for cell_type in contamination_markers:
+        key = f"contaminated_{cell_type}"
+        if key in adata.obs:
+            count = adata.obs[key].sum()
+            if count > 0 and logger:
+                logger.info(f"{cell_type:<15} {count} contaminated cells")
+
+    total = adata.obs["contaminated"].sum()
+    if logger:
+        logger.info(
+            f"Total contaminated cells: {total} ({100 * total / len(adata):.1f}%)"
+        )
+
+    return adata
+
+
+def score_cell_types(adata, marker_genes_dict, top_n_genes=25, layer=None, logger=None):
+    """Score cells for marker gene expression using top n genes from marker_genes_dict in selected layer."""
     if not marker_genes_dict:
-        logger.warning("Empty marker_genes_dict. No scoring performed.")
+        if logger:
+            logger.warning("Empty marker_genes_dict. No scoring performed.")
         return adata
 
     for cell_type, genes in marker_genes_dict.items():
         if not genes:
-            logger.warning(f"Empty gene list for {cell_type}. Skipping.")
+            if logger:
+                logger.warning(f"Empty gene list for {cell_type}. Skipping.")
             continue
 
         genes_to_use = genes[:top_n_genes] if len(genes) > top_n_genes else genes
@@ -923,12 +978,53 @@ def score_cell_types(adata, marker_genes_dict, top_n_genes=25, logger=None):
 
         if available_genes:
             score_name = f"score_{cell_type}"
-            logger.info(f"Scoring {cell_type} with {len(available_genes)} genes")
-            sc.tl.score_genes(adata, available_genes, score_name=score_name)
-        else:
-            logger.warning(
-                f"No marker genes for {cell_type} found in dataset. Skipping."
+            if logger:
+                logger.info(f"Scoring {cell_type} with {len(available_genes)} genes")
+            sc.tl.score_genes(
+                adata, available_genes, score_name=score_name, layer=layer
             )
+        else:
+            if logger:
+                logger.warning(
+                    f"No marker genes for {cell_type} found in dataset. Skipping."
+                )
+
+    return adata
+
+
+def annotate_cells_by_score(
+    adata, marker_dict, out_col, score_threshold=0.3, logger=None
+):
+    """Annotate each cell by its highest scoring celltype. Requires scoring in adata.obs starting with "score_".
+
+    Args:
+        adata (AnnData): AnnData object with precomputed gene scores (e.g., from score_cell_types).
+        marker_dict (dict): Dictionary of subtypes to gene lists. Used to infer score column names.
+        out_col (str): Column name to write into `adata.obs`.
+        score_threshold (float, optional): Minimum score score required for assignment. Cells below will be 'Undefined'.
+        logger (logging.Logger, optional): Python logging instance.
+
+    Returns:
+        AnnData
+            updated AnnData with new annotations.
+    """
+    score_cols = {ct: f"score_{ct}" for ct in marker_dict.keys()}
+    scores_df = adata.obs[
+        [v for v in score_cols.values() if v in adata.obs.columns]
+    ].copy()
+
+    # Assign based on max score
+    max_score = scores_df.max(axis=1)
+    best_type = scores_df.idxmax(axis=1).str.replace("score_", "")
+
+    assigned = best_type.where(max_score >= score_threshold, "Undefined")
+    adata.obs[out_col] = assigned.astype("category")
+
+    if logger:
+        logger.info(
+            f"Assigned {sum(assigned != 'Undefined')} of {len(assigned)} cells."
+        )
+        logger.info(adata.obs[out_col].value_counts().to_string())
 
     return adata
 

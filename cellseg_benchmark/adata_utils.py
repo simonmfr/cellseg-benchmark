@@ -17,7 +17,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from spatialdata import SpatialData
 from tqdm import tqdm
 
-from cellseg_benchmark.cell_annotation_utils import cell_type_colors
+from cellseg_benchmark._constants import cell_type_colors
 
 
 def merge_adatas(
@@ -510,7 +510,7 @@ def filter_low_quality_cells(
     logger: logging.Logger = None,
     remove_outliers: bool = True,
 ) -> AnnData:
-    """Flags two types of problematic cells in `adata.obs`.
+    """Flag two types of problematic cells in `adata.obs`.
 
     - 'low_quality_cell': cells with fewer than `min_counts` counts or `min_genes` genes.
     - 'volume_outlier_cell': cells with volume_final < 100 or > 3× median volume.
@@ -630,15 +630,15 @@ def filter_low_quality_cells(
 
 
 def filter_genes(adata, save_path, logger=None):
-    """Filter adata after genes.
+    """Filter genes detected in fewer than 10 cells and generate QC histograms.
 
     Args:
-        adata: AnnData
-        save_path: save path for plots
-        logger: logger object
+        adata (AnnData): Annotated data matrix to filter.
+        save_path (str): Directory path to save QC histogram plots.
+        logger (logging.Logger, optional): Logger instance for status messages.
 
     Returns:
-        adata with filtered genes
+        AnnData: Filtered AnnData object with low-coverage genes removed.
     """
     if logger:
         logger.info(f"# genes before filtering: {adata.n_vars}")
@@ -672,7 +672,7 @@ def normalize_counts(
     seg_method: str,
     *,
     target_sum: int = 250,
-    logger=None,
+    logger: logging.Logger = None,
 ) -> AnnData:
     """Volume‑based normalisation of raw UMI counts (as in Allen et al. Cell, 2023).
 
@@ -689,7 +689,7 @@ def normalize_counts(
         seg_method (str): Name of segmentation method for processing logic.
         target_sum (int, optional): Target sum per cell after rescaling.
             Defaults to 250 as in Allen et al.
-        logger (logging.Logger, optional): Python logging instance. Defaults to None.
+        logger (logging.Logger, optional): Logger instance for status messages.
 
     Returns:
         AnnData: ``adata`` with the layers above and outlier cells removed.
@@ -797,7 +797,9 @@ def normalize_counts(
     return adata
 
 
-def dimensionality_reduction(adata: AnnData, save_path: str, logger=None) -> AnnData:
+def dimensionality_reduction(
+    adata: AnnData, save_path: str, point_size_factor=320000, logger=None
+) -> AnnData:
     """Run PCA and multiple UMAP projections on the z-scored layer of the input AnnData object.
 
     Exports PCA.png and comparing_UMAPs.png.
@@ -805,11 +807,11 @@ def dimensionality_reduction(adata: AnnData, save_path: str, logger=None) -> Ann
     Args:
         adata (AnnData): Annotated data matrix with a 'zscore' layer and relevant metadata in .obs.
         save_path (str): Directory path to save PCA and UMAP plots.
+        point_size_factor (optional): Factor determining dot size in UMAP. Increase for smaller dots.
         logger (optional): Logger instance for status messages.
 
     Returns:
-        AnnData
-            Updated AnnData object with PCA and multiple UMAP embeddings added to .obsm.
+        AnnData: updated AnnData object with PCA and multiple UMAP embeddings added to .obsm.
     """
     adata.X = adata.layers["zscore"]
     sc.settings.figdir = save_path
@@ -829,8 +831,6 @@ def dimensionality_reduction(adata: AnnData, save_path: str, logger=None) -> Ann
     axs[1].set_title("PCA variance ratio")
     fig.savefig(join(save_path, "PCA.png"))
     plt.close(fig)
-
-    pt_size_umap = 320000 / adata.shape[0]
 
     fig, axs = plt.subplots(
         3, 3, figsize=(21, 19), gridspec_kw={"wspace": 0.6, "hspace": 0.3}
@@ -866,7 +866,7 @@ def dimensionality_reduction(adata: AnnData, save_path: str, logger=None) -> Ann
                             adata,
                             ax=axs[row, col],
                             basis=config["key"],
-                            size=pt_size_umap,
+                            size=point_size_factor / adata.shape[0],
                             color=color_scheme,
                             title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
                             show=False,
@@ -889,6 +889,9 @@ def integration_harmony(
     logger: logging.Logger = None,
     n_neighbors: int = 20,
     n_pcs: int = 50,
+    point_size_factor: int = 320000,
+    point_size_3d: int = 0.5,
+    point_alpha_3d: int = 0.02,
 ) -> AnnData:
     """Harmony integration by batch_key.
 
@@ -933,7 +936,9 @@ def integration_harmony(
 
     sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key, n_components=2)
 
-    _plot_integration_comparison(adata, save_path, umap_key)
+    _plot_integration_comparison(
+        adata, save_path, umap_key, point_size_factor=point_size_factor
+    )
 
     # 3D UMAP
     sc.tl.umap(
@@ -947,13 +952,13 @@ def integration_harmony(
             adata,
             basis=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
             color=["sample", "condition", "cell_type_mmc_raw_revised"],
-            size=0.5,
-            alpha=0.02,
+            size=point_size_3d,
+            alpha=point_alpha_3d,
             wspace=0.1,
             show=False,
             projection="3d",
         )
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.savefig(
             join(save_path, "UMAP_integrated_harmony_3D.png"),
             dpi=200,
@@ -964,10 +969,10 @@ def integration_harmony(
     return adata
 
 
-def _plot_integration_comparison(adata: AnnData, save_path: str, umap_key: str) -> None:
+def _plot_integration_comparison(
+    adata: AnnData, save_path: str, umap_key: str, point_size_factor: int = 320000
+) -> None:
     """Helper function to plot before/after integration comparison."""
-    pt_size = 320000 / adata.shape[0]
-
     fig, axes = plt.subplots(
         3, 2, figsize=(20, 24), gridspec_kw={"hspace": 0.05, "wspace": 0}
     )
@@ -990,7 +995,7 @@ def _plot_integration_comparison(adata: AnnData, save_path: str, umap_key: str) 
             color=color_key,
             show=False,
             ax=axes[i, 0],
-            size=pt_size,
+            size=point_size_factor / adata.shape[0],
             legend_loc=None,
             title="",
         )
@@ -1004,7 +1009,7 @@ def _plot_integration_comparison(adata: AnnData, save_path: str, umap_key: str) 
             color=color_key,
             show=False,
             ax=axes[i, 1],
-            size=pt_size,
+            size=point_size_factor / adata.shape[0],
             legend_loc="right margin",
             title="",
         )
@@ -1029,3 +1034,36 @@ def _plot_integration_comparison(adata: AnnData, save_path: str, umap_key: str) 
         join(save_path, "UMAP_integrated_harmony.png"), dpi=200, bbox_inches="tight"
     )
     plt.close()
+
+
+def clean_pca_umap(adata, logger=None):
+    """Remove PCA, UMAP, neighbors, and all non-count layers from an AnnData object.
+    """
+    patterns = {
+        "uns": ["pca", "umap", "neighbor"],
+        "obsm": ["pca", "umap"],
+        "varm": ["pc"],
+        "obsp": ["connect", "distance"],
+    }
+
+    for attr, pats in patterns.items():
+        keys = [
+            k
+            for k in getattr(adata, attr)
+            if any(re.search(p, k, re.IGNORECASE) for p in pats)
+        ]
+        for k in keys:
+            del getattr(adata, attr)[k]
+            msg = f"Deleted adata.{attr}['{k}']"
+            if logger:
+                logger.info(msg)
+
+    # Keep only 'counts' layer
+    for layer in list(adata.layers.keys()):
+        if layer != "counts":
+            del adata.layers[layer]
+            msg = f"Deleted adata.layers['{layer}']"
+            if logger:
+                logger.info(msg)
+
+    return adata
