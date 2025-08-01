@@ -1,4 +1,4 @@
-sopa
+sopa==2.0.6
 spatialdata
 spatialdata-io>=0.1.5
 scanpy
@@ -17,3 +17,4 @@ anndata
 scikit-image
 plotly
 pyvista
+ovrlpy
