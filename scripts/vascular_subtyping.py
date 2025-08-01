@@ -164,6 +164,7 @@ with rc_context({"figure.figsize": (7, 6)}):
 ec_adata = sub_adata[
     sub_adata.obs["ec_zonation"].isin(["capECs", "aECs", "vECs"])
 ].copy()
+logger.info(f"Cells removed (non-ECs): {adata.shape[0] - ec_adata.shape[0]}")
 logger.info(f"Remaining ECs: {ec_adata.shape[0]}")
 
 ec_adata = clean_pca_umap(ec_adata)
@@ -220,7 +221,7 @@ with rc_context({"figure.figsize": (7, 6)}):
     sc.pl.embedding(
         ec_adata,
         basis="X_umap_10_20",
-        color=["n_counts", "n_genes", "volume"],
+        color=["n_counts", "n_genes", "volume_final"],
         cmap="turbo",
         size=320000 / ec_adata.shape[0],
         show=False,
