@@ -75,7 +75,8 @@ for sample, sdata in tqdm(sdata_list):
             "micron_to_mosaic_pixel_transform.csv",
         )
     ).reshape(3, 3)
-    integrity_matrix = np.load(join(str(base_path), "samples", sample, 'vertical_doublets_ovrlpy_output.npz'))['integrity']
+    integrity_matrix = np.load(join(str(base_path), "samples", sample, 'vertical_doublets_ovrlpy_output.npz'))[
+        'integrity']
     for boundary_name in sdata.shapes.keys():
         boundary = transform(sdata[boundary_name], to_coordinate_system="micron")
         tmp = compute_mean_vsi_per_polygon(integrity_matrix, boundary, transform_matrix)
@@ -88,7 +89,7 @@ for sample, sdata in tqdm(sdata_list):
         if args.age:
             # Assume, that all region names contain months in the end (e.g. region_0-WT279_12m)
             tmp["age"] = int(
-                re.split("[_\-]", sample_paths_file[sample].split("/")[-1])[-1].split(
+                re.split(r"[_\-]", sample_paths_file[sample].split("/")[-1])[-1].split(
                     "m"
                 )[0]
             )

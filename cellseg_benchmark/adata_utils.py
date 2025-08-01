@@ -74,7 +74,7 @@ def merge_adatas(
         if age:
             # Assume, that all region names contain months in the end (e.g. region_0-WT279_12m)
             adata.obs["age"] = int(
-                re.split("[_\-]", sample_paths_file[name].split("/")[-1])[-1].split(
+                re.split(r"[_\-]", sample_paths_file[name].split("/")[-1])[-1].split(
                     "m"
                 )[0]
             )
