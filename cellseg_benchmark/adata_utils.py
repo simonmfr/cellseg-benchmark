@@ -80,18 +80,8 @@ def merge_adatas(
             )
         else:
             adata.obs["age"] = 6
-        if genotype:
-            # Assume that the last "-"-seperated entries are indicating the condition of the sample (in order of the regions). E.g. 20240805_Foxf2-Slide07-cp-WT-GLKO
             # Requires region names to follow example: region_1-KO885
-            # foxf2_s2 is not correctly named, but as only the first entry is missing in the naming, it still works
-            index = int(
-                re.split("[_\-]", sample_paths_file[name].split("/")[-1])[1]
-            ) - sum([f"{cohort}_{slide}" in x for x in sample_paths_file.keys()])
-            adata.obs["genotype"] = (
-                sample_paths_file[name].split("/")[-2].split("-")[index]
-            )
-        else:
-            adata.obs["genotype"] = "WT"
+        adata.obs["genotype"] = re.search(r'region_\d+-([A-Za-z_]*?)(?=\d)', sample_paths_file[name]).group(1)
         adata.obs["condition"] = adata.obs["genotype"] + "_" + adata.obs["age"].astype(str)
         if isinstance(adata.X, np.ndarray):
             adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
