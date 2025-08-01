@@ -237,21 +237,21 @@ with rc_context({"figure.figsize": (7, 6)}):
 logger.info("Merging EC zonation subtypes back into vascular dataset...")
 cell_type_zonation = "cell_type_incl_zonation"
 
-sub_adata.obs.drop(columns=["ec_zonation"], errors="ignore", inplace=True)
-sub_adata.obs = sub_adata.obs.join(ec_adata.obs[["ec_zonation"]], how="left")
+if 'ec_zonation' in sub_adata.obs.columns:
+    sub_adata.obs = sub_adata.obs.drop(columns='ec_zonation')
 
-ec_zonation_str = sub_adata.obs["ec_zonation"].astype(str)
-cell_type_str = sub_adata.obs[cell_type_col].astype(str)
-sub_adata.obs[cell_type_zonation] = ec_zonation_str.where(
-    sub_adata.obs["ec_zonation"].notna(), cell_type_str
-).astype("category")
+# transfer labels
+sub_adata.obs = sub_adata.obs.merge(ec_adata.obs[["ec_zonation"]], left_index=True, right_index=True, how='left')
+sub_adata.obs[cell_type_column_zonation] = sub_adata.obs['ec_zonation'].astype('object').fillna(adata.obs[cell_type_column].astype('object'))
 
-# relabel ambiguous ECs
-sub_adata.obs.loc[
-    (sub_adata.obs["ec_zonation"].isna()) & (sub_adata.obs[cell_type_col] == "ECs"),
-    cell_type_zonation,
-] = "otherECs"
-sub_adata.obs.drop(columns="ec_zonation", inplace=True)
+# set "Undefined" for specific cell types without ec_adata annotation. these were removed as contamination.
+missed_ECs_mask = (sub_adata.obs['ec_zonation'].isna() & 
+                  sub_adata.obs[cell_type_column].isin(["ECs"]))
+sub_adata.obs.loc[missed_ECs_mask, cell_type_column_zonation] = "otherECs"
+
+# convert back to categorical
+sub_adata.obs[cell_type_column_zonation] = sub_adata.obs[cell_type_column_zonation].astype('category')
+sub_adata.obs.drop(columns='ec_zonation', inplace=True)
 
 # Set ordered categories and color map
 sub_adata.obs[cell_type_zonation] = pd.Categorical(
