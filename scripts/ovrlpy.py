@@ -94,18 +94,8 @@ for sample, sdata in tqdm(sdata_list):
             )
         else:
             tmp["age"] = 6
-        if args.genotype:
-            # Assume that the last "-"-seperated entries are indicating the condition of the sample (in order of the regions). E.g. 20240805_Foxf2-Slide07-cp-WT-GLKO
             # Requires region names to follow example: region_1-KO885
-            # foxf2_s2 is not correctly named, but as only the first entry is missing in the naming, it still works
-            index = int(
-                re.split("[_\-]", sample_paths_file[sample].split("/")[-1])[1]
-            ) - sum([f"{cohort}_{slide}" in x for x in sample_paths_file.keys()])
-            tmp["genotype"] = (
-                sample_paths_file[sample].split("/")[-2].split("-")[index]
-            )
-        else:
-            tmp["genotype"] = "WT"
+        tmp["genotype"] = re.search(r'region_\d+-([A-Za-z_]*?)(?=\d)', sample_paths_file[sample]).group(1)
         tmp["condition"] = tmp["genotype"] + "_" + tmp["age"].astype(str)
         metrics["_".join(boundary_name.split("_"))].append(tmp)
 
