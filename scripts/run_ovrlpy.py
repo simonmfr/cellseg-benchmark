@@ -20,7 +20,7 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s
 logger.addHandler(handler)
 
 parser = argparse.ArgumentParser(
-    description="Integrate adatas from a selected segmentation method."
+    description="Run ovrlpy über eine cohorte."
 )
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 parser.add_argument(
