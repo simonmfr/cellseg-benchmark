@@ -92,7 +92,7 @@ def merge_adatas(
             )
         else:
             adata.obs["genotype"] = "WT"
-        adata.obs["condition"] = adata.obs["genotype"] + "_" + adata.obs["age"]
+        adata.obs["condition"] = adata.obs["genotype"] + "_" + adata.obs["age"].astype(str)
         if isinstance(adata.X, np.ndarray):
             adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
         adata.obs["n_counts"] = adata.X.sum(axis=1)
