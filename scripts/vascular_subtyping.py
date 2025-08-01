@@ -237,6 +237,10 @@ with rc_context({"figure.figsize": (7, 6)}):
 logger.info("Merging EC zonation subtypes back into vascular dataset...")
 cell_type_zonation = "cell_type_incl_zonation"
 
+#sub_adata.obs = sub_adata.obs.merge(
+#    ec_adata.obs[["ec_zonation"]], left_index=True, right_index=True, how="left"
+#)
+sub_adata.obs.drop(columns=["ec_zonation"], errors="ignore", inplace=True)
 sub_adata.obs = sub_adata.obs.join(ec_adata.obs[["ec_zonation"]], how="left")
 
 sub_adata.obs[cell_type_zonation] = (
