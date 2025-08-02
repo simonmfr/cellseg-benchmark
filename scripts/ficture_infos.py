@@ -32,7 +32,7 @@ parser = argparse.ArgumentParser(description="Compute Ficture statistics.")
 parser.add_argument("sample", help="sample name.")
 parser.add_argument("data_path", help="Path to data folder.")
 parser.add_argument(
-    "--recompute", default=False, type="store_true", help="Recompute all stats."
+    "--recompute", default=False, action="store_true", help="Recompute all stats."
 )
 args = parser.parse_args()
 
