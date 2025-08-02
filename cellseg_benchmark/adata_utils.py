@@ -88,6 +88,9 @@ def merge_adatas(
                 adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
             else:
                 adata.X = sp.csr_matrix(adata.X, dtype=np.int32)
+        elif isinstance(adata.X, sp.csr_matrix) and seg_method.lower() != "Proseg":
+                if not np.issubdtype(adata.X.dtype, np.integer):
+                    adata.X = sp.csr_matrix(adata.X, dtype=np.int32)
         adata.obs["n_counts"] = adata.X.sum(axis=1)
         adata.obs["n_genes"] = adata.X.count_nonzero(axis=1)
         adata.obs["sample"] = name
