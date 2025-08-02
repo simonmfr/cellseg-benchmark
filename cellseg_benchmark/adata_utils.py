@@ -84,7 +84,10 @@ def merge_adatas(
         adata.obs["genotype"] = re.search(r'region_\d+-([A-Za-z_]*?)(?=\d)', sample_paths_file[name]).group(1)
         adata.obs["condition"] = adata.obs["genotype"] + "_" + adata.obs["age"].astype(str)
         if isinstance(adata.X, np.ndarray):
-            adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
+            if seg_method.lower() == "Proseg":
+                adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
+            else:
+                adata.X = sp.csr_matrix(adata.X, dtype=np.int32)
         adata.obs["n_counts"] = adata.X.sum(axis=1)
         adata.obs["n_genes"] = adata.X.count_nonzero(axis=1)
         adata.obs["sample"] = name

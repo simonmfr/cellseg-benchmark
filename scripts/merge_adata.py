@@ -69,10 +69,10 @@ sdata_list = []
 available_names = set()
 
 for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort folders
-    if not exists(sample_dir / "sdata_z3.zarr"):
-        logger.error(f"master sdata in {sample_dir} has not been found.")
     if sample_dir.name in excluded_samples:
         continue
+    if not exists(sample_dir / "sdata_z3.zarr"):
+        logger.error(f"master sdata in {sample_dir} has not been found.")
     sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
     current_names = ["_".join(k.split("_")[1:]) for k in sdata.tables.keys()]
     available_names.update(current_names)
