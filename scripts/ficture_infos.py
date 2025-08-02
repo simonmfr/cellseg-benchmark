@@ -153,7 +153,7 @@ if compute_ficture:
     image_2 = transform(sdata["ficture_image_2"], to_coordinate_system="micron")
     for key in tqdm(sdata.shapes.keys()):
         logger.info("Working on {}".format("_".join(split("_", key)[1:])))
-        boundary = transform(sdata[f"boundaries_{key}"], to_coordinate_system="micron")
+        boundary = transform(sdata[key], to_coordinate_system="micron")
         covered = _aggregate_channels_aligned(
             image=image_1, geo_df=boundary, mode="sum"
         )
