@@ -120,7 +120,7 @@ if compute_ficture:
             "region"
         ]
         if method.startswith("vpt_3D"):
-            bound = tmp[boundary_key][["EntityID", "geometry"]].dissolve(by="EntityID")
+            bound = tmp[boundary_key][["cell_id", "geometry"]].dissolve(by="cell_id")
             sdata[f"boundaries_{method}"] = ShapesModel.parse(bound)
             set_transformation(
                 sdata[f"boundaries_{method}"],
