@@ -12,12 +12,13 @@ from tqdm import tqdm
 
 dask.config.set({"dataframe.query-planning": False})
 
-from spatialdata import SpatialData, read_zarr
+from spatialdata import SpatialData, read_zarr, transform
 from spatialdata.models import Image2DModel, ShapesModel
-from spatialdata.transformations import Affine, set_transformation
+from spatialdata.transformations import Affine, set_transformation, Identity
 
-from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
+from cellseg_benchmark.metrics.ficture_intensities import _aggregate_channels_aligned
 from cellseg_benchmark.sdata_utils import prepare_ficture
+from cellseg_benchmark._constants import image_based
 
 warnings.filterwarnings("ignore")
 
@@ -92,14 +93,25 @@ if compute_ficture:
     sdata["ficture_image_1"] = Image2DModel.parse(area_covered)
     sdata["ficture_image_2"] = Image2DModel.parse(stats["images"])
     del area_covered, stats
-    #    del area_covered,
 
     logger.info("Read shapes")
-    transform = pd.read_csv(
+    transformation = pd.read_csv(
         join(args.data_path, "images/micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     ).values
+
+    set_transformation(
+        sdata[f"ficture_image_1"],
+        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
+        to_coordinate_system="micron",
+    )
+    set_transformation(
+        sdata[f"ficture_image_2"],
+        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
+        to_coordinate_system="micron",
+    )
+
     for method in compute_ficture:
         tmp = read_zarr(
             join(results_path, method, "sdata.zarr"), selection=("shapes", "tables")
@@ -112,17 +124,32 @@ if compute_ficture:
             sdata[f"boundaries_{method}"] = ShapesModel.parse(bound)
             set_transformation(
                 sdata[f"boundaries_{method}"],
-                Affine(transform, input_axes=("x", "y"), output_axes=("x", "y")),
+                Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
                 to_coordinate_system="global",
             )
         else:
             sdata[f"boundaries_{method}"] = ShapesModel.parse(tmp[boundary_key])
+        if any([method.startswith(x) for x in image_based]):
+            set_transformation(
+                sdata[f"boundaries_{method}"],
+                Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
+                to_coordinate_system="micron",
+            )
+        else:
+            set_transformation(
+                sdata[f"boundaries_{method}"],
+                Identity(),
+                to_coordinate_system="micron",
+            )
     del tmp
 
+    image_1 = transform(sdata["ficture_image_1"], to_coordinate_system="micron")
+    image_2 = transform(sdata["ficture_image_2"], to_coordinate_system="micron")
     for key in tqdm(sdata.shapes.keys()):
         logger.info("Working on {}".format("_".join(split("_", key)[1:])))
-        covered = aggregate_channels(
-            sdata, image_key="ficture_image_1", shapes_key=key, mode="sum"
+        boundary = transform(sdata[f"boundaries_{key}"], to_coordinate_system="micron")
+        covered = _aggregate_channels_aligned(
+            image=image_1, geo_df=boundary, mode="sum"
         )
         #        covered_weight = aggregate_channels(
         #            sdata, image_key="ficture_image_2", shapes_key=key, mode="sum"
@@ -130,8 +157,8 @@ if compute_ficture:
         #        mean = aggregate_channels(
         #            sdata, image_key="ficture_image_1", shapes_key=key, mode="average"
         #        )
-        mean_weight = aggregate_channels(
-            sdata, image_key="ficture_image_2", shapes_key=key, mode="average"
+        mean_weight = _aggregate_channels_aligned(
+            image=image_2, geo_df=boundary, mode="average"
         )
         #        var = aggregate_channels(
         #            sdata,
@@ -140,13 +167,11 @@ if compute_ficture:
         #            mode="variance",
         #            means=mean,
         #        )
-        #        var_weight = aggregate_channels(
-        #            sdata,
-        #            image_key="ficture_image_2",
-        #            shapes_key=key,
-        #            mode="variance",
-        #            means=mean_weight,
-        #        )
+        var_weight = _aggregate_channels_aligned(
+            image=image_2, geo_df=boundary,
+            mode="variance",
+            means=mean_weight,
+        )
 
         os.makedirs(
             join(results_path, "_".join(split("_", key)[1:]), "Ficture_stats"),
@@ -188,18 +213,18 @@ if compute_ficture:
         #                "vars.csv",
         #            )
         #        )
-        #        pd.DataFrame(
-        #            var_weight,
-        #            index=sdata[key].index.to_list(),
-        #            columns=[f"fictureF21_{i}_variance_intensity_weighted" for i in range(21)],
-        #        ).to_csv(
-        #            join(
-        #                results_path,
-        #                "_".join(split("_", key)[1:]),
-        #                "Ficture_stats",
-        #                "vars_weight.csv",
-        #            )
-        #        )
+        pd.DataFrame(
+            var_weight,
+            index=sdata[key].index.to_list(),
+            columns=[f"fictureF21_{i}_variance_intensity_weighted" for i in range(21)],
+        ).to_csv(
+            join(
+                results_path,
+                "_".join(split("_", key)[1:]),
+                "Ficture_stats",
+                "vars_weight.csv",
+            )
+        )
         pd.DataFrame(
             covered,
             index=sdata[key].index.to_list(),
