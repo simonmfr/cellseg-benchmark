@@ -146,6 +146,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     Returns:
         None
     """
+    save_dir.mkdir(parents=True, exist_ok=True)
     if logger:
         logger.info("Plotting QC results")
     sample_names = adata.obs["sample"].unique()

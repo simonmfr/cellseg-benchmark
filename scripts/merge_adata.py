@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import warnings
+from os.path import exists
 from pathlib import Path
 
 from spatialdata import read_zarr
@@ -68,6 +69,8 @@ sdata_list = []
 available_names = set()
 
 for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort folders
+    if not exists(sample_dir / "sdata_z3.zarr"):
+        logger.error(f"master sdata in {sample_dir} has not been found.")
     if sample_dir.name in excluded_samples:
         continue
     sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
