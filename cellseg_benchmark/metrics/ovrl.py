@@ -112,7 +112,10 @@ def compute_mean_vsi_per_polygon(integrity_map: np.ndarray, boundaries: GeoDataF
     boundaries["geometry"] = boundaries.geometry.apply(micron_to_pixel_coords, args=(transform_matrix, (13,13)))
 
     result = _aggregate_channels_aligned(pic, boundaries, "average")
-    return pd.DataFrame(result, index=boundaries.index, columns=["mean_integrity"])
+    var = _aggregate_channels_aligned(pic, boundaries, "variance", means=result)
+    result = pd.DataFrame(result, index=boundaries.index, columns=["mean_integrity"])
+    result["variance"] = var
+    return result
 
 
 def plot_vsi_overview(integrity_map, signal_map, boundaries_aligned, vsi_mean, sample_name, boxes=None, png_path=None):
