@@ -3,26 +3,30 @@ import os
 from os.path import exists, join
 from typing import List, Tuple
 
+import numpy as np
+import ovrlpy
 import pandas as pd
 from dask.array import from_array
 from geopandas import GeoDataFrame
 from matplotlib import patches, pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from polars import DataFrame
 from shapely import affinity
 from shapely.geometry.base import BaseGeometry
 from spatialdata import SpatialData
 from tqdm import tqdm
-import ovrlpy
-import numpy as np
-from polars import DataFrame
 from xarray import DataArray
 
 from .ficture_intensities import _aggregate_channels_aligned
 
 
-def compute_ovrl(sdata_list: List[Tuple[str, SpatialData]], data_dir: str, logger: logging.Logger=None) -> None:
-    """
-    Compute ovrlpy output.
+def compute_ovrl(
+    sdata_list: List[Tuple[str, SpatialData]],
+    data_dir: str,
+    logger: logging.Logger = None,
+) -> None:
+    """Compute ovrlpy output.
+
     Args:
         sdata_list: List of sdatas with names
         data_dir: Base directory for output files.
@@ -32,23 +36,33 @@ def compute_ovrl(sdata_list: List[Tuple[str, SpatialData]], data_dir: str, logge
         None
     """
     for name, sdata in tqdm(sdata_list):
-        if not exists(join(data_dir, "samples", name, "vertical_doublets_ovrlpy_output.npz")):
-            coords_df = sdata.points[name + "_transcripts"][["gene", "x", "y", "global_z"]].compute().rename(
-                columns={"global_z": "z"})
+        if not exists(
+            join(data_dir, "samples", name, "vertical_doublets_ovrlpy_output.npz")
+        ):
+            coords_df = (
+                sdata.points[name + "_transcripts"][["gene", "x", "y", "global_z"]]
+                .compute()
+                .rename(columns={"global_z": "z"})
+            )
             run_ovrlpy(name, coords_df, data_dir)
         else:
             if logger:
                 logger.warning(f"Ovrlpy output exists, skipping ovrlpy run for {name}")
             else:
-                print(f"Ovrlpy output exists, skipping ovrlpy run.")
+                print("Ovrlpy output exists, skipping ovrlpy run.")
 
 
-def run_ovrlpy(sample_name: str, coordinate_df: pd.DataFrame | DataFrame, data_dir: str, logger: logging.Logger=None) -> None:
-    """
-    Processes MERSCOPE sample using ovrlpy to detect vertical doublets.
+def run_ovrlpy(
+    sample_name: str,
+    coordinate_df: pd.DataFrame | DataFrame,
+    data_dir: str,
+    logger: logging.Logger = None,
+) -> None:
+    """Processes MERSCOPE sample using ovrlpy to detect vertical doublets.
 
     Reads transcript coordinates, runs ovrlpy analysis,
     and saves the integrity and signal matrices as a compressed .npz file.
+
     Args:
         sample_name: Name of the MERSCOPE sample.
         coordinate_df: Coordinate DataFrame of transcript coordinates.
@@ -68,21 +82,28 @@ def run_ovrlpy(sample_name: str, coordinate_df: pd.DataFrame | DataFrame, data_d
     ovrlpy_obj = ovrlpy.Ovrlp(coordinate_df, n_workers=n_workers, random_state=42)
     ovrlpy_obj.analyse()
 
-    output_path = os.path.join(data_dir, "samples", sample_name, "vertical_doublets_ovrlpy_output.npz")
-    np.savez_compressed(output_path,
-                        integrity=ovrlpy_obj.integrity_map,
-                        signal=ovrlpy_obj.signal_map
-                        )
+    output_path = os.path.join(
+        data_dir, "samples", sample_name, "vertical_doublets_ovrlpy_output.npz"
+    )
+    np.savez_compressed(
+        output_path, integrity=ovrlpy_obj.integrity_map, signal=ovrlpy_obj.signal_map
+    )
 
     if logger:
-        logger.info(f"[{sample_name}] Analysis complete. Results saved to: data_dir/{os.path.join('samples', sample_name, 'vertical_doublets_ovrlpy_output.npz')}")
+        logger.info(
+            f"[{sample_name}] Analysis complete. Results saved to: data_dir/{os.path.join('samples', sample_name, 'vertical_doublets_ovrlpy_output.npz')}"
+        )
     else:
         print(
-        f"[{sample_name}] Analysis complete. Results saved to: data_dir/{os.path.join('samples', sample_name, 'vertical_doublets_ovrlpy_output.npz')}")
+            f"[{sample_name}] Analysis complete. Results saved to: data_dir/{os.path.join('samples', sample_name, 'vertical_doublets_ovrlpy_output.npz')}"
+        )
 
-def compute_mean_vsi_per_polygon(integrity_map: np.ndarray, boundaries: GeoDataFrame, transform_matrix: np.ndarray) -> pd.DataFrame:
-    """
-    Compute mean vsi per polygon.
+
+def compute_mean_vsi_per_polygon(
+    integrity_map: np.ndarray, boundaries: GeoDataFrame, transform_matrix: np.ndarray
+) -> pd.DataFrame:
+    """Compute mean vsi per polygon.
+
     Args:
         integrity_map: integrity map from ovrlpy. Assumed 2D
         boundaries: boundaries in microns
@@ -91,10 +112,11 @@ def compute_mean_vsi_per_polygon(integrity_map: np.ndarray, boundaries: GeoDataF
     Returns:
         Mean vsi per polygon.
     """
+
     def micron_to_pixel_coords(
-            geom: BaseGeometry,
-            transform_matrix: np.ndarray,
-            pixel_offset=(13, 13),
+        geom: BaseGeometry,
+        transform_matrix: np.ndarray,
+        pixel_offset=(13, 13),
     ) -> BaseGeometry:
         """Transform micron coordinates to ovrlpy coordinates."""
         sx, sy = transform_matrix[0, 0], transform_matrix[1, 1]
@@ -109,7 +131,9 @@ def compute_mean_vsi_per_polygon(integrity_map: np.ndarray, boundaries: GeoDataF
     pic = from_array(pic)
     pic = DataArray(pic, dims=["c", "y", "x"])
 
-    boundaries["geometry"] = boundaries.geometry.apply(micron_to_pixel_coords, args=(transform_matrix, (13,13)))
+    boundaries["geometry"] = boundaries.geometry.apply(
+        micron_to_pixel_coords, args=(transform_matrix, (13, 13))
+    )
 
     result = _aggregate_channels_aligned(pic, boundaries, "average")
     var = _aggregate_channels_aligned(pic, boundaries, "variance", means=result)

@@ -81,8 +81,12 @@ def merge_adatas(
         else:
             adata.obs["age"] = 6
             # Requires region names to follow example: region_1-KO885
-        adata.obs["genotype"] = re.search(r'region_\d+-([A-Za-z_]*?)(?=\d)', sample_paths_file[name]).group(1)
-        adata.obs["condition"] = adata.obs["genotype"] + "_" + adata.obs["age"].astype(str)
+        adata.obs["genotype"] = re.search(
+            r"region_\d+-([A-Za-z_]*?)(?=\d)", sample_paths_file[name]
+        ).group(1)
+        adata.obs["condition"] = (
+            adata.obs["genotype"] + "_" + adata.obs["age"].astype(str)
+        )
         if isinstance(adata.X, np.ndarray):
             if seg_method.lower() == "Proseg":
                 adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
@@ -1037,8 +1041,7 @@ def _plot_integration_comparison(
 
 
 def clean_pca_umap(adata, logger=None):
-    """Remove PCA, UMAP, neighbors, and all non-count layers from an AnnData object.
-    """
+    """Remove PCA, UMAP, neighbors, and all non-count layers from an AnnData object."""
     patterns = {
         "uns": ["pca", "umap", "neighbor"],
         "obsm": ["pca", "umap"],

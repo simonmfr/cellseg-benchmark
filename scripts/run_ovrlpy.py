@@ -1,10 +1,10 @@
 import argparse
 import json
 import logging
+import re
 from collections import defaultdict
 from os.path import join
 from pathlib import Path
-import re
 
 import numpy as np
 import pandas as pd
@@ -97,7 +97,9 @@ for sample, sdata in tqdm(sdata_list):
         else:
             tmp["age"] = 6
             # Requires region names to follow example: region_1-KO885
-        tmp["genotype"] = re.search(r'region_\d+-([A-Za-z_]*?)(?=\d)', sample_paths_file[sample]).group(1)
+        tmp["genotype"] = re.search(
+            r"region_\d+-([A-Za-z_]*?)(?=\d)", sample_paths_file[sample]
+        ).group(1)
         tmp["condition"] = tmp["genotype"] + "_" + tmp["age"].astype(str)
         metrics["_".join(boundary_name.split("_"))].append(tmp)
         plot_vsi_overview(integrity_map=integrity_matrix, signal_map = signal_matrix, boundaries_aligned = boundary, vsi_mean=tmp["mean_integrity"].values, sample_name = sample, png_path=png_path)
