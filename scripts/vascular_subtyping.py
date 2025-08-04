@@ -226,6 +226,7 @@ with rc_context({"figure.figsize": (7, 6)}):
         size=320000 / ec_adata.shape[0],
         show=False,
     )
+    plt.tight_layout()
     plt.savefig(
         plot_path_ecs / "UMAP_reprocessed_ECs_metadata.png",
         dpi=100,
