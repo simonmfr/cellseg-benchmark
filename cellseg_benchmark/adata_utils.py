@@ -717,7 +717,7 @@ def normalize_counts(
     inv_vol = (1.0 / adata.obs["volume_final"].to_numpy()).astype("float32")
     adata.layers["volume_norm"] = sp.csr_matrix(adata.X, dtype=np.float32).multiply(
         inv_vol[:, None]
-    )
+    ).tocsr()
 
     # 2 Remove outlier cells (1–99 %ile)
     row_sums = np.ravel(adata.layers["volume_norm"].sum(1))
@@ -747,7 +747,7 @@ def normalize_counts(
     adata.layers["volume_norm"] = (
         adata.layers["volume_norm"]
         .multiply((target_sum / row_sums).astype("float32")[:, None])
-        .astype("float32")
+        .tocsr()
     )
 
     # 4 Log‑transform and z‑score
