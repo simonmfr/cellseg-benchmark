@@ -100,7 +100,7 @@ for sample, sdata in tqdm(sdata_list):
         tmp["genotype"] = re.search(r'region_\d+-([A-Za-z_]*?)(?=\d)', sample_paths_file[sample]).group(1)
         tmp["condition"] = tmp["genotype"] + "_" + tmp["age"].astype(str)
         metrics["_".join(boundary_name.split("_"))].append(tmp)
-        plot_vsi_overview(integrity_map=integrity_matrix, signal_map = signal_matrix, boundaries_aligned = boundary, vsi_mean=tmp.values, sample_name = sample, png_path=png_path)
+        plot_vsi_overview(integrity_map=integrity_matrix, signal_map = signal_matrix, boundaries_aligned = boundary, vsi_mean=tmp["mean_integrity"].values, sample_name = sample, png_path=png_path)
 
 logger.info(f"Writing metrics to {save_path}")
 for method, metric in tqdm(metrics.items()):
