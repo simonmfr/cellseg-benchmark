@@ -88,5 +88,5 @@ if args.correct_celltypes:
     plt.savefig(join(base_path, "metrics", f"f1{'_weighted' if args.weighted else ''}_barplot.png"))
 else:
     sns.set_theme(rc={"figure.figsize": (20, 16)})
-    sns.heatmap(data, fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
+    sns.heatmap(f1.astype(float), fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
     plt.savefig(join(base_path, "metrics", f"f1{'_weighted' if args.weighted else ''}_heatmap.png"))
