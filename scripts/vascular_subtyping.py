@@ -242,15 +242,15 @@ if 'ec_zonation' in sub_adata.obs.columns:
 
 # transfer labels
 sub_adata.obs = sub_adata.obs.merge(ec_adata.obs[["ec_zonation"]], left_index=True, right_index=True, how='left')
-sub_adata.obs[cell_type_column_zonation] = sub_adata.obs['ec_zonation'].astype('object').fillna(sub_adata.obs[cell_type_col].astype('object'))
+sub_adata.obs[cell_type_zonation] = sub_adata.obs['ec_zonation'].astype('object').fillna(sub_adata.obs[cell_type_col].astype('object'))
 
 # set "Undefined" for specific cell types without ec_adata annotation. these were removed as contamination.
 missed_ECs_mask = (sub_adata.obs['ec_zonation'].isna() & 
                   sub_adata.obs[cell_type_col].isin(["ECs"]))
-sub_adata.obs.loc[missed_ECs_mask, cell_type_column_zonation] = "otherECs"
+sub_adata.obs.loc[missed_ECs_mask, cell_type_zonation] = "otherECs"
 
 # convert back to categorical
-sub_adata.obs[cell_type_column_zonation] = sub_adata.obs[cell_type_column_zonation].astype('category')
+sub_adata.obs[cell_type_zonation] = sub_adata.obs[cell_type_zonation].astype('category')
 sub_adata.obs.drop(columns='ec_zonation', inplace=True)
 
 # Set ordered categories and color map
