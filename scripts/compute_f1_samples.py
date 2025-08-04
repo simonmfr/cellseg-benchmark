@@ -24,7 +24,7 @@ logger.addHandler(handler)
 parser = argparse.ArgumentParser(description="Compute F1 statistics based on Ficture.")
 parser.add_argument("method", help="method name.")
 parser.add_argument("cohort", help="Cohort name.")
-parser.add_argument("data", choices=["area", "variance_intensity", "mean_intensity"], help="Cohort name.")
+parser.add_argument("data", choices=["area", "variance", "means"], help="Cohort name.")
 parser.add_argument(
     "--correct_celltypes", action="store_true", help="Compute F1 for correct cell type mapping."
 )
