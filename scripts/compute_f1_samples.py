@@ -63,7 +63,7 @@ else:
 if not args.subset:
     subset = None
 
-obsm_key = f"ficture_{args.data}{'_weighted' if args.weighted else ''}"
+obsm_key = f"ficture_{args.data}{'_weight' if args.weighted else ''}"
 
 general_stats_dic = {}
 for sample in listdir(join(base_path, "samples")):
