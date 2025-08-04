@@ -13,7 +13,7 @@ args = parser.parse_args()
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
-container_image = f"{base_path}/misc/cellseg_benchmark.sqsh"
+container_image = f"{base_path}/misc/cellseg_benchmark_2.sqsh"
 log_path = f"{base_path}/misc/logs/merged"
 
 methods = [
