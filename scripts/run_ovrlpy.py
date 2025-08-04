@@ -11,7 +11,7 @@ import pandas as pd
 from spatialdata import read_zarr, transform
 from tqdm import tqdm
 
-from cellseg_benchmark.metrics.ovrl import compute_ovrl, compute_mean_vsi_per_polygon
+from cellseg_benchmark.metrics.ovrl import compute_ovrl, compute_mean_vsi_per_polygon, plot_vsi_overview
 
 logger = logging.getLogger("integrate_adatas")
 logger.setLevel(logging.INFO)
@@ -54,7 +54,7 @@ logger.info("Loading data...")
 sdata_list = []
 available_names = set()
 
-for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort folders
+for sample_dir in tqdm(samples_path.glob(f"{args.cohort}*")):  # restriction to cohort folders
     if sample_dir.name in excluded_samples:
         continue
     sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("shapes", "points"))
@@ -75,9 +75,10 @@ for sample, sdata in tqdm(sdata_list):
             "micron_to_mosaic_pixel_transform.csv",
         )
     ).reshape(3, 3)
-    integrity_matrix = np.load(join(str(base_path), "samples", sample, 'vertical_doublets_ovrlpy_output.npz'))[
-        'integrity']
+    integrity_matrix = np.load(join(str(base_path), "samples", sample, 'vertical_doublets_ovrlpy_output.npz'))['integrity']
+    signal_matrix = np.load(join(str(base_path), "samples", sample, 'vertical_doublets_ovrlpy_output.npz'))['signal']
     for boundary_name in sdata.shapes.keys():
+        png_path = samples_path / "results" / "_".join(boundary_name.split("_")[1:]) / "ovrlpy_overview_plot.png"
         boundary = transform(sdata[boundary_name], to_coordinate_system="micron")
         tmp = compute_mean_vsi_per_polygon(integrity_matrix, boundary, transform_matrix)
         samples = sample.split("_")
@@ -99,6 +100,7 @@ for sample, sdata in tqdm(sdata_list):
         tmp["genotype"] = re.search(r'region_\d+-([A-Za-z_]*?)(?=\d)', sample_paths_file[sample]).group(1)
         tmp["condition"] = tmp["genotype"] + "_" + tmp["age"].astype(str)
         metrics["_".join(boundary_name.split("_"))].append(tmp)
+        plot_vsi_overview(integrity_map=integrity_matrix, signal_map = signal_matrix, boundaries_aligned = boundary, sample_name = sample, png_path=png_path)
 
 logger.info(f"Writing metrics to {save_path}")
 for method, metric in tqdm(metrics.items()):

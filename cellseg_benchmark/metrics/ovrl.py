@@ -6,6 +6,8 @@ from typing import List, Tuple
 import pandas as pd
 from dask.array import from_array
 from geopandas import GeoDataFrame
+from matplotlib import patches, pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from shapely import affinity
 from shapely.geometry.base import BaseGeometry
 from spatialdata import SpatialData
@@ -111,3 +113,51 @@ def compute_mean_vsi_per_polygon(integrity_map: np.ndarray, boundaries: GeoDataF
 
     result = _aggregate_channels_aligned(pic, boundaries, "average")
     return pd.DataFrame(result, index=boundaries.index, columns=["mean_integrity"])
+
+
+def plot_vsi_overview(integrity_map, signal_map, boundaries_aligned, sample_name, boxes=None, png_path=None):
+    ny, nx = integrity_map.shape
+    if boxes is None:
+        boxes = [(int(2 / 8 * nx), int(3 / 8 * ny), int(1 / 8 * nx), int(1 / 8 * ny)),
+                 (int(6 / 8 * nx), int(5 / 8 * ny), int(1 / 8 * nx), int(1 / 8 * ny))]
+
+    plot_kwargs = {'cmap': 'coolwarm_r', 'origin': 'lower', 'vmin': 0, 'vmax': 1}
+    boundary_kwargs = {'facecolor': 'none', 'edgecolor': 'black'}
+    _SIGNAL_THRESHOLD = 2  # from ovrlpy source code
+    alpha = (signal_map / _SIGNAL_THRESHOLD).clip(0, 1) ** 2  # fade out for pixels with low transcript signal
+
+    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+
+    # overview
+    im = axs[0, 0].imshow(integrity_map, alpha=alpha, **plot_kwargs)
+    boundaries_aligned.plot(ax=axs[0, 0], linewidth=0.1, **boundary_kwargs)
+    axs[0, 0].set_title(sample_name)
+
+    for (x, y, w, h) in boxes:
+        rect = patches.Rectangle((x, y), w, h, linewidth=1, edgecolor='red',
+                                 facecolor='none', linestyle='--')
+        axs[0, 0].add_patch(rect)
+
+    cax = make_axes_locatable(axs[0, 0]).append_axes("right", size="4%", pad=0.05)
+    fig.colorbar(im, cax=cax).ax.set_title("VSI", fontsize=10)
+
+    # histogram
+    axs[0, 1].hist(boundaries_aligned["vsi_mean"], bins=100, zorder=3, color="slategrey")
+    axs[0, 1].axvline(0.5, color='gray', linestyle='--', linewidth=1)
+    axs[0, 1].grid(True, zorder=0)
+    axs[0, 1].set_title("Mean VSI per cell - " + sample_name)
+
+    # detailed views
+    for i, (x, y, w, h) in enumerate(boxes):
+        ax = axs[1, i]
+        ax.imshow(integrity_map, alpha=alpha, **plot_kwargs)
+        boundaries_aligned.plot(ax=ax, linewidth=0.5, **boundary_kwargs)
+        ax.set_xlim(x, x + w)
+        ax.set_ylim(y, y + h)
+        ax.set_title(f"Box {chr(65 + i)}")
+
+    plt.tight_layout()
+
+    if png_path:
+        plt.savefig(png_path, dpi=200)
+    plt.close()
