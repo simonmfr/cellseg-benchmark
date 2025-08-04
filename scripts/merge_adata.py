@@ -5,6 +5,7 @@ import warnings
 from os.path import exists
 from pathlib import Path
 import numpy as np
+import pandas as pd
 
 from spatialdata import read_zarr
 
@@ -110,9 +111,16 @@ adata = normalize_counts(
 # Subset to max 1M cells
 max_cells = 1_000_000
 if adata.n_obs > max_cells:
-    logger.info(f"Subsetting from {adata.n_obs:,} to {max_cells:,} cells for performance.")
-    subset_idx = np.random.choice(adata.n_obs, size=max_cells, replace=False)
-    adata = adata[subset_idx].copy()
+    logger.info(f"Stratified subsetting from {adata.n_obs:,} to {max_cells:,} cells.")
+    rng = np.random.default_rng(seed=42)
+    counts = adata.obs["sample"].value_counts()
+    frac = max_cells / adata.n_obs
+    keep_idx = np.concatenate([
+        rng.choice(adata.obs_names[adata.obs["sample"] == s], 
+                   size=int(np.floor(c * frac)), replace=False)
+        for s, c in counts.items()
+    ])
+    adata = adata[keep_idx].copy()
     
 adata = dimensionality_reduction(adata, save_path=save_path / "plots", logger=logger)
 adata = integration_harmony(
