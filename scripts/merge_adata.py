@@ -4,6 +4,7 @@ import logging
 import warnings
 from os.path import exists
 from pathlib import Path
+import numpy as np
 
 from spatialdata import read_zarr
 
@@ -101,6 +102,14 @@ adata = filter_spatial_outlier_cells(
 )
 adata = filter_low_quality_cells(adata, save_path=save_path / "plots", logger=logger)
 adata = filter_genes(adata, save_path=save_path / "plots", logger=logger)
+
+# Subset to max 1M cells
+max_cells = 1_000_000
+if adata.n_obs > max_cells:
+    logger.info(f"Subsetting from {adata.n_obs:,} to {max_cells:,} cells for performance.")
+    subset_idx = np.random.choice(adata.n_obs, size=max_cells, replace=False)
+    adata = adata[subset_idx].copy()
+
 adata = normalize_counts(
     adata, save_path=save_path / "plots", seg_method=args.seg_method, logger=logger
 )
