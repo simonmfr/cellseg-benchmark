@@ -1,5 +1,5 @@
+import argparse
 import os
-import sys
 from os.path import join
 from subprocess import run
 
@@ -7,9 +7,11 @@ import sopa
 from pandas import read_csv
 from spatialdata import read_zarr
 
-data_path = sys.argv[1]
-save_path = sys.argv[2]
-staining = sys.argv[3]
+parser = argparse.ArgumentParser(description="Compute Cellpose 1 segmentation.")
+parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("save_path", help="Path to output folder.")
+parser.add_argument("staining", help="Staining to use for segmentation.")
+args = parser.parse_args()
 
 
 def main(data_path, save_path, staining):
@@ -57,4 +59,4 @@ def main(data_path, save_path, staining):
 
 
 if __name__ == "__main__":
-    main(data_path, save_path, staining)
+    main(args.data_path, args.save_path, args.staining)

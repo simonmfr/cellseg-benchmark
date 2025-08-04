@@ -1,5 +1,5 @@
+import argparse
 import os
-import sys
 from os.path import join
 from subprocess import run
 
@@ -7,10 +7,20 @@ import sopa
 from pandas import read_csv
 from spatialdata import read_zarr
 
-data_path = sys.argv[1]
-sample = sys.argv[2]
-base_segmentation = sys.argv[3]
-proseg_flags = " ".join(sys.argv[4:])
+parser = argparse.ArgumentParser(
+    description="Compute ProSeg segmentation with a prior."
+)
+parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("sample", help="Sample name.")
+parser.add_argument(
+    "base_segmentation", help="prior segmentation to use for initialisaton."
+)
+parser.add_argument(
+    "proseg_flags", nargs=argparse.REMAINDER, help="Additional flags to pass to proseg."
+)
+args = parser.parse_args()
+
+proseg_flags = " ".join(args.proseg_flags)
 
 
 def main(data_path, sample, base_segmentation, proseg_flags):
@@ -42,6 +52,7 @@ def main(data_path, sample, base_segmentation, proseg_flags):
     # Annahme: nur cellpose prior wird benutzt
     sopa.make_transcript_patches(
         sdata,
+        points_key=list(sdata.points.keys())[0],
         patch_width=None,
         prior_shapes_key="cellpose_boundaries",
         write_cells_centroids=True,
@@ -56,11 +67,18 @@ def main(data_path, sample, base_segmentation, proseg_flags):
         sdata, delete_cache=False, command_line_suffix=proseg_flags
     )
     sopa.aggregate(
-        sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10
+        sdata,
+        gene_column="gene",
+        aggregate_channels=True,
+        min_transcripts=10,
+        points_key=list(sdata.points.keys())[0],
+        image_key=list(sdata.images.keys())[0],
     )
     sopa.io.explorer.write(
         join(path, f"Proseg_{base_segmentation}", "sdata.explorer"),
         sdata,
+        points_key=list(sdata.points.keys())[0],
+        image_key=list(sdata.images.keys())[0],
         gene_column="gene",
         ram_threshold_gb=4,
         pixel_size=1 / translation.iloc[0, 0],
@@ -86,4 +104,4 @@ def main(data_path, sample, base_segmentation, proseg_flags):
 
 
 if __name__ == "__main__":
-    main(data_path, sample, base_segmentation, proseg_flags)
+    main(args.data_path, args.sample, args.base_segmentation, proseg_flags)

@@ -1,24 +1,28 @@
+import argparse
 import os
-import sys
 
 import numpy as np
 from pandas import read_csv
 from skimage.filters import gaussian
 from tifffile import imread, imwrite
 
-path = sys.argv[1]
+parser = argparse.ArgumentParser(
+    description="Compute tiffs based on transcript locations. Uses 10-times gaußian kernel with sigma=3."
+)
+parser.add_argument("path", help="Path to merscope output folder.")
+args = parser.parse_args()
 
-image_DAPI = imread(os.path.join(path, "images/mosaic_DAPI_z3.tif"), key=0)
+image_DAPI = imread(os.path.join(args.path, "images/mosaic_DAPI_z3.tif"), key=0)
 mean = np.mean(image_DAPI)
 bins_y = np.linspace(0, image_DAPI.shape[1], num=image_DAPI.shape[1] + 1)
 bins_x = np.linspace(0, image_DAPI.shape[0], num=image_DAPI.shape[0] + 1)
 del image_DAPI
 
-transcripts = read_csv(os.path.join(path, "detected_transcripts.csv"))[
+transcripts = read_csv(os.path.join(args.path, "detected_transcripts.csv"))[
     ["global_x", "global_y", "global_z", "gene"]
 ]
 transform = read_csv(
-    os.path.join(path, "images/micron_to_mosaic_pixel_transform.csv"),
+    os.path.join(args.path, "images/micron_to_mosaic_pixel_transform.csv"),
     names=["x", "y", "z"],
     delimiter=" ",
 )
@@ -45,4 +49,4 @@ for i in range(7):
         image = gaussian(image, sigma=3)
 
     image = (mean / np.max(image) * image).astype("uint16")
-    imwrite(os.path.join(path, f"images/mosaic_Transcripts_z{i}.tif"), image)
+    imwrite(os.path.join(args.path, f"images/mosaic_Transcripts_z{i}.tif"), image)

@@ -785,6 +785,52 @@ vascular_EC_cell_subtypes_merfish_panel_500_mouse_brain = {
     "choroid plexus ECs": ["Arl15", "Hsp90aa1", "Plvap", "Plpp3"],
 }
 
+selected_EC_subtypes = {
+    "aECs": [
+        "Bmx",
+        "Efnb2",
+        "Vegfc",
+        "Mgp",
+        "Cytl1",
+        "Sema3g",
+        "Gkn3",
+        "Fbln2",
+        "Hey1",
+        "Egfl8",
+        "Jag1",
+        "Igf2",
+        "Notch3",
+        "Mgp",
+        "Clu",
+    ],
+    "capECs": [
+        "Slc7a5",
+        "Mfsd2a",
+        "Tfrc",
+        "Slc16a1",
+        "Meox1",
+        "Col4a3",
+        "Angpt2",
+        "Rgcc",
+        "Cxcl12",
+        "Ecscr",
+        "Apln",
+        "Car4",
+    ],
+    "vECs": [
+        "Nr2f2",
+        "Slc38a5",
+        "Flrt2",
+        "Ier3",
+        "Ackr1",
+        "Lcn2",
+        "Vcam1",
+        "Ly6c1",
+        "Ly6a",
+        "Ctsc",
+    ],
+}
+
 vascular_nonEC_cell_subtypes_merfish_panel_500_mouse_brain = {
     "Pan-Pericyte": [
         "Vtn",
@@ -1568,4 +1614,145 @@ gwas_hits = {
         "Htra1",
         "Col4a2",
     ],
+}
+
+methods_3D = ["Proseg", "vpt_3D"]
+
+image_based = ["Cellpose", "Negative_Control"]
+
+factor_to_celltype = {
+    "0": "Astrocytes",
+    "1": "BAMs",
+    "2": "ECs",
+    "3": "Ependymal",
+    "4": "Immune-Other",
+    "5": "Microglia",
+    "6": "Neurons-Dopa-Gaba",
+    "7": "Neurons-Gaba",
+    "8": "Neurons-Glut",
+    "9": "Neurons-Glyc-Gaba",
+    "10": "Neurons-Immature",
+    "11": "Neurons-Other",
+    "12": "OECs",
+    "13": "OPCs",
+    "14": "Oligodendrocytes",
+    "15": "Pericytes",
+    "16": "SMCs",
+    "17": "VLMCs",
+    "18": "ABCs",
+    "19": "Bergmann",
+    "20": "Neurons-Dopa",
+}
+
+index_order = [
+    "Astrocytes",
+    "BAMs",
+    "ECs",
+    "Ependymal",
+    "Immune-Other",
+    "Microglia",
+    "Neurons-Dopa",
+    "Neurons-Gaba",
+    "Neurons-Glut",
+    "Neurons-Glyc-Gaba",
+    "Neurons-Other",
+    "OPCs",
+    "Oligodendrocytes",
+    "Pericytes",
+    "SMCs",
+    "VLMCs",
+    "Astroependymal",
+    "Choroid-Plexus",
+    "Neurons-Granule-Immature",
+    "Undefined",
+    "Unknown",
+]
+column_order = [
+    "Astrocytes",
+    "BAMs",
+    "ECs",
+    "Ependymal",
+    "Immune-Other",
+    "Microglia",
+    "Neurons-Dopa",
+    "Neurons-Gaba",
+    "Neurons-Glut",
+    "Neurons-Glyc-Gaba",
+    "Neurons-Other",
+    "OPCs",
+    "Oligodendrocytes",
+    "Pericytes",
+    "SMCs",
+    "VLMCs",
+    "ABCs",
+    "Bergmann",
+    "Neurons-Dopa-Gaba",
+    "Neurons-Immature",
+    "OECs",
+]
+
+true_cluster = {
+    "Astrocytes": ["Astrocytes", "Astroependymal"],
+    "BAMs": ["BAMs"],
+    "ECs": ["ECs"],
+    "Ependymal": ["Ependymal", "Choroid-Plexus"],
+    "Immune-Other": ["Immune-Other"],
+    "Microglia": ["Microglia"],
+    "Neurons-Dopa-Gaba": ["Neurons-Dopa"],
+    "Neurons-Gaba": ["Neurons-Gaba"],
+    "Neurons-Glut": ["Neurons-Glut"],
+    "Neurons-Glyc-Gaba": ["Neurons-Glyc-Gaba"],
+    "Neurons-Immature": ["Neurons-Granule-Immature"],
+    "Neurons-Other": ["Neurons-Other"],
+    "OECs": [],
+    "OPCs": ["OPCs"],
+    "Oligodendrocytes": ["Oligodendrocytes"],
+    "Pericytes": ["Pericytes"],
+    "SMCs": ["SMCs"],
+    "VLMCs": ["VLMCs"],
+    "ABCs": ["VLMCs"],
+    "Bergmann": ["Astrocytes"],
+    "Neurons-Dopa": ["Neurons-Dopa"],
+}
+
+contamination_markers = {
+    "Immune": ["Ptprc", "Ctss", "Tmem119", "Cd68", "Ncam1"],
+    "Neuronal": ["Rbfox3", "Gad1", "Meg3", "Slc17a7", "Ncam1"],
+    "Astrocytes": ["Gfap", "Aqp4", "S100b", "Ptprz1", "Mfge8"],
+    "Oligodendrocytes": ["Mag", "Cnp", "Mog", "Olig2", "Cldn11"],
+}
+
+
+cell_type_colors = {
+    "ECs": "#FF6464",
+    "aECs": "#FF7700",  # for EC subtyping script
+    "capECs": "#FF6464",  # for EC subtyping script
+    "vECs": "#9966CC",  # for EC subtyping script
+    "otherECs": "#FFBFBF",  # for EC subtyping script
+    "Pericytes": "#F6EC2A",
+    "SMCs": "#29FBA7",
+    "VLMCs": "#85B0F9",
+    "ABCs": "#AEC9F5",
+    "Ependymal": "#FDC000",
+    "Tanycytes": "#FFE180",
+    "Choroid-Plexus": "#BF9800",
+    "Astrocytes": "#FE9A30",
+    "Astroependymal": "#FE9A30",
+    "Bergmann": "#FFD1A3",
+    "Oligodendrocytes": "#4564FF",
+    "OPCs": "#0095FF",
+    "Microglia": "#00C088",
+    "BAMs": "#20B2AA",
+    "Immune-Other": "#98DF8A",
+    "Neurons-Gaba": "#B449F8",
+    "Neurons-Glut": "#CEB3FF",
+    "Neurons-Glyc-Gaba": "#DCAEFF",
+    "Neurons-Dopa": "#FCA0FF",
+    # "Neurons-Immature": "#FF50E5",
+    "Neurons-Granule-Immature": "#FF50E5",
+    "Neurons-Other": "#FCA0FF",
+    "OECs": "#9EDAE5",
+    "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
+    "Undefined": "#D9D9D9",  # = below QC threshold
+    "Mixed": "#D9D9D9",
 }

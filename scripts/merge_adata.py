@@ -1,63 +1,129 @@
+import argparse
+import json
 import logging
-import os
-import sys
 import warnings
+from os.path import exists
+from pathlib import Path
+import numpy as np
 
 from spatialdata import read_zarr
 
 from cellseg_benchmark.adata_utils import (
     dimensionality_reduction,
-    filter_cells,
     filter_genes,
+    filter_low_quality_cells,
+    filter_spatial_outlier_cells,
     integration_harmony,
     merge_adatas,
-    normalize,
+    normalize_counts,
 )
 
 warnings.filterwarnings("ignore")
 
+# Logger setup
 logger = logging.getLogger("integrate_adatas")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
-path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-name = sys.argv[1]
+# CLI args
+parser = argparse.ArgumentParser(
+    description="Integrate adatas from a selected segmentation method."
+)
+parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
+parser.add_argument(
+    "seg_method", help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'"
+)
+parser.add_argument(
+    "--age",
+    default=False,
+    action="store_true",
+    help="Age information is available. Otherwise, assume age: 6m.",
+)
+parser.add_argument(
+    "--genotype",
+    default=False,
+    action="store_true",
+    help="Genotype information is available. Otherwise, assume WT.",
+)
+args = parser.parse_args()
 
+# Paths
+base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+samples_path = base_path / "samples"
+save_path = base_path / "analysis" / args.cohort / args.seg_method
+save_path.mkdir(parents=True, exist_ok=True)
+
+# Load sample paths
+with open(base_path / "sample_paths.json") as f:
+    sample_paths_file = json.load(f)
+
+excluded_samples = {  # TODO: move to yaml
+    "foxf2": ["foxf2_s2_r0", "foxf2_s3_r0", "foxf2_s3_r1"],
+    "aging": [],
+}.get(args.cohort, [])
+
+# Load sdata
+logger.info("Loading data...")
 sdata_list = []
 available_names = set()
-logger.info("Loading data")
-for f in os.listdir(os.path.join(path, "samples")):
-    if f.startswith("foxf2"):
-        if f not in ["foxf2_s2_r0", "foxf2_s3_r0", "foxf2_s3_r1"]:
-            sdata = read_zarr(
-                os.path.join(path, "samples", f, "sdata_z3.zarr"), selection=("tables",)
-            )
-            current_names = list(sdata.tables.keys())
-            current_names = ["_".join(name.split("_")[1:]) for name in current_names]
-            available_names.update(set(current_names))
-            sdata_list.append((f, sdata))
 
-save_path = os.path.join(path, "analysis", name, "plots")
-os.makedirs(save_path, exist_ok=True)
+for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort folders
+    if sample_dir.name in excluded_samples:
+        continue
+    if not exists(sample_dir / "sdata_z3.zarr"):
+        logger.error(f"master sdata in {sample_dir} has not been found.")
+    sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
+    current_names = ["_".join(k.split("_")[1:]) for k in sdata.tables.keys()]
+    available_names.update(current_names)
+    sdata_list.append((sample_dir.name, sdata))
 
+# Merge and process
 adata = merge_adatas(
-    sdata_list, key=name, logger=logger, do_qc=True, save_path=save_path
+    sdata_list,
+    seg_method=args.seg_method,
+    sample_paths_file=sample_paths_file,
+    logger=logger,
+    plot_qc_stats=True,
+    age=args.age,
+    genotype=args.genotype,
+    save_path=save_path / "plots",
 )
-adata = filter_cells(adata, save_path=save_path, logger=logger)
-adata = filter_genes(adata, save_path=save_path, logger=logger)
-adata = normalize(adata, save_path=save_path, logger=logger)
-dimensionality_reduction(adata, save_path=save_path, logger=logger)
+del sdata_list
+
+adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
+adata = filter_spatial_outlier_cells(
+    adata,
+    data_dir=str(base_path),
+    sample_paths_file=sample_paths_file,
+    save_path=save_path / "plots",
+    logger=logger,
+)
+adata = filter_low_quality_cells(adata, save_path=save_path / "plots", logger=logger)
+adata = filter_genes(adata, save_path=save_path / "plots", logger=logger)
+
+# Subset to max 1M cells
+max_cells = 1_000_000
+if adata.n_obs > max_cells:
+    logger.info(f"Subsetting from {adata.n_obs:,} to {max_cells:,} cells for performance.")
+    subset_idx = np.random.choice(adata.n_obs, size=max_cells, replace=False)
+    adata = adata[subset_idx].copy()
+
+adata = normalize_counts(
+    adata, save_path=save_path / "plots", seg_method=args.seg_method, logger=logger
+)
+adata = dimensionality_reduction(adata, save_path=save_path / "plots", logger=logger)
 adata = integration_harmony(
-    adata, batch_key="sample", save_path=save_path, logger=logger
+    adata, batch_key="sample", save_path=save_path / "plots", logger=logger
 )
 
-os.makedirs(os.path.join(path, "analysis", name, "adatas"), exist_ok=True)
-if "fov" in adata.obs.columns:
-    adata.obs["fov"] = adata.obs["fov"].astype(str)
-adata.write(
-    os.path.join(path, "analysis", name, "adatas", "adata_integrated.h5ad.gz"),
-    compression="gzip",
-)
+# Save result
+logger.info("Saving integrated object...")
+if "fov" not in adata.obs.columns:
+    adata.obs["fov"] = ""
+adata.obs["fov"] = adata.obs["fov"].astype(str)
+output_path = save_path / "adatas"
+output_path.mkdir(parents=True, exist_ok=True)
+adata.write(output_path / "adata_integrated.h5ad.gz", compression="gzip")
+logger.info("Done.")

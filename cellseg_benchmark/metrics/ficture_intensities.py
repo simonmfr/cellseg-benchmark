@@ -1,3 +1,5 @@
+from typing import Tuple, Union
+
 import dask
 import geopandas as gpd
 import numpy as np
@@ -8,19 +10,21 @@ from dask.diagnostics import ProgressBar
 from shapely.geometry import Polygon, box
 from sopa.segmentation.shapes import expand_radius, pixel_outer_bounds, rasterize
 from sopa.utils import get_boundaries, get_spatial_image, to_intrinsic
-from spatialdata import SpatialData
+from spatialdata import SpatialData, transform
 from spatialdata.models import Image2DModel, ShapesModel
+from spatialdata.transformations import set_transformation, Affine, Identity
 from xarray import DataArray
 
 
 def ficture_intensities(
     sdata: SpatialData,
     images: np.ndarray,
+    transform_matrix: np.ndarray,
     key: str,
     n_factors: int,
     unique_factors: list,
     var: bool = True,
-):
+) -> Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]:
     """Compute the mean and optionally the variance of the ficture intensities per cell.
 
     Args:
@@ -34,13 +38,19 @@ def ficture_intensities(
     Returns: None, if update_element is True, otherwise mean and variance of ficture intensities.
 
     """
+    transformation = Affine(transform_matrix, input_axes=("x", "y"), output_axes=("x", "y"))
+
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
     tmp_sdata = SpatialData()
     tmp_sdata["ficture_images"] = Image2DModel.parse(images)
+    set_transformation(tmp_sdata["ficture_images"], transformation.inverse(), "micron")
     tmp_sdata[f"boundaries_{key}"] = ShapesModel.parse(sdata[boundary_key])
+    set_transformation(tmp_sdata[f"boundaries_{key}"], Identity(), "micron")
 
-    intensities = aggregate_channels(
-        tmp_sdata, image_key="ficture_images", shapes_key=f"boundaries_{key}"
+    boundaries = transform(tmp_sdata[f"boundaries_{key}"], to_coordinate_system="micron")
+    image = transform(tmp_sdata[f"ficture_images"], to_coordinate_system="micron")
+    intensities = _aggregate_channels_aligned(
+        image=image, geo_df=boundaries, mode="average"
     )
     pd_intensity = pd.DataFrame(
         intensities,
@@ -49,10 +59,8 @@ def ficture_intensities(
     )
     pd_intensity = pd_intensity / pd_intensity.max(axis=None)
     if var:
-        variance = aggregate_channels(
-            tmp_sdata,
-            image_key="ficture_images",
-            shapes_key=f"boundaries_{key}",
+        variance = _aggregate_channels_aligned(
+            image=image, geo_df=boundaries,
             mode="variance",
             means=intensities,
         )
@@ -123,6 +131,12 @@ def _aggregate_channels_aligned(
     Returns:
         A numpy `ndarray` of shape `(n_cells, n_channels)`
     """
+    assert mode in AVAILABLE_MODES, (
+        f"Invalid {mode=}. Available modes are {AVAILABLE_MODES}"
+    )
+    if mode == "variance":
+        assert means is not None, "means required for variance computation"
+
     cells = geo_df if isinstance(geo_df, list) else list(geo_df.geometry)
     tree = shapely.STRtree(cells)
 

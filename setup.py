@@ -7,7 +7,7 @@ setup(
     author="IDS Munich",
     packages=find_packages(exclude=["notebooks", "scripts"]),
     install_requires=[
-        "sopa",
+        "sopa==2.0.6",
         "spatialdata",
         "spatialdata-io>=0.1.5",
         "scanpy",
@@ -25,9 +25,10 @@ setup(
         "anndata",
         "scikit-image",
         "plotly",
-        "pyvista",
+        "ovrlpy",
+        "harmonypy"
     ],
-    python_requires="==3.10.*",
+    python_requires=">=3.10",
     classifiers=[
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent",

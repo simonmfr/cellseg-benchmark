@@ -5,40 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="048a8a57-1aa6-47da-ad84-3860fc806524" name="Changes" comment="sdata save issue fix">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/_constants.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/_constants.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/adata_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/adata_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/cell_annotation_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/cell_annotation_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/ficture_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/ficture_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/metrics/basic.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/metrics/basic.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/metrics/ficture_intensities.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/metrics/ficture_intensities.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/sdata_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/sdata_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/2D_stack_to_3D_shape.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/2D_stack_to_3D_shape.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ABCAtlas-marker-genes/ABCAtlas-00-pseudobulk-preprocessing.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ABCAtlas-marker-genes/ABCAtlas-00-pseudobulk-preprocessing.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ABCAtlas-marker-genes/ABCAtlas-01-pseudobulk-annotate-ECs.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ABCAtlas-marker-genes/ABCAtlas-01-pseudobulk-annotate-ECs.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ABCAtlas-marker-genes/ABCAtlas-02-pseudobulk-DEA.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ABCAtlas-marker-genes/ABCAtlas-02-pseudobulk-DEA.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ABCAtlas-marker-genes/ABCAtlas-03-pseudobulk-celltype_markers.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ABCAtlas-marker-genes/ABCAtlas-03-pseudobulk-celltype_markers.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/TEMP_cell_type_annotation.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/TEMP_cell_type_annotation.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/TEMP_create_main_sdata_and_add_adatas.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/TEMP_create_main_sdata_and_add_adatas.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/TEMP_get_gene_counts.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/TEMP_get_gene_counts.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ficture_annotation_loop.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ficture_annotation_loop.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ficture_convert_to_spatialdata.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ficture_convert_to_spatialdata.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ficture_plot.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ficture_plot.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/metrics_general.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/metrics_general.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/plot_ficture.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/plot_ficture.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/plot_segmentations.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/plot_segmentations.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/working_3D_minor_errs.py" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/working_3D_minor_errs.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/ficture_infos.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/ficture_infos.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/master_sdata.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/master_sdata.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/master_sdata_update.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/master_sdata_update.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/merge_adata.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/merge_adata.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/rastered_segmentation.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/rastered_segmentation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/run_mapmycells.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/run_mapmycells.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/sbatch_utils/annotation_script_creation.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/sbatch_utils/annotation_script_creation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/sbatch_utils/merge_adata_script_creation.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/sbatch_utils/merge_adata_script_creation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/sbatch_utils/transcript_tif_script_creation.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/sbatch_utils/transcript_tif_script_creation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/test_adata_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/test_adata_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/voronoi_segmentation.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/voronoi_segmentation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/metrics/F1_score.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/metrics/F1_score.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/ficture_stats.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ficture_stats.ipynb" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -93,6 +61,7 @@
     &quot;Python.working_3D_minor_errs.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SHELLCHECK.PATH&quot;: &quot;/Users/jonasflor/Library/Application Support/JetBrains/PyCharm2025.1/plugins/Shell Script/shellcheck&quot;,
     &quot;database.data.extractors.current.export.id&quot;: &quot;Comma-separated (CSV)_id&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;last_opened_file_path&quot;: &quot;/Users/jonasflor/Desktop/gitrepos/cellseg-benchmark/scripts/sbatch_utils&quot;,
@@ -156,8 +125,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-6a121458b545-JavaScript-PY-251.25410.159" />
-        <option value="bundled-python-sdk-e0ed3721d81e-36ea0e71a18c-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.25410.159" />
+        <option value="bundled-js-predefined-d6986cc7102b-b26f3e71634d-JavaScript-PY-251.26094.141" />
+        <option value="bundled-python-sdk-9f8e2b94138c-36ea0e71a18c-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.26094.141" />
       </set>
     </attachedChunks>
   </component>
@@ -185,6 +154,9 @@
       <workItem from="1748449468469" duration="38329000" />
       <workItem from="1748850814108" duration="2511000" />
       <workItem from="1748878978770" duration="8404000" />
+      <workItem from="1751826943532" duration="1113000" />
+      <workItem from="1751879678419" duration="41903000" />
+      <workItem from="1752000275235" duration="14456000" />
     </task>
     <servers />
   </component>
