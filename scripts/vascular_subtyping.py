@@ -242,7 +242,7 @@ if 'ec_zonation' in sub_adata.obs.columns:
 
 # transfer labels
 sub_adata.obs = sub_adata.obs.merge(ec_adata.obs[["ec_zonation"]], left_index=True, right_index=True, how='left')
-sub_adata.obs[cell_type_column_zonation] = sub_adata.obs['ec_zonation'].astype('object').fillna(adata.obs[cell_type_column].astype('object'))
+sub_adata.obs[cell_type_column_zonation] = sub_adata.obs['ec_zonation'].astype('object').fillna(sub_adata.obs[cell_type_column].astype('object'))
 
 # set "Undefined" for specific cell types without ec_adata annotation. these were removed as contamination.
 missed_ECs_mask = (sub_adata.obs['ec_zonation'].isna() & 
