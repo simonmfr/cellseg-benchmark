@@ -139,7 +139,17 @@ def merge_adatas(
     if logger:
         n = len(adata.obs["sample"].unique())
         logger.info(f"{seg_method}: # of cells: {len(adata)}, # of samples: {n}")
+    
+    if logger:
+        n = len(adata.obs["sample"].unique())
+        logger.info(f"{seg_method}: # of cells: {len(adata)}, # of samples: {n}")
+        if n == 1:
+            logger.warning(
+                f"Only one sample found ({adata.obs['sample'].unique()[0]})!"
+            )
+    
     if plot_qc_stats:
+        save_path.mkdir(parents=True, exist_ok=True)
         plot_qc(adata, save_path, y_limits, logger)
     return adata
 

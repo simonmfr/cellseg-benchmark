@@ -45,7 +45,7 @@ def count_assigned_transcripts(
         try:
             if "ZIndex" not in boundaries.columns:
                 # 2D case
-                assigned, total = process_boundaries(boundaries, transcripts_gdf)
+                assigned, total = _process_boundaries(boundaries, transcripts_gdf)
                 dimension = "2d"
             else:
                 unique_z = boundaries["ZIndex"].unique()
