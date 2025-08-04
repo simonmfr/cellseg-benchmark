@@ -23,9 +23,10 @@ def _f1_score(
 
 
 def compute_f1(
-    data: pd.DataFrame,
-    general_stats: pd.DataFrame = None,
+    data: pd.DataFrame | Dict[str, pd.DataFrame],
+    general_stats: pd.DataFrame | Dict[str, pd.DataFrame] = None,
     flavor: Literal["f1", "micro", "macro", "all"] = "f1",
+    celltype_name: str | None = "celltype",
     correct_celltypes: Dict[str, List[str]] = None,
     weighted: bool = False,
     subset: List[str] = None,
@@ -44,32 +45,47 @@ def compute_f1(
         F1 score per factor and over all factors.
     """
     if subset is None:
-        subset = data.drop(columns=["cell type"]).columns
+        subset = set.intersection(*[set(x.drop(columns=[celltype_name]).columns) for x in data.values()])
     if flavor != "f1":
         assert correct_celltypes is not None, "correct_celltypes must be provided."
+    if flavor in ["micro", "all"]:
+        assert general_stats is not None, "general_stats must be provided."
+    if isinstance(general_stats, pd.DataFrame):
+        assert isinstance(data, pd.DataFrame), "general_stats must be DataFrame, since data is DataFrame."
+        data = {"tmp": data}
+        general_stats = {"tmp": general_stats}
+    elif isinstance(general_stats, dict):
+        assert isinstance(data, dict), "general_stats must be a dict, since data is dict."
 
     if correct_celltypes is None:
-        cols = list(set(data.drop(columns=["cell type"]).columns) & set(subset))
+        cols = list(set.intersection(*[set(x.drop(columns=[celltype_name]).columns) for x in data.values()]) & set(subset))
         cols.sort()
-        ind = data["cell type"].unique()
-        ind.sort()
-        f1_stats = pd.DataFrame(columns=cols, index=ind)
+        celltypes_unique = set()
+        for val in data.values():
+            celltypes_unique.update(val[celltype_name].unique())
+        celltypes_unique = list(celltypes_unique)
+        celltypes_unique.sort()
+        f1_stats = pd.DataFrame(columns=cols, index=celltypes_unique)
 
-        for factor in list(set(data.drop(columns=["cell type"]).columns) & set(subset)):
-            for celltype in data["cell type"].unique():
-                TP = data.loc[data["cell type"] == celltype, factor].sum()
-                FP = data.loc[data["cell type"] != celltype, factor].sum()
-                if general_stats is not None:
-                    FN = (
-                        general_stats.loc[
-                            "factor_area_weighted" if weighted else "factor_area",
-                            factor,
-                        ]
-                        - TP
-                        - FP
-                    )
-                else:
-                    FN = 1 - TP - FP
+        for factor in cols:
+            for celltype in list(celltypes_unique):
+                TP, FP, FN = 0, 0, 0
+                for key, val in data.items():
+                    TP_n = val.loc[val[celltype_name] == celltype, factor].sum()
+                    FP_n = val.loc[val[celltype_name] != celltype, factor].sum()
+                    if general_stats is not None:
+                        FN += (
+                            general_stats[key].loc[
+                                "factor_area_weighted" if weighted else "factor_area",
+                                factor,
+                            ]
+                            - TP_n
+                            - FP_n
+                        )
+                    else:
+                        FN += 1 - TP_n - FP_n
+                    TP += TP_n
+                    FP += FP_n
                 f1_stats.loc[celltype, factor] = _f1_score(TP, FP, FN)
         f1_stats.sort_index(inplace=True)
         return f1_stats
@@ -80,25 +96,28 @@ def compute_f1(
 
     for cluster in cols:
         rates[cluster] = defaultdict(float)
-        rates[cluster]["TP"] = data.loc[
-            [x in correct_celltypes[cluster] for x in data["cell type"]], cluster
-        ].sum()
-        rates[cluster]["FP"] = data.loc[
-            [x not in correct_celltypes[cluster] for x in data["cell type"]], cluster
-        ].sum()
-        if flavor == "micro" or flavor == "all" or general_stats is not None:
-            assert general_stats is not None, (
-                "general_stats must be provided. Important for micro F1 score."
-            )
-            rates[cluster]["FN"] = (
-                general_stats.loc[
-                    "factor_area_weighted" if weighted else "factor_area", cluster
-                ]
-                - rates[cluster]["TP"]
-                - rates[cluster]["FP"]
-            )
-        else:
-            rates[cluster]["FN"] = 1 - rates[cluster]["TP"] - rates[cluster]["FP"]
+        for key, val in data.items():
+            TP_n = val.loc[
+                [x in correct_celltypes[cluster] for x in val[celltype_name]], cluster
+            ].sum()
+            FP_n = val.loc[
+                [x not in correct_celltypes[cluster] for x in val[celltype_name]], cluster
+            ].sum()
+            if flavor == "micro" or flavor == "all" or general_stats is not None:
+                assert general_stats is not None, (
+                    "general_stats must be provided. Important for micro F1 score."
+                )
+                rates[cluster]["FN"] = (
+                    general_stats[key].loc[
+                        "factor_area_weighted" if weighted else "factor_area", cluster
+                    ]
+                    - TP_n
+                    - FP_n
+                )
+            else:
+                rates[cluster]["FN"] = 1 - TP_n - FP_n
+            rates[cluster]["TP"] += TP_n
+            rates[cluster]["FP"] += FP_n
         rates[cluster]["F1_score"] = _f1_score(
             rates[cluster]["TP"], rates[cluster]["FP"], rates[cluster]["FN"]
         )
