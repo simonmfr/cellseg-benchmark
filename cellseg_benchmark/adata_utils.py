@@ -978,7 +978,6 @@ def integration_harmony(
             show=False,
             projection="3d",
         )
-        # plt.tight_layout()
         plt.savefig(
             join(save_path, "UMAP_integrated_harmony_3D.png"),
             dpi=200,
