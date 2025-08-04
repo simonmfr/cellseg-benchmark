@@ -115,7 +115,7 @@ def compute_mean_vsi_per_polygon(integrity_map: np.ndarray, boundaries: GeoDataF
     return pd.DataFrame(result, index=boundaries.index, columns=["mean_integrity"])
 
 
-def plot_vsi_overview(integrity_map, signal_map, boundaries_aligned, sample_name, boxes=None, png_path=None):
+def plot_vsi_overview(integrity_map, signal_map, boundaries_aligned, vsi_mean, sample_name, boxes=None, png_path=None):
     ny, nx = integrity_map.shape
     if boxes is None:
         boxes = [(int(2 / 8 * nx), int(3 / 8 * ny), int(1 / 8 * nx), int(1 / 8 * ny)),
@@ -142,7 +142,7 @@ def plot_vsi_overview(integrity_map, signal_map, boundaries_aligned, sample_name
     fig.colorbar(im, cax=cax).ax.set_title("VSI", fontsize=10)
 
     # histogram
-    axs[0, 1].hist(boundaries_aligned["vsi_mean"], bins=100, zorder=3, color="slategrey")
+    axs[0, 1].hist(vsi_mean, bins=100, zorder=3, color="slategrey")
     axs[0, 1].axvline(0.5, color='gray', linestyle='--', linewidth=1)
     axs[0, 1].grid(True, zorder=0)
     axs[0, 1].set_title("Mean VSI per cell - " + sample_name)
