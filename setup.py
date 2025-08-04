@@ -25,7 +25,8 @@ setup(
         "anndata",
         "scikit-image",
         "plotly",
-        "ovrlpy"
+        "ovrlpy",
+        "harmonypy"
     ],
     python_requires=">=3.10",
     classifiers=[

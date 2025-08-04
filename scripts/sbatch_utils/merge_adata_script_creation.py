@@ -77,6 +77,5 @@ for method in methods:
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
-pip install harmonypy
 python scripts/merge_adata.py {args.cohort} {method} {"--age" if args.cohort == "aging" else "--genotype"}
 """)
