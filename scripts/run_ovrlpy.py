@@ -78,7 +78,7 @@ for sample, sdata in tqdm(sdata_list):
     integrity_matrix = np.load(join(str(base_path), "samples", sample, 'vertical_doublets_ovrlpy_output.npz'))['integrity']
     signal_matrix = np.load(join(str(base_path), "samples", sample, 'vertical_doublets_ovrlpy_output.npz'))['signal']
     for boundary_name in sdata.shapes.keys():
-        png_path = samples_path / "results" / "_".join(boundary_name.split("_")[1:]) / "ovrlpy_overview_plot.png"
+        png_path = samples_path / sample / "results" / "_".join(boundary_name.split("_")[1:]) / "ovrlpy_overview_plot.png"
         boundary = transform(sdata[boundary_name], to_coordinate_system="micron")
         tmp = compute_mean_vsi_per_polygon(integrity_matrix, boundary, transform_matrix)
         samples = sample.split("_")
