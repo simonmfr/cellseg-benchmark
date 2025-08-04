@@ -136,11 +136,18 @@ if compute_ficture:
         else:
             sdata[f"boundaries_{method}"] = ShapesModel.parse(tmp[boundary_key])
         if any([method.startswith(x) for x in image_based]):
-            set_transformation(
-                sdata[f"boundaries_{method}"],
-                Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
-                to_coordinate_system="micron",
-            )
+            if method == "Cellpose_1_Merlin":
+                set_transformation(
+                    sdata[f"boundaries_{method}"],
+                    Identity(),
+                    to_coordinate_system="micron",
+                )
+            else:
+                set_transformation(
+                    sdata[f"boundaries_{method}"],
+                    Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
+                    to_coordinate_system="micron",
+                )
         else:
             set_transformation(
                 sdata[f"boundaries_{method}"],
