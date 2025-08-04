@@ -159,15 +159,16 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     save_dir.mkdir(parents=True, exist_ok=True)
     if logger:
         logger.info("Plotting QC results")
-    sample_names = adata.obs["sample"].unique()
+    sample_names = adata.obs["sample"].unique().tolist()
+    n_samples = len(sample_names)
 
     # General Stats
     fig, axs = plt.subplots(
-        len(sample_names),
-        4,
-        figsize=(16, len(sample_names) * 4),
-        gridspec_kw={"wspace": 0.4},
-        squeeze=False,
+        n_samples, 
+        4, 
+        figsize=(16, n_samples * 4), 
+        gridspec_kw={"wspace": 0.4}, 
+        squeeze=False
     )
     for i, name in enumerate(sample_names):
         adata_tmp = adata[adata.obs["sample"] == name]
@@ -229,11 +230,13 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
 
     # Cell Qualities
     fig, axs = plt.subplots(
-        len(sample_names),
-        1,
-        figsize=(9, len(sample_names) * 8),
-        gridspec_kw={"wspace": 0.4},
+        n_samples, 
+        1, 
+        figsize=(9, n_samples * 8), 
+        gridspec_kw={"wspace": 0.4}, 
+        squeeze=False
     )
+    axs = axs[:, 0]
     for ax, name in zip(axs, sample_names):
         adata_tmp = adata[adata.obs["sample"] == name]
         sc.pl.scatter(
@@ -275,10 +278,11 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
 
     # General Stats Genes
     fig, axs = plt.subplots(
-        len(sample_names),
-        3,
-        figsize=(18, len(sample_names) * 5),
-        gridspec_kw={"wspace": 0.4},
+        n_samples, 
+        3, 
+        figsize=(18, n_samples * 5), 
+        gridspec_kw={"wspace": 0.4}, 
+        squeeze=False
     )
     for i, name in enumerate(sample_names):
         adata_tmp = adata[adata.obs["sample"] == name]
@@ -315,10 +319,12 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
 
     # Highly expressed genes
     fig, axs = plt.subplots(
-        len(sample_names),
-        1,
-        figsize=(6, len(sample_names) * 4),
+        n_samples, 
+        1, 
+        figsize=(6, n_samples * 4), 
+        squeeze=False
     )
+    axs = axs[:, 0]
     for ax, name in zip(axs, sample_names):
         adata_tmp = adata[adata.obs["sample"] == name]
         sc.pl.highest_expr_genes(adata_tmp, n_top=20, ax=ax, show=False)
