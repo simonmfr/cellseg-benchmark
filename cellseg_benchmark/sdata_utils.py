@@ -500,6 +500,7 @@ def calculate_volume(
                     z_spacing,
                     global_z_min=global_z_min,
                     global_z_max=global_z_max,
+                    ZIndex="layer"
                 )
                 morphology_data["cell_id"] = entity_id
                 morphology_rows.append(morphology_data)
@@ -578,18 +579,32 @@ def assign_transformations(
     )
 
     if any([seg_method.startswith(method) for method in image_based]):
-        set_transformation(
-            sdata_main[f"boundaries_{seg_method}"],
-            transformation_to_pixel.inverse(),
-            "micron",
-            write_to_sdata=backing,
-        )
-        set_transformation(
-            sdata_main[f"boundaries_{seg_method}"],
-            Identity(),
-            "pixel",
-            write_to_sdata=backing,
-        )
+        if seg_method == "Cellpose_1_Merlin":
+            set_transformation(
+                sdata_main[f"boundaries_{seg_method}"],
+                Identity(),
+                "micron",
+                write_to_sdata=backing,
+            )
+            set_transformation(
+                sdata_main[f"boundaries_{seg_method}"],
+                transformation_to_pixel,
+                "pixel",
+                write_to_sdata=backing,
+            )
+        else:
+            set_transformation(
+                sdata_main[f"boundaries_{seg_method}"],
+                transformation_to_pixel.inverse(),
+                "micron",
+                write_to_sdata=backing,
+            )
+            set_transformation(
+                sdata_main[f"boundaries_{seg_method}"],
+                Identity(),
+                "pixel",
+                write_to_sdata=backing,
+            )
     else:
         set_transformation(
             sdata_main[f"boundaries_{seg_method}"],
@@ -1021,12 +1036,12 @@ def _compute_trapz_with_conditional_caps(areas, z_indices, z_spacing, z_min, z_m
 
 
 def _compute_3d_metrics(
-    group, polygons, z_spacing, global_z_min, global_z_max, verbose=False
+    group, polygons, z_spacing, global_z_min, global_z_max, ZIndex: str="ZIndex", verbose=False
 ):
     """Compute 3D morphology metrics with robust and dual volume estimation."""
     try:
-        group = group.sort_values("ZIndex")
-        z_indices = group["ZIndex"].to_numpy()
+        group = group.sort_values(ZIndex)
+        z_indices = group[ZIndex].to_numpy()
 
         areas = np.array(
             [
