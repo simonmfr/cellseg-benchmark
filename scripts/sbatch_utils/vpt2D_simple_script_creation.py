@@ -15,7 +15,7 @@ with open(
 ) as f:
     data = json.load(f)
 
-experiment_json_path = f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/vpt_experiment_jsons/{args.staining}.json"
+experiment_json_path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/vpt_experiment_jsons/{staining}.json"
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple"

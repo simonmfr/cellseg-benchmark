@@ -418,7 +418,7 @@ def add_cell_type_annotation(
             cell_type, how="left", left_index=True, right_on="cell_id"
         )
     except ValueError:
-        cell_type['cell_id'] = cell_type['cell_id'].astype(str)
+        cell_type["cell_id"] = cell_type["cell_id"].astype(str)
         new_obs = sdata_main[f"adata_{seg_method}"].obs.merge(
             cell_type, how="left", left_index=True, right_on="cell_id"
         )
