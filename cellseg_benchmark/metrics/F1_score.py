@@ -62,7 +62,7 @@ def compute_f1(
         cols.sort()
         celltypes_unique = set()
         for val in data.values():
-            val.fillna("Unknown", inplace=True)
+            val[celltype_name].fillna("Unknown", inplace=True)
             celltypes_unique.update(val[celltype_name].unique())
         celltypes_unique = list(celltypes_unique)
         celltypes_unique.sort()
