@@ -86,6 +86,7 @@ if args.correct_celltypes:
         data=f1
     )
     plt.xticks(rotation=90)
+    plt.ylim(0, 1)
     plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_barplot.png"))
 else:
     if args.weighted:
