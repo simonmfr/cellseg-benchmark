@@ -81,6 +81,7 @@ for key in general_stats_dic.keys():
 f1 = compute_f1(data, general_stats=general_stats_dic, correct_celltypes=correct_celltypes, subset=subset, weighted=args.weighted)
 f1.to_csv(join(base_path, "metrics", args.cohort, f"{args.method}_f1{'_weighted' if args.weighted else ''}_{'celltypes' if args.correct_celltypes else 'matrix'}.csv"))
 if args.correct_celltypes:
+    sns.set_theme(rc={"figure.figsize": (20, 16)})
     sns.barplot(
         data=f1
     )
