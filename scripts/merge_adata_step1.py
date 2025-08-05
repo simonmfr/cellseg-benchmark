@@ -81,6 +81,7 @@ for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort
     available_names.update(current_names)
     sdata_list.append((sample_dir.name, sdata))
 
+logger.info("Merge adatas...")
 # Merge and process
 adata = merge_adatas(
     sdata_list,
@@ -94,7 +95,6 @@ adata = merge_adatas(
 )
 del sdata_list
 
-# Save result
 logger.info("Saving merged object...")
 if "fov" not in adata.obs.columns:
     adata.obs["fov"] = ""
