@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 from scanpy import read_h5ad
 import seaborn as sns
 
-from cellseg_benchmark._constants import factor_to_celltype, true_cluster
+from cellseg_benchmark._constants import factor_to_celltype, true_cluster, column_order, index_order
 from cellseg_benchmark.metrics import compute_f1
 
 warnings.filterwarnings("ignore")
@@ -89,12 +89,16 @@ if args.correct_celltypes:
     plt.ylim(0, 1)
     plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_barplot.png"))
 else:
+    data = f1.astype(float)
+    data.index = pd.CategoricalIndex(data.index, categories=index_order)
+    data.sort_index(level=0, inplace=True)
+    data = data[column_order]
     if args.weighted:
         sns.set_theme(rc={"figure.figsize": (20, 16)})
-        sns.heatmap(f1.astype(float), cmap="YlOrRd", annot=True)
+        sns.heatmap(data, cmap="YlOrRd", annot=True)
         plt.savefig(join(base_path, "metrics", args.cohort,
                          f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png"))
     else:
         sns.set_theme(rc={"figure.figsize": (20, 16)})
-        sns.heatmap(f1.astype(float), fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
+        sns.heatmap(data, fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
         plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png"))
