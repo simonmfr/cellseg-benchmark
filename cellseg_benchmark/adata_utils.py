@@ -527,6 +527,7 @@ def filter_low_quality_cells(
     save_path: str,
     min_counts: int = 25,
     min_genes: int = 5,
+    min_volume_threshold: int = 10,
     logger: logging.Logger = None,
     remove_outliers: bool = True,
 ) -> AnnData:
@@ -562,7 +563,7 @@ def filter_low_quality_cells(
     metric, n = "volume_final", 3
     adata.obs["volume_outlier_cell"] = (
         adata.obs[metric] > n * np.median(adata.obs[metric])
-    ) | (adata.obs[metric] < 100)
+    ) | (adata.obs[metric] < min_volume_threshold)
 
     def _plot_flag(flag, fname):
         n_cols = 3
