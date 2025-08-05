@@ -87,6 +87,12 @@ if args.correct_celltypes:
     plt.xticks(rotation=90)
     plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_barplot.png"))
 else:
-    sns.set_theme(rc={"figure.figsize": (20, 16)})
-    sns.heatmap(f1.astype(float), fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
-    plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png"))
+    if args.weighted:
+        sns.set_theme(rc={"figure.figsize": (20, 16)})
+        sns.heatmap(f1.astype(float), cmap="YlOrRd", annot=True)
+        plt.savefig(join(base_path, "metrics", args.cohort,
+                         f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png"))
+    else:
+        sns.set_theme(rc={"figure.figsize": (20, 16)})
+        sns.heatmap(f1.astype(float), fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
+        plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png"))
