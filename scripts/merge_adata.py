@@ -102,7 +102,23 @@ adata = filter_spatial_outlier_cells(
     save_path=save_path / "plots",
     logger=logger,
 )
-adata = filter_low_quality_cells(adata, save_path=save_path / "plots", logger=logger)
+
+# Special case: rerun filter_low_quality_cells with lower threshold for vpt_3D
+if "vpt_3D" in args.seg_method:
+    logger.info("Segmentation method contains 'vpt_3D': applying low-quality cell filtering with min_counts=10 due to smaller cell sizes.")
+    adata = filter_low_quality_cells(
+        adata,
+        save_path=save_path / "plots",
+        min_counts=10,
+        logger=logger,
+    )
+else:
+    adata = filter_low_quality_cells(
+        adata,
+        save_path=save_path / "plots",
+        logger=logger,
+    )
+    
 adata = filter_genes(adata, save_path=save_path / "plots", logger=logger)
 
 adata = normalize_counts(
@@ -110,7 +126,7 @@ adata = normalize_counts(
 )
 
 # Subset to max_cells
-max_cells = 500_000
+max_cells = 750_000
 if adata.n_obs > max_cells:
     logger.info(f"Stratified subsetting from {adata.n_obs:,} to {max_cells:,} cells.")
     rng = np.random.default_rng(seed=42)
