@@ -35,6 +35,12 @@ parser.add_argument(
     action="store_true",
     help="Genotype information is available. Otherwise, assume WT.",
 )
+parser.add_argument(
+    "--qc_plot",
+    default=False,
+    action="store_true",
+    help="If to plot and save qc.",
+)
 args = parser.parse_args()
 
 base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
@@ -103,7 +109,8 @@ for sample, sdata in tqdm(sdata_list):
         ).group(1)
         tmp["condition"] = tmp["genotype"] + "_" + tmp["age"].astype(str)
         metrics["_".join(boundary_name.split("_"))].append(tmp)
-        plot_vsi_overview(integrity_map=integrity_matrix, signal_map = signal_matrix, boundaries_aligned = boundary, vsi_mean=tmp["mean_integrity"].values, sample_name = sample, png_path=png_path)
+        if args.qc_plot:
+            plot_vsi_overview(integrity_map=integrity_matrix, signal_map = signal_matrix, boundaries_aligned = boundary, vsi_mean=tmp["mean_integrity"].values, sample_name = sample, png_path=png_path)
 
 logger.info(f"Writing metrics to {save_path}")
 for method, metric in tqdm(metrics.items()):
