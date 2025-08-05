@@ -109,8 +109,8 @@ adata = normalize_counts(
     adata, save_path=save_path / "plots", seg_method=args.seg_method, logger=logger
 )
 
-# Subset to max 1M cells
-max_cells = 1_000_000
+# Subset to max_cells
+max_cells = 500_000
 if adata.n_obs > max_cells:
     logger.info(f"Stratified subsetting from {adata.n_obs:,} to {max_cells:,} cells.")
     rng = np.random.default_rng(seed=42)
