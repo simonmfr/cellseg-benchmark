@@ -1664,6 +1664,7 @@ index_order = [
     "Astroependymal",
     "Choroid-Plexus",
     "Neurons-Granule-Immature",
+    "Tanycytes",
     "Undefined",
     "Unknown",
 ]
