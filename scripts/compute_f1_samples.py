@@ -78,7 +78,7 @@ for key in general_stats_dic.keys():
     data[key].rename(columns=rename(data[key].columns), inplace=True)
     data[key]['celltype'] = adata[adata.obs['sample'] == key].obs[args.celltype_name].values
 
-f1 = compute_f1(data, general_stats=general_stats_dic, correct_celltypes=correct_celltypes, subset=subset, weighted=args.weighted)
+f1 = compute_f1(data, general_stats=general_stats_dic, flavor=args.flavor, correct_celltypes=correct_celltypes, subset=subset, weighted=args.weighted)
 f1.to_csv(join(base_path, "metrics", args.cohort, f"{args.method}_f1{'_weighted' if args.weighted else ''}_{'celltypes' if args.correct_celltypes else 'matrix'}.csv"))
 if args.correct_celltypes:
     sns.set_theme(rc={"figure.figsize": (20, 16)})
