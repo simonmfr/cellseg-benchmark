@@ -90,7 +90,6 @@ if args.correct_celltypes:
     plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_barplot.png"))
 else:
     data = f1.astype(float)
-    print(data.index)
     data.index = pd.CategoricalIndex(data.index, categories=index_order)
     data.sort_index(level=0, inplace=True)
     data = data[column_order]

@@ -64,7 +64,11 @@ def compute_f1(
         for val in data.values():
             celltypes_unique.update(val[celltype_name].unique())
         celltypes_unique = list(celltypes_unique)
-        celltypes_unique.sort()
+        try:
+            celltypes_unique.sort()
+        except TypeError:
+            print(celltypes_unique)
+            raise TypeError
         f1_stats = pd.DataFrame(columns=cols, index=celltypes_unique)
 
         for factor in cols:
