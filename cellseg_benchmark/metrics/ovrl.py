@@ -157,7 +157,7 @@ def plot_vsi_overview(integrity_map, signal_map, boundaries_aligned, vsi_mean, s
 
     # overview
     im = axs[0, 0].imshow(integrity_map, alpha=alpha, **plot_kwargs)
-    boundaries_aligned.plot(ax=axs[0, 0], linewidth=0.1, **boundary_kwargs)
+    boundaries_aligned.plot(ax=axs[0, 0], aspect="equal", linewidth=0.1, **boundary_kwargs)
     axs[0, 0].set_title(sample_name)
 
     for (x, y, w, h) in boxes:
