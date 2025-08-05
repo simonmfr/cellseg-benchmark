@@ -902,6 +902,62 @@ def dimensionality_reduction(
     return adata
 
 
+def dimensionality_reduction_quick(
+    adata: AnnData, save_path: str, point_size_factor=320000, logger=None
+) -> AnnData:
+    """Run PCA and a single UMAP projection (n_neighbors=20, n_pcs=50) on the z-scored layer."""
+    adata.X = adata.layers["zscore"]
+    sc.settings.figdir = save_path
+
+    if logger:
+        logger.info("Dimensionality reduction: PCA")
+    sc.pp.pca(adata, svd_solver="arpack")
+    fig, axs = plt.subplots(1, 2, figsize=(20, 8), gridspec_kw={"wspace": 0.25})
+    with plt.ioff():
+        sc.pl.pca_scatter(adata, color="n_counts", ax=axs[0], show=False)
+    var_ratio = adata.uns["pca"]["variance_ratio"]
+    axs[1].plot(np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-")
+    axs[1].set_yscale("log")
+    axs[1].set_xlabel("Principal component")
+    axs[1].set_ylabel("Variance ratio")
+    axs[1].set_title("PCA variance ratio")
+    fig.savefig(join(save_path, "PCA.png"))
+    plt.close(fig)
+
+    # Single UMAP
+    config = {"n_neighbors": 20, "n_pcs": 50, "key": "X_umap_20_50"}
+    color_schemes = ["sample", "condition", "cell_type_mmc_raw_revised"]
+
+    if logger:
+        logger.info(f"Dimensionality reduction: UMAP with {config}")
+
+    sc.pp.neighbors(adata, n_neighbors=config["n_neighbors"], n_pcs=config["n_pcs"])
+    sc.tl.umap(adata, neighbors_key="neighbors", key_added=config["key"], n_components=2)
+
+    adata.uns.pop("neighbors", None)
+    adata.obsp.pop("distances", None)
+    adata.obsp.pop("connectivities", None)
+
+    fig, axs = plt.subplots(1, 3, figsize=(21, 7), gridspec_kw={"wspace": 0.6})
+    for col, color_scheme in enumerate(color_schemes):
+        with plt.ioff():
+            with plt.style.context("default"):
+                with mpl.rc_context({"figure.figsize": (7, 7)}):
+                    sc.pl.embedding(
+                        adata,
+                        ax=axs[col],
+                        basis=config["key"],
+                        size=point_size_factor / adata.shape[0],
+                        color=color_scheme,
+                        title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
+                        show=False,
+                    )
+
+    plt.savefig(join(save_path, "UMAP_unintegrated_comparison.png"), dpi=200, bbox_inches="tight")
+    plt.close()
+
+    return adata
+
 def integration_harmony(
     adata: AnnData,
     batch_key: str,

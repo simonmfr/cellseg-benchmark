@@ -122,7 +122,7 @@ if adata.n_obs > max_cells:
     ])
     adata = adata[keep_idx].copy()
     
-adata = dimensionality_reduction(adata, save_path=save_path / "plots", logger=logger)
+adata = dimensionality_reduction_quick(adata, save_path=save_path / "plots", logger=logger)
 adata = integration_harmony(
     adata, batch_key="sample", save_path=save_path / "plots", logger=logger
 )
