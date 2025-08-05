@@ -33,7 +33,13 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 parser.add_argument(
-    "seg_method", choices=["Proseg_pure", "Proseg_Cellpose_1_DAPI_PolyT", "Proseg_Cellpose_1_DAPI_Transcripts", "Proseg_Cellpose_2_DAPI_PolyT", "Proseg_Cellpose_2_DAPI_Transcripts"], help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'"
+    "seg_method", choices=["Proseg_pure",
+                           "Proseg_Cellpose_1_DAPI_PolyT",
+                           "Proseg_Cellpose_1_DAPI_Transcripts",
+                           "Proseg_Cellpose_1_nuclei_model",
+                           "Proseg_Cellpose_2_DAPI_PolyT",
+                           "Proseg_Cellpose_2_DAPI_Transcripts"
+                           ], help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'"
 )
 parser.add_argument(
     "--age",
