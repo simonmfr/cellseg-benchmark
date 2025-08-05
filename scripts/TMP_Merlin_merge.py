@@ -79,7 +79,7 @@ for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort
     current_names = ["_".join(k.split("_")[1:]) for k in sdata.tables.keys()]
     available_names.update(current_names)
     set_transformation(sdata[f"boundaries_{args.seg_method}"], Identity(), to_coordinate_system="micron")
-    sdata = calculate_volume(args.seg_method, sdata)
+    sdata = calculate_volume(args.seg_method, sdata, n_planes_2d=7)
     sdata_list.append((sample_dir.name, sdata))
 
 # Merge and process
