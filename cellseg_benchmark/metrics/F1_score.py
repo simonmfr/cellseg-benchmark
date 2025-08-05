@@ -62,13 +62,10 @@ def compute_f1(
         cols.sort()
         celltypes_unique = set()
         for val in data.values():
+            val.fillna("Unknown", inplace=True)
             celltypes_unique.update(val[celltype_name].unique())
         celltypes_unique = list(celltypes_unique)
-        try:
-            celltypes_unique.sort()
-        except TypeError:
-            print(celltypes_unique)
-            raise TypeError
+        celltypes_unique.sort()
         f1_stats = pd.DataFrame(columns=cols, index=celltypes_unique)
 
         for factor in cols:
