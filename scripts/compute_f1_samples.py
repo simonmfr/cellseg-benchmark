@@ -91,6 +91,7 @@ if args.correct_celltypes:
 else:
     data = f1.astype(float)
     data.index = pd.CategoricalIndex(data.index, categories=index_order)
+    print(data.index)
     data.sort_index(level=0, inplace=True)
     data = data[column_order]
     if args.weighted:
