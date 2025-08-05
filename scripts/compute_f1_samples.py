@@ -87,7 +87,7 @@ if args.correct_celltypes:
     )
     plt.xticks(rotation=90)
     plt.ylim(0, 1)
-    plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_barplot.png"))
+    plt.savefig(join(base_path, "metrics", args.cohort, "ficture", f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_barplot.png"))
 else:
     data = f1.astype(float)
     data.index = pd.CategoricalIndex(data.index, categories=index_order)
@@ -96,9 +96,9 @@ else:
     if args.weighted:
         sns.set_theme(rc={"figure.figsize": (20, 16)})
         sns.heatmap(data, cmap="YlOrRd", annot=True)
-        plt.savefig(join(base_path, "metrics", args.cohort,
+        plt.savefig(join(base_path, "metrics", args.cohort, "ficture"
                          f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png"))
     else:
         sns.set_theme(rc={"figure.figsize": (20, 16)})
         sns.heatmap(data, fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
-        plt.savefig(join(base_path, "metrics", args.cohort, f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png"))
+        plt.savefig(join(base_path, "metrics", args.cohort, "ficture", f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png"))
