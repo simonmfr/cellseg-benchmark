@@ -103,7 +103,7 @@ adata = normalize_counts(
 )
 
 # Subset to max_cells
-max_cells = 1_000_000
+max_cells = 750_000
 if adata.n_obs > max_cells:
     logger.info(f"Stratified subsetting from {adata.n_obs:,} to {max_cells:,} cells.")
     rng = np.random.default_rng(seed=42)
