@@ -26,7 +26,7 @@ from matplotlib.pyplot import rc_context
 from spatialdata import read_zarr
 
 import cellseg_benchmark.cell_annotation_utils as anno_utils
-from cellseg_benchmark.cell_annotation_utils import cell_type_colors
+from cellseg_benchmark._constants import cell_type_colors
 
 plt.rcParams["font.family"] = (
     "Arial" if "Arial" in [f.name for f in fm.fontManager.ttflist] else "sans-serif"
