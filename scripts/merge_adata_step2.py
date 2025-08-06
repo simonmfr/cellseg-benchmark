@@ -133,11 +133,9 @@ adata.write(output_path / "adata_integrated.h5ad.gz", compression="gzip")
 logger.info("Deleting temp file...")
 final_adata_path = output_path / "adata_integrated.h5ad.gz"
 if final_adata_path.exists():
-    if temp_adata_path.exists():
-        logger.info(f"Integration succeeded. Deleting temp file: {temp_adata_path}")
-        temp_adata_path.unlink()
-    else:
-        logger.warning(f"Temp file not found: {temp_adata_path}")
+    if merged_adata_path.exists():
+        logger.info(f"Integration succeeded. Deleting temp file: {merged_adata_path}")
+        merged_adata_path.unlink()
 else:
     logger.error(f"Integration output missing at: {final_adata_path}. Skipping deletion.")
 
