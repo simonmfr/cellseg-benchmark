@@ -45,7 +45,7 @@ args = parser.parse_args()
 
 base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 samples_path = base_path / "samples"
-save_path = base_path / "metrics" / args.cohort
+save_path = samples_path / "metrics" / args.cohort
 save_path.mkdir(parents=True, exist_ok=True)
 
 with open(base_path / "sample_paths.json") as f:

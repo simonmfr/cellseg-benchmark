@@ -13,43 +13,41 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from polars import DataFrame
 from shapely import affinity
 from shapely.geometry.base import BaseGeometry
-from spatialdata import SpatialData
-from tqdm import tqdm
 from xarray import DataArray
 
 from .ficture_intensities import _aggregate_channels_aligned
 
 
 def compute_ovrl(
-    sdata_list: List[Tuple[str, SpatialData]],
+    sample: str,
+    sample_dir: str,
     data_dir: str,
     logger: logging.Logger = None,
 ) -> None:
     """Compute ovrlpy output.
 
     Args:
-        sdata_list: List of sdatas with names
-        data_dir: Base directory for output files.
+        sample: name of sample
+        sample_dir: Sample directory
+        data_dir: Directory to transcript .csv.
         logger: logging.Logger instance.
 
     Returns:
         None
     """
-    for name, sdata in tqdm(sdata_list):
-        if not exists(
-            join(data_dir, "samples", name, "vertical_doublets_ovrlpy_output.npz")
-        ):
-            coords_df = (
-                sdata.points[name + "_transcripts"][["gene", "x", "y", "global_z"]]
-                .compute()
-                .rename(columns={"global_z": "z"})
-            )
-            run_ovrlpy(name, coords_df, data_dir)
+    if not exists(
+        join(sample_dir, "samples", sample, "vertical_doublets_ovrlpy_output.npz")
+    ):
+        coords_df = (
+            pd.read_csv(join(data_dir, "detected_transcripts.csv"), index_col=0)[["gene", "x", "y", "global_z"]]
+            .rename(columns={"global_z": "z"})
+        )
+        run_ovrlpy(sample, coords_df, sample_dir)
+    else:
+        if logger:
+            logger.warning(f"Ovrlpy output exists, skipping ovrlpy run for {sample}")
         else:
-            if logger:
-                logger.warning(f"Ovrlpy output exists, skipping ovrlpy run for {name}")
-            else:
-                print("Ovrlpy output exists, skipping ovrlpy run.")
+            print("Ovrlpy output exists, skipping ovrlpy run.")
 
 
 def run_ovrlpy(

@@ -20,8 +20,9 @@ from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from spatialdata import SpatialData
 from spatialdata.models import ShapesModel
-from spatialdata.transformations import Identity, get_transformation, set_transformation
+from spatialdata.transformations import Identity, get_transformation, set_transformation, Affine
 from tifffile import imread
 from tqdm import tqdm
 
@@ -694,6 +695,43 @@ def update_element(sdata: sd.SpatialData, element_name: str) -> None:
     # c. remove the backup copy
     del sdata[new_name]
     sdata.delete_element_from_disk(new_name)
+
+def get_2D_boundaries(method: str, org_sdata:sd.SpatialData, sdata:sd.SpatialData, transformation:np.ndarray, boundary_key:str) -> None:
+    if method.startswith("vpt_3D"):
+        try:
+            bound = org_sdata[boundary_key][["cell_id", "geometry"]].dissolve(by="cell_id")
+        except ValueError:
+            new = org_sdata[boundary_key][["cell_id", "geometry"]]
+            new.index.rename(None, inplace=True)
+            bound = new.dissolve(by="cell_id")
+            del new
+        sdata[f"boundaries_{method}"] = ShapesModel.parse(bound)
+        set_transformation(
+            sdata[f"boundaries_{method}"],
+            Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
+            to_coordinate_system="global",
+        )
+    else:
+        sdata[f"boundaries_{method}"] = ShapesModel.parse(org_sdata[boundary_key])
+    if any([method.startswith(x) for x in image_based]):
+        if method == "Cellpose_1_Merlin":
+            set_transformation(
+                sdata[f"boundaries_{method}"],
+                Identity(),
+                to_coordinate_system="micron",
+            )
+        else:
+            set_transformation(
+                sdata[f"boundaries_{method}"],
+                Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
+                to_coordinate_system="micron",
+            )
+    else:
+        set_transformation(
+            sdata[f"boundaries_{method}"],
+            Identity(),
+            to_coordinate_system="micron",
+        )
 
 
 def pixel_to_microns(
