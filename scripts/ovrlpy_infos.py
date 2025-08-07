@@ -58,7 +58,7 @@ else:
         f"Identified {len(compute_ovrlpy)} Segmentations to compute Ovrlpy for."
     )
 
-logger.info("Preparing Ficture")
+logger.info("Preparing Ovrlpy statistics.")
 compute_ovrl(args.sample, sample_path, args.data_path, logger=logger)
 
 if compute_ovrlpy:

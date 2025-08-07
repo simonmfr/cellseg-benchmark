@@ -36,7 +36,7 @@ def compute_ovrl(
         None
     """
     if not exists(
-        join(sample_dir, "samples", sample, "vertical_doublets_ovrlpy_output.npz")
+        join(sample_dir, "vertical_doublets_ovrlpy_output.npz")
     ):
         coords_df = (
             pd.read_csv(join(data_dir, "detected_transcripts.csv"), index_col=0)[["gene", "x", "y", "global_z"]]
