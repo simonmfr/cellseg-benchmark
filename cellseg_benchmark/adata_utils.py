@@ -55,8 +55,6 @@ def merge_adatas(
     Returns:
         AnnData: A merged AnnData object containing concatenated cells from all input datasets.
     """
-    adatas = []
-
     y_limits = [0, 0, 0, 0]
     if logger:
         logger.info(f"Merging adatas of {seg_method}")
