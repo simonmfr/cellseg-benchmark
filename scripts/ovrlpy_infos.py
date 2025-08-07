@@ -83,7 +83,7 @@ if compute_ovrlpy:
             "region"
         ]
         get_2D_boundaries(method, tmp, sdata, transformation, boundary_key)
-        boundary = transform(sdata[boundary_key], to_coordinate_system="micron")
+        boundary = transform(sdata[f"boundaries_{method}"], to_coordinate_system="micron")
         res = compute_mean_vsi_per_polygon(integrity_matrix, boundary, transformation)
         res.to_csv(join(save_path, "Ovrlpy_stats.csv"))
         plot_vsi_overview(integrity_map=integrity_matrix, signal_map=signal_matrix, boundaries_aligned=boundary,
