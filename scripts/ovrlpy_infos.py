@@ -73,6 +73,7 @@ if compute_ovrlpy:
         'integrity']
     signal_matrix = np.load(join(sample_path, 'vertical_doublets_ovrlpy_output.npz'))['signal']
     for method in compute_ovrlpy:
+        logger.info(f"Computing Ovrlpy statistics for {method}.")
         save_path = join(results_path, method, "Ovrlpy_stats")
         os.makedirs(save_path, exist_ok=True)
         sdata = SpatialData()
