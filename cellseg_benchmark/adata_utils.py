@@ -22,7 +22,7 @@ from cellseg_benchmark._constants import cell_type_colors
 sc.settings.n_jobs = -1
 
 def merge_adatas(
-    adatas: List[Tuple[str, AnnData]],
+    adatas_list: List[Tuple[str, AnnData]],
     seg_method: str,
     sample_paths_file: dict,
     logger: logging.Logger = None,
@@ -58,7 +58,9 @@ def merge_adatas(
     y_limits = [0, 0, 0, 0]
     if logger:
         logger.info(f"Merging adatas of {seg_method}")
-    for name, adata in tqdm(adatas):
+
+    adatas = []
+    for name, adata in tqdm(adatas_list):
         samples = name.split("_")
         cohort, slide, region = samples[0], samples[1], samples[2]
         adata.obs["cohort"] = cohort

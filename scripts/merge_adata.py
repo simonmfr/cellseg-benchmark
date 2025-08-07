@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import os
 import warnings
 from os.path import exists
 from pathlib import Path
@@ -87,7 +88,7 @@ for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort
         logger.error(f"master sdata in {sample_dir} has not been found.")
     loads.append(sample_dir)
 
-with ProcessPoolExecutor(max_workers=4) as ex:
+with ProcessPoolExecutor(max_workers=int(os.getenv("SLURM_CPUS_PER_TASK", 1))) as ex:
     futures = {ex.submit(load_one, p, args.seg_method, logger): p for p in loads}
     adata_list = [f.result() for f in as_completed(futures)]
 
