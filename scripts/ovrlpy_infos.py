@@ -7,6 +7,7 @@ from os.path import exists, join
 import dask
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from cellseg_benchmark.metrics import compute_ovrl, compute_mean_vsi_per_polygon, plot_vsi_overview
 
@@ -72,7 +73,7 @@ if compute_ovrlpy:
     integrity_matrix = np.load(join(sample_path, 'vertical_doublets_ovrlpy_output.npz'))[
         'integrity']
     signal_matrix = np.load(join(sample_path, 'vertical_doublets_ovrlpy_output.npz'))['signal']
-    for method in compute_ovrlpy:
+    for method in tqdm(compute_ovrlpy):
         logger.info(f"Computing Ovrlpy statistics for {method}.")
         save_path = join(results_path, method, "Ovrlpy_stats")
         os.makedirs(save_path, exist_ok=True)
