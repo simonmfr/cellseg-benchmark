@@ -1051,8 +1051,8 @@ def _compute_3d_metrics(
         z_um = z_indices * z_spacing
         polygons = group["geometry"].tolist()
 
-        if z_indices.shape[0] < 1:
-            return _compute_2d_metrics(polygons, z_spacing)
+        if z_indices.shape[0] == 1:
+            return _compute_2d_metrics(polygons[0], z_spacing)
 
         assert len(polygons) == len(z_indices)
         assert np.all(np.diff(z_indices) >= 0), "ZIndex must be non-decreasing"
