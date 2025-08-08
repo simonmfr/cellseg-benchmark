@@ -1036,7 +1036,7 @@ def _compute_trapz_with_conditional_caps(areas, z_indices, z_spacing, z_min, z_m
 
 
 def _compute_3d_metrics(
-    group, z_spacing, global_z_min, global_z_max, ZIndex: str="ZIndex", verbose=False
+    group, z_spacing, global_z_min, global_z_max, ZIndex: str="ZIndex"
 ):
     """Compute 3D morphology metrics with robust and dual volume estimation."""
     try:
@@ -1048,13 +1048,10 @@ def _compute_3d_metrics(
         assert len(polygons) == len(z_indices)
         assert np.all(np.diff(z_indices) >= 0), "ZIndex must be non-decreasing"
 
-        areas = np.array(
-            [
-                p.area
-                if p.geom_type == "Polygon"
-                else sum(part.area for part in p.geoms)
-                for p in polygons
-            ]
+        areas = np.fromiter(
+            (
+                p.area for p in polygons #Multipolygons bereits gehandled
+            ), dtype=float
         )
 
         volume_sum = np.sum(areas) * z_spacing
@@ -1062,13 +1059,10 @@ def _compute_3d_metrics(
             areas, z_indices, z_spacing, global_z_min, global_z_max
         )
 
-        perimeters = np.array(
-            [
-                p.length
-                if p.geom_type == "Polygon"
-                else sum(part.length for part in p.geoms)
-                for p in polygons
-            ]
+        perimeters = np.fromiter(
+            (
+                p.length for p in polygons #Multipolygons bereits gehandled
+            ), dtype=float
         )
 
         total_height = (len(areas) - 1) * z_spacing
@@ -1112,7 +1106,7 @@ def _compute_3d_metrics(
             if coords.shape[0] < 3:
                 continue
             z_coords = np.full((coords.shape[0], 1), z_um[i])
-            all_points.extend(np.hstack([coords, z_coords]))
+            all_points.append(np.hstack([coords, z_coords]))
 
         if not all_points:
             metrics.update({"solidity": np.nan, "elongation": np.nan})
@@ -1121,15 +1115,23 @@ def _compute_3d_metrics(
         all_points = np.vstack(all_points)
         all_points -= all_points.mean(axis=0, keepdims=True)
 
+        solidity = np.nan
         if all_points.shape[0] >= 4:
-            all_points_u = np.unique(all_points, axis=0)
-            if all_points_u.shape[0] >= 4:
-                hull = ConvexHull(all_points_u)
-                metrics["solidity"] = (volume_trapz / hull.volume) if hull.volume > 0 else np.nan
-            else:
-                metrics["solidity"] = np.nan
-        else:
-            metrics["solidity"] = np.nan
+            try:
+                hull = ConvexHull(all_points, qhull_options="QJ")  # jitter coplanar cases
+                hv = hull.volume
+                solidity = (volume_trapz / hv) if hv > 0 else np.nan
+            except:
+                # fall back to deduped points (expensive; only if needed)
+                up = np.unique(all_points, axis=0)
+                if up.shape[0] >= 4:
+                    try:
+                        hull = ConvexHull(up, qhull_options="QJ")
+                        hv = hull.volume
+                        solidity = (volume_trapz / hv) if hv > 0 else np.nan
+                    except:
+                        solidity = np.nan
+        metrics["solidity"] = solidity
 
         cov = (all_points.T @ all_points) / all_points.shape[0]
         eigenvalues = np.linalg.eigvalsh(cov)[::-1]
