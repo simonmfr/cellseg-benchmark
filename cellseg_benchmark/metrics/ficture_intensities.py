@@ -10,16 +10,14 @@ from dask.diagnostics import ProgressBar
 from shapely.geometry import Polygon, box
 from sopa.segmentation.shapes import expand_radius, pixel_outer_bounds, rasterize
 from sopa.utils import get_boundaries, get_spatial_image, to_intrinsic
-from spatialdata import SpatialData, transform
+from spatialdata import SpatialData
 from spatialdata.models import Image2DModel, ShapesModel
-from spatialdata.transformations import set_transformation, Affine, Identity
 from xarray import DataArray
 
 
 def ficture_intensities(
     sdata: SpatialData,
     images: np.ndarray,
-    transform_matrix: np.ndarray,
     key: str,
     n_factors: int,
     unique_factors: list,
@@ -38,19 +36,13 @@ def ficture_intensities(
     Returns: None, if update_element is True, otherwise mean and variance of ficture intensities.
 
     """
-    transformation = Affine(transform_matrix, input_axes=("x", "y"), output_axes=("x", "y"))
-
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
     tmp_sdata = SpatialData()
     tmp_sdata["ficture_images"] = Image2DModel.parse(images)
-    set_transformation(tmp_sdata["ficture_images"], transformation.inverse(), "micron")
     tmp_sdata[f"boundaries_{key}"] = ShapesModel.parse(sdata[boundary_key])
-    set_transformation(tmp_sdata[f"boundaries_{key}"], Identity(), "micron")
 
-    boundaries = transform(tmp_sdata[f"boundaries_{key}"], to_coordinate_system="micron")
-    image = transform(tmp_sdata[f"ficture_images"], to_coordinate_system="micron")
-    intensities = _aggregate_channels_aligned(
-        image=image, geo_df=boundaries, mode="average"
+    intensities = aggregate_channels(
+        tmp_sdata, image_key="ficture_images", shapes_key=f"boundaries_{key}"
     )
     pd_intensity = pd.DataFrame(
         intensities,
@@ -59,8 +51,10 @@ def ficture_intensities(
     )
     pd_intensity = pd_intensity / pd_intensity.max(axis=None)
     if var:
-        variance = _aggregate_channels_aligned(
-            image=image, geo_df=boundaries,
+        variance = aggregate_channels(
+            tmp_sdata,
+            image_key="ficture_images",
+            shapes_key=f"boundaries_{key}",
             mode="variance",
             means=intensities,
         )

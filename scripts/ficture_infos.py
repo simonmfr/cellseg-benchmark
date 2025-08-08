@@ -13,11 +13,11 @@ from tqdm import tqdm
 dask.config.set({"dataframe.query-planning": False})
 
 from spatialdata import SpatialData, read_zarr, transform
-from spatialdata.models import Image2DModel, ShapesModel
+from spatialdata.models import Image2DModel
 from spatialdata.transformations import Affine, set_transformation, Identity
 
-from cellseg_benchmark.metrics.ficture_intensities import _aggregate_channels_aligned
-from cellseg_benchmark.sdata_utils import prepare_ficture
+from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
+from cellseg_benchmark.sdata_utils import prepare_ficture, get_2D_boundaries
 from cellseg_benchmark._constants import image_based
 
 warnings.filterwarnings("ignore")
@@ -101,15 +101,14 @@ if compute_ficture:
         header=None,
     ).values
 
+    #set global coordinate system to microns
     set_transformation(
         sdata[f"ficture_image_1"],
-        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
-        to_coordinate_system="micron",
+        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse()
     )
     set_transformation(
         sdata[f"ficture_image_2"],
-        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
-        to_coordinate_system="micron",
+        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse()
     )
 
     for method in compute_ficture:
@@ -119,69 +118,27 @@ if compute_ficture:
         boundary_key = tmp[list(tmp.tables.keys())[0]].uns["spatialdata_attrs"][
             "region"
         ]
-        if method.startswith("vpt_3D"):
-            try:
-                bound = tmp[boundary_key][["cell_id", "geometry"]].dissolve(by="cell_id")
-            except ValueError:
-                new = tmp[boundary_key][["cell_id", "geometry"]]
-                new.index.rename(None, inplace=True)
-                bound = new.dissolve(by="cell_id")
-                del new
-            sdata[f"boundaries_{method}"] = ShapesModel.parse(bound)
-            set_transformation(
-                sdata[f"boundaries_{method}"],
-                Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
-                to_coordinate_system="global",
-            )
-        else:
-            sdata[f"boundaries_{method}"] = ShapesModel.parse(tmp[boundary_key])
+        get_2D_boundaries(method, tmp, sdata, transformation, boundary_key)
         if any([method.startswith(x) for x in image_based]):
             if method == "Cellpose_1_Merlin":
-                set_transformation(
-                    sdata[f"boundaries_{method}"],
-                    Identity(),
-                    to_coordinate_system="micron",
-                )
+                set_transformation(sdata[f"boundaries_{method}"], Identity())
             else:
-                set_transformation(
-                    sdata[f"boundaries_{method}"],
-                    Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
-                    to_coordinate_system="micron",
-                )
+                set_transformation(sdata[f"boundaries_{method}"], Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse())
         else:
-            set_transformation(
-                sdata[f"boundaries_{method}"],
-                Identity(),
-                to_coordinate_system="micron",
-            )
+            set_transformation(sdata[f"boundaries_{method}"], Identity())
     del tmp
 
-    image_1 = transform(sdata["ficture_image_1"], to_coordinate_system="micron")
-    image_2 = transform(sdata["ficture_image_2"], to_coordinate_system="micron")
     for key in tqdm(sdata.shapes.keys()):
         logger.info("Working on {}".format("_".join(split("_", key)[1:])))
         boundary = transform(sdata[key], to_coordinate_system="micron")
-        covered = _aggregate_channels_aligned(
-            image=image_1, geo_df=boundary, mode="sum"
+        covered = aggregate_channels(
+            sdata, image_key="ficture_image_1", shapes_key=key, mode="sum"
         )
-        #        covered_weight = aggregate_channels(
-        #            sdata, image_key="ficture_image_2", shapes_key=key, mode="sum"
-        #        )
-        #        mean = aggregate_channels(
-        #            sdata, image_key="ficture_image_1", shapes_key=key, mode="average"
-        #        )
-        mean_weight = _aggregate_channels_aligned(
-            image=image_2, geo_df=boundary, mode="average"
+        mean_weight = aggregate_channels(
+            sdata, image_key="ficture_image_2", shapes_key=key, mode="average"
         )
-        #        var = aggregate_channels(
-        #            sdata,
-        #            image_key="ficture_image_1",
-        #            shapes_key=key,
-        #            mode="variance",
-        #            means=mean,
-        #        )
-        var_weight = _aggregate_channels_aligned(
-            image=image_2, geo_df=boundary,
+        var_weight = aggregate_channels(
+            sdata, image_key="ficture_image_2", shapes_key=key,
             mode="variance",
             means=mean_weight,
         )
@@ -190,18 +147,6 @@ if compute_ficture:
             join(results_path, "_".join(split("_", key)[1:]), "Ficture_stats"),
             exist_ok=True,
         )
-        #        pd.DataFrame(
-        #            mean,
-        #            index=sdata[key].index.to_list(),
-        #            columns=[f"fictureF21_{i}_mean_intensity" for i in range(21)],
-        #        ).to_csv(
-        #            join(
-        #                results_path,
-        #                "_".join(split("_", key)[1:]),
-        #                "Ficture_stats",
-        #                "means.csv",
-        #            )
-        #        )
         pd.DataFrame(
             mean_weight,
             index=sdata[key].index.to_list(),
@@ -214,18 +159,6 @@ if compute_ficture:
                 "means_weight.csv",
             )
         )
-        #        pd.DataFrame(
-        #            var,
-        #            index=sdata[key].index.to_list(),
-        #            columns=[f"fictureF21_{i}_variance_intensity" for i in range(21)],
-        #        ).to_csv(
-        #            join(
-        #                results_path,
-        #                "_".join(split("_", key)[1:]),
-        #                "Ficture_stats",
-        #                "vars.csv",
-        #            )
-        #        )
         pd.DataFrame(
             var_weight,
             index=sdata[key].index.to_list(),
@@ -250,16 +183,4 @@ if compute_ficture:
                 "area.csv",
             )
         )
-#        pd.DataFrame(
-#            covered_weight,
-#            index=sdata[key].index.to_list(),
-#            columns=[f"fictureF21_{i}_area_weighted" for i in range(21)],
-#        ).to_csv(
-#            join(
-#                results_path,
-#                "_".join(split("_", key)[1:]),
-#                "Ficture_stats",
-#                "area_weight.csv",
-#            )
-#        )
 logger.info("Finished importing ficture infos.")
