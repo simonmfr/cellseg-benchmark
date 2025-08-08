@@ -471,29 +471,14 @@ def calculate_volume(
         except ValueError:
             boundaries.index.rename(None, inplace=True)
             grouped = boundaries.groupby(cell_identifier)
-        morphology_rows = []
 
-        if logger:
-            logger.info(f"calculate volume metrics {seg_method}")
-        for entity_id, group in grouped:
-            try:
-                polygons = group["geometry"].tolist()
-                morphology_data = _compute_3d_metrics(
-                    group,
-                    polygons,
-                    z_spacing,
-                    global_z_min=global_z_min,
-                    global_z_max=global_z_max,
-                    ZIndex="layer"
-                )
-                morphology_data["cell_id"] = entity_id
-                morphology_rows.append(morphology_data)
-            except Exception as e:
-                if logger:
-                    logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
-                else:
-                    print(f"Failed to process entity {entity_id}: {str(e)}")
-                continue
+        items = [
+            (entity_id, group[[z_level_name, "geometry"]])
+            for entity_id, group in grouped
+        ]
+        morphology_rows = Parallel(n_jobs=-1, backend="loky")(
+            delayed(compute_polygon_stats_3D)(eid, grp, z_spacing, z_level_name, global_z_min, global_z_max, logger) for eid, grp in items
+        )
 
     else:
         assert n_planes_2d is not None, "provide n_planes_2d parameter for 2D methods"
@@ -507,7 +492,7 @@ def calculate_volume(
             for entity_id, group in grouped
         ]
         morphology_rows = Parallel(n_jobs=-1, backend="loky")(
-            delayed(compute_polygon_stats)(item, scale) for item in items
+            delayed(compute_polygon_stats_2D)(item, scale, logger) for item in items
         )
         morphology_rows = [r for r in morphology_rows if r is not None]
 
@@ -530,14 +515,35 @@ def calculate_volume(
     return sdata_main
 
 
-def compute_polygon_stats(entity_geom_pair, scale):
+def compute_polygon_stats_2D(entity_geom_pair, scale, logger=None):
     entity_id, geom = entity_geom_pair
     try:
         data = _compute_2d_metrics(geom, scale)
         data["cell_id"] = entity_id
         return data
     except Exception as e:
-        print(f"Failed {entity_id}: {e}")
+        if logger is not None:
+            logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
+        else:
+            print(f"Failed {entity_id}: {e}")
+        return None
+
+def compute_polygon_stats_3D(entity_id, group, z_spacing, z_level_name, global_z_min, global_z_max, logger=None):
+    try:
+        m = _compute_3d_metrics(
+            group,
+            z_spacing,
+            global_z_min=global_z_min,
+            global_z_max=global_z_max,
+            ZIndex=z_level_name,
+        )
+        m["cell_id"] = entity_id
+        return m
+    except Exception as e:
+        if logger is not None:
+            logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
+        else:
+            print(f"Failed {entity_id}: {e}")
         return None
 
 
@@ -1045,6 +1051,9 @@ def _compute_3d_metrics(
         z_um = z_indices * z_spacing
         polygons = group["geometry"].tolist()
 
+        if z_indices.shape[0] < 1:
+            return _compute_2d_metrics(polygons, z_spacing)
+
         assert len(polygons) == len(z_indices)
         assert np.all(np.diff(z_indices) >= 0), "ZIndex must be non-decreasing"
 
@@ -1090,9 +1099,7 @@ def _compute_3d_metrics(
             ),
         }
 
-        if len(polygons) < 2 or (np.ptp(z_um) < 3 * z_spacing):
-            metrics.update({"solidity": np.nan, "elongation": np.nan})
-            return metrics
+        thin_stack = len(polygons) < 2 or (np.ptp(z_um) < 3 * z_spacing)
 
         all_points = []
         for i, polygon in enumerate(polygons):
@@ -1116,21 +1123,22 @@ def _compute_3d_metrics(
         all_points -= all_points.mean(axis=0, keepdims=True)
 
         solidity = np.nan
-        if all_points.shape[0] >= 4:
-            try:
-                hull = ConvexHull(all_points, qhull_options="QJ")  # jitter coplanar cases
-                hv = hull.volume
-                solidity = (volume_trapz / hv) if hv > 0 else np.nan
-            except:
-                # fall back to deduped points (expensive; only if needed)
-                up = np.unique(all_points, axis=0)
-                if up.shape[0] >= 4:
-                    try:
-                        hull = ConvexHull(up, qhull_options="QJ")
-                        hv = hull.volume
-                        solidity = (volume_trapz / hv) if hv > 0 else np.nan
-                    except:
-                        solidity = np.nan
+        if not thin_stack:
+            if all_points.shape[0] >= 4:
+                try:
+                    hull = ConvexHull(all_points, qhull_options="QJ")  # jitter coplanar cases
+                    hv = hull.volume
+                    solidity = (volume_trapz / hv) if hv > 0 else np.nan
+                except:
+                    # fall back to deduped points (expensive; only if needed)
+                    up = np.unique(all_points, axis=0)
+                    if up.shape[0] >= 4:
+                        try:
+                            hull = ConvexHull(up, qhull_options="QJ")
+                            hv = hull.volume
+                            solidity = (volume_trapz / hv) if hv > 0 else np.nan
+                        except:
+                            solidity = np.nan
         metrics["solidity"] = solidity
 
         cov = (all_points.T @ all_points) / all_points.shape[0]
