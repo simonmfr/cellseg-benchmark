@@ -19,8 +19,6 @@ from tqdm import tqdm
 
 from cellseg_benchmark._constants import cell_type_colors
 
-sc.settings.n_jobs = -1
-
 def merge_adatas(
     adatas_list: List[Tuple[str, AnnData]],
     seg_method: str,

@@ -8,18 +8,19 @@ from pathlib import Path
 from typing import Tuple
 
 import numpy as np
+import scanpy as sc
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from anndata import AnnData
 from spatialdata import read_zarr
 
-def load_one(sample_dir: Path, seg_method, logger: logging.Logger) -> Tuple[str, AnnData]:
+def load_one(sample_dir: Path, seg_method, logger: logging.Logger) -> Tuple[str, AnnData | None]:
     sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
     if f"adata_{seg_method}" not in sdata.tables.keys():
         if logger:
             logger.warning(f"Skipping {seg_method}. No such key: {seg_method}")
-        return sample_dir.name, AnnData()
+        return sample_dir.name, None
     return sample_dir.name, sdata[f"adata_{seg_method}"]
 
 from cellseg_benchmark.adata_utils import (
@@ -33,6 +34,7 @@ from cellseg_benchmark.adata_utils import (
 )
 
 warnings.filterwarnings("ignore")
+sc.settings.n_jobs = -1
 
 # Logger setup
 logger = logging.getLogger("integrate_adatas")
@@ -91,6 +93,7 @@ for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort
 with ProcessPoolExecutor(max_workers=int(os.getenv("SLURM_CPUS_PER_TASK", 1))) as ex:
     futures = {ex.submit(load_one, p, args.seg_method, logger): p for p in loads}
     adata_list = [f.result() for f in as_completed(futures)]
+adata_list = [(x, y) for x, y in adata_list if y is not None] #ensure save data loading, e.g. for aging s8 r1 Cellpose 2 Transcripts
 
 # Merge and process
 adata = merge_adatas(
