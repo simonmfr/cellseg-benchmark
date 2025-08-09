@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, Tuple, Callable, Dict
+from typing import Iterable, Dict
 
 import dask
 import pandas as pd
 from dask.diagnostics import ProgressBar
-import dask.array as da
 import geopandas as gpd
 import numpy as np
 import numpy.ma as ma
 from shapely.affinity import translate, scale
 from shapely.geometry import box
 from shapely import affinity, STRtree
+from dask.base import is_dask_collection
+import numpy as np
+import dask
 
 
 # --- SpatialData stack (adapt if your imports differ)
@@ -76,7 +78,7 @@ def build_boundaries_parallel(
     results_path: Path,
     transformation: np.ndarray,
     boundary_key: str | None = None,
-    scheduler: str = "threads",
+    scheduler: str | None = None,
 ) -> Dict[str, gpd.GeoDataFrame]:
     """Return dict(method -> GDF in micron) by parallelizing loading/dissolving/transforming across methods."""
     tasks = [
@@ -158,62 +160,49 @@ def _aggregate_chunk_task(
 
     return tile_idxs, local_agg, local_area
 
+
 def _aggregate_channels_aligned_parallel_lazy(
-    image_da,                        # xarray.DataArray with dask backend, shape (C, Y, X)
-    geo_df: gpd.GeoDataFrame,        # geometries in *intrinsic pixel* coords
+    image_da,                        # xarray.DataArray with dask backend, shape (c, y, x)
+    geo_df,                          # GeoDataFrame; geometries already in intrinsic (pixel) space
     mode: str,
-    means_delayed=None,              # delayed or numpy: (n_cells, C) if variance
+    means_delayed=None,              # np.ndarray | Future | delayed (n_cells, C) if variance
 ):
-    """Return a dask.delayed -> np.ndarray (n_cells, C), parallel over tiles."""
-    cells = list(geo_df.geometry)
-    n_cells = len(cells)
-    n_channels = int(image_da.shape[0])
+    """
+    Parallel, tile-wise aggregation with late scaling.
+    - If a distributed Client is active, returns a distributed.Future.
+    - Otherwise returns a dask.delayed object.
 
-    # Decide scale factor once from image dtype
-    dt = np.dtype(image_da.dtype)
-    if np.issubdtype(dt, np.bool_):
-        scale = 1.0
-    elif np.issubdtype(dt, np.integer):
-        # uint16 case -> divide by 65535 to get 0..1 at the end
-        info = np.iinfo(dt)
-        scale = float(info.max) if info.max > 1 else 1.0
-    else:
-        # already float? assume already 0..1
-        scale = 1.0
+    Avoids 'bytes object is too large' by scattering big, passing small:
+      * scatter the full list of cells (polygons) once per worker
+      * pass only 'idxs' (ints) to each tile task and slice means per tile on the worker
+    """
+    assert mode in {"average", "max", "min", "variance", "sum"}
 
+    # --- derive dims/axes robustly, and ensure one chunk along 'c' ---
     image_da = image_da.chunk({"c": -1})
-    darr = image_da.data  # one block across all channels
-    _, chunk_sizes_y, chunk_sizes_x = darr.chunks
+    darr = image_da.data
+    dims = list(image_da.dims)              # expect ["c","y","x"] but don't assume order
+    idx = {d: i for i, d in enumerate(dims)}
+    c_ax, y_ax, x_ax = idx["c"], idx["y"], idx["x"]
+
+    # chunk sizes for tiling
+    chunk_sizes_y = darr.chunks[y_ax]
+    chunk_sizes_x = darr.chunks[x_ax]
+
+    # tiles & blocks
+    cells = list(geo_df.geometry)
     tiles = _tiles_and_intersections(cells, chunk_sizes_y, chunk_sizes_x)
+    blocks = np.array(darr.to_delayed())    # shape = numblocks per axis
 
-    blocks = np.array(darr.to_delayed())  # (1, ny, nx)
+    # scale for late normalization
+    dt = np.dtype(image_da.dtype)
+    if np.issubdtype(dt, np.integer):
+        scale = float(np.iinfo(dt).max) if np.iinfo(dt).max > 1 else 1.0
+    else:
+        scale = 1.0  # assume already normalized floats
 
-    # Build delayed per-tile tasks
-    delayed_parts = []
-    for (iy, ix, (xmin, xmax, ymin, ymax), idxs) in tiles:
-        cells_subset = [cells[k] for k in idxs]
-
-        def _run_one(chunk, tile_bounds, idxs, cells_subset, mode, means):
-            means_subset = None
-            if mode == "variance":
-                means_subset = means[np.asarray(idxs)]
-            return _aggregate_chunk_task(
-                chunk, tile_bounds, idxs, cells_subset, mode, means_subset
-            )
-
-        delayed_parts.append(
-            dask.delayed(_run_one)(
-                blocks[(0, iy, ix)],
-                (xmin, xmax, ymin, ymax),
-                idxs,
-                cells_subset,
-                mode,
-                means_delayed
-            )
-        )
-
-    # Reduction on driver (delayed)
-    def _reduce_parts(parts, n_cells, n_channels, mode):
+    # --- reducer: combine per-tile partials into final array ---
+    def _reduce_parts(parts, n_cells, n_channels, mode, scale):
         if mode == "min":
             agg = np.full((n_cells, n_channels), np.inf, dtype=np.float64)
         elif mode == "max":
@@ -236,16 +225,98 @@ def _aggregate_channels_aligned_parallel_lazy(
             denom = np.clip(areas, 1, None)[:, None]
             return (agg / denom / scale).astype(np.float32)
         elif mode == "variance":
-            denom = np.clip(areas[:, None] - 1, 1, None)  # Bessel correction
+            # already accumulated sum((x_norm - mean_norm)^2) in tiles
+            denom = np.clip(areas[:, None] - 1, 1, None)
             return (agg / denom).astype(np.float32)
-        elif mode == "max":
-            return (agg / scale).astype(np.float32)
-        elif mode == "min":
+        elif mode in ("max", "min"):
             return (agg / scale).astype(np.float32)
         elif mode == "sum":
             return agg.astype(np.float64)
 
-    return dask.delayed(_reduce_parts)(delayed_parts, n_cells, n_channels, mode, scale)
+    # --- worker-side wrapper: reconstruct small per-tile inputs from scattered big ones ---
+    def _run_one_scattered(chunk, tile_bounds, idxs, mode, means_or_none, cells_all):
+        # 'cells_all' and 'means_or_none' are realized on the worker (scattered or computed)
+        cells_subset = [cells_all[k] for k in idxs]
+        means_subset = None
+        if mode == "variance" and means_or_none is not None:
+            means_subset = means_or_none[np.asarray(idxs)]
+        return _aggregate_chunk_task(
+            chunk, tile_bounds, idxs, cells_subset, mode, means_subset
+        )
+
+    # try to use a distributed client; otherwise fall back to delayed path
+    try:
+        from dask.distributed import get_client
+        client = get_client()
+    except Exception:
+        client = None
+
+    if client is not None:
+        # ---- distributed branch: scatter big, pass small, submit futures ----
+        cells_fut = client.scatter(cells, broadcast=True)
+        mean_ref = None
+        if mode == "variance":
+            if means_delayed is None:
+                raise ValueError("means required for variance computation")
+            if is_dask_collection(means_delayed):
+                mean_ref = client.compute(means_delayed)     # compute once per method
+            else:
+                # numpy array or already a Future
+                try:
+                    from distributed.future import Future  # type: ignore
+                    is_future = isinstance(means_delayed, Future)
+                except Exception:
+                    is_future = False
+                mean_ref = means_delayed if is_future else client.scatter(means_delayed, broadcast=True)
+
+        futures = []
+        for (iy, ix, (xmin, xmax, ymin, ymax), idxs_) in tiles:
+            bi = [0] * darr.ndim
+            bi[c_ax] = 0            # channels fused to one block
+            bi[y_ax] = iy
+            bi[x_ax] = ix
+            chunk_ref = blocks[tuple(bi)]
+            fut = client.submit(
+                _run_one_scattered,
+                chunk_ref,
+                (xmin, xmax, ymin, ymax),
+                idxs_,
+                mode,
+                mean_ref,
+                cells_fut,
+                pure=False,
+            )
+            futures.append(fut)
+
+        # one reduction task depending on all tile futures
+        result_fut = client.submit(
+            _reduce_parts, futures, len(cells), int(image_da.shape[0]), mode, scale, pure=False
+        )
+        return result_fut  # Future
+
+    # ---- fallback: local/delayed path (OK for threaded scheduler) ----
+    delayed_parts = []
+    for (iy, ix, (xmin, xmax, ymin, ymax), idxs_) in tiles:
+        bi = [0] * darr.ndim
+        bi[c_ax] = 0
+        bi[y_ax] = iy
+        bi[x_ax] = ix
+        chunk_ref = blocks[tuple(bi)]
+        # local path can pass small lists directly; same semantics
+        cells_subset = [cells[k] for k in idxs_]
+        means_src = None
+        if mode == "variance":
+            if means_delayed is None:
+                raise ValueError("means required for variance computation")
+            means_src = means_delayed if not is_dask_collection(means_delayed) else dask.delayed(lambda x: x)(means_delayed)
+        delayed_parts.append(
+            dask.delayed(_aggregate_chunk_task)(
+                chunk_ref, (xmin, xmax, ymin, ymax), idxs_, cells_subset, mode, means_src
+            )
+        )
+
+    return dask.delayed(_reduce_parts)(delayed_parts, len(cells), int(image_da.shape[0]), mode, scale)
+
 
 def to_intrinsic_from_image_coords(
     gdf_micron: gpd.GeoDataFrame,
@@ -308,7 +379,7 @@ def run_pipeline_parallel(
     results_path: str | Path,
     compute_ficture_methods: list[str],
     logger,
-    scheduler: str | None = "threads",
+    scheduler: str | None = None,
 ):
     """
     Full flow:
@@ -345,54 +416,82 @@ def run_pipeline_parallel(
         compute_ficture_methods, results_path, transformation, scheduler=scheduler
     )
 
-    # 4) wave 1: area + mean (lazy per method)
-    logger.info("Wiring Dask tasks (wave 1)")
-    area_tasks = {}
-    mean_tasks = {}
+    # 4) WAVE 1 — area (sum) + mean (average)
+    logger.info("Wave 1: wiring area + mean")
+    area_futs_or_delayed = []
+    mean_futs_or_delayed = []
+    keys = []
+
     for m, gdf_micron in boundaries.items():
-        area_tasks[m] = aggregate_channels_lazy(sdata, "ficture_image_1", gdf_micron, 0.0, "sum")
-        mean_tasks[m] = aggregate_channels_lazy(sdata, "ficture_image_2", gdf_micron, 0.0, "average")
+        # (optional but recommended) rechunk both images so tiles are ~1024^2
+        sdata["ficture_image_1"].data = sdata["ficture_image_1"].data.chunk({"c": -1, "y": 1024, "x": 1024})
+        sdata["ficture_image_2"].data = sdata["ficture_image_2"].data.chunk({"c": -1, "y": 1024, "x": 1024})
 
-    with ProgressBar():
-        area_vals = dask.compute(*area_tasks.values(), scheduler=scheduler)
-        mean_vals = dask.compute(*mean_tasks.values(), scheduler=scheduler)
+        area_task = aggregate_channels_lazy(sdata, "ficture_image_1", gdf_micron, 0.0, "sum")
+        mean_task = aggregate_channels_lazy(sdata, "ficture_image_2", gdf_micron, 0.0, "average")
+        area_futs_or_delayed.append(area_task)
+        mean_futs_or_delayed.append(mean_task)
+        keys.append(m)
 
-    areas = dict(zip(area_tasks.keys(), area_vals))
-    means = dict(zip(mean_tasks.keys(), mean_vals))
+    if client is not None:
+        progress(area_futs_or_delayed + mean_futs_or_delayed, notebook=True)
+        area_vals = client.gather(area_futs_or_delayed)
+        mean_vals = client.gather(mean_futs_or_delayed)
+    else:
+        from dask.diagnostics import ProgressBar
+        with ProgressBar():
+            area_vals = dask.compute(*area_futs_or_delayed, scheduler=scheduler)
+            mean_vals = dask.compute(*mean_futs_or_delayed, scheduler=scheduler)
 
-    # 5) wave 2: variance depends on each mean
-    logger.info("Wiring Dask tasks (wave 2)")
-    var_tasks = {}
-    for m, gdf_micron in boundaries.items():
-        var_tasks[m] = aggregate_channels_lazy(
-            sdata, "ficture_image_2", gdf_micron, 0.0, "variance", means_delayed=dask.delayed(means[m])
-        )
+    areas = dict(zip(keys, area_vals))
+    means = dict(zip(keys, mean_vals))
 
-    with ProgressBar():
-        var_vals = dask.compute(*var_tasks.values(), scheduler=scheduler)
+    # 5) WAVE 2 — variance (uses mean per method)
+    logger.info("Wave 2: wiring variance")
+    var_futs_or_delayed = []
+    keys2 = []
 
-    vars_ = dict(zip(var_tasks.keys(), var_vals))
+    if client is not None:
+        # scatter each method's mean once (small; ~MBs), submit variance futures
+        for m, gdf_micron in boundaries.items():
+            mean_ref = client.scatter(means[m], broadcast=True)
+            task = aggregate_channels_lazy(
+                sdata, "ficture_image_2", gdf_micron, 0.0, "variance", means_delayed=mean_ref
+            )
+            var_futs_or_delayed.append(task)
+            keys2.append(m)
+        progress(var_futs_or_delayed, notebook=True)
+        var_vals = client.gather(var_futs_or_delayed)
+    else:
+        for m, gdf_micron in boundaries.items():
+            task = aggregate_channels_lazy(
+                sdata, "ficture_image_2", gdf_micron, 0.0, "variance", means_delayed=means[m]
+            )
+            var_futs_or_delayed.append(task)
+            keys2.append(m)
+        from dask.diagnostics import ProgressBar
+        with ProgressBar():
+            var_vals = dask.compute(*var_futs_or_delayed, scheduler=scheduler)
 
-    # 6) write CSVs (serial: friendlier to FS; parallel is possible but riskier)
-    logger.info("Writing results")
+    vars_ = dict(zip(keys2, var_vals))
+
+    # 6) write CSVs
+    logger.info("Writing CSVs")
     for m, gdf_micron in boundaries.items():
         outdir = results_path / m / "Ficture_stats"
         outdir.mkdir(parents=True, exist_ok=True)
         index = gdf_micron.index.to_list()
 
-        # mean
         pd.DataFrame(
             means[m], index=index,
             columns=[f"fictureF21_{i}_mean_intensity_weighted" for i in range(21)]
         ).to_csv(outdir / "means_weight.csv")
 
-        # var
         pd.DataFrame(
             vars_[m], index=index,
             columns=[f"fictureF21_{i}_variance_intensity_weighted" for i in range(21)]
         ).to_csv(outdir / "vars_weight.csv")
 
-        # area
         pd.DataFrame(
             areas[m], index=index,
             columns=[f"fictureF21_{i}_area" for i in range(21)]
