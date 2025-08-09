@@ -281,12 +281,12 @@ def run_pipeline_parallel(
       5) compute variance across methods (depends on each mean)
       6) write CSVs
     """
-    results_path = Path(results_path)
+    results_path = Path(results_path) / "results"
 
     # 1) prepare_ficture ONCE
     logger.info("Preparing Ficture")
     stats = prepare_ficture(args.data_path, str(results_path), top_n_factors=1, logger=logger)
-    area_covered = (stats["images"] > 0)
+    area_covered = (stats["images"] > 0) #TODO: add seond prepare ficture
     images = stats["images"]
     del stats
 
