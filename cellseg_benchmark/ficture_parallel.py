@@ -181,8 +181,8 @@ def _aggregate_channels_aligned_parallel_lazy(
         # already float? assume already 0..1
         scale = 1.0
 
-    darr: da.Array = image_da.data
-    darr = darr.rechunk({"c": -1})  # one block across all channels
+    image_da = image_da.chunk({"c": -1})
+    darr = image_da.data  # one block across all channels
     _, chunk_sizes_y, chunk_sizes_x = darr.chunks
     tiles = _tiles_and_intersections(cells, chunk_sizes_y, chunk_sizes_x)
 
