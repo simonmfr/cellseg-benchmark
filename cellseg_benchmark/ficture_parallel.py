@@ -182,25 +182,20 @@ def _aggregate_channels_aligned_parallel_lazy(
     # --- derive dims/axes robustly, and ensure one chunk along 'c' ---
     image_da = image_da.chunk({"c": -1, "y": chunk_xy, "x": chunk_xy})
     darr = image_da.data
-    dims = list(image_da.dims)              # expect ["c","y","x"] but don't assume order
+    dims = list(image_da.dims)
     idx = {d: i for i, d in enumerate(dims)}
     c_ax, y_ax, x_ax = idx["c"], idx["y"], idx["x"]
 
-    # chunk sizes for tiling
     chunk_sizes_y = darr.chunks[y_ax]
     chunk_sizes_x = darr.chunks[x_ax]
 
-    # tiles & blocks
     cells = list(geo_df.geometry)
     tiles = _tiles_and_intersections(cells, chunk_sizes_y, chunk_sizes_x)
-    blocks = np.array(darr.to_delayed())    # shape = numblocks per axis
+    blocks = np.array(darr.to_delayed())
 
-    # scale for late normalization
+    # late scaling factor
     dt = np.dtype(image_da.dtype)
-    if np.issubdtype(dt, np.integer):
-        scale = float(np.iinfo(dt).max) if np.iinfo(dt).max > 1 else 1.0
-    else:
-        scale = 1.0  # assume already normalized floats
+    scale = float(np.iinfo(dt).max) if np.issubdtype(dt, np.integer) and np.iinfo(dt).max > 1 else 1.0
 
     # --- reducer: combine per-tile partials into final array ---
     def _reduce_parts(parts, n_cells, n_channels, mode, scale):
@@ -236,8 +231,10 @@ def _aggregate_channels_aligned_parallel_lazy(
 
     # --- worker-side wrapper: reconstruct small per-tile inputs from scattered big ones ---
     def _run_one_scattered(chunk, tile_bounds, idxs, mode, means_or_none, cells_all):
-        # 'cells_all' and 'means_or_none' are realized on the worker (scattered or computed)
-        cells_subset = [cells_all[k] for k in idxs]
+        # WORKER-SIDE: reconstruct polygons from WKB
+        from shapely import from_wkb                    # import inside to avoid pickling issues
+        cells_subset = [from_wkb(cells_all[k]) for k in idxs]   # <- WKB -> Shapely here
+
         means_subset = None
         if mode == "variance" and means_or_none is not None:
             means_subset = means_or_none[np.asarray(idxs)]
@@ -245,7 +242,7 @@ def _aggregate_channels_aligned_parallel_lazy(
             chunk, tile_bounds, idxs, cells_subset, mode, means_subset
         )
 
-    # try to use a distributed client; otherwise fall back to delayed path
+    # try to use a distributed client; otherwise fall back to delayed
     try:
         from dask.distributed import get_client
         client = get_client()
@@ -253,47 +250,56 @@ def _aggregate_channels_aligned_parallel_lazy(
         client = None
 
     if client is not None:
-        # ---- distributed branch: scatter big, pass small, submit futures ----
-        cells_fut = client.scatter(cells, broadcast=True)
+        # DRIVER-SIDE: scatter ONE object (list of WKB), not many polygon objects
+        # (this prevents thousands of tiny "Polygon-…" futures)
+        cells_wkb = [g.wkb for g in geo_df.geometry]            # <- convert once
+        cells_fut = client.scatter({"cells": cells_wkb}, broadcast=True)["cells"]
+
         mean_ref = None
         if mode == "variance":
+            from dask.base import is_dask_collection
             if means_delayed is None:
                 raise ValueError("means required for variance computation")
             if is_dask_collection(means_delayed):
-                mean_ref = client.compute(means_delayed)     # compute once per method
+                mean_ref = client.compute(means_delayed)        # one Future
             else:
-                # numpy array or already a Future
-                try:
-                    from distributed.future import Future  # type: ignore
-                    is_future = isinstance(means_delayed, Future)
-                except Exception:
-                    is_future = False
-                mean_ref = means_delayed if is_future else client.scatter(means_delayed, broadcast=True)
+                mean_ref = client.scatter({"means": means_delayed}, broadcast=True)["means"]
 
         futures = []
         for (iy, ix, (xmin, xmax, ymin, ymax), idxs_) in tiles:
             bi = [0] * darr.ndim
-            bi[c_ax] = 0            # channels fused to one block
-            bi[y_ax] = iy
-            bi[x_ax] = ix
+            bi[c_ax] = 0; bi[y_ax] = iy; bi[x_ax] = ix
             chunk_ref = blocks[tuple(bi)]
             fut = client.submit(
                 _run_one_scattered,
-                chunk_ref,
-                (xmin, xmax, ymin, ymax),
-                idxs_,
-                mode,
-                mean_ref,
-                cells_fut,
+                chunk_ref, (xmin, xmax, ymin, ymax), idxs_, mode, mean_ref, cells_fut,
                 pure=False,
             )
             futures.append(fut)
 
-        # one reduction task depending on all tile futures
         result_fut = client.submit(
-            _reduce_parts, futures, len(cells), int(image_da.shape[0]), mode, scale, pure=False
+            _reduce_parts, futures, len(cells_wkb), int(image_da.shape[0]), mode, scale, pure=False
         )
-        return result_fut  # Future
+        return result_fut
+
+    # Local/delayed fallback (unchanged)
+    delayed_parts = []
+    for (iy, ix, (xmin, xmax, ymin, ymax), idxs_) in tiles:
+        bi = [0] * darr.ndim
+        bi[c_ax] = 0; bi[y_ax] = iy; bi[x_ax] = ix
+        chunk_ref = blocks[tuple(bi)]
+        cells_subset = [cells[k] for k in idxs_]
+        means_src = None
+        if mode == "variance":
+            if means_delayed is None:
+                raise ValueError("means required for variance computation")
+            means_src = means_delayed
+        delayed_parts.append(
+            dask.delayed(_aggregate_chunk_task)(
+                chunk_ref, (xmin, xmax, ymin, ymax), idxs_, cells_subset, mode, means_src
+            )
+        )
+    return dask.delayed(_reduce_parts)(delayed_parts, len(cells), int(image_da.shape[0]), mode, scale)
 
     # ---- fallback: local/delayed path (OK for threaded scheduler) ----
     delayed_parts = []
