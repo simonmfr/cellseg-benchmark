@@ -7,12 +7,12 @@ import dask
 import pandas as pd
 from dask.diagnostics import ProgressBar
 import geopandas as gpd
-import numpy as np
 import numpy.ma as ma
 from shapely.affinity import translate, scale
 from shapely.geometry import box
 from shapely import affinity, STRtree
 from dask.base import is_dask_collection
+from dask.distributed import default_client, progress
 import numpy as np
 import dask
 
@@ -166,6 +166,7 @@ def _aggregate_channels_aligned_parallel_lazy(
     geo_df,                          # GeoDataFrame; geometries already in intrinsic (pixel) space
     mode: str,
     means_delayed=None,              # np.ndarray | Future | delayed (n_cells, C) if variance
+    chunk_xy: int = 1024,
 ):
     """
     Parallel, tile-wise aggregation with late scaling.
@@ -179,7 +180,7 @@ def _aggregate_channels_aligned_parallel_lazy(
     assert mode in {"average", "max", "min", "variance", "sum"}
 
     # --- derive dims/axes robustly, and ensure one chunk along 'c' ---
-    image_da = image_da.chunk({"c": -1})
+    image_da = image_da.chunk({"c": -1, "y": chunk_xy, "x": chunk_xy})
     darr = image_da.data
     dims = list(image_da.dims)              # expect ["c","y","x"] but don't assume order
     idx = {d: i for i, d in enumerate(dims)}
@@ -358,6 +359,7 @@ def aggregate_channels_lazy(
     expand_radius_ratio: float,
     mode: str,
     means_delayed=None,
+        chunk_xy: int = 1024
 ):
     """
     Use your existing sopa utils (get_spatial_image, to_intrinsic, expand_radius),
@@ -371,7 +373,7 @@ def aggregate_channels_lazy(
         gdf_intrinsic = expand_radius(gdf_intrinsic, expand_radius_ratio)
 
     return _aggregate_channels_aligned_parallel_lazy(
-        image, gdf_intrinsic, mode, means_delayed=means_delayed
+        image, gdf_intrinsic, mode, means_delayed=means_delayed, chunk_xy=chunk_xy
     )
 
 def run_pipeline_parallel(
@@ -390,6 +392,12 @@ def run_pipeline_parallel(
       5) compute variance across methods (depends on each mean)
       6) write CSVs
     """
+    try:
+        client = default_client()
+        logger.info("Using distributed scheduler at %s", client.scheduler_info()["address"])
+    except Exception:
+        client = None
+        logger.info("No distributed client found; using local scheduler=%s", scheduler or "threads")
     results_path = Path(results_path) / "results"
 
     # 1) prepare_ficture ONCE
@@ -423,12 +431,8 @@ def run_pipeline_parallel(
     keys = []
 
     for m, gdf_micron in boundaries.items():
-        # (optional but recommended) rechunk both images so tiles are ~1024^2
-        sdata["ficture_image_1"].data = sdata["ficture_image_1"].data.chunk({"c": -1, "y": 1024, "x": 1024})
-        sdata["ficture_image_2"].data = sdata["ficture_image_2"].data.chunk({"c": -1, "y": 1024, "x": 1024})
-
-        area_task = aggregate_channels_lazy(sdata, "ficture_image_1", gdf_micron, 0.0, "sum")
-        mean_task = aggregate_channels_lazy(sdata, "ficture_image_2", gdf_micron, 0.0, "average")
+        area_task = aggregate_channels_lazy(sdata, "ficture_image_1", gdf_micron, 0.0, "sum", chunk_xy=1024)
+        mean_task = aggregate_channels_lazy(sdata, "ficture_image_2", gdf_micron, 0.0, "average", chunk_xy=1024)
         area_futs_or_delayed.append(area_task)
         mean_futs_or_delayed.append(mean_task)
         keys.append(m)
@@ -456,7 +460,7 @@ def run_pipeline_parallel(
         for m, gdf_micron in boundaries.items():
             mean_ref = client.scatter(means[m], broadcast=True)
             task = aggregate_channels_lazy(
-                sdata, "ficture_image_2", gdf_micron, 0.0, "variance", means_delayed=mean_ref
+                sdata, "ficture_image_2", gdf_micron, 0.0, "variance", means_delayed=mean_ref, chunk_xy=1024
             )
             var_futs_or_delayed.append(task)
             keys2.append(m)
@@ -465,7 +469,7 @@ def run_pipeline_parallel(
     else:
         for m, gdf_micron in boundaries.items():
             task = aggregate_channels_lazy(
-                sdata, "ficture_image_2", gdf_micron, 0.0, "variance", means_delayed=means[m]
+                sdata, "ficture_image_2", gdf_micron, 0.0, "variance", means_delayed=means[m], chunk_xy=1024
             )
             var_futs_or_delayed.append(task)
             keys2.append(m)
