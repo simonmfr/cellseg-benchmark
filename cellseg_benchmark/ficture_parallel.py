@@ -10,6 +10,7 @@ import dask.array as da
 import geopandas as gpd
 import numpy as np
 import numpy.ma as ma
+from shapely.affinity import translate, scale
 from shapely.geometry import box
 from shapely import affinity, STRtree
 
@@ -246,6 +247,39 @@ def _aggregate_channels_aligned_parallel_lazy(
 
     return dask.delayed(_reduce_parts)(delayed_parts, n_cells, n_channels, mode, scale)
 
+def to_intrinsic_from_image_coords(
+    gdf_micron: gpd.GeoDataFrame,
+    image_da,  # xarray.DataArray with coords "x" and "y" (monotonic, axis-aligned)
+) -> gpd.GeoDataFrame:
+    """
+    Convert geometries from the image's world coords (micron) into the image's
+    intrinsic pixel index space, without requiring the shapes to be in sdata.
+
+    Works for axis-aligned grids with constant spacing (dx, dy), regardless of
+    whether coords are ascending or descending.
+    """
+    x = image_da.coords["x"].values
+    y = image_da.coords["y"].values
+
+    # pixel spacing (allow descending coords)
+    dx = float(np.mean(np.diff(x)))
+    dy = float(np.mean(np.diff(y)))
+    if dx == 0.0 or dy == 0.0:
+        raise ValueError("Non-invertible coords: dx or dy is zero.")
+    x0 = float(x[0])
+    y0 = float(y[0])
+
+    def world_to_pixel(geom):
+        # shift world origin to (x0,y0), then scale to pixel units
+        g = translate(geom, xoff=-x0, yoff=-y0)
+        # scale by 1/dx, 1/dy; dy may be negative (common for images); that’s OK—
+        # it flips the axis so 0,0 maps to the image’s first row/col.
+        return scale(g, xfact=1.0/dx, yfact=1.0/dy, origin=(0, 0))
+
+    out = gdf_micron.copy()
+    out["geometry"] = [world_to_pixel(g) for g in out.geometry]
+    return out
+
 def aggregate_channels_lazy(
     sdata: SpatialData,
     image_key: str,
@@ -261,7 +295,7 @@ def aggregate_channels_lazy(
     image = get_spatial_image(sdata, image_key)
 
     # convert micron -> intrinsic pixel coords against this image
-    gdf_intrinsic = to_intrinsic(sdata, shapes_gdf_micron, image)
+    gdf_intrinsic = to_intrinsic_from_image_coords(shapes_gdf_micron, image)
     if expand_radius_ratio:
         gdf_intrinsic = expand_radius(gdf_intrinsic, expand_radius_ratio)
 
