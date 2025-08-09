@@ -49,7 +49,11 @@ def build_boundary_gdf_in_micron(
             df.index.rename(None, inplace=True)
             gdf = df.dissolve(by="cell_id")
     else:
-        gdf = tmp[boundary_key][["cell_id", "geometry"]].copy()
+        if "cell_id" in tmp[boundary_key].columns:
+            gdf = tmp[boundary_key][["cell_id", "geometry"]].copy()
+        else:
+            gdf = tmp[boundary_key][["geometry"]].copy()
+            gdf["cell_id"] = gdf.index
 
     # put geometries into MICRON (matches your set_transformation logic)
     needs_inverse = any(method.startswith(p) for p in image_based) and method != "Cellpose_1_Merlin"
