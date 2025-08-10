@@ -409,7 +409,9 @@ def run_pipeline_parallel(
     # 1) prepare_ficture ONCE
     logger.info("Preparing Ficture")
     stats = prepare_ficture(args.data_path, str(results_path), top_n_factors=1, logger=logger)
-    area_covered = (stats["images"] > 0) #TODO: add seond prepare ficture
+    area_covered = (stats["images"] > 0)
+    del stats
+    stats = prepare_ficture(args.data_path, str(results_path), top_n_factors=3, logger=logger)
     images = stats["images"]
     del stats
 
