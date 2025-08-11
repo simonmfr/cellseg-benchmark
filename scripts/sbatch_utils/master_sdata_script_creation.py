@@ -18,7 +18,9 @@ for key, value in data.items():
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 09:00:00
+#SBATCH -t 04:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=20
 #SBATCH --mem=150G
 #SBATCH -J master_sdata_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/master_sdata_{key}.out
