@@ -21,9 +21,6 @@ parser.add_argument("data_path", help="Path to data folder.")
 parser.add_argument("save_path", help="Path to output folder.")
 args = parser.parse_args()
 
-assert any([".vzg" in file for file in listdir(args.save_path)]), (
-    "not correctly computed"
-)
 logger.info("Loading data")
 sdata = merscope(
     args.data_path,
