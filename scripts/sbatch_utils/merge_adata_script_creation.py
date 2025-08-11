@@ -70,10 +70,18 @@ for method in methods:
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t {time_limit}
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
 #SBATCH --mem={memory}
 #SBATCH -J merge_adata_{args.cohort}_{method}
 #SBATCH -o {log_path}/%x.log
 #SBATCH --container-image="{container_image}"
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark

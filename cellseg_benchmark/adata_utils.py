@@ -19,9 +19,8 @@ from tqdm import tqdm
 
 from cellseg_benchmark._constants import cell_type_colors
 
-
 def merge_adatas(
-    sdatas: List[Tuple[str, SpatialData]],
+    adatas_list: List[Tuple[str, AnnData]],
     seg_method: str,
     sample_paths_file: dict,
     logger: logging.Logger = None,
@@ -54,17 +53,12 @@ def merge_adatas(
     Returns:
         AnnData: A merged AnnData object containing concatenated cells from all input datasets.
     """
-    adatas = []
-
     y_limits = [0, 0, 0, 0]
     if logger:
         logger.info(f"Merging adatas of {seg_method}")
-    for name, sdata in tqdm(sdatas):
-        if f"adata_{seg_method}" not in sdata.tables.keys():
-            if logger:
-                logger.warning(f"Skipping {name}. No such key: {seg_method}")
-            continue
-        adata = sdata[f"adata_{seg_method}"]
+
+    adatas = []
+    for name, adata in tqdm(adatas_list):
         samples = name.split("_")
         cohort, slide, region = samples[0], samples[1], samples[2]
         adata.obs["cohort"] = cohort
@@ -819,7 +813,7 @@ def normalize_counts(
 
 
 def dimensionality_reduction(
-    adata: AnnData, save_path: str, point_size_factor=320000, logger=None
+    adata: AnnData, save_path: str, point_size_factor=320000, logger: logging.Logger=None
 ) -> AnnData:
     """Run PCA and multiple UMAP projections on the z-scored layer of the input AnnData object.
 

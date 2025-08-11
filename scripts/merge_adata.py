@@ -1,16 +1,29 @@
 import argparse
 import json
 import logging
+import os
 import warnings
 from os.path import exists
 from pathlib import Path
-import numpy as np
-import pandas as pd
+from typing import Tuple
 
+import numpy as np
+import scanpy as sc
+
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
+from anndata import AnnData
 from spatialdata import read_zarr
 
+def load_one(sample_dir: Path, seg_method, logger: logging.Logger) -> Tuple[str, AnnData | None]:
+    sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
+    if f"adata_{seg_method}" not in sdata.tables.keys():
+        if logger:
+            logger.warning(f"Skipping {seg_method}. No such key: {seg_method}")
+        return sample_dir.name, None
+    return sample_dir.name, sdata[f"adata_{seg_method}"]
+
 from cellseg_benchmark.adata_utils import (
-    dimensionality_reduction,
     dimensionality_reduction_quick,
     filter_genes,
     filter_low_quality_cells,
@@ -21,6 +34,7 @@ from cellseg_benchmark.adata_utils import (
 )
 
 warnings.filterwarnings("ignore")
+sc.settings.n_jobs = -1
 
 # Logger setup
 logger = logging.getLogger("integrate_adatas")
@@ -68,22 +82,22 @@ excluded_samples = {  # TODO: move to yaml
 
 # Load sdata
 logger.info("Loading data...")
-sdata_list = []
-available_names = set()
-
+loads = []
 for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort folders
     if sample_dir.name in excluded_samples:
         continue
     if not exists(sample_dir / "sdata_z3.zarr"):
         logger.error(f"master sdata in {sample_dir} has not been found.")
-    sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
-    current_names = ["_".join(k.split("_")[1:]) for k in sdata.tables.keys()]
-    available_names.update(current_names)
-    sdata_list.append((sample_dir.name, sdata))
+    loads.append(sample_dir)
+
+with ProcessPoolExecutor(max_workers=int(os.getenv("SLURM_CPUS_PER_TASK", 1))) as ex:
+    futures = {ex.submit(load_one, p, args.seg_method, logger): p for p in loads}
+    adata_list = [f.result() for f in as_completed(futures)]
+adata_list = [(x, y) for x, y in adata_list if y is not None] #ensure save data loading, e.g. for aging s8 r1 Cellpose 2 Transcripts
 
 # Merge and process
 adata = merge_adatas(
-    sdata_list,
+    adata_list,
     seg_method=args.seg_method,
     sample_paths_file=sample_paths_file,
     logger=logger,
@@ -92,7 +106,7 @@ adata = merge_adatas(
     genotype=args.genotype,
     save_path=save_path / "plots",
 )
-del sdata_list
+del adata_list
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 adata = filter_spatial_outlier_cells(
