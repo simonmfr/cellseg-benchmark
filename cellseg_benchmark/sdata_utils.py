@@ -19,9 +19,6 @@ from joblib import Parallel, delayed
 from scipy.spatial import ConvexHull
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from spatialdata import SpatialData
 from spatialdata.models import ShapesModel
 from spatialdata.transformations import Identity, get_transformation, set_transformation, Affine
 from tifffile import imread
@@ -253,7 +250,6 @@ def integrate_segmentation_data(
                     sdata_main = calculate_volume(
                         seg_method,
                         sdata_main,
-                        write_to_disk=write_to_disk,
                         n_planes_2d=n_planes_2d,
                         logger=logger,
                     )
@@ -411,9 +407,11 @@ def add_cell_type_annotation(
         )
     new_obs.index = sdata_main[f"adata_{seg_method}"].obs.index
     for col in new_obs.columns:
-        if isinstance(new_obs[col].dtype, pd.CategoricalDtype):
-            new_obs[col] = new_obs[col].cat.add_categories("Low-Read-Cells")
-        new_obs[col].fillna("Low-Read-Cells", inplace=True)
+        if col.startswith("cell_type"):
+            if isinstance(new_obs[col].dtype, pd.CategoricalDtype):
+                new_obs[col] = new_obs[col].cat.add_categories("Low-Read-Cells")
+            new_obs[col].fillna("Low-Read-Cells", inplace=True)
+            new_obs[col] = new_obs[col].astype("category")
     sdata_main[f"adata_{seg_method}"].obs = new_obs
     return sdata_main
 
@@ -555,7 +553,6 @@ def assign_transformations(
     Args:
         sdata_main: master sdata
         seg_method: current segmentation method
-        write_to_disk: if writing to disk
     """
     transformation_to_pixel = get_transformation(
         sdata_main[list(sdata_main.points.keys())[0]], "global"
@@ -942,11 +939,9 @@ def compute_cell_morphology(
                 if is_entity_3d:
                     morphology_data = _compute_3d_metrics(
                         group,
-                        polygons,
                         z_spacing,
                         global_z_min=global_z_min,
                         global_z_max=global_z_max,
-                        verbose=verbose,
                     )
                 else:
                     morphology_data = _compute_2d_metrics(polygons[0], z_spacing)
