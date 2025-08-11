@@ -458,6 +458,9 @@ def calculate_volume(
         elif seg_method.startswith("vpt_3D"):
             z_level_name = "ZIndex"
             cell_identifier = "cell_id"
+        elif seg_method.startswith("Watershed_Merlin"):
+            z_level_name = "ZIndex"
+            cell_identifier = "cell_id"
         if logger:
             logger.info(f"collecting volume metadata for {seg_method}")
         global_z_min, global_z_max = (
@@ -670,7 +673,7 @@ def update_element(sdata: sd.SpatialData, element_name: str) -> None:
     sdata.delete_element_from_disk(new_name)
 
 def get_2D_boundaries(method: str, org_sdata:sd.SpatialData, sdata:sd.SpatialData, transformation:np.ndarray, boundary_key:str) -> None:
-    if method.startswith("vpt_3D"):
+    if method.startswith("vpt_3D") or method.startswith("Watershed_Merlin"):
         try:
             bound = org_sdata[boundary_key][["cell_id", "geometry"]].dissolve(by="cell_id")
         except ValueError:
@@ -687,7 +690,7 @@ def get_2D_boundaries(method: str, org_sdata:sd.SpatialData, sdata:sd.SpatialDat
     else:
         sdata[f"boundaries_{method}"] = ShapesModel.parse(org_sdata[boundary_key])
     if any([method.startswith(x) for x in image_based]):
-        if method == "Cellpose_1_Merlin":
+        if method == "Cellpose_1_Merlin" or method == "Watershed_Merlin":
             set_transformation(
                 sdata[f"boundaries_{method}"],
                 Identity(),
