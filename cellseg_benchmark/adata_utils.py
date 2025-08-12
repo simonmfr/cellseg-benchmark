@@ -515,63 +515,6 @@ def filter_spatial_outlier_cells(
 
     return adata
 
-def _plot_flag(flag, fname):
-    n_cols = 3
-    samples = adata.obs["sample"].unique()
-    n_samples = len(samples)
-    n_rows = math.ceil(n_samples / n_cols)
-
-    fig, axes = plt.subplots(
-        n_rows,
-        n_cols,
-        figsize=(4 * n_cols, 4 * n_rows),
-        squeeze=False,
-        sharex=False,
-        sharey=False,
-    )
-
-    for idx, sample in enumerate(samples):
-        ax = axes[idx // n_cols][idx % n_cols]
-
-        mask = adata.obs["sample"] == sample
-        sample_data = adata[mask]
-
-        if sample_data.n_obs > int(1.5e5):
-            sample_data = sc.pp.subsample(
-                sample_data, n_obs=int(1.5e5), random_state=42, copy=True
-            )
-
-        coords = sample_data.obsm["spatial"]
-
-        outliers = sample_data.obs[flag].values
-        colors = pd.Categorical(
-            np.where(outliers, "red", "lightgrey"), categories=["lightgrey", "red"]
-        )
-
-        ax.scatter(
-            coords[:, 0],
-            coords[:, 1],
-            c=colors,
-            s=max(0.3, min(0.7, 30000 / len(coords))),
-            alpha=0.75,
-            edgecolors="none",
-        )
-
-        ax.set_title(sample, fontsize=10)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-
-    # Hide unused subplots
-    for ax in axes.flat[n_samples:]:
-        ax.set_visible(False)
-
-    fig.suptitle(f"{flag.replace('_', ' ').title()} by sample", fontsize=14, y=1)
-    fig.tight_layout()
-    fig.savefig(join(save_path, fname), dpi=200, bbox_inches="tight")
-    plt.close(fig)
-
 
 def filter_low_quality_cells(
     adata: AnnData,
@@ -615,6 +558,63 @@ def filter_low_quality_cells(
     adata.obs["volume_outlier_cell"] = (
         adata.obs[metric] > n * np.median(adata[np.logical_not(adata.obs["low_quality_cell"].values)].obs[metric])
     ) | (adata.obs[metric] < min_volume_threshold)
+
+    def _plot_flag(flag, fname):
+        n_cols = 3
+        samples = adata.obs["sample"].unique()
+        n_samples = len(samples)
+        n_rows = math.ceil(n_samples / n_cols)
+
+        fig, axes = plt.subplots(
+            n_rows,
+            n_cols,
+            figsize=(4 * n_cols, 4 * n_rows),
+            squeeze=False,
+            sharex=False,
+            sharey=False,
+        )
+
+        for idx, sample in enumerate(samples):
+            ax = axes[idx // n_cols][idx % n_cols]
+
+            mask = adata.obs["sample"] == sample
+            sample_data = adata[mask]
+
+            if sample_data.n_obs > int(1.5e5):
+                sample_data = sc.pp.subsample(
+                    sample_data, n_obs=int(1.5e5), random_state=42, copy=True
+                )
+
+            coords = sample_data.obsm["spatial"]
+
+            outliers = sample_data.obs[flag].values
+            colors = pd.Categorical(
+                np.where(outliers, "red", "lightgrey"), categories=["lightgrey", "red"]
+            )
+
+            ax.scatter(
+                coords[:, 0],
+                coords[:, 1],
+                c=colors,
+                s=max(0.3, min(0.7, 30000 / len(coords))),
+                alpha=0.75,
+                edgecolors="none",
+            )
+
+            ax.set_title(sample, fontsize=10)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+
+        # Hide unused subplots
+        for ax in axes.flat[n_samples:]:
+            ax.set_visible(False)
+
+        fig.suptitle(f"{flag.replace('_', ' ').title()} by sample", fontsize=14, y=1)
+        fig.tight_layout()
+        fig.savefig(join(save_path, fname), dpi=200, bbox_inches="tight")
+        plt.close(fig)
 
     _plot_flag("low_quality_cell", "qc_low_quality_cells.png")
     _plot_flag("volume_outlier_cell", "qc_volume_outlier_cells.png")
