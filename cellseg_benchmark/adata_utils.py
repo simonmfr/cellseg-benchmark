@@ -613,7 +613,7 @@ def filter_low_quality_cells(
 
     metric, n = "volume_final", 3
     adata.obs["volume_outlier_cell"] = (
-        adata.obs[metric] > n * np.median(adata[np.logical_not(adata.obs["low_quality cells"].values)].obs[metric])
+        adata.obs[metric] > n * np.median(adata[np.logical_not(adata.obs["low_quality cell"].values)].obs[metric])
     ) | (adata.obs[metric] < min_volume_threshold)
 
     _plot_flag("low_quality_cell", "qc_low_quality_cells.png")
