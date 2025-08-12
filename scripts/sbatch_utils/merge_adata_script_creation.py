@@ -71,7 +71,7 @@ for method in methods:
 #SBATCH --qos=cpu
 #SBATCH -t {time_limit}
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=20
 #SBATCH --mem={memory}
 #SBATCH -J merge_adata_{args.cohort}_{method}
 #SBATCH -o {log_path}/%x.log

@@ -138,20 +138,6 @@ adata = filter_genes(adata, save_path=save_path / "plots", logger=logger)
 adata = normalize_counts(
     adata, save_path=save_path / "plots", seg_method=args.seg_method, logger=logger
 )
-
-# Subset to max_cells
-max_cells = 750_000
-if adata.n_obs > max_cells:
-    logger.info(f"Stratified subsetting from {adata.n_obs:,} to {max_cells:,} cells.")
-    rng = np.random.default_rng(seed=42)
-    counts = adata.obs["sample"].value_counts()
-    frac = max_cells / adata.n_obs
-    keep_idx = np.concatenate([
-        rng.choice(adata.obs_names[adata.obs["sample"] == s], 
-                   size=int(np.floor(c * frac)), replace=False)
-        for s, c in counts.items()
-    ])
-    adata = adata[keep_idx].copy()
     
 adata = dimensionality_reduction_quick(adata, save_path=save_path / "plots", logger=logger)
 adata = integration_harmony(
