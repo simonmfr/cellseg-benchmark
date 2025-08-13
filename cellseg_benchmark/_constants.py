@@ -1667,6 +1667,7 @@ index_order = [
     "Tanycytes",
     "Undefined",
     "Unknown",
+    "Low-Read-Cells"
 ]
 column_order = [
     "Astrocytes",
@@ -1756,6 +1757,7 @@ cell_type_colors = {
     "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
     "Undefined": "#D9D9D9",  # = below QC threshold
     "Mixed": "#D9D9D9",
+    "Low-Read-Cells": "#D9D9D9"
 }# Updated method-to-color mapping with distinct, moderately saturated shades
 
 method_colors = {
