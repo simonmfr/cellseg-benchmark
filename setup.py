@@ -27,8 +27,7 @@ setup(
         "plotly",
         "ovrlpy",
         "harmonypy",
-        "IProgress",
-        "subprocess"
+        "IProgress"
     ],
     python_requires=">=3.11",
     classifiers=[
