@@ -297,8 +297,6 @@ def integrate_segmentation_data(
                 sdata_main[f"adata_{seg_method}"].obs["sample"] = (
                     cohort + "_" + slide + "_" + region
                 )
-                region_key = sdata_main[f"adata_{seg_method}"].uns['spatialdata_attrs']['region']
-                sdata_main[f"adata_{seg_method}"].uns[region_key] = sdata_main[f"adata_{seg_method}"].uns[region_key].astype("category")
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
             elif len(sdata.tables) > 1:
@@ -682,10 +680,10 @@ def transform_adata(
         x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
         y = spatial[:, 1] * transform.iloc[1, 1] + transform.iloc[1, 2]
         adata.obsm["spatial_pixel"] = np.stack([x, y], axis=1)
-    adata.uns["spatialdata_attrs"]["region"] = f"boundaries_{seg_method}"
-    adata.uns["spatialdata_attrs"]["region_key"] = "region"
-    adata.obs["region"] = f"boundaries_{seg_method}"
-    adata.obs["region"] = pd.Categorical(adata.obs["region"])
+    adata.uns["spatialdata_attrs"]["spt_region"] = f"boundaries_{seg_method}"
+    adata.uns["spatialdata_attrs"]["region_key"] = "spt_region"
+    adata.obs["spt_region"] = f"boundaries_{seg_method}"
+    adata.obs["spt_region"] = pd.Categorical(adata.obs["spt_region"])
     adata.obs["cell_id"] = adata.obs[adata.uns["spatialdata_attrs"]["instance_key"]]
     adata.obs["cell_id"] = adata.obs["cell_id"]
     adata.uns["spatialdata_attrs"]["instance_key"] = "cell_id"
