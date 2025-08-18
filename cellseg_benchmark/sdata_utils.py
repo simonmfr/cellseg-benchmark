@@ -298,7 +298,7 @@ def integrate_segmentation_data(
                     cohort + "_" + slide + "_" + region
                 )
                 region_key = sdata_main[f"adata_{seg_method}"].uns['spatialdata_attrs']['region_key']
-                sdata_main[f"adata_{seg_method}"].obs[region_key] = sdata_main[f"adata_{seg_method}"].obs[region_key].astype("category")
+                sdata_main[f"adata_{seg_method}"].uns[region_key] = sdata_main[f"adata_{seg_method}"].uns[region_key].astype("category")
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
             elif len(sdata.tables) > 1:
