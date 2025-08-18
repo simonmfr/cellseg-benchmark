@@ -13,7 +13,7 @@ args = parser.parse_args()
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
 ) as f:
-    data = yaml.save_load(f)
+    data = yaml.safe_load(f)
 
 experiment_json_path = f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/vpt_experiment_jsons/{args.staining1}_{args.staining2}_3D.json"
 

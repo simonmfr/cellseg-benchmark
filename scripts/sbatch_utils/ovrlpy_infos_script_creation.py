@@ -12,7 +12,7 @@ args = parser.parse_args()
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
 ) as f:
-    data = yaml.save_load(f)
+    data = yaml.safe_load(f)
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_ovrlpy_stats"
