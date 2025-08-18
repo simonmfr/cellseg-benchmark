@@ -298,7 +298,9 @@ pd.crosstab(
     sub_adata.obs["condition"], sub_adata.obs[cell_type_zonation], normalize="index"
 ).mul(100).round(1).to_csv(results_path / "fraction_vasc_cells_per_condition_sum.csv")
 
-sub_adata.obs[cell_type_zonation].value_counts().to_csv(results_path / "total_vasc_cells.csv")
+sub_adata.obs[cell_type_zonation].value_counts().to_csv(
+    results_path / "total_vasc_cells.csv"
+)
 
 logger.info("Exporting spatial plots...")
 for sample in sub_adata.obs["sample"].unique():

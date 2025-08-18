@@ -1,6 +1,7 @@
 import argparse
-import json
 from pathlib import Path
+
+import yaml
 
 parser = argparse.ArgumentParser(
     description="Prepare scripts for square segmentations."
@@ -14,9 +15,9 @@ parser.add_argument(
 args = parser.parse_args()
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
 ) as f:
-    data = json.load(f)
+    data = yaml.save_load(f)
 
 Path(
     f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_rastered_{args.size}{args.unit}"
@@ -39,7 +40,7 @@ for key, value in data.items():
 
 mamba activate sopa
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/rastered_segmentation.py \
- {value} \
+ {value["path"]} \
  /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Rastered_{args.size} \
  {args.size} {args.overlap} {args.unit} {args.intens_rat}
 """)

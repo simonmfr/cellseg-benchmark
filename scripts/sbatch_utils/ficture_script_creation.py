@@ -1,10 +1,11 @@
-import json
 from pathlib import Path
 
+import yaml
+
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
 ) as f:
-    data = json.load(f)
+    data = yaml.save_load(f)
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Ficture"
@@ -30,6 +31,6 @@ for key, value in data.items():
 
 source $HOME/.bashrc
 conda activate ficture
-bash /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/ficture.sh {key} {value}/detected_transcripts.csv
+bash /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/ficture.sh {key} {value["path"]}/detected_transcripts.csv
             """)
     f.close()

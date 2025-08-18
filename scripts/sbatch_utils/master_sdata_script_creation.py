@@ -1,10 +1,11 @@
-import json
 from pathlib import Path
 
+import yaml
+
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
 ) as f:
-    data = json.load(f)
+    data = yaml.save_load(f)
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_master_sdata"
@@ -31,6 +32,14 @@ for key, value in data.items():
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
-python scripts/master_sdata.py {key} {value} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark 
+python scripts/master_sdata.py {key} {value["path"]} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark \
+--genotype {value["genotype"]} \
+--age_months {value["age_months"]} \
+--run_date {value["run_date"]} \
+--animal_id {value["animal_id"]} \
+--organism {value["organism"]} \
+--slide {value["slide"]} \
+--region {value["region"]} \
+--cohort {value["cohort"]} \
 """)
     f.close()

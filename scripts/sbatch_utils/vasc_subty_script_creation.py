@@ -1,6 +1,6 @@
 from pathlib import Path
 
-cohorts = ["foxf2"] # "aging"
+cohorts = ["foxf2"]  # "aging"
 methods = [
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8",

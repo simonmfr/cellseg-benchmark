@@ -1,10 +1,18 @@
 from pathlib import Path
 
 data = {}
-data['foxf2_s1_r0'] = "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/watershed/20240229_mousebrain-Slide01-ws-WT-ECKO/region_0-ECKO000"
-data['foxf2_s1_r1'] = "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/watershed/20240229_mousebrain-Slide01-ws-WT-ECKO/region_1-WT000"
-data['foxf2_s4_r0'] = "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/watershed/20240304_mousebrain-Slide04-ws-ECKO-PCKO/region_0-PCKO421"
-data['foxf2_s4_r1'] = "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/watershed/20240304_mousebrain-Slide04-ws-ECKO-PCKO/region_1-ECKO557"
+data["foxf2_s1_r0"] = (
+    "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/watershed/20240229_mousebrain-Slide01-ws-WT-ECKO/region_0-ECKO000"
+)
+data["foxf2_s1_r1"] = (
+    "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/watershed/20240229_mousebrain-Slide01-ws-WT-ECKO/region_1-WT000"
+)
+data["foxf2_s4_r0"] = (
+    "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/watershed/20240304_mousebrain-Slide04-ws-ECKO-PCKO/region_0-PCKO421"
+)
+data["foxf2_s4_r1"] = (
+    "/dss/dssfs03/pn52re/pn52re-dss-0000/202402-Foxf2/merfish_output/watershed/20240304_mousebrain-Slide04-ws-ECKO-PCKO/region_1-ECKO557"
+)
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merscope_watershed"

@@ -1667,7 +1667,7 @@ index_order = [
     "Tanycytes",
     "Undefined",
     "Unknown",
-    "Low-Read-Cells"
+    "Low-Read-Cells",
 ]
 column_order = [
     "Astrocytes",
@@ -1757,55 +1757,50 @@ cell_type_colors = {
     "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
     "Undefined": "#D9D9D9",  # = below QC threshold
     "Mixed": "#D9D9D9",
-    "Low-Read-Cells": "#D9D9D9"
-}# Updated method-to-color mapping with distinct, moderately saturated shades
+    "Low-Read-Cells": "#D9D9D9",
+}  # Updated method-to-color mapping with distinct, moderately saturated shades
 
 method_colors = {
     # Baysor variants (red palette)
-    'Baysor_2D_Cellpose_1_DAPI_PolyT_0.2': '#9a0013',
- 'Baysor_2D_Cellpose_1_DAPI_PolyT_0.8': '#a71423',
- 'Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2': '#b32833',
- 'Baysor_2D_Cellpose_1_DAPI_Transcripts_0.8': '#c03b43',
- 'Baysor_2D_Cellpose_1_nuclei_model_1.0': '#cc4f53',
- 'Baysor_2D_Cellpose_2_DAPI_PolyT_0.2': '#d96363',
- 'Baysor_2D_Cellpose_2_DAPI_PolyT_0.8': '#e67673',
- 'Baysor_2D_Cellpose_2_DAPI_Transcripts_0.2': '#f28a83',
- 'Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8': '#ff9e93',
-
+    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2": "#9a0013",
+    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8": "#a71423",
+    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2": "#b32833",
+    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.8": "#c03b43",
+    "Baysor_2D_Cellpose_1_nuclei_model_1.0": "#cc4f53",
+    "Baysor_2D_Cellpose_2_DAPI_PolyT_0.2": "#d96363",
+    "Baysor_2D_Cellpose_2_DAPI_PolyT_0.8": "#e67673",
+    "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.2": "#f28a83",
+    "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8": "#ff9e93",
     # vpt variants (blue palette)
-    'vpt_2D_DAPI_PolyT':                        '#08306b',
-    'vpt_2D_DAPI_PolyT_nuclei':                 '#08519c',
-    'vpt_2D_DAPI_nuclei':                       '#2171b5',
-    'vpt_2D_DAPI_watershed':                    '#4292c6',
-    'vpt_3D_DAPI_PolyT':                        '#6baed6',
-    'vpt_3D_DAPI_PolyT_nuclei':                 '#9ecae1',
-    'vpt_3D_DAPI_nuclei':                       '#a9d5f1',
-    'vpt_p3D_watershed_DAPI_PolyT':             '#8cc9e9',
-    'vpt_p3D_watershed_DAPI_PolyT_gaussian':    '#70bde1',
-    'vpt_watershed_DAPI_PolyT_z3':              '#52b3da',
-
+    "vpt_2D_DAPI_PolyT": "#08306b",
+    "vpt_2D_DAPI_PolyT_nuclei": "#08519c",
+    "vpt_2D_DAPI_nuclei": "#2171b5",
+    "vpt_2D_DAPI_watershed": "#4292c6",
+    "vpt_3D_DAPI_PolyT": "#6baed6",
+    "vpt_3D_DAPI_PolyT_nuclei": "#9ecae1",
+    "vpt_3D_DAPI_nuclei": "#a9d5f1",
+    "vpt_p3D_watershed_DAPI_PolyT": "#8cc9e9",
+    "vpt_p3D_watershed_DAPI_PolyT_gaussian": "#70bde1",
+    "vpt_watershed_DAPI_PolyT_z3": "#52b3da",
     # Cellpose core methods (green palette)
-    'Cellpose_1_nuclei_model':                  '#00441b',
-    'Cellpose_1_DAPI_PolyT':                    '#006d2c',
-    'Cellpose_1_DAPI_Transcripts':              '#217a37',
-    'Cellpose_1_Merlin':                        '#31a354',
-    'Cellpose_2_DAPI_PolyT':                    '#74c476',
-    'Cellpose_2_DAPI_Transcripts':              '#9cd8a2',
-
+    "Cellpose_1_nuclei_model": "#00441b",
+    "Cellpose_1_DAPI_PolyT": "#006d2c",
+    "Cellpose_1_DAPI_Transcripts": "#217a37",
+    "Cellpose_1_Merlin": "#31a354",
+    "Cellpose_2_DAPI_PolyT": "#74c476",
+    "Cellpose_2_DAPI_Transcripts": "#9cd8a2",
     # Proseg variants (purple palette)
-    'Proseg_pure':                              '#4a1486',
-    'Proseg_Cellpose_1_DAPI_PolyT':             '#5a0876',
-    'Proseg_Cellpose_1_DAPI_Transcripts':       '#6a1894',
-    'Proseg_Cellpose_1_nuclei_model':           '#7d3db3',
-    'Proseg_Cellpose_2_DAPI_PolyT':             '#927ac6',
-    'Proseg_Cellpose_2_DAPI_Transcripts':       '#b2a4db',
-
+    "Proseg_pure": "#4a1486",
+    "Proseg_Cellpose_1_DAPI_PolyT": "#5a0876",
+    "Proseg_Cellpose_1_DAPI_Transcripts": "#6a1894",
+    "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
+    "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
+    "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
     # Negative controls (grey palette)
-    'Negative_Control_Rastered_5':              '#252525',
-    'Negative_Control_Rastered_10':             '#525252',
-    'Negative_Control_Rastered_25':             '#737373',
-    'Negative_Control_Voronoi':                 '#969696',
-
+    "Negative_Control_Rastered_5": "#252525",
+    "Negative_Control_Rastered_10": "#525252",
+    "Negative_Control_Rastered_25": "#737373",
+    "Negative_Control_Voronoi": "#969696",
     # ComSeg standalone (dark purple)
-    'ComSeg':                                   "#d7f035"
+    "ComSeg": "#d7f035",
 }

@@ -1,8 +1,6 @@
 import argparse
 import logging
-from os import listdir
 from os.path import join
-from pathlib import Path
 
 from geopandas import read_parquet
 from spatialdata.models import ShapesModel

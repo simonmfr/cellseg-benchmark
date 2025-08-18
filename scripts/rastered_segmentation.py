@@ -32,7 +32,7 @@ elif args.scale == "microns":
     make_image_patches(
         sdata,
         patch_width=translation.loc[0, 0] * args.width,
-        patch_overlap=translation.loc[1, 1] * args.overlap,
+        patch_overlap=translation.loc[0, 0] * args.overlap,
     )
 
 aggregate(sdata, shapes_key="image_patches", min_intensity_ratio=args.intens_rat)

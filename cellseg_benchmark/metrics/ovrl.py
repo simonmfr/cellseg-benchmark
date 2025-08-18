@@ -1,14 +1,14 @@
 import logging
 import os
 from os.path import exists, join
-from typing import List, Tuple
 
 import numpy as np
 import ovrlpy
 import pandas as pd
 from dask.array import from_array
 from geopandas import GeoDataFrame
-from matplotlib import patches, pyplot as plt
+from matplotlib import patches
+from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from polars import DataFrame
 from shapely import affinity
@@ -35,13 +35,10 @@ def compute_ovrl(
     Returns:
         None
     """
-    if not exists(
-        join(sample_dir, "vertical_doublets_ovrlpy_output.npz")
-    ):
-        coords_df = (
-            pd.read_csv(join(data_dir, "detected_transcripts.csv"), index_col=0)[["gene", "x", "y", "global_z"]]
-            .rename(columns={"global_z": "z"})
-        )
+    if not exists(join(sample_dir, "vertical_doublets_ovrlpy_output.npz")):
+        coords_df = pd.read_csv(
+            join(data_dir, "detected_transcripts.csv"), index_col=0
+        )[["gene", "x", "y", "global_z"]].rename(columns={"global_z": "z"})
         run_ovrlpy(sample, coords_df, sample_dir)
     else:
         if logger:
@@ -140,27 +137,56 @@ def compute_mean_vsi_per_polygon(
     return result
 
 
-def plot_vsi_overview(integrity_map, signal_map, boundaries_aligned, vsi_mean, sample_name, boxes=None, png_path=None):
+def plot_vsi_overview(
+    integrity_map,
+    signal_map,
+    boundaries_aligned,
+    vsi_mean,
+    sample_name,
+    boxes=None,
+    png_path=None,
+):
+    """Plot vsi per polygon.
+
+    Args:
+        integrity_map: ovrlpy integrity map
+        signal_map: ovrlpy signal map
+        boundaries_aligned: boundaries in micron coordinates
+        vsi_mean: mean vsi per polygon
+        sample_name: sample name
+        boxes: Box boundaries
+        png_path: save path for image
+
+    Returns:
+        None, saves figure if png_path provided.
+    """
     ny, nx = integrity_map.shape
     if boxes is None:
-        boxes = [(int(2 / 8 * nx), int(3 / 8 * ny), int(1 / 8 * nx), int(1 / 8 * ny)),
-                 (int(6 / 8 * nx), int(5 / 8 * ny), int(1 / 8 * nx), int(1 / 8 * ny))]
+        boxes = [
+            (int(2 / 8 * nx), int(3 / 8 * ny), int(1 / 8 * nx), int(1 / 8 * ny)),
+            (int(6 / 8 * nx), int(5 / 8 * ny), int(1 / 8 * nx), int(1 / 8 * ny)),
+        ]
 
-    plot_kwargs = {'cmap': 'coolwarm_r', 'origin': 'lower', 'vmin': 0, 'vmax': 1}
-    boundary_kwargs = {'facecolor': 'none', 'edgecolor': 'black'}
+    plot_kwargs = {"cmap": "coolwarm_r", "origin": "lower", "vmin": 0, "vmax": 1}
+    boundary_kwargs = {"facecolor": "none", "edgecolor": "black"}
     _SIGNAL_THRESHOLD = 2  # from ovrlpy source code
-    alpha = (signal_map / _SIGNAL_THRESHOLD).clip(0, 1) ** 2  # fade out for pixels with low transcript signal
+    alpha = (signal_map / _SIGNAL_THRESHOLD).clip(
+        0, 1
+    ) ** 2  # fade out for pixels with low transcript signal
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 10))
 
     # overview
     im = axs[0, 0].imshow(integrity_map, alpha=alpha, **plot_kwargs)
-    boundaries_aligned.plot(ax=axs[0, 0], aspect="equal", linewidth=0.1, **boundary_kwargs)
+    boundaries_aligned.plot(
+        ax=axs[0, 0], aspect="equal", linewidth=0.1, **boundary_kwargs
+    )
     axs[0, 0].set_title(sample_name)
 
-    for (x, y, w, h) in boxes:
-        rect = patches.Rectangle((x, y), w, h, linewidth=1, edgecolor='red',
-                                 facecolor='none', linestyle='--')
+    for x, y, w, h in boxes:
+        rect = patches.Rectangle(
+            (x, y), w, h, linewidth=1, edgecolor="red", facecolor="none", linestyle="--"
+        )
         axs[0, 0].add_patch(rect)
 
     cax = make_axes_locatable(axs[0, 0]).append_axes("right", size="4%", pad=0.05)
@@ -168,7 +194,7 @@ def plot_vsi_overview(integrity_map, signal_map, boundaries_aligned, vsi_mean, s
 
     # histogram
     axs[0, 1].hist(vsi_mean, bins=100, zorder=3, color="slategrey")
-    axs[0, 1].axvline(0.5, color='gray', linestyle='--', linewidth=1)
+    axs[0, 1].axvline(0.5, color="gray", linestyle="--", linewidth=1)
     axs[0, 1].grid(True, zorder=0)
     axs[0, 1].set_title("Mean VSI per cell - " + sample_name)
 

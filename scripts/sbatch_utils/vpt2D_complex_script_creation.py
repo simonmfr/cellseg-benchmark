@@ -1,8 +1,9 @@
 import argparse
-import json
 from os import listdir
 from os.path import join
 from pathlib import Path
+
+import yaml
 
 parser = argparse.ArgumentParser(description="Prepare scripts for vpt pipeline.")
 parser.add_argument("staining1", help="Name of cell-boundary staining.")
@@ -10,9 +11,9 @@ parser.add_argument("staining2", help="Name of nucleus staining.")
 args = parser.parse_args()
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
 ) as f:
-    data = json.load(f)
+    data = yaml.save_load(f)
 
 experiment_json_path = f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/vpt_experiment_jsons/{args.staining1}_{args.staining2}.json"
 
@@ -21,9 +22,9 @@ Path(
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     res_path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/vpt_2D_DAPI_{args.staining1}_{args.staining2}"
-    for dire in listdir(value):
+    for dire in listdir(value["path"]):
         if dire.endswith(".vzg"):
-            vzg_path = join(value, dire)
+            vzg_path = join(value["path"], dire)
     f = open(
         f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_complex/{key}_{args.staining1}_{args.staining2}.sbatch",
         "w",
@@ -46,15 +47,15 @@ mkdir -p {res_path}
 
 vpt --verbose --processes 40 run-segmentation \
 --segmentation-algorithm {experiment_json_path} \
---input-images {join(value, "images")} \
---input-micron-to-mosaic {join(value, "images/micron_to_mosaic_pixel_transform.csv")} \
+--input-images {join(value["path"], "images")} \
+--input-micron-to-mosaic {join(value["path"], "images/micron_to_mosaic_pixel_transform.csv")} \
 --output-path {join(res_path, "analysis_outputs")} \
 --tile-size 2400 \
 --tile-overlap 200
 
 vpt --verbose partition-transcripts \
 --input-boundaries {join(res_path, "analysis_outputs/cellpose2_micron_space.parquet")} \
---input-transcripts {join(value, "detected_transcripts.csv")} \
+--input-transcripts {join(value["path"], "detected_transcripts.csv")} \
 --output-entity-by-gene {join(res_path, "analysis_outputs/cell_by_gene.csv")}
 
 vpt --verbose derive-entity-metadata \

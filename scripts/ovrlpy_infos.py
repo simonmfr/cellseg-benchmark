@@ -9,11 +9,16 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from cellseg_benchmark.metrics import compute_ovrl, compute_mean_vsi_per_polygon, plot_vsi_overview
+from cellseg_benchmark.metrics import (
+    compute_mean_vsi_per_polygon,
+    compute_ovrl,
+    plot_vsi_overview,
+)
 
 dask.config.set({"dataframe.query-planning": False})
 
 from spatialdata import SpatialData, read_zarr, transform
+
 from cellseg_benchmark.sdata_utils import get_2D_boundaries
 
 warnings.filterwarnings("ignore")
@@ -33,9 +38,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 sample_path = join(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark",
-    "samples",
-    args.sample
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark", "samples", args.sample
 )
 results_path = join(
     sample_path,
@@ -70,9 +73,12 @@ if compute_ovrlpy:
         header=None,
     ).values
 
-    integrity_matrix = np.load(join(sample_path, 'vertical_doublets_ovrlpy_output.npz'))[
-        'integrity']
-    signal_matrix = np.load(join(sample_path, 'vertical_doublets_ovrlpy_output.npz'))['signal']
+    integrity_matrix = np.load(
+        join(sample_path, "vertical_doublets_ovrlpy_output.npz")
+    )["integrity"]
+    signal_matrix = np.load(join(sample_path, "vertical_doublets_ovrlpy_output.npz"))[
+        "signal"
+    ]
     for method in tqdm(compute_ovrlpy):
         logger.info(f"Computing Ovrlpy statistics for {method}.")
         save_path = join(results_path, method, "Ovrlpy_stats")
@@ -85,10 +91,18 @@ if compute_ovrlpy:
             "region"
         ]
         get_2D_boundaries(method, tmp, sdata, transformation, boundary_key)
-        boundary = transform(sdata[f"boundaries_{method}"], to_coordinate_system="micron")
+        boundary = transform(
+            sdata[f"boundaries_{method}"], to_coordinate_system="micron"
+        )
         res = compute_mean_vsi_per_polygon(integrity_matrix, boundary, transformation)
         res.to_csv(join(save_path, "Ovrlpy_stats.csv"))
-        plot_vsi_overview(integrity_map=integrity_matrix, signal_map=signal_matrix, boundaries_aligned=boundary,
-                          vsi_mean=res["mean_integrity"].values, sample_name=args.sample, png_path=join(save_path, "ovrlpy_overview_plot.png"))
+        plot_vsi_overview(
+            integrity_map=integrity_matrix,
+            signal_map=signal_matrix,
+            boundaries_aligned=boundary,
+            vsi_mean=res["mean_integrity"].values,
+            sample_name=args.sample,
+            png_path=join(save_path, "ovrlpy_overview_plot.png"),
+        )
 
 logger.info("Finished computing ovrlpy.")

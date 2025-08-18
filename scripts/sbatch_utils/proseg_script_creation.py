@@ -1,6 +1,7 @@
 import argparse
-import json
 from pathlib import Path
+
+import yaml
 
 parser = argparse.ArgumentParser(
     description="Prepare scripts for ProSeg with prior segmentation."
@@ -11,9 +12,9 @@ parser.add_argument("--voxel", default=1, type=int, help="intensity ratio.")
 args = parser.parse_args()
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
 ) as f:
-    data = json.load(f)
+    data = yaml.save_load(f)
 
 Path(
     f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_CP{args.CP_version}_{args.staining}"
@@ -40,7 +41,7 @@ for key, value in data.items():
 source ~/.bashrc
 conda activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_Cellpose_1_{args.staining}_model
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_proseg.py {value} {key} \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_proseg.py {value["path"]} {key} \
 Cellpose_1_{args.staining}_model --voxel-layers {args.voxel}
             """)
         f.close()
@@ -64,7 +65,7 @@ Cellpose_1_{args.staining}_model --voxel-layers {args.voxel}
 
 mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_Cellpose_{args.CP_version}_DAPI_{args.staining}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_proseg.py {value} {key} \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_proseg.py {value["path"]} {key} \
 Cellpose_{args.CP_version}_DAPI_{args.staining} --voxel-layers {args.voxel}
             """)
         f.close()

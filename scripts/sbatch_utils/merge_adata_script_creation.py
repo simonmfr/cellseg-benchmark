@@ -85,5 +85,5 @@ export NUMEXPR_NUM_THREADS=1
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
-python scripts/merge_adata.py {args.cohort} {method} {"--age" if args.cohort == "aging" else "--genotype"}
+python scripts/merge_adata.py {args.cohort} {method}
 """)

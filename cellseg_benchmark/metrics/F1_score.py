@@ -37,6 +37,7 @@ def compute_f1(
         data: Data with factors and celltype annotation.
         general_stats: If provided, data must be total for FN computation. Otherwise, data is relative
         flavor: "Micro" --> add micro f1, "Macro" --> add macro f1, "All" --> add micro and macro f1.
+        celltype_name: name of the celltype annotation column.
         correct_celltypes: specify correct celltype per factor.
         weighted: Data based on weighted or unweighted area.
         subset: Subset of ficture factors to compute F1 score for.
@@ -45,20 +46,31 @@ def compute_f1(
         F1 score per factor and over all factors.
     """
     if subset is None:
-        subset = set.intersection(*[set(x.drop(columns=[celltype_name]).columns) for x in data.values()])
+        subset = set.intersection(
+            *[set(x.drop(columns=[celltype_name]).columns) for x in data.values()]
+        )
     if flavor != "f1":
         assert correct_celltypes is not None, "correct_celltypes must be provided."
     if flavor in ["micro", "all"]:
         assert general_stats is not None, "general_stats must be provided."
     if isinstance(general_stats, pd.DataFrame):
-        assert isinstance(data, pd.DataFrame), "general_stats must be DataFrame, since data is DataFrame."
+        assert isinstance(data, pd.DataFrame), (
+            "general_stats must be DataFrame, since data is DataFrame."
+        )
         data = {"tmp": data}
         general_stats = {"tmp": general_stats}
     elif isinstance(general_stats, dict):
-        assert isinstance(data, dict), "general_stats must be a dict, since data is dict."
+        assert isinstance(data, dict), (
+            "general_stats must be a dict, since data is dict."
+        )
 
     if correct_celltypes is None:
-        cols = list(set.intersection(*[set(x.drop(columns=[celltype_name]).columns) for x in data.values()]) & set(subset))
+        cols = list(
+            set.intersection(
+                *[set(x.drop(columns=[celltype_name]).columns) for x in data.values()]
+            )
+            & set(subset)
+        )
         cols.sort()
         celltypes_unique = set()
         for val in data.values():
@@ -105,7 +117,8 @@ def compute_f1(
                 [x in correct_celltypes[cluster] for x in val[celltype_name]], cluster
             ].sum()
             FP_n = val.loc[
-                [x not in correct_celltypes[cluster] for x in val[celltype_name]], cluster
+                [x not in correct_celltypes[cluster] for x in val[celltype_name]],
+                cluster,
             ].sum()
             if flavor == "micro" or flavor == "all" or general_stats is not None:
                 assert general_stats is not None, (

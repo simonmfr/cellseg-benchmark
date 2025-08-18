@@ -14,11 +14,11 @@ dask.config.set({"dataframe.query-planning": False})
 
 from spatialdata import SpatialData, read_zarr, transform
 from spatialdata.models import Image2DModel
-from spatialdata.transformations import Affine, set_transformation, Identity
+from spatialdata.transformations import Affine, Identity, set_transformation
 
-from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
-from cellseg_benchmark.sdata_utils import prepare_ficture, get_2D_boundaries
 from cellseg_benchmark._constants import image_based
+from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
+from cellseg_benchmark.sdata_utils import get_2D_boundaries, prepare_ficture
 
 warnings.filterwarnings("ignore")
 
@@ -101,14 +101,14 @@ if compute_ficture:
         header=None,
     ).values
 
-    #set global coordinate system to microns
+    # set global coordinate system to microns
     set_transformation(
-        sdata[f"ficture_image_1"],
-        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse()
+        sdata["ficture_image_1"],
+        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
     )
     set_transformation(
-        sdata[f"ficture_image_2"],
-        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse()
+        sdata["ficture_image_2"],
+        Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
     )
 
     for method in compute_ficture:
@@ -123,7 +123,12 @@ if compute_ficture:
             if method == "Cellpose_1_Merlin":
                 set_transformation(sdata[f"boundaries_{method}"], Identity())
             else:
-                set_transformation(sdata[f"boundaries_{method}"], Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse())
+                set_transformation(
+                    sdata[f"boundaries_{method}"],
+                    Affine(
+                        transformation, input_axes=("x", "y"), output_axes=("x", "y")
+                    ).inverse(),
+                )
         else:
             set_transformation(sdata[f"boundaries_{method}"], Identity())
     del tmp
@@ -138,7 +143,9 @@ if compute_ficture:
             sdata, image_key="ficture_image_2", shapes_key=key, mode="average"
         )
         var_weight = aggregate_channels(
-            sdata, image_key="ficture_image_2", shapes_key=key,
+            sdata,
+            image_key="ficture_image_2",
+            shapes_key=key,
             mode="variance",
             means=mean_weight,
         )

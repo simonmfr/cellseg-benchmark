@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="cellseg_benchmark",
-    version="0.1.0",
+    version="0.2.0",
     description="Tools for assessing the quality of spatial segmentations with focus on vascular cells in the brain.",
     author="IDS Munich",
     packages=find_packages(exclude=["notebooks", "scripts"]),
@@ -26,11 +26,13 @@ setup(
         "scikit-image",
         "plotly",
         "ovrlpy",
-        "harmonypy"
+        "harmonypy",
+        "IProgress",
+        "subprocess"
     ],
-    python_requires=">=3.10",
+    python_requires=">=3.11",
     classifiers=[
-        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent",
     ],
 )

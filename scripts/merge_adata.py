@@ -1,27 +1,16 @@
 import argparse
-import json
 import logging
 import os
 import warnings
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from os.path import exists
 from pathlib import Path
 from typing import Tuple
 
-import numpy as np
 import scanpy as sc
-
-from concurrent.futures import ProcessPoolExecutor, as_completed
-
+import yaml
 from anndata import AnnData
 from spatialdata import read_zarr
-
-def load_one(sample_dir: Path, seg_method, logger: logging.Logger) -> Tuple[str, AnnData | None]:
-    sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
-    if f"adata_{seg_method}" not in sdata.tables.keys():
-        if logger:
-            logger.warning(f"Skipping {seg_method}. No such key: {seg_method}")
-        return sample_dir.name, None
-    return sample_dir.name, sdata[f"adata_{seg_method}"]
 
 from cellseg_benchmark.adata_utils import (
     dimensionality_reduction_quick,
@@ -32,6 +21,19 @@ from cellseg_benchmark.adata_utils import (
     merge_adatas,
     normalize_counts,
 )
+
+
+def load_one(
+    sample_dir: Path, seg_method: str, logger: logging.Logger
+) -> Tuple[str, AnnData | None]:
+    """Load AnnData from one master sdata."""
+    sdata = read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
+    if f"adata_{seg_method}" not in sdata.tables.keys():
+        if logger:
+            logger.warning(f"Skipping {seg_method}. No such key: {seg_method}")
+        return sample_dir.name, None
+    return sample_dir.name, sdata[f"adata_{seg_method}"]
+
 
 warnings.filterwarnings("ignore")
 sc.settings.n_jobs = -1
@@ -51,18 +53,6 @@ parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 parser.add_argument(
     "seg_method", help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'"
 )
-parser.add_argument(
-    "--age",
-    default=False,
-    action="store_true",
-    help="Age information is available. Otherwise, assume age: 6m.",
-)
-parser.add_argument(
-    "--genotype",
-    default=False,
-    action="store_true",
-    help="Genotype information is available. Otherwise, assume WT.",
-)
 args = parser.parse_args()
 
 # Paths
@@ -73,9 +63,9 @@ save_path.mkdir(parents=True, exist_ok=True)
 
 # Load sample paths
 with open(base_path / "sample_paths.json") as f:
-    sample_paths_file = json.load(f)
+    sample_paths_file = yaml.save_load(f)
 
-excluded_samples = {  # TODO: move to yaml
+excluded_samples = {
     "foxf2": ["foxf2_s2_r0", "foxf2_s3_r0", "foxf2_s3_r1"],
     "aging": [],
 }.get(args.cohort, [])
@@ -93,17 +83,16 @@ for sample_dir in samples_path.glob(f"{args.cohort}*"):  # restriction to cohort
 with ProcessPoolExecutor(max_workers=int(os.getenv("SLURM_CPUS_PER_TASK", 1))) as ex:
     futures = {ex.submit(load_one, p, args.seg_method, logger): p for p in loads}
     adata_list = [f.result() for f in as_completed(futures)]
-adata_list = [(x, y) for x, y in adata_list if y is not None] #ensure save data loading, e.g. for aging s8 r1 Cellpose 2 Transcripts
+adata_list = [
+    (x, y) for x, y in adata_list if y is not None
+]  # ensure save data loading, e.g. for aging s8 r1 Cellpose 2 Transcripts
 
 # Merge and process
 adata = merge_adatas(
     adata_list,
     seg_method=args.seg_method,
-    sample_paths_file=sample_paths_file,
     logger=logger,
     plot_qc_stats=True,
-    age=args.age,
-    genotype=args.genotype,
     save_path=save_path / "plots",
 )
 del adata_list
@@ -119,7 +108,9 @@ adata = filter_spatial_outlier_cells(
 
 # Special case: rerun filter_low_quality_cells with lower threshold for vpt_3D
 if "vpt_3D" in args.seg_method:
-    logger.info("Segmentation method contains 'vpt_3D': applying low-quality cell filtering with min_counts=10 due to smaller cell sizes.")
+    logger.info(
+        "Segmentation method contains 'vpt_3D': applying low-quality cell filtering with min_counts=10 due to smaller cell sizes."
+    )
     adata = filter_low_quality_cells(
         adata,
         save_path=save_path / "plots",
@@ -132,14 +123,16 @@ else:
         save_path=save_path / "plots",
         logger=logger,
     )
-    
+
 adata = filter_genes(adata, save_path=save_path / "plots", logger=logger)
 
 adata = normalize_counts(
     adata, save_path=save_path / "plots", seg_method=args.seg_method, logger=logger
 )
-    
-adata = dimensionality_reduction_quick(adata, save_path=save_path / "plots", logger=logger)
+
+adata = dimensionality_reduction_quick(
+    adata, save_path=save_path / "plots", logger=logger
+)
 adata = integration_harmony(
     adata, batch_key="sample", save_path=save_path / "plots", logger=logger
 )

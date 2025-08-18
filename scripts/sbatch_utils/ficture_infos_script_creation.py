@@ -1,6 +1,7 @@
 import argparse
-import json
 from pathlib import Path
+
+import yaml
 
 parser = argparse.ArgumentParser(
     description="scripts for computing ficture statistics."
@@ -11,9 +12,9 @@ parser.add_argument(
 args = parser.parse_args()
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/sample_paths.json"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
 ) as f:
-    data = json.load(f)
+    data = yaml.save_load(f)
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_ficture_stats"
@@ -38,6 +39,6 @@ for key, value in data.items():
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
-python scripts/ficture_infos.py {key} {value} {"--recompute" if args.recompute else ""}
+python scripts/ficture_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
 """)
     f.close()

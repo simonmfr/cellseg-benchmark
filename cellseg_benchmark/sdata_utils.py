@@ -20,7 +20,12 @@ from scipy.spatial import ConvexHull
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from spatialdata.models import ShapesModel
-from spatialdata.transformations import Identity, get_transformation, set_transformation, Affine
+from spatialdata.transformations import (
+    Affine,
+    Identity,
+    get_transformation,
+    set_transformation,
+)
 from tifffile import imread
 from tqdm import tqdm
 
@@ -28,6 +33,7 @@ from ._constants import image_based, methods_3D
 from .ficture_utils import create_factor_level_image, parse_metadata
 
 PI = math.pi
+
 
 def process_merscope(
     sample_name: str, data_dir: str, data_path: str, zmode: str
@@ -140,6 +146,14 @@ def integrate_segmentation_data(
     sdata_path: str,
     seg_methods: List[str],
     sdata_main: sd.SpatialData,
+    genotype: str = None,
+    age_months: int = None,
+    run_date: str = None,
+    animal_id: str = None,
+    organism: str = None,
+    slide: str = None,
+    region: str = None,
+    cohort: str = None,
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
@@ -150,6 +164,14 @@ def integrate_segmentation_data(
         sdata_path: Path to dircetory of master sdata
         seg_methods: List of segmentation methods to process
         sdata_main: Main spatial data object to update
+        genotype: genotype of sample
+        age_months: Age of sample
+        run_date: Run date of sample
+        animal_id: Animal of sample
+        organism: Organism of sample
+        slide: Slide of sample
+        region: Region of sample
+        cohort: Cohort of sample
         write_to_disk: Whether to write elements to disk immediately
         data_path: Optional path to directory to get transformation for adatas
         logger: Optional logger object to write messages to console
@@ -257,15 +279,24 @@ def integrate_segmentation_data(
                     join(sdata_path, "results", seg_method, "Ficture_stats")
                 ):
                     logger.info("Adding Ficture stats to {}...".format(seg_method))
-                    add_statistical_data(
-                        sdata_main, seg_method, sdata_path
-                    )
+                    add_statistical_data(sdata_main, seg_method, sdata_path)
                 else:
                     logger.warning(
                         "No Ficture_stats files found for {}. Skipping.".format(
                             seg_method
                         )
                     )
+                sdata_main[f"adata_{seg_method}"].obs["genotype"] = genotype
+                sdata_main[f"adata_{seg_method}"].obs["age_months"] = age_months
+                sdata_main[f"adata_{seg_method}"].obs["run_date"] = run_date
+                sdata_main[f"adata_{seg_method}"].obs["animal_id"] = animal_id
+                sdata_main[f"adata_{seg_method}"].obs["organism"] = organism
+                sdata_main[f"adata_{seg_method}"].obs["cohort"] = cohort
+                sdata_main[f"adata_{seg_method}"].obs["slide"] = slide
+                sdata_main[f"adata_{seg_method}"].obs["region"] = region
+                sdata_main[f"adata_{seg_method}"].obs["sample"] = (
+                    cohort + "_" + slide + "_" + region
+                )
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
             elif len(sdata.tables) > 1:
@@ -432,7 +463,8 @@ def add_statistical_data(
         if file.endswith(".csv"):
             name = file.split(".")[0]
             ovrlpy_stats = pd.read_csv(
-                join(sdata_path, "results", seg_method, "Ovrlpy_stats", file), index_col=0
+                join(sdata_path, "results", seg_method, "Ovrlpy_stats", file),
+                index_col=0,
             )
             ovrlpy_stats.index = ovrlpy_stats.index.astype(str)
             adata.obsm[name] = ovrlpy_stats
@@ -478,7 +510,10 @@ def calculate_volume(
             for entity_id, group in grouped
         ]
         morphology_rows = Parallel(n_jobs=-1, backend="loky")(
-            delayed(compute_polygon_stats_3D)(eid, grp, z_spacing, z_level_name, global_z_min, global_z_max, logger) for eid, grp in items
+            delayed(compute_polygon_stats_3D)(
+                eid, grp, z_spacing, z_level_name, global_z_min, global_z_max, logger
+            )
+            for eid, grp in items
         )
 
     else:
@@ -488,10 +523,7 @@ def calculate_volume(
         if logger:
             logger.info(f"calculate volume metrics {seg_method}")
         scale = z_spacing * n_planes_2d
-        items = [
-            (entity_id, group.geometry.iat[0])
-            for entity_id, group in grouped
-        ]
+        items = [(entity_id, group.geometry.iat[0]) for entity_id, group in grouped]
         morphology_rows = Parallel(n_jobs=-1, backend="loky")(
             delayed(compute_polygon_stats_2D)(item, scale, logger) for item in items
         )
@@ -516,7 +548,19 @@ def calculate_volume(
     return sdata_main
 
 
-def compute_polygon_stats_2D(entity_geom_pair, scale, logger=None):
+def compute_polygon_stats_2D(
+    entity_geom_pair, scale: float, logger: logging.Logger = None
+):
+    """Compute statistics for a polygon in 2D.
+
+    Args:
+        entity_geom_pair: entity geometry pair
+        scale: scaling factor
+        logger: logger object
+
+    Returns:
+        2D stats.
+    """
     entity_id, geom = entity_geom_pair
     try:
         data = _compute_2d_metrics(geom, scale)
@@ -529,7 +573,24 @@ def compute_polygon_stats_2D(entity_geom_pair, scale, logger=None):
             print(f"Failed {entity_id}: {e}")
         return None
 
-def compute_polygon_stats_3D(entity_id, group, z_spacing, z_level_name, global_z_min, global_z_max, logger=None):
+
+def compute_polygon_stats_3D(
+    entity_id, group, z_spacing, z_level_name, global_z_min, global_z_max, logger=None
+):
+    """Compute statistics for a polygon in 3D.
+
+    Args:
+        entity_id: entity id
+        group: geometries of entity id on resp. z levels
+        z_spacing: spacing between z levels
+        z_level_name: Column name of z level
+        global_z_min: minimum z value
+        global_z_max: maximum z value
+        logger: logging object
+
+    Returns:
+        3D stats.
+    """
     try:
         m = _compute_3d_metrics(
             group,
@@ -548,9 +609,7 @@ def compute_polygon_stats_3D(entity_id, group, z_spacing, z_level_name, global_z
         return None
 
 
-def assign_transformations(
-    sdata_main: sd.SpatialData, seg_method: str
-) -> None:
+def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
     """Assign transformations to spatial data.
 
     Args:
@@ -564,36 +623,24 @@ def assign_transformations(
     if any([seg_method.startswith(method) for method in image_based]):
         if seg_method == "Cellpose_1_Merlin":
             set_transformation(
-                sdata_main[f"boundaries_{seg_method}"],
-                Identity(),
-                "micron"
+                sdata_main[f"boundaries_{seg_method}"], Identity(), "micron"
             )
             set_transformation(
-                sdata_main[f"boundaries_{seg_method}"],
-                transformation_to_pixel,
-                "pixel"
+                sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
             )
         else:
             set_transformation(
                 sdata_main[f"boundaries_{seg_method}"],
                 transformation_to_pixel.inverse(),
-                "micron"
+                "micron",
             )
             set_transformation(
-                sdata_main[f"boundaries_{seg_method}"],
-                Identity(),
-                "pixel"
+                sdata_main[f"boundaries_{seg_method}"], Identity(), "pixel"
             )
     else:
+        set_transformation(sdata_main[f"boundaries_{seg_method}"], Identity(), "micron")
         set_transformation(
-            sdata_main[f"boundaries_{seg_method}"],
-            Identity(),
-            "micron"
-        )
-        set_transformation(
-            sdata_main[f"boundaries_{seg_method}"],
-            transformation_to_pixel,
-            "pixel"
+            sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
         )
     return
 
@@ -672,10 +719,31 @@ def update_element(sdata: sd.SpatialData, element_name: str) -> None:
     del sdata[new_name]
     sdata.delete_element_from_disk(new_name)
 
-def get_2D_boundaries(method: str, org_sdata:sd.SpatialData, sdata:sd.SpatialData, transformation:np.ndarray, boundary_key:str) -> None:
+
+def get_2D_boundaries(
+    method: str,
+    org_sdata: sd.SpatialData,
+    sdata: sd.SpatialData,
+    transformation: np.ndarray,
+    boundary_key: str,
+) -> None:
+    """Manipulate 2D boundaries and assign correct transformations.
+
+    Args:
+        method: name of segmentation method
+        org_sdata: original spatial data
+        sdata: current spatial data
+        transformation: transformation matrix
+        boundary_key: key of boundary data in original spatial data
+
+    Returns:
+        assigned transcriptions to sdata.
+    """
     if method.startswith("vpt_3D") or method.startswith("Watershed_Merlin"):
         try:
-            bound = org_sdata[boundary_key][["cell_id", "geometry"]].dissolve(by="cell_id")
+            bound = org_sdata[boundary_key][["cell_id", "geometry"]].dissolve(
+                by="cell_id"
+            )
         except ValueError:
             new = org_sdata[boundary_key][["cell_id", "geometry"]]
             new.index.rename(None, inplace=True)
@@ -699,7 +767,9 @@ def get_2D_boundaries(method: str, org_sdata:sd.SpatialData, sdata:sd.SpatialDat
         else:
             set_transformation(
                 sdata[f"boundaries_{method}"],
-                Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")).inverse(),
+                Affine(
+                    transformation, input_axes=("x", "y"), output_axes=("x", "y")
+                ).inverse(),
                 to_coordinate_system="micron",
             )
     else:
@@ -999,23 +1069,19 @@ def _compute_2d_metrics(geom, z_spacing: float):
         "surface_to_volume_ratio": perimeter / area if area > 0 else np.nan,
     }
 
-    metrics["sphericity"] = (
-        4 * PI * area / (perimeter**2) if perimeter > 0 else np.nan
-    )
+    metrics["sphericity"] = 4 * PI * area / (perimeter**2) if perimeter > 0 else np.nan
 
     if not geom.is_valid:
-        geom = geom.buffer(0) #assume no topology error occurs
+        geom = geom.buffer(0)  # assume no topology error occurs
     convex_hull = geom.convex_hull
-    metrics["solidity"] = (
-        area / convex_hull.area if convex_hull.area > 0 else np.nan
-    )
+    metrics["solidity"] = area / convex_hull.area if convex_hull.area > 0 else np.nan
 
     hull_points = np.array(convex_hull.exterior.coords[:-1])
     if len(hull_points) >= 3:
         hull_points -= hull_points.mean(axis=0)
         hull_points /= hull_points.std(axis=0, ddof=0)
         cov = (hull_points.T @ hull_points) / hull_points.shape[0]
-        eigenvalues  = np.linalg.eigvalsh(cov)[::-1]
+        eigenvalues = np.linalg.eigvalsh(cov)[::-1]
         metrics["elongation"] = (
             1 - np.sqrt(eigenvalues[1] / eigenvalues[0])
             if eigenvalues[0] > 0
@@ -1040,7 +1106,7 @@ def _compute_trapz_with_conditional_caps(areas, z_indices, z_spacing, z_min, z_m
 
 
 def _compute_3d_metrics(
-    group, z_spacing, global_z_min, global_z_max, ZIndex: str="ZIndex"
+    group, z_spacing, global_z_min, global_z_max, ZIndex: str = "ZIndex"
 ):
     """Compute 3D morphology metrics with robust and dual volume estimation."""
     try:
@@ -1057,8 +1123,10 @@ def _compute_3d_metrics(
 
         areas = np.fromiter(
             (
-                p.area for p in polygons #Multipolygons bereits gehandled
-            ), dtype=float
+                p.area
+                for p in polygons  # Multipolygons bereits gehandled
+            ),
+            dtype=float,
         )
 
         volume_sum = np.sum(areas) * z_spacing
@@ -1068,8 +1136,10 @@ def _compute_3d_metrics(
 
         perimeters = np.fromiter(
             (
-                p.length for p in polygons #Multipolygons bereits gehandled
-            ), dtype=float
+                p.length
+                for p in polygons  # Multipolygons bereits gehandled
+            ),
+            dtype=float,
         )
 
         total_height = (len(areas) - 1) * z_spacing
@@ -1106,8 +1176,16 @@ def _compute_3d_metrics(
             if polygon.geom_type == "Polygon":
                 coords = np.array(polygon.exterior.coords[:-1])
             else:
-                coords = np.vstack([np.asarray(part.exterior.coords)[:-1] for part in polygon.geoms]) \
-                                        if len(polygon.geoms) else np.empty((0, 2))
+                coords = (
+                    np.vstack(
+                        [
+                            np.asarray(part.exterior.coords)[:-1]
+                            for part in polygon.geoms
+                        ]
+                    )
+                    if len(polygon.geoms)
+                    else np.empty((0, 2))
+                )
             if coords.shape[0] < 3:
                 continue
             z_coords = np.full((coords.shape[0], 1), z_um[i])
@@ -1124,7 +1202,9 @@ def _compute_3d_metrics(
         if not thin_stack:
             if all_points.shape[0] >= 4:
                 try:
-                    hull = ConvexHull(all_points, qhull_options="QJ")  # jitter coplanar cases
+                    hull = ConvexHull(
+                        all_points, qhull_options="QJ"
+                    )  # jitter coplanar cases
                     hv = hull.volume
                     solidity = (volume_trapz / hv) if hv > 0 else np.nan
                 except:

@@ -14,19 +14,16 @@ import seaborn as sns
 from anndata import AnnData, concat
 from matplotlib.path import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from spatialdata import SpatialData
 from tqdm import tqdm
 
 from cellseg_benchmark._constants import cell_type_colors
 
+
 def merge_adatas(
     adatas_list: List[Tuple[str, AnnData]],
     seg_method: str,
-    sample_paths_file: dict,
     logger: logging.Logger = None,
     plot_qc_stats=False,
-    genotype: bool = False,
-    age: bool = False,
     save_path=None,
 ) -> AnnData:
     """Merge AnnData objects extracted from multiple SpatialData objects into a single AnnData.
@@ -37,16 +34,12 @@ def merge_adatas(
     single AnnData object. No integration or batch effect correction is performed.
 
     Args:
-        sdatas (List[Tuple[str, SpatialData]]): List of tuples, each containing a unique
-            sample name (str) and a SpatialData object. Each SpatialData is expected to
-            have an AnnData accessible via `sdata[f"adata_{seg_method}"]`.
+        adatas_list (List[Tuple[str, AnnData]]): List of tuples, each containing a unique
+            sample name (str) and a AnnData object.
         seg_method (str): Segmentation method key.
-        sample_paths_file (dict): Dict that maps sample_name to Merscope output data path.
         logger (logging.Logger, optional): Logger instance for informational and warning
             messages. If None, logging is disabled. Defaults to None.
         plot_qc_stats (bool, optional): If True, triggers QC plotting via the `plot_qc` function internally. Defaults to False.
-        genotype (bool, optional): If True, genotype information is available
-        age (bool, optional): If True, age information is available
         save_path (str, optional): File path or directory where QC plots will be saved
             if `plot_qc_stats` is True. Defaults to None.
 
@@ -59,39 +52,8 @@ def merge_adatas(
 
     adatas = []
     for name, adata in tqdm(adatas_list):
-        samples = name.split("_")
-        cohort, slide, region = samples[0], samples[1], samples[2]
-        adata.obs["cohort"] = cohort
-        adata.obs["slide"] = slide
-        adata.obs["region"] = region
-        adata.obs["sample"] = name
-        if age:
-            # Assume, that all region names contain months in the end (e.g. region_0-WT279_12m)
-            adata.obs["age"] = int(
-                re.split(r"[_\-]", sample_paths_file[name].split("/")[-1])[-1].split(
-                    "m"
-                )[0]
-            )
-        else:
-            adata.obs["age"] = 6
-            # Requires region names to follow example: region_1-KO885
-        adata.obs["genotype"] = re.search(
-            r"region_\d+-([A-Za-z_]*?)(?=\d)", sample_paths_file[name]
-        ).group(1)
-        adata.obs["condition"] = (
-            adata.obs["genotype"] + "_" + adata.obs["age"].astype(str)
-        )
-        if isinstance(adata.X, np.ndarray):
-            if seg_method.lower() == "Proseg":
-                adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
-            else:
-                adata.X = sp.csr_matrix(adata.X, dtype=np.int32)
-        elif isinstance(adata.X, sp.csr_matrix) and seg_method.lower() != "Proseg":
-                if not np.issubdtype(adata.X.dtype, np.integer):
-                    adata.X = sp.csr_matrix(adata.X, dtype=np.int32)
         adata.obs["n_counts"] = adata.X.sum(axis=1)
         adata.obs["n_genes"] = adata.X.count_nonzero(axis=1)
-        adata.obs["sample"] = name
         adatas.append(adata)
 
         if plot_qc_stats:
@@ -133,7 +95,7 @@ def merge_adatas(
     if logger:
         n = len(adata.obs["sample"].unique())
         logger.info(f"{seg_method}: # of cells: {len(adata)}, # of samples: {n}")
-    
+
     if logger:
         n = len(adata.obs["sample"].unique())
         logger.info(f"{seg_method}: # of cells: {len(adata)}, # of samples: {n}")
@@ -141,7 +103,7 @@ def merge_adatas(
             logger.warning(
                 f"Only one sample found ({adata.obs['sample'].unique()[0]})!"
             )
-    
+
     if plot_qc_stats:
         save_path.mkdir(parents=True, exist_ok=True)
         plot_qc(adata, save_path, y_limits, logger)
@@ -168,11 +130,11 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
 
     # General Stats
     fig, axs = plt.subplots(
-        n_samples, 
-        4, 
-        figsize=(16, n_samples * 4), 
-        gridspec_kw={"wspace": 0.4}, 
-        squeeze=False
+        n_samples,
+        4,
+        figsize=(16, n_samples * 4),
+        gridspec_kw={"wspace": 0.4},
+        squeeze=False,
     )
     for i, name in enumerate(sample_names):
         adata_tmp = adata[adata.obs["sample"] == name]
@@ -234,11 +196,11 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
 
     # Cell Qualities
     fig, axs = plt.subplots(
-        n_samples, 
-        1, 
-        figsize=(9, n_samples * 8), 
-        gridspec_kw={"wspace": 0.4}, 
-        squeeze=False
+        n_samples,
+        1,
+        figsize=(9, n_samples * 8),
+        gridspec_kw={"wspace": 0.4},
+        squeeze=False,
     )
     axs = axs[:, 0]
     for ax, name in zip(axs, sample_names):
@@ -282,11 +244,11 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
 
     # General Stats Genes
     fig, axs = plt.subplots(
-        n_samples, 
-        3, 
-        figsize=(18, n_samples * 5), 
-        gridspec_kw={"wspace": 0.4}, 
-        squeeze=False
+        n_samples,
+        3,
+        figsize=(18, n_samples * 5),
+        gridspec_kw={"wspace": 0.4},
+        squeeze=False,
     )
     for i, name in enumerate(sample_names):
         adata_tmp = adata[adata.obs["sample"] == name]
@@ -322,12 +284,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     plt.close()
 
     # Highly expressed genes
-    fig, axs = plt.subplots(
-        n_samples, 
-        1, 
-        figsize=(6, n_samples * 4), 
-        squeeze=False
-    )
+    fig, axs = plt.subplots(n_samples, 1, figsize=(6, n_samples * 4), squeeze=False)
     axs = axs[:, 0]
     for ax, name in zip(axs, sample_names):
         adata_tmp = adata[adata.obs["sample"] == name]
@@ -440,7 +397,7 @@ def filter_spatial_outlier_cells(
 
         transform = np.loadtxt(
             join(
-                sample_paths_file[sample],
+                sample_paths_file[sample]["path"],
                 "images",
                 "micron_to_mosaic_pixel_transform.csv",
             )
@@ -542,6 +499,7 @@ def filter_low_quality_cells(
         save_path (str): Directory for saving plots.
         min_counts (int): Minimum number of counts per cell to retain.
         min_genes (int): Minimum number of genes per cell to retain.
+        min_volume_threshold (int): Minimum volume threshold.
         logger (logging.Logger, optional): Optional logger object. Defaults to None.
         remove_outliers (bool, optional): If True, remove outlier cells from adata.
             If False, only mark outliers without filtering. Defaults to True.
@@ -556,7 +514,11 @@ def filter_low_quality_cells(
 
     metric, n = "volume_final", 3
     adata.obs["volume_outlier_cell"] = (
-        adata.obs[metric] > n * np.median(adata[np.logical_not(adata.obs["low_quality_cell"].values)].obs[metric])
+        adata.obs[metric]
+        > n
+        * np.median(
+            adata[np.logical_not(adata.obs["low_quality_cell"].values)].obs[metric]
+        )
     ) | (adata.obs[metric] < min_volume_threshold)
 
     def _plot_flag(flag, fname):
@@ -726,9 +688,9 @@ def normalize_counts(
     # 1 Volume normalisation
     adata.layers["counts"] = adata.X
     inv_vol = (1.0 / adata.obs["volume_final"].to_numpy()).astype("float32")
-    adata.layers["volume_norm"] = sp.csr_matrix(adata.X, dtype=np.float32).multiply(
-        inv_vol[:, None]
-    ).tocsr()
+    adata.layers["volume_norm"] = (
+        sp.csr_matrix(adata.X, dtype=np.float32).multiply(inv_vol[:, None]).tocsr()
+    )
 
     # 2 Remove outlier cells (1–99 %ile)
     row_sums = np.ravel(adata.layers["volume_norm"].sum(1))
@@ -813,7 +775,10 @@ def normalize_counts(
 
 
 def dimensionality_reduction(
-    adata: AnnData, save_path: str, point_size_factor=320000, logger: logging.Logger=None
+    adata: AnnData,
+    save_path: str,
+    point_size_factor=320000,
+    logger: logging.Logger = None,
 ) -> AnnData:
     """Run PCA and multiple UMAP projections on the z-scored layer of the input AnnData object.
 
@@ -927,7 +892,9 @@ def dimensionality_reduction_quick(
         logger.info(f"Dimensionality reduction: UMAP with {config}")
 
     sc.pp.neighbors(adata, n_neighbors=config["n_neighbors"], n_pcs=config["n_pcs"])
-    sc.tl.umap(adata, neighbors_key="neighbors", key_added=config["key"], n_components=2)
+    sc.tl.umap(
+        adata, neighbors_key="neighbors", key_added=config["key"], n_components=2
+    )
 
     adata.uns.pop("neighbors", None)
     adata.obsp.pop("distances", None)
@@ -948,10 +915,15 @@ def dimensionality_reduction_quick(
                         show=False,
                     )
 
-    plt.savefig(join(save_path, "UMAP_unintegrated_comparison.png"), dpi=200, bbox_inches="tight")
+    plt.savefig(
+        join(save_path, "UMAP_unintegrated_comparison.png"),
+        dpi=200,
+        bbox_inches="tight",
+    )
     plt.close()
 
     return adata
+
 
 def integration_harmony(
     adata: AnnData,
@@ -977,6 +949,9 @@ def integration_harmony(
         n_neighbors (int, optional): Number of neighbors for graph construction.
             Defaults to 20.
         n_pcs (int, optional): Number of principal components to use. Defaults to 50.
+        point_size_factor (int, optional): Point size factor for images. Defaults to 320000.
+        point_size_3d (int, optional): Point size factor for images. Defaults to 0.5.
+        point_alpha_3d (int, optional): Point size factor for images. Defaults to 0.02.
 
     Returns:
         AnnData: Integrated data with new embeddings:

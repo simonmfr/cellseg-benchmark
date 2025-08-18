@@ -31,6 +31,18 @@ parser.add_argument(
     type=int,
     help="Consider Ficture model with n_ficture factors.",
 )
+parser.add_argument(
+    "--genotype", default="WT", help="genotype, assumed to be WT if not provided."
+)
+parser.add_argument(
+    "--age_months", type=int, help="age(months), if available.", default=None
+)
+parser.add_argument("--run_date", type=str, help="run date (YYYYMMDD).", default=None)
+parser.add_argument("--animal_id", type=str, help="animal ID.", default=None)
+parser.add_argument("--organism", type=str, help="organism.", default=None)
+parser.add_argument("--slide", type=str, help="slide.", default=None)
+parser.add_argument("--region", type=str, help="region.", default=None)
+parser.add_argument("--cohort", type=str, help="cohort.", default=None)
 args = parser.parse_args()
 
 logger.info("Importing images and points")
