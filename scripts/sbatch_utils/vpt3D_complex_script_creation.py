@@ -26,7 +26,6 @@ for key, value in data.items():
     for dire in listdir(value["path"]):
         if dire.endswith(".vzg") or dire.endswith(".vzg2"):
             vzg_path = join(value["path"], dire)
-    assert vzg_path is not None, f"{key} provides not valid vzg file"
     f = open(
         f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_3D_complex/{key}_{args.staining1}_{args.staining2}.sbatch",
         "w",
