@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 
 import numpy as np
@@ -12,7 +13,28 @@ parser = argparse.ArgumentParser(
 parser.add_argument("path", help="Path to merscope output folder.")
 args = parser.parse_args()
 
-image_DAPI = imread(os.path.join(args.path, "images/mosaic_DAPI_z3.tif"), key=0)
+logger = logging.getLogger("annotation")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setLevel(logging.INFO)
+handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
+logger.addHandler(handler)
+
+image_dir = os.path.join(args.path, "images")
+logger.info("Determine need for Transcript tiffs")
+dapi_levels = {
+    f.split(".")[0].split("_")[-1]
+    for f in os.listdir(image_dir)
+    if "DAPI" in f
+}
+transcript_levels = {
+    f.split(".")[0].split("_")[-1]
+    for f in os.listdir(image_dir)
+    if "Transcripts" in f
+}
+z_levels = dapi_levels - transcript_levels
+logger.info(f"Reading transcript files from {args.path}")
+image_DAPI = imread(os.path.join(image_dir, "mosaic_DAPI_z3.tif"), key=0)
 mean = np.mean(image_DAPI)
 bins_y = np.linspace(0, image_DAPI.shape[1], num=image_DAPI.shape[1] + 1)
 bins_x = np.linspace(0, image_DAPI.shape[0], num=image_DAPI.shape[0] + 1)
@@ -36,8 +58,9 @@ transcripts["global_y"] = (
 
 del transform
 
-for i in range(7):
-    transcripts_slice = transcripts[transcripts["global_z"] == i]
+for z in z_levels:
+    logger.info(f"Processing z={z[:1]}")
+    transcripts_slice = transcripts[transcripts["global_z"] == int(z[1:])]
 
     image, _, _ = np.histogram2d(
         transcripts_slice["global_y"],
@@ -49,4 +72,4 @@ for i in range(7):
         image = gaussian(image, sigma=3)
 
     image = (mean / np.max(image) * image).astype("uint16")
-    imwrite(os.path.join(args.path, f"images/mosaic_Transcripts_z{i}.tif"), image)
+    imwrite(os.path.join(image_dir, f"mosaic_Transcripts_{z}.tif"), image)
