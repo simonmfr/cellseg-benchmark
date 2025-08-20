@@ -813,7 +813,7 @@ def dimensionality_reduction(
     plt.close(fig)
 
     fig, axs = plt.subplots(
-        3, 3, figsize=(21, 19), gridspec_kw={"wspace": 0.6, "hspace": 0.3}
+        3, 3, figsize=(30, 19), gridspec_kw={"wspace": 0.6, "hspace": 0.3}
     )
 
     color_schemes = ["sample", "condition", "cell_type_mmc_raw_revised"]
@@ -851,6 +851,7 @@ def dimensionality_reduction(
                             title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
                             show=False,
                         )
+                        axs[row, col].legend(ncols=1, loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
 
     plt.savefig(
         join(save_path, "UMAP_unintegrated_comparison.png"),
@@ -900,7 +901,7 @@ def dimensionality_reduction_quick(
     adata.obsp.pop("distances", None)
     adata.obsp.pop("connectivities", None)
 
-    fig, axs = plt.subplots(1, 3, figsize=(21, 7), gridspec_kw={"wspace": 0.6})
+    fig, axs = plt.subplots(1, 3, figsize=(30, 7), gridspec_kw={"wspace": 0.6})
     for col, color_scheme in enumerate(color_schemes):
         with plt.ioff():
             with plt.style.context("default"):
@@ -914,6 +915,7 @@ def dimensionality_reduction_quick(
                         title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
                         show=False,
                     )
+                    axs[col].legend(ncols=1, loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
 
     plt.savefig(
         join(save_path, "UMAP_unintegrated_comparison.png"),
