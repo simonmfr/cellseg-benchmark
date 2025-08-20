@@ -73,3 +73,4 @@ for z in z_levels:
 
     image = (mean / np.max(image) * image).astype("uint16")
     imwrite(os.path.join(image_dir, f"mosaic_Transcripts_{z}.tif"), image)
+logger.info(f"Done")
