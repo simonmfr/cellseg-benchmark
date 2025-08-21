@@ -59,7 +59,7 @@ transcripts["global_y"] = (
 del transform
 
 for z in z_levels:
-    logger.info(f"Processing z={z[:1]}")
+    logger.info(f"Processing z={z[1:]}")
     transcripts_slice = transcripts[transcripts["global_z"] == int(z[1:])]
 
     image, _, _ = np.histogram2d(
