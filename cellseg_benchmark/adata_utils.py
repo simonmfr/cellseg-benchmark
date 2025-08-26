@@ -709,11 +709,12 @@ def normalize_counts(
     adata = adata[mask].copy()
 
     # diagnostic plot
-    sns.histplot(row_sums, kde=False, edgecolor="none", color="steelblue")
-    for p in (lo, hi):
-        plt.axvline(p, c="red", lw=1)
-    plt.savefig(join(save_path, "normalize_count_outlier_cells.png"))
-    plt.close()
+    if save_path is not None:
+        sns.histplot(row_sums, kde=False, edgecolor="none", color="steelblue")
+        for p in (lo, hi):
+            plt.axvline(p, c="red", lw=1)
+        plt.savefig(join(save_path, "normalize_count_outlier_cells.png"))
+        plt.close()
 
     # 3 Rescale per cell to ``target_sum``
     row_sums = np.ravel(adata.layers["volume_norm"].sum(1))
@@ -742,32 +743,33 @@ def normalize_counts(
     adata.layers["librarysize_log1p_norm"] = sc.pp.log1p(libnorm, copy=True)
 
     # 6 Compare distributions
-    fig, axes = plt.subplots(1, 4, figsize=(18, 4))
-    layers = [
-        ("counts", "Raw counts"),
-        ("volume_log1p_norm", "Volume log1p-normalized"),
-        ("zscore", "Volume z‑scored"),
-        ("librarysize_log1p_norm", "Lib‑size log1p-normalized"),
-    ]
-    for ax, (layer, title) in zip(axes, layers):
-        sns.histplot(
-            adata.layers[layer].sum(1),
-            bins=100,
-            ax=ax,
-            edgecolor="none",
-            color="steelblue",
-            alpha=1,
-            legend=False,
-            zorder=2,
-        )
-        ax.set_title(title)
-        ax.grid(True, zorder=-1)
-    max_ylim = max(ax.get_ylim()[1] for ax in axes)
-    for ax in axes:
-        ax.set_ylim(0, max_ylim)
-    plt.tight_layout()
-    plt.savefig(join(save_path, "normalize_count_distributions.png"))
-    plt.close()
+    if save_path is not None:
+        fig, axes = plt.subplots(1, 4, figsize=(18, 4))
+        layers = [
+            ("counts", "Raw counts"),
+            ("volume_log1p_norm", "Volume log1p-normalized"),
+            ("zscore", "Volume z-scored"),
+            ("librarysize_log1p_norm", "Lib-size log1p-normalized"),
+        ]
+        for ax, (layer, title) in zip(axes, layers):
+            sns.histplot(
+                adata.layers[layer].sum(1),
+                bins=100,
+                ax=ax,
+                edgecolor="none",
+                color="steelblue",
+                alpha=1,
+                legend=False,
+                zorder=2,
+            )
+            ax.set_title(title)
+            ax.grid(True, zorder=-1)
+        max_ylim = max(ax.get_ylim()[1] for ax in axes)
+        for ax in axes:
+            ax.set_ylim(0, max_ylim)
+        plt.tight_layout()
+        plt.savefig(join(save_path, "normalize_count_distributions.png"))
+        plt.close()
 
     assert round(adata.layers["volume_norm"].sum(1).mean()) == target_sum
 
