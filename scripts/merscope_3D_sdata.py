@@ -24,7 +24,7 @@ args = parser.parse_args()
 assert any([".vzg" in file for file in listdir(args.save_path)]), (
     "not correctly computed"
 )
-logger.info("Loading data")
+logger.info("Loading data..")
 sdata = merscope(
     args.data_path,
     transcripts=False,
@@ -63,6 +63,6 @@ sdata["table"].obs[sdata["table"].uns["spatialdata_attrs"]["region_key"]] = (
     .astype("category")
 )
 
-logger.info("Saving data")
+logger.info("Saving data...")
 sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)
-logger.info("Done")
+logger.info("Done.")

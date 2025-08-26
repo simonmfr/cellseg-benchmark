@@ -4,7 +4,7 @@ setup(
     name="cellseg_benchmark",
     version="0.2.0",
     description="Tools for assessing the quality of spatial segmentations with focus on vascular cells in the brain.",
-    author="IDS Munich",
+    author="LMU Munich",
     packages=find_packages(exclude=["notebooks", "scripts"]),
     install_requires=[
         "sopa==2.0.6",
@@ -29,6 +29,7 @@ setup(
         "harmonypy",
         "IProgress",
     #    "igraph"
+        "rtree"
     ],
     python_requires=">=3.11",
     classifiers=[

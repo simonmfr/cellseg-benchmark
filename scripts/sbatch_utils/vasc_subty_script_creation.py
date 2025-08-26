@@ -33,6 +33,7 @@ methods = [
     "vpt_3D_DAPI_PolyT",
     "vpt_3D_DAPI_nuclei",
     "vpt_3D_DAPI_PolyT_nuclei",
+    "ComSeg"
 ]
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
@@ -59,7 +60,7 @@ for cohort in cohorts:
 
 set -eu
 cd ~/gitrepos/cellseg-benchmark
-git pull origin dev-sf
+git pull
 mamba activate cellseg_benchmark
 python scripts/vascular_subtyping.py {cohort} {method}
 """)

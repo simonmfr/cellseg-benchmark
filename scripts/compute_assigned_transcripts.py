@@ -29,7 +29,7 @@ logger.addHandler(handler)
 
 # CLI args
 parser = argparse.ArgumentParser(
-    description="Compute fraction of cell-assigned transcripts for all segmentaiton methods from a master-sdata."
+    description="Compute fraction of cell-assigned transcripts for all segmentation methods from a master-sdata."
 )
 parser.add_argument("sample", help="Sample, e.g., 'foxf2_s2_r1'")
 args = parser.parse_args()
