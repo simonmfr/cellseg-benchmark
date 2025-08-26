@@ -151,6 +151,7 @@ else:
                 base_path,
                 "metrics",
                 args.cohort,
+                "ficture",
                 f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png",
             )
         )
