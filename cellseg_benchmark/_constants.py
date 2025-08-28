@@ -1,4 +1,4 @@
-cell_cyle_genes = {
+cell_cycle_genes = {
     "G1": ["Ccne1", "Pttg1"],
     "G1_S": ["Slbp", "Cdca7", "Ung", "Cdc6", "Pcna", "Mcm5", "Orc1", "Dtl"],
     "S": ["Rrm2", "E2f8", "Atad2"],

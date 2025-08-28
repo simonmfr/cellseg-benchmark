@@ -649,6 +649,9 @@ def normalize_counts(
     seg_method: str,
     *,
     target_sum: int = 250,
+    trim_outliers: bool = True,
+    trim_percentiles: tuple[float, float] = (1.0, 99.0),
+    volume_col: str = "volume_final",
     logger: logging.Logger = None,
 ) -> AnnData:
     """Volume‑based normalisation of raw UMI counts (as in Allen et al. Cell, 2023).
@@ -661,11 +664,18 @@ def normalize_counts(
 
     Args:
         adata (AnnData): AnnData with raw integer counts in ``adata.X`` and a
-            ``volume_final`` column in ``adata.obs``.
+            volume estimate in ``adata.obs`` (``volume_col``)
         save_path (str): Directory for diagnostic plots.
         seg_method (str): Name of segmentation method for processing logic.
         target_sum (int, optional): Target sum per cell after rescaling.
             Defaults to 250 as in Allen et al.
+        trim_outliers (bool, optional): Whether to remove outlier cells based on
+            total volume-normalised counts. Defaults to True.
+        trim_percentiles (tuple[float, float], optional): Percentile thresholds
+            for outlier trimming. Defaults to (1.0, 99.0).
+        volume_col (str, optional): Column in ``adata.obs`` containing the
+            per-cell volume estimate. Defaults to ``"volume_final"``.
+        logger (logging.Logger, optional): Logger instance for status messages.
         logger (logging.Logger, optional): Logger instance for status messages.
 
     Returns:
@@ -687,37 +697,36 @@ def normalize_counts(
 
     # 1 Volume normalisation
     adata.layers["counts"] = adata.X
-    inv_vol = (1.0 / adata.obs["volume_final"].to_numpy()).astype("float32")
+    inv_vol = (1.0 / adata.obs[volume_col].to_numpy()).astype("float32")
     adata.layers["volume_norm"] = (
         sp.csr_matrix(adata.X, dtype=np.float32).multiply(inv_vol[:, None]).tocsr()
     )
 
     # 2 Remove outlier cells (1–99 %ile)
-    row_sums = np.ravel(adata.layers["volume_norm"].sum(1))
-    lo, hi = np.percentile(row_sums, [1, 99])
-    mask = (row_sums > lo) & (row_sums < hi)
-    if logger:
-        logger.info(
-            f"Cells before/after outlier removal during normalization: {adata.n_obs} → {mask.sum()}"
-        )
+    row_sums_all = np.ravel(adata.layers["volume_norm"].sum(1))
+    if trim_outliers:
+        lo, hi = np.percentile(row_sums_all, trim_percentiles)
+        mask = (row_sums_all > lo) & (row_sums_all < hi)
+        if logger:
+            logger.info(f"Cells before/after outlier removal during normalization: {adata.n_obs} -> {mask.sum()}")
+        for layer_name in list(adata.layers.keys()):
+            m = adata.layers[layer_name]
+            if sp.issparse(m) and not isinstance(m, sp.csr_matrix):
+                adata.layers[layer_name] = m.tocsr()
+        adata = adata[mask].copy()
+        row_sums = np.ravel(adata.layers["volume_norm"].sum(1))
+        # diagnostic plot
+        if save_path is not None:
+            sns.histplot(row_sums_all, kde=False, edgecolor="none")
+            for p in (lo, hi):
+                plt.axvline(p, lw=1)
+            plt.tight_layout()
+            plt.savefig(save_path / "normalization_outlier_cells.png")
+            plt.close()
+    else:
+        row_sums = row_sums_all
 
-    for layer_name in adata.layers.keys():
-        if sp.issparse(adata.layers[layer_name]) and not isinstance(
-            adata.layers[layer_name], sp.csr_matrix
-        ):
-            adata.layers[layer_name] = adata.layers[layer_name].tocsr()
-    adata = adata[mask].copy()
-
-    # diagnostic plot
-    if save_path is not None:
-        sns.histplot(row_sums, kde=False, edgecolor="none", color="steelblue")
-        for p in (lo, hi):
-            plt.axvline(p, c="red", lw=1)
-        plt.savefig(join(save_path, "normalize_count_outlier_cells.png"))
-        plt.close()
-
-    # 3 Rescale per cell to ``target_sum``
-    row_sums = np.ravel(adata.layers["volume_norm"].sum(1))
+    # 3) Rescale per cell to target_sum
     adata.layers["volume_norm"] = (
         adata.layers["volume_norm"]
         .multiply((target_sum / row_sums).astype("float32")[:, None])
@@ -768,12 +777,98 @@ def normalize_counts(
         for ax in axes:
             ax.set_ylim(0, max_ylim)
         plt.tight_layout()
-        plt.savefig(join(save_path, "normalize_count_distributions.png"))
+        plt.savefig(join(save_path, "normalization_count_distributions.png"))
         plt.close()
 
-    assert round(adata.layers["volume_norm"].sum(1).mean()) == target_sum
+    mean_sum = np.ravel(adata.layers["volume_norm"].sum(1)).mean()
+    assert np.isclose(mean_sum, target_sum, rtol=1e-3), f"Mean sum {mean_sum} != target {target_sum}"
 
     return adata
+
+
+def plot_spatial_multiplot(
+    adata,
+    obs_key: str,
+    save_path: str | None = None,
+    *,
+    n_cols: int = 3,
+    max_points_per_sample: int = 150_000,
+    title: str | None = None,
+    save_name: str | None = None,
+    palette: dict | None = None,
+    figsize_per_ax: float = 4.0,
+    add_legend: bool = True,
+):
+    """Plot multi-panel spatial scatter plots per sample.
+
+    Args:
+        adata: AnnData object with spatial coordinates in `.obsm["spatial"]`.
+        obs_key: Column in `.obs` used for coloring (categorical).
+        save_path: Directory for saving the figure. If None, does not save.
+        n_cols: Number of columns in the subplot grid.
+        max_points_per_sample: Maximum number of points plotted per sample.
+        title: Global title for the figure.
+        save_name: Filename if saving the figure (requires `save_path`).
+        palette: Mapping from category → color. If None, uses AnnData or tab20.
+        figsize_per_ax: Size (in inches) of each subplot axis.
+        add_legend: Whether to add a legend outside the plot.
+
+    Returns:
+        matplotlib.figure.Figure: The generated figure.
+    """
+    categories = adata.obs[obs_key].astype("category").cat.categories.tolist()
+
+    # palette: prefer AnnData-stored colors, else tab20
+    if palette is None:
+        stored = adata.uns.get(f"{obs_key}_colors")
+        base = (list(stored) if stored is not None else list(plt.cm.tab20.colors))[: len(categories)]
+        palette = dict(zip(categories, base))
+    get_color = lambda v: palette.get(v, "#bdbdbd")
+
+    samples = pd.unique(adata.obs["sample"])
+    n_rows = -(-len(samples) // n_cols)  # ceil division
+
+    fig, axes = plt.subplots(
+        n_rows, n_cols,
+        figsize=(figsize_per_ax * n_cols, figsize_per_ax * n_rows),
+        squeeze=False
+    )
+
+    for ax, sample in zip(axes.flat, samples):
+        sd = adata[adata.obs["sample"] == sample]
+        if sd.n_obs > max_points_per_sample:
+            sd = sc.pp.subsample(sd, n_obs=max_points_per_sample, random_state=42, copy=True)
+
+        coords = sd.obsm["spatial"]
+        colors = [get_color(v) for v in sd.obs[obs_key].astype(object)]
+        s = max(2, min(15, 30_000 / max(1, len(coords))))
+
+        ax.scatter(coords[:, 0], coords[:, 1], c=colors, s=s, alpha=0.75, edgecolors="none")
+        ax.set(title=str(sample)); ax.set_xticks([]); ax.set_yticks([])
+        for sp in ax.spines.values(): sp.set_visible(False)
+
+    # Hide any unused axes
+    for ax in axes.flat[len(samples):]:
+        ax.set_visible(False)
+
+    if title:
+        fig.suptitle(title, fontsize=14, y=1.0)
+
+    if add_legend:
+        handles = [
+            plt.Line2D([0], [0], marker="o", ls="", mfc=get_color(cat), mec="none", ms=6, label=cat)
+            for cat in categories
+        ]
+        fig.legend(handles=handles, loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8)
+        fig.subplots_adjust(right=0.8)
+
+    fig.tight_layout()
+
+    if save_path and save_name:
+        fig.savefig(os.path.join(save_path, save_name), dpi=200, bbox_inches="tight")
+        plt.close(fig)
+
+    return fig
 
 
 def dimensionality_reduction(
@@ -784,39 +879,36 @@ def dimensionality_reduction(
 ) -> AnnData:
     """Run PCA and multiple UMAP projections on the z-scored layer of the input AnnData object.
 
-    Exports PCA.png and comparing_UMAPs.png.
+    Exports PCA.png and UMAP_unintegrated_comparison.png.
 
     Args:
         adata (AnnData): Annotated data matrix with a 'zscore' layer and relevant metadata in .obs.
         save_path (str): Directory path to save PCA and UMAP plots.
-        point_size_factor (optional): Factor determining dot size in UMAP. Increase for smaller dots.
+        point_size_factor (optional): Factor determining dot size in UMAP. Increase to get smaller dots.
         logger (optional): Logger instance for status messages.
 
     Returns:
         AnnData: updated AnnData object with PCA and multiple UMAP embeddings added to .obsm.
     """
     adata.X = adata.layers["zscore"]
-    sc.settings.figdir = save_path
 
     if logger:
-        logger.info(f"Dimensionality reduction: PCA, n_cores={sc.settings.n_cores}")
+        logger.info(f"Dimensionality reduction: PCA, n_jobs={sc.settings.n_jobs}")
     sc.pp.pca(adata, svd_solver="arpack")
-    fig, axs = plt.subplots(1, 2, figsize=(20, 8), gridspec_kw={"wspace": 0.25})
-    with plt.ioff():
-        sc.pl.pca_scatter(adata, color="n_counts", ax=axs[0], show=False)
-    var_ratio = adata.uns["pca"]["variance_ratio"]
-
-    axs[1].plot(np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-")
-    axs[1].set_yscale("log")
-    axs[1].set_xlabel("Principal component")
-    axs[1].set_ylabel("Variance ratio")
-    axs[1].set_title("PCA variance ratio")
-    fig.savefig(join(save_path, "PCA.png"))
-    plt.close(fig)
-
-    fig, axs = plt.subplots(
-        3, 3, figsize=(30, 19), gridspec_kw={"wspace": 0.6, "hspace": 0.3}
-    )
+    
+    if save_path is not None:
+        fig, axs = plt.subplots(1, 2, figsize=(20, 8), gridspec_kw={"wspace": 0.25})
+        with plt.ioff():
+            sc.pl.pca_scatter(adata, color="n_counts", ax=axs[0], show=False)
+        var_ratio = adata.uns["pca"]["variance_ratio"]
+    
+        axs[1].plot(np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-")
+        axs[1].set_yscale("log")
+        axs[1].set_xlabel("Principal component")
+        axs[1].set_ylabel("Variance ratio")
+        axs[1].set_title("PCA variance ratio")
+        fig.savefig(join(save_path, "PCA.png"))
+        plt.close(fig)
 
     color_schemes = ["sample", "condition", "cell_type_mmc_raw_revised"]
     umap_configs = [
@@ -825,6 +917,11 @@ def dimensionality_reduction(
         {"n_neighbors": 20, "n_pcs": 50, "key": "X_umap_20_50"},
     ]
 
+    if save_path is not None:
+        fig, axs = plt.subplots(
+            3, 3, figsize=(30, 19), gridspec_kw={"wspace": 0.6, "hspace": 0.3}
+        )
+    
     for row, config in enumerate(umap_configs):
         if logger:
             logger.info(
@@ -840,27 +937,29 @@ def dimensionality_reduction(
         adata.obsp.pop("distances", None)
         adata.obsp.pop("connectivities", None)
 
-        for col, color_scheme in enumerate(color_schemes):
-            with plt.ioff():
-                with plt.style.context("default"):
-                    with mpl.rc_context({"figure.figsize": (7, 7)}):
-                        sc.pl.embedding(
-                            adata,
-                            ax=axs[row, col],
-                            basis=config["key"],
-                            size=point_size_factor / adata.shape[0],
-                            color=color_scheme,
-                            title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
-                            show=False,
-                        )
-                        axs[row, col].legend(ncols=1, loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
+        if save_path is not None:
+            for col, color_scheme in enumerate(color_schemes):
+                with plt.ioff():
+                    with plt.style.context("default"):
+                        with mpl.rc_context({"figure.figsize": (7, 7)}):
+                            sc.pl.embedding(
+                                adata,
+                                ax=axs[row, col],
+                                basis=config["key"],
+                                size=point_size_factor / adata.shape[0],
+                                color=color_scheme,
+                                title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
+                                show=False,
+                            )
+                            axs[row, col].legend(ncols=1, loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
 
-    plt.savefig(
-        join(save_path, "UMAP_unintegrated_comparison.png"),
-        dpi=200,
-        bbox_inches="tight",
-    )
-    plt.close()
+    if save_path is not None:
+        plt.savefig(
+            join(save_path, "UMAP_unintegrated_comparison.png"),
+            dpi=200,
+            bbox_inches="tight",
+        )
+        plt.close()
 
     return adata
 
@@ -868,24 +967,39 @@ def dimensionality_reduction(
 def dimensionality_reduction_quick(
     adata: AnnData, save_path: str, point_size_factor=320000, logger=None
 ) -> AnnData:
-    """Run PCA and a single UMAP projection (n_neighbors=20, n_pcs=50) on the z-scored layer."""
+    """Run PCA and ```a single``` UMAP projection (X_umap_20_50) on the z-scored layer of the input AnnData object.
+
+    Exports PCA.png and UMAP_unintegrated_comparison.png.
+
+    Args:
+        adata (AnnData): Annotated data matrix with a 'zscore' layer and relevant metadata in .obs.
+        save_path (str): Directory path to save PCA and UMAP plots.
+        point_size_factor (optional): Factor determining dot size in UMAP. Increase to get smaller dots.
+        logger (optional): Logger instance for status messages.
+
+    Returns:
+        AnnData: updated AnnData object with PCA and UMAP embedding added to .obsm.
+    """
     adata.X = adata.layers["zscore"]
-    sc.settings.figdir = save_path
 
     if logger:
         logger.info("Dimensionality reduction: PCA")
+    
     sc.pp.pca(adata, svd_solver="arpack")
-    fig, axs = plt.subplots(1, 2, figsize=(20, 8), gridspec_kw={"wspace": 0.25})
-    with plt.ioff():
-        sc.pl.pca_scatter(adata, color="n_counts", ax=axs[0], show=False)
-    var_ratio = adata.uns["pca"]["variance_ratio"]
-    axs[1].plot(np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-")
-    axs[1].set_yscale("log")
-    axs[1].set_xlabel("Principal component")
-    axs[1].set_ylabel("Variance ratio")
-    axs[1].set_title("PCA variance ratio")
-    fig.savefig(join(save_path, "PCA.png"))
-    plt.close(fig)
+    
+    if save_path is not None:
+        fig, axs = plt.subplots(1, 2, figsize=(20, 8), gridspec_kw={"wspace": 0.25})
+        with plt.ioff():
+            sc.pl.pca_scatter(adata, color="n_counts", ax=axs[0], show=False)
+        var_ratio = adata.uns["pca"]["variance_ratio"]
+    
+        axs[1].plot(np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-")
+        axs[1].set_yscale("log")
+        axs[1].set_xlabel("Principal component")
+        axs[1].set_ylabel("Variance ratio")
+        axs[1].set_title("PCA variance ratio")
+        fig.savefig(join(save_path, "PCA.png"))
+        plt.close(fig)
 
     # Single UMAP
     config = {"n_neighbors": 20, "n_pcs": 50, "key": "X_umap_20_50"}
@@ -903,28 +1017,29 @@ def dimensionality_reduction_quick(
     adata.obsp.pop("distances", None)
     adata.obsp.pop("connectivities", None)
 
-    fig, axs = plt.subplots(1, 3, figsize=(30, 7), gridspec_kw={"wspace": 0.6})
-    for col, color_scheme in enumerate(color_schemes):
-        with plt.ioff():
-            with plt.style.context("default"):
-                with mpl.rc_context({"figure.figsize": (7, 7)}):
-                    sc.pl.embedding(
-                        adata,
-                        ax=axs[col],
-                        basis=config["key"],
-                        size=point_size_factor / adata.shape[0],
-                        color=color_scheme,
-                        title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
-                        show=False,
-                    )
-                    axs[col].legend(ncols=1, loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
-
-    plt.savefig(
-        join(save_path, "UMAP_unintegrated_comparison.png"),
-        dpi=200,
-        bbox_inches="tight",
-    )
-    plt.close()
+    if save_path is not None:
+        fig, axs = plt.subplots(1, 3, figsize=(30, 7), gridspec_kw={"wspace": 0.6})
+        for col, color_scheme in enumerate(color_schemes):
+            with plt.ioff():
+                with plt.style.context("default"):
+                    with mpl.rc_context({"figure.figsize": (7, 7)}):
+                        sc.pl.embedding(
+                            adata,
+                            ax=axs[col],
+                            basis=config["key"],
+                            size=point_size_factor / adata.shape[0],
+                            color=color_scheme,
+                            title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
+                            show=False,
+                        )
+                        axs[col].legend(ncols=1, loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
+    
+        plt.savefig(
+            join(save_path, "UMAP_unintegrated_comparison.png"),
+            dpi=200,
+            bbox_inches="tight",
+        )
+        plt.close()
 
     return adata
 
@@ -963,7 +1078,6 @@ def integration_harmony(
             - obsm['X_umap_harmony_n_n']: UMAP from harmony coordinates
             - obsp['neighbors_harmony_n_n']: Neighbor graph from harmony coordinates
     """
-    sc.settings.figdir = save_path
     adata.X = adata.layers["zscore"]
 
     if logger:
@@ -986,9 +1100,10 @@ def integration_harmony(
 
     sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key, n_components=2)
 
-    _plot_integration_comparison(
-        adata, save_path, umap_key, point_size_factor=point_size_factor
-    )
+    if save_path is not None:
+        _plot_integration_comparison(
+            adata, save_path, umap_key, point_size_factor=point_size_factor
+        )
 
     # 3D UMAP
     sc.tl.umap(
@@ -997,23 +1112,24 @@ def integration_harmony(
         key_added=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
         n_components=3,
     )
-    with mpl.rc_context({"figure.figsize": (8, 8)}):
-        sc.pl.embedding(
-            adata,
-            basis=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
-            color=["sample", "condition", "cell_type_mmc_raw_revised"],
-            size=point_size_3d,
-            alpha=point_alpha_3d,
-            wspace=0.1,
-            show=False,
-            projection="3d",
-        )
-        plt.savefig(
-            join(save_path, "UMAP_integrated_harmony_3D.png"),
-            dpi=200,
-            bbox_inches="tight",
-        )
-        plt.close()
+    if save_path is not None:
+        with mpl.rc_context({"figure.figsize": (8,8)}):
+            sc.pl.embedding(
+                adata,
+                basis=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
+                color=["sample", "condition", "cell_type_mmc_raw_revised"],
+                size=point_size_3d,
+                alpha=point_alpha_3d,
+                wspace=0.1,
+                show=False,
+                projection="3d",
+            )
+            plt.savefig(
+                join(save_path, "UMAP_integrated_harmony_3D.png"),
+                dpi=150,
+                bbox_inches="tight",
+            )
+            plt.close()
 
     return adata
 
@@ -1022,14 +1138,13 @@ def _plot_integration_comparison(
     adata: AnnData, save_path: str, umap_key: str, point_size_factor: int = 320000
 ) -> None:
     """Helper function to plot before/after integration comparison."""
+
     fig, axes = plt.subplots(
-        3, 2, figsize=(20, 24), gridspec_kw={"hspace": 0.05, "wspace": 0}
+        3, 2, figsize=(16, 20), gridspec_kw={"hspace": 0.05, "wspace": -0.25}
     )
 
-    fig.text(0.32, 0.9, "Unintegrated", fontsize=24, fontweight="normal", ha="center")
-    fig.text(
-        0.72, 0.9, "Integrated (Harmony)", fontsize=24, fontweight="normal", ha="center"
-    )
+    fig.text(0.34, 0.89, "Unintegrated", fontsize=16, ha="center")
+    fig.text(0.68, 0.89, "Integrated (Harmony)", fontsize=16, ha="center")
 
     plot_configs = [
         ("sample", "Sample"),
@@ -1038,6 +1153,7 @@ def _plot_integration_comparison(
     ]
 
     for i, (color_key, label) in enumerate(plot_configs):
+        # Unintegrated
         sc.pl.embedding(
             adata,
             basis=umap_key.replace("_harmony", ""),
@@ -1052,6 +1168,7 @@ def _plot_integration_comparison(
         axes[i, 0].set_ylabel("")
         axes[i, 0].set_aspect("equal")
 
+        # Integrated
         sc.pl.embedding(
             adata,
             basis=umap_key,
@@ -1067,20 +1184,14 @@ def _plot_integration_comparison(
         axes[i, 1].set_aspect("equal")
 
         axes[i, 0].text(
-            -0.1,
-            0.5,
-            label,
-            transform=axes[i, 0].transAxes,
-            fontsize=20,
-            fontweight="normal",
-            rotation=90,
-            verticalalignment="center",
-            horizontalalignment="center",
+            -0.05, 0.5, label, transform=axes[i, 0].transAxes,
+            fontsize=14, rotation=90, va="center", ha="center",
         )
 
     plt.tight_layout()
     plt.savefig(
-        join(save_path, "UMAP_integrated_harmony.png"), dpi=200, bbox_inches="tight"
+        join(save_path, "UMAP_integrated_harmony.png"),
+        dpi=150, bbox_inches="tight"
     )
     plt.close()
 

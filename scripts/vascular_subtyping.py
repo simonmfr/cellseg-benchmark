@@ -144,6 +144,13 @@ sub_adata = annotate_cells_by_score(
     sub_adata, selected_EC_subtypes, out_col="ec_zonation", score_threshold=0.15
 )
 
+sub_adata.obs["ec_zonation"] = pd.Categorical(
+    sub_adata.obs["ec_zonation"], categories=list(cell_type_colors.keys())
+).remove_unused_categories()
+sub_adata.uns["ec_zonation_colors"] = [
+    cell_type_colors[ct] for ct in sub_adata.obs["ec_zonation"].cat.categories
+]
+
 with rc_context({"figure.figsize": (7, 6)}):
     sc.pl.embedding(
         sub_adata,
