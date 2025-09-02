@@ -52,6 +52,8 @@ def merge_adatas(
 
     adatas = []
     for name, adata in tqdm(adatas_list):
+        if "spt_region" in adata.obs.columns:
+            del adata.obs["spt_region"]
         adata.obs["n_counts"] = adata.X.sum(axis=1)
         adata.obs["n_genes"] = adata.X.count_nonzero(axis=1)
         adatas.append(adata)

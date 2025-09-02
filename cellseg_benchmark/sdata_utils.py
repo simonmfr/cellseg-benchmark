@@ -288,6 +288,7 @@ def integrate_segmentation_data(
                     )
                 sdata_main[f"adata_{seg_method}"].obs["genotype"] = genotype
                 sdata_main[f"adata_{seg_method}"].obs["age_months"] = age_months
+                sdata_main[f"adata_{seg_method}"].obs["condition"] = genotype+"_"+str(age_months)
                 sdata_main[f"adata_{seg_method}"].obs["run_date"] = run_date
                 sdata_main[f"adata_{seg_method}"].obs["animal_id"] = animal_id
                 sdata_main[f"adata_{seg_method}"].obs["organism"] = organism
@@ -295,7 +296,7 @@ def integrate_segmentation_data(
                 sdata_main[f"adata_{seg_method}"].obs["slide"] = slide
                 sdata_main[f"adata_{seg_method}"].obs["region"] = region
                 sdata_main[f"adata_{seg_method}"].obs["sample"] = (
-                    cohort + "_" + slide + "_" + region
+                    cohort + "_s" + slide + "_r" + region
                 )
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
