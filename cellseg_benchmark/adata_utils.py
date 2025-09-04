@@ -1078,8 +1078,8 @@ def integration_harmony(
     sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key, n_components=2)
 
     if save_path is not None:
-_plot_integration_comparison(
-            adata, save_path=save_path / "plots" , umap_key= f"X_umap_harmony_20_50", batch_key="slide", point_size_factor=300000
+        _plot_integration_comparison(
+            adata, save_path=save_path, umap_key=umap_key, batch_key=batch_key, point_size_factor=point_size_factor
         )
 
     # 3D UMAP
@@ -1164,7 +1164,7 @@ def _plot_integration_comparison(
         ax.set_ylabel("")
 
     plt.savefig(
-        join(save_path, "UMAP_integrated_harmony2.png"),
+        join(save_path, "UMAP_integrated_harmony.png"),
         dpi=150, bbox_inches="tight"
     )
     plt.close()
