@@ -15,7 +15,6 @@ from anndata import AnnData, concat
 from matplotlib.path import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tqdm import tqdm
-
 from cellseg_benchmark._constants import cell_type_colors
 
 
@@ -54,6 +53,8 @@ def merge_adatas(
     for name, adata in tqdm(adatas_list):
         if "spt_region" in adata.obs.columns:
             del adata.obs["spt_region"]
+        if not sp.issparse(adata.X):
+            adata.X = sp.csr_matrix(adata.X)
         adata.obs["n_counts"] = adata.X.sum(axis=1)
         adata.obs["n_genes"] = adata.X.count_nonzero(axis=1)
         adatas.append(adata)
@@ -313,7 +314,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
 def filter_spatial_outlier_cells(
     adata: AnnData,
     data_dir: str,
-    sample_paths_file: dict,
+    sample_metadata_file: dict,
     save_path: str,
     logger: logging.Logger = None,
     remove_outliers: bool = True,
@@ -328,7 +329,7 @@ def filter_spatial_outlier_cells(
         adata (AnnData): AnnData object with spatial coordinates in micron units
             in obsm["spatial"].
         data_dir (str): Directory containing sample subdirectories with CSV files.
-        sample_paths_file (dict): Dict that maps sample_name to Merscope output data path.
+        sample_metadata_file (dict): Dict that maps sample_name to Merscope output data path.
         save_path (str): Directory for saving plots.
         logger (logging.Logger, optional): Optional logger object. Defaults to None.
         remove_outliers (bool, optional): If True, remove outlier cells from adata.
@@ -399,7 +400,7 @@ def filter_spatial_outlier_cells(
 
         transform = np.loadtxt(
             join(
-                sample_paths_file[sample]["path"],
+                sample_metadata_file[sample]["path"],
                 "images",
                 "micron_to_mosaic_pixel_transform.csv",
             )
@@ -871,9 +872,9 @@ def plot_spatial_multiplot(
         plt.close(fig)
 
     return fig
+    
 
-
-def dimensionality_reduction(
+def pca_umap(
     adata: AnnData,
     save_path: str,
     point_size_factor=320000,
@@ -966,17 +967,16 @@ def dimensionality_reduction(
     return adata
 
 
-def dimensionality_reduction_quick(
-    adata: AnnData, save_path: str, point_size_factor=320000, logger=None
+def pca_umap_single(
+    adata: AnnData, save_path: str, logger=None
 ) -> AnnData:
     """Run PCA and ```a single``` UMAP projection (X_umap_20_50) on the z-scored layer of the input AnnData object.
 
-    Exports PCA.png and UMAP_unintegrated_comparison.png.
+    Exports PCA.png.
 
     Args:
         adata (AnnData): Annotated data matrix with a 'zscore' layer and relevant metadata in .obs.
-        save_path (str): Directory path to save PCA and UMAP plots.
-        point_size_factor (optional): Factor determining dot size in UMAP. Increase to get smaller dots.
+        save_path (str): Directory path to save PCA plot.
         logger (optional): Logger instance for status messages.
 
     Returns:
@@ -1005,7 +1005,6 @@ def dimensionality_reduction_quick(
 
     # Single UMAP
     config = {"n_neighbors": 20, "n_pcs": 50, "key": "X_umap_20_50"}
-    color_schemes = ["sample", "condition", "cell_type_mmc_raw_revised"]
 
     if logger:
         logger.info(f"Dimensionality reduction: UMAP with {config}")
@@ -1018,30 +1017,6 @@ def dimensionality_reduction_quick(
     adata.uns.pop("neighbors", None)
     adata.obsp.pop("distances", None)
     adata.obsp.pop("connectivities", None)
-
-    if save_path is not None:
-        fig, axs = plt.subplots(1, 3, figsize=(30, 7), gridspec_kw={"wspace": 0.6})
-        for col, color_scheme in enumerate(color_schemes):
-            with plt.ioff():
-                with plt.style.context("default"):
-                    with mpl.rc_context({"figure.figsize": (7, 7)}):
-                        sc.pl.embedding(
-                            adata,
-                            ax=axs[col],
-                            basis=config["key"],
-                            size=point_size_factor / adata.shape[0],
-                            color=color_scheme,
-                            title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
-                            show=False,
-                        )
-                        axs[col].legend(ncols=1, loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
-    
-        plt.savefig(
-            join(save_path, "UMAP_unintegrated_comparison.png"),
-            dpi=200,
-            bbox_inches="tight",
-        )
-        plt.close()
 
     return adata
 
@@ -1103,8 +1078,8 @@ def integration_harmony(
     sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key, n_components=2)
 
     if save_path is not None:
-        _plot_integration_comparison(
-            adata, save_path, umap_key, point_size_factor=point_size_factor
+_plot_integration_comparison(
+            adata, save_path=save_path / "plots" , umap_key= f"X_umap_harmony_20_50", batch_key="slide", point_size_factor=300000
         )
 
     # 3D UMAP
@@ -1137,21 +1112,20 @@ def integration_harmony(
 
 
 def _plot_integration_comparison(
-    adata: AnnData, save_path: str, umap_key: str, point_size_factor: int = 320000
+    adata: AnnData, save_path: str, umap_key: str, batch_key: str, point_size_factor: int = 320000
 ) -> None:
     """Helper function to plot before/after integration comparison."""
 
-    fig, axes = plt.subplots(
-        3, 2, figsize=(16, 20), gridspec_kw={"hspace": 0.05, "wspace": -0.25}
-    )
-
-    fig.text(0.34, 0.89, "Unintegrated", fontsize=16, ha="center")
-    fig.text(0.68, 0.89, "Integrated (Harmony)", fontsize=16, ha="center")
+    fig, axes = plt.subplots(4, 2, figsize=(17, 22), gridspec_kw={"hspace": 0.01, "wspace": -0.54})
+    
+    fig.text(0.40, 0.89, "Unintegrated", fontsize=16, ha="center")
+    fig.text(0.62, 0.89, f"Integrated (Harmony{f'; by {batch_key}' if batch_key else ''})", fontsize=16, ha="center")
 
     plot_configs = [
         ("sample", "Sample"),
+        ("slide", "Slide"),
         ("condition", "Condition"),
-        ("cell_type_mmc_raw_revised", "Cell Type"),
+        ("cell_type_mmc_raw_revised", "Cell Type")
     ]
 
     for i, (color_key, label) in enumerate(plot_configs):
@@ -1166,9 +1140,6 @@ def _plot_integration_comparison(
             legend_loc=None,
             title="",
         )
-        axes[i, 0].set_xlabel("")
-        axes[i, 0].set_ylabel("")
-        axes[i, 0].set_aspect("equal")
 
         # Integrated
         sc.pl.embedding(
@@ -1181,21 +1152,91 @@ def _plot_integration_comparison(
             legend_loc="right margin",
             title="",
         )
-        axes[i, 1].set_xlabel("")
-        axes[i, 1].set_ylabel("")
-        axes[i, 1].set_aspect("equal")
 
         axes[i, 0].text(
             -0.05, 0.5, label, transform=axes[i, 0].transAxes,
             fontsize=14, rotation=90, va="center", ha="center",
         )
+    
+    for ax in axes.ravel():
+        ax.set_aspect("equal", adjustable="box")
+        ax.set_xlabel("")
+        ax.set_ylabel("")
 
-    plt.tight_layout()
     plt.savefig(
-        join(save_path, "UMAP_integrated_harmony.png"),
+        join(save_path, "UMAP_integrated_harmony2.png"),
         dpi=150, bbox_inches="tight"
     )
     plt.close()
+
+
+def plot_pseudobulk_pca(adata_pb, args, output_dir, cell_type_colors, logger):
+    """Generate and save a PCA plot of pseudobulk data.
+
+    Plotting is skipped if the output file exists.
+
+    Args:
+        adata_pb (AnnData): Pseudobulk AnnData object.
+        args (Namespace): Arguments containing `subset_key` and `seg_method`.
+        output_dir (Path): Directory where the PCA plot will be saved.
+        cell_type_colors (Dict[str, str]): Mapping of cell type names to colors.
+        logger (logging.Logger): Logger instance for informational messages.
+
+    Returns:
+        None
+    """
+    output_file = output_dir / "pseudobulk_pca.png"
+    if output_file.exists():
+        logger.info(f"Skipping PCA plot, file already exists: {output_file}")
+        return
+
+    logger.info("Plotting covariates on PCA...")
+    adata = adata_pb.copy()
+
+    if "all" in adata.obs[args.subset_key].values:
+        adata = adata[adata.obs[args.subset_key] != "all"].copy()
+
+    assert np.issubdtype(adata.X.dtype, np.integer)
+
+    adata = normalize_counts(
+        adata,
+        save_path=None,
+        seg_method=args.seg_method,
+        trim_outliers=False,
+        volume_col="volume_sum",
+        logger=logger,
+    )
+    adata.X = adata.layers["zscore"]
+
+    # set categories + colors
+    adata.obs[args.subset_key] = (
+        adata.obs[args.subset_key].str.replace("-", "_")
+        .astype("category")
+        .cat.set_categories([k.replace("-", "_") for k in cell_type_colors])
+        .cat.remove_unused_categories()
+    )
+    adata.uns[args.subset_key + "_colors"] = [
+        cell_type_colors[k] for k in cell_type_colors
+        if k.replace("-", "_") in adata.obs[args.subset_key].cat.categories
+    ]
+
+    sc.pp.pca(adata)
+    fig = sc.pl.pca(
+        adata,
+        color=adata_pb.obs,
+        ncols=2,
+        size=75,
+        wspace=0.05,
+        show=False,
+        return_fig=True,
+    )
+    for ax in fig.axes:
+        if ax.get_label() != "<colorbar>":
+            ax.set_box_aspect(1)
+
+    plt.savefig(output_file, dpi=100, bbox_inches="tight")
+    plt.close()
+    del adata
 
 
 def clean_pca_umap(adata, logger=None):
