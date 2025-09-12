@@ -38,7 +38,7 @@ def _get_proseg_command(
     sdata: SpatialData, points_key: str, command_line_suffix: str
 ) -> str:
     feature_key = get_feature_key(sdata[points_key], raise_error=True)
-    return f"proseg transcripts.csv -x x -y y -z z --gene-column {feature_key} --cell-id-column cell_id --cell-id-unassigned=-1 {command_line_suffix}"
+    return f"proseg transcripts.csv -x x -y y -z z --gene-column {feature_key} {command_line_suffix}"
 
 
 def proseg(
