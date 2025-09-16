@@ -33,7 +33,7 @@ methods = [
     "vpt_3D_DAPI_PolyT",
     "vpt_3D_DAPI_nuclei",
     "vpt_3D_DAPI_PolyT_nuclei",
-    "ComSeg"
+    "ComSeg",
 ]
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"

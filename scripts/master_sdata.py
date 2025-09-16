@@ -21,7 +21,8 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("sample", help="Sample name.")
 parser.add_argument(
-    "data_path", help="Path to folder with merscope output data (e.g. /cohort1/slide2/region0)."
+    "data_path",
+    help="Path to folder with merscope output data (e.g. /cohort1/slide2/region0).",
 )
 parser.add_argument(
     "zmode", choices=["z3", "3d"], help="Mode of master sdata. Either 'z3' or '3d'."

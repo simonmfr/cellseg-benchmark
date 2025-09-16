@@ -23,14 +23,10 @@ logger.addHandler(handler)
 image_dir = os.path.join(args.path, "images")
 logger.info("Determine need for Transcript tiffs")
 dapi_levels = {
-    f.split(".")[0].split("_")[-1]
-    for f in os.listdir(image_dir)
-    if "DAPI" in f
+    f.split(".")[0].split("_")[-1] for f in os.listdir(image_dir) if "DAPI" in f
 }
 transcript_levels = {
-    f.split(".")[0].split("_")[-1]
-    for f in os.listdir(image_dir)
-    if "Transcripts" in f
+    f.split(".")[0].split("_")[-1] for f in os.listdir(image_dir) if "Transcripts" in f
 }
 z_levels = dapi_levels - transcript_levels
 logger.info(f"Reading transcript files from {args.path}")
@@ -73,4 +69,4 @@ for z in z_levels:
 
     image = (mean / np.max(image) * image).astype("uint16")
     imwrite(os.path.join(image_dir, f"mosaic_Transcripts_{z}.tif"), image)
-logger.info(f"Done")
+logger.info("Done")

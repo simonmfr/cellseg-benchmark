@@ -28,8 +28,8 @@ setup(
         "ovrlpy",
         "harmonypy",
         "IProgress",
-    #    "igraph"
-        "rtree"
+        #    "igraph"
+        "rtree",
     ],
     python_requires=">=3.11",
     classifiers=[

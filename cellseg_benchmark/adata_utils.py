@@ -15,6 +15,7 @@ from anndata import AnnData, concat
 from matplotlib.path import Path
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tqdm import tqdm
+
 from cellseg_benchmark._constants import cell_type_colors
 
 
@@ -711,7 +712,9 @@ def normalize_counts(
         lo, hi = np.percentile(row_sums_all, trim_percentiles)
         mask = (row_sums_all > lo) & (row_sums_all < hi)
         if logger:
-            logger.info(f"Cells before/after outlier removal during normalization: {adata.n_obs} -> {mask.sum()}")
+            logger.info(
+                f"Cells before/after outlier removal during normalization: {adata.n_obs} -> {mask.sum()}"
+            )
         for layer_name in list(adata.layers.keys()):
             m = adata.layers[layer_name]
             if sp.issparse(m) and not isinstance(m, sp.csr_matrix):
@@ -784,7 +787,9 @@ def normalize_counts(
         plt.close()
 
     mean_sum = np.ravel(adata.layers["volume_norm"].sum(1)).mean()
-    assert np.isclose(mean_sum, target_sum, rtol=1e-3), f"Mean sum {mean_sum} != target {target_sum}"
+    assert np.isclose(mean_sum, target_sum, rtol=1e-3), (
+        f"Mean sum {mean_sum} != target {target_sum}"
+    )
 
     return adata
 
@@ -824,34 +829,46 @@ def plot_spatial_multiplot(
     # palette: prefer AnnData-stored colors, else tab20
     if palette is None:
         stored = adata.uns.get(f"{obs_key}_colors")
-        base = (list(stored) if stored is not None else list(plt.cm.tab20.colors))[: len(categories)]
+        base = (list(stored) if stored is not None else list(plt.cm.tab20.colors))[
+            : len(categories)
+        ]
         palette = dict(zip(categories, base))
-    get_color = lambda v: palette.get(v, "#bdbdbd")
+
+    def _get_color(v):
+        return palette.get(v, "#bdbdbd")
 
     samples = pd.unique(adata.obs["sample"])
     n_rows = -(-len(samples) // n_cols)  # ceil division
 
     fig, axes = plt.subplots(
-        n_rows, n_cols,
+        n_rows,
+        n_cols,
         figsize=(figsize_per_ax * n_cols, figsize_per_ax * n_rows),
-        squeeze=False
+        squeeze=False,
     )
 
     for ax, sample in zip(axes.flat, samples):
         sd = adata[adata.obs["sample"] == sample]
         if sd.n_obs > max_points_per_sample:
-            sd = sc.pp.subsample(sd, n_obs=max_points_per_sample, random_state=42, copy=True)
+            sd = sc.pp.subsample(
+                sd, n_obs=max_points_per_sample, random_state=42, copy=True
+            )
 
         coords = sd.obsm["spatial"]
-        colors = [get_color(v) for v in sd.obs[obs_key].astype(object)]
+        colors = [_get_color(v) for v in sd.obs[obs_key].astype(object)]
         s = max(2, min(15, 30_000 / max(1, len(coords))))
 
-        ax.scatter(coords[:, 0], coords[:, 1], c=colors, s=s, alpha=0.75, edgecolors="none")
-        ax.set(title=str(sample)); ax.set_xticks([]); ax.set_yticks([])
-        for sp in ax.spines.values(): sp.set_visible(False)
+        ax.scatter(
+            coords[:, 0], coords[:, 1], c=colors, s=s, alpha=0.75, edgecolors="none"
+        )
+        ax.set(title=str(sample))
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spn in ax.spines.values():
+            spn.set_visible(False)
 
     # Hide any unused axes
-    for ax in axes.flat[len(samples):]:
+    for ax in axes.flat[len(samples) :]:
         ax.set_visible(False)
 
     if title:
@@ -859,20 +876,31 @@ def plot_spatial_multiplot(
 
     if add_legend:
         handles = [
-            plt.Line2D([0], [0], marker="o", ls="", mfc=get_color(cat), mec="none", ms=6, label=cat)
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                ls="",
+                mfc=_get_color(cat),
+                mec="none",
+                ms=6,
+                label=cat,
+            )
             for cat in categories
         ]
-        fig.legend(handles=handles, loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8)
+        fig.legend(
+            handles=handles, loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8
+        )
         fig.subplots_adjust(right=0.8)
 
     fig.tight_layout()
 
     if save_path and save_name:
-        fig.savefig(os.path.join(save_path, save_name), dpi=200, bbox_inches="tight")
+        fig.savefig(join(save_path, save_name), dpi=200, bbox_inches="tight")
         plt.close(fig)
 
     return fig
-    
+
 
 def pca_umap(
     adata: AnnData,
@@ -898,14 +926,16 @@ def pca_umap(
     if logger:
         logger.info(f"Dimensionality reduction: PCA, n_jobs={sc.settings.n_jobs}")
     sc.pp.pca(adata, svd_solver="arpack")
-    
+
     if save_path is not None:
         fig, axs = plt.subplots(1, 2, figsize=(20, 8), gridspec_kw={"wspace": 0.25})
         with plt.ioff():
             sc.pl.pca_scatter(adata, color="n_counts", ax=axs[0], show=False)
         var_ratio = adata.uns["pca"]["variance_ratio"]
-    
-        axs[1].plot(np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-")
+
+        axs[1].plot(
+            np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-"
+        )
         axs[1].set_yscale("log")
         axs[1].set_xlabel("Principal component")
         axs[1].set_ylabel("Variance ratio")
@@ -924,7 +954,7 @@ def pca_umap(
         fig, axs = plt.subplots(
             3, 3, figsize=(30, 19), gridspec_kw={"wspace": 0.6, "hspace": 0.3}
         )
-    
+
     for row, config in enumerate(umap_configs):
         if logger:
             logger.info(
@@ -954,7 +984,12 @@ def pca_umap(
                                 title=f"UMAP unintegrated (n_neigh={config['n_neighbors']}, n_pcs={config['n_pcs']}) \n {color_scheme}",
                                 show=False,
                             )
-                            axs[row, col].legend(ncols=1, loc="upper left", bbox_to_anchor=(1, 1), frameon=False)
+                            axs[row, col].legend(
+                                ncols=1,
+                                loc="upper left",
+                                bbox_to_anchor=(1, 1),
+                                frameon=False,
+                            )
 
     if save_path is not None:
         plt.savefig(
@@ -967,9 +1002,7 @@ def pca_umap(
     return adata
 
 
-def pca_umap_single(
-    adata: AnnData, save_path: str, logger=None
-) -> AnnData:
+def pca_umap_single(adata: AnnData, save_path: str, logger=None) -> AnnData:
     """Run PCA and ```a single``` UMAP projection (X_umap_20_50) on the z-scored layer of the input AnnData object.
 
     Exports PCA.png.
@@ -986,16 +1019,18 @@ def pca_umap_single(
 
     if logger:
         logger.info("Dimensionality reduction: PCA")
-    
+
     sc.pp.pca(adata, svd_solver="arpack")
-    
+
     if save_path is not None:
         fig, axs = plt.subplots(1, 2, figsize=(20, 8), gridspec_kw={"wspace": 0.25})
         with plt.ioff():
             sc.pl.pca_scatter(adata, color="n_counts", ax=axs[0], show=False)
         var_ratio = adata.uns["pca"]["variance_ratio"]
-    
-        axs[1].plot(np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-")
+
+        axs[1].plot(
+            np.arange(1, len(var_ratio) + 1), var_ratio, marker="o", linestyle="-"
+        )
         axs[1].set_yscale("log")
         axs[1].set_xlabel("Principal component")
         axs[1].set_ylabel("Variance ratio")
@@ -1079,7 +1114,11 @@ def integration_harmony(
 
     if save_path is not None:
         _plot_integration_comparison(
-            adata, save_path=save_path, umap_key=umap_key, batch_key=batch_key, point_size_factor=point_size_factor
+            adata,
+            save_path=save_path,
+            umap_key=umap_key,
+            batch_key=batch_key,
+            point_size_factor=point_size_factor,
         )
 
     # 3D UMAP
@@ -1090,7 +1129,7 @@ def integration_harmony(
         n_components=3,
     )
     if save_path is not None:
-        with mpl.rc_context({"figure.figsize": (8,8)}):
+        with mpl.rc_context({"figure.figsize": (8, 8)}):
             sc.pl.embedding(
                 adata,
                 basis=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
@@ -1112,20 +1151,31 @@ def integration_harmony(
 
 
 def _plot_integration_comparison(
-    adata: AnnData, save_path: str, umap_key: str, batch_key: str, point_size_factor: int = 320000
+    adata: AnnData,
+    save_path: str,
+    umap_key: str,
+    batch_key: str,
+    point_size_factor: int = 320000,
 ) -> None:
     """Helper function to plot before/after integration comparison."""
+    fig, axes = plt.subplots(
+        4, 2, figsize=(17, 22), gridspec_kw={"hspace": 0.01, "wspace": -0.54}
+    )
 
-    fig, axes = plt.subplots(4, 2, figsize=(17, 22), gridspec_kw={"hspace": 0.01, "wspace": -0.54})
-    
     fig.text(0.40, 0.89, "Unintegrated", fontsize=16, ha="center")
-    fig.text(0.62, 0.89, f"Integrated (Harmony{f'; by {batch_key}' if batch_key else ''})", fontsize=16, ha="center")
+    fig.text(
+        0.62,
+        0.89,
+        f"Integrated (Harmony{f'; by {batch_key}' if batch_key else ''})",
+        fontsize=16,
+        ha="center",
+    )
 
     plot_configs = [
         ("sample", "Sample"),
         ("slide", "Slide"),
         ("condition", "Condition"),
-        ("cell_type_mmc_raw_revised", "Cell Type")
+        ("cell_type_mmc_raw_revised", "Cell Type"),
     ]
 
     for i, (color_key, label) in enumerate(plot_configs):
@@ -1154,18 +1204,23 @@ def _plot_integration_comparison(
         )
 
         axes[i, 0].text(
-            -0.05, 0.5, label, transform=axes[i, 0].transAxes,
-            fontsize=14, rotation=90, va="center", ha="center",
+            -0.05,
+            0.5,
+            label,
+            transform=axes[i, 0].transAxes,
+            fontsize=14,
+            rotation=90,
+            va="center",
+            ha="center",
         )
-    
+
     for ax in axes.ravel():
         ax.set_aspect("equal", adjustable="box")
         ax.set_xlabel("")
         ax.set_ylabel("")
 
     plt.savefig(
-        join(save_path, "UMAP_integrated_harmony.png"),
-        dpi=150, bbox_inches="tight"
+        join(save_path, "UMAP_integrated_harmony.png"), dpi=150, bbox_inches="tight"
     )
     plt.close()
 
@@ -1210,13 +1265,15 @@ def plot_pseudobulk_pca(adata_pb, args, output_dir, cell_type_colors, logger):
 
     # set categories + colors
     adata.obs[args.subset_key] = (
-        adata.obs[args.subset_key].str.replace("-", "_")
+        adata.obs[args.subset_key]
+        .str.replace("-", "_")
         .astype("category")
         .cat.set_categories([k.replace("-", "_") for k in cell_type_colors])
         .cat.remove_unused_categories()
     )
     adata.uns[args.subset_key + "_colors"] = [
-        cell_type_colors[k] for k in cell_type_colors
+        cell_type_colors[k]
+        for k in cell_type_colors
         if k.replace("-", "_") in adata.obs[args.subset_key].cat.categories
     ]
 

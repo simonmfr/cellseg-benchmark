@@ -3,7 +3,6 @@ import logging
 import os
 import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from os.path import exists
 from pathlib import Path
 from typing import Tuple
 
@@ -11,17 +10,17 @@ import scanpy as sc
 import yaml
 from anndata import AnnData
 from spatialdata import read_zarr
-import sys
 
 from cellseg_benchmark.adata_utils import (
-    merge_adatas,
+    filter_genes,
     filter_low_quality_cells,
     filter_spatial_outlier_cells,
-    filter_genes,
+    integration_harmony,
+    merge_adatas,
     normalize_counts,
     pca_umap_single,
-    integration_harmony
 )
+
 
 def _load_one(
     sample_dir: Path, seg_method: str, logger: logging.Logger
@@ -33,6 +32,7 @@ def _load_one(
             logger.warning(f"Skipping {seg_method}. No such key: {seg_method}")
         return sample_dir.name, None
     return sample_dir.name, sdata[f"adata_{seg_method}"]
+
 
 warnings.filterwarnings("ignore", ".*The table is annotating*", UserWarning)
 sc.settings.n_jobs = -1
@@ -57,8 +57,10 @@ samples_path = base_path / "samples"
 save_path = base_path / "analysis" / args.cohort / args.seg_method
 save_path.mkdir(parents=True, exist_ok=True)
 
-with open(base_path / "misc" / "samples_excluded.yaml") as f:
-    excluded  = yaml.safe_load(f)
+sample_metadata_file, excluded = (
+    yaml.safe_load(open(base_path / "misc" / f))
+    for f in ["sample_metadata.yaml", "samples_excluded.yaml"]
+)
 excluded_samples = set(excluded.get(args.cohort, []))
 
 logger.info("Loading data...")
@@ -75,9 +77,7 @@ for sample_dir in samples_path.glob(f"{args.cohort}*"):
 with ProcessPoolExecutor(max_workers=int(os.getenv("SLURM_CPUS_PER_TASK", 1))) as ex:
     futures = {ex.submit(_load_one, p, args.seg_method, logger): p for p in loads}
     adata_list = [f.result() for f in as_completed(futures)]
-adata_list = [
-    (x, y) for x, y in adata_list if y is not None
-]
+adata_list = [(x, y) for x, y in adata_list if y is not None]
 
 # Merge and process
 adata = merge_adatas(
@@ -91,11 +91,11 @@ del adata_list
 
 # workaround to fix adata.obs formatting ###############
 adata.obs["sample"] = adata.obs["sample"].str.replace(
-    fr"^{args.cohort}_(\d+)_(\d+)$", 
-    fr"{args.cohort}_s\1_r\2", 
-    regex=True
+    rf"^{args.cohort}_(\d+)_(\d+)$", rf"{args.cohort}_s\1_r\2", regex=True
 )
-adata.obs["condition"] = adata.obs["genotype"].astype(str) + "_" + adata.obs["age_months"].astype(str)
+adata.obs["condition"] = (
+    adata.obs["genotype"].astype(str) + "_" + adata.obs["age_months"].astype(str)
+)
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 adata = filter_spatial_outlier_cells(
@@ -130,9 +130,7 @@ adata = normalize_counts(
     adata, save_path=save_path / "plots", seg_method=args.seg_method, logger=logger
 )
 
-adata = pca_umap_single(
-    adata, save_path=save_path / "plots", logger=logger
-)
+adata = pca_umap_single(adata, save_path=save_path / "plots", logger=logger)
 
 adata = integration_harmony(
     adata, batch_key="slide", save_path=save_path / "plots", logger=logger

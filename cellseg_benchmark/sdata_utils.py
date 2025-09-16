@@ -288,7 +288,9 @@ def integrate_segmentation_data(
                     )
                 sdata_main[f"adata_{seg_method}"].obs["genotype"] = genotype
                 sdata_main[f"adata_{seg_method}"].obs["age_months"] = age_months
-                sdata_main[f"adata_{seg_method}"].obs["condition"] = genotype+"_"+str(age_months)
+                sdata_main[f"adata_{seg_method}"].obs["condition"] = (
+                    genotype + "_" + str(age_months)
+                )
                 sdata_main[f"adata_{seg_method}"].obs["run_date"] = run_date
                 sdata_main[f"adata_{seg_method}"].obs["animal_id"] = animal_id
                 sdata_main[f"adata_{seg_method}"].obs["organism"] = organism
@@ -1208,7 +1210,7 @@ def _compute_3d_metrics(
                     )  # jitter coplanar cases
                     hv = hull.volume
                     solidity = (volume_trapz / hv) if hv > 0 else np.nan
-                except:
+                except Exception:
                     # fall back to deduped points (expensive; only if needed)
                     up = np.unique(all_points, axis=0)
                     if up.shape[0] >= 4:
@@ -1216,7 +1218,7 @@ def _compute_3d_metrics(
                             hull = ConvexHull(up, qhull_options="QJ")
                             hv = hull.volume
                             solidity = (volume_trapz / hv) if hv > 0 else np.nan
-                        except:
+                        except Exception:
                             solidity = np.nan
         metrics["solidity"] = solidity
 
