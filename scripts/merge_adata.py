@@ -65,7 +65,7 @@ excluded_samples = set(excluded.get(args.cohort, []))
 
 logger.info("Loading data...")
 loads = []
-for sample_dir in samples_path.glob(f"{args.cohort}*"):
+for sample_dir in samples_path.glob(f"{args.cohort}*"):  ###############
     if sample_dir.name in excluded_samples:
         continue
     if not (sample_dir / "sdata_z3.zarr").exists():
@@ -96,6 +96,7 @@ adata.obs["sample"] = adata.obs["sample"].str.replace(
 adata.obs["condition"] = (
     adata.obs["genotype"].astype(str) + "_" + adata.obs["age_months"].astype(str)
 )
+###############
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 adata = filter_spatial_outlier_cells(
@@ -133,7 +134,10 @@ adata = normalize_counts(
 adata = pca_umap_single(adata, save_path=save_path / "plots", logger=logger)
 
 adata = integration_harmony(
-    adata, batch_key="slide", save_path=save_path / "plots", logger=logger
+    adata,
+    batch_key="slide",
+    save_path=save_path / "plots",
+    logger=logger,
 )
 
 logger.info("Saving integrated object...")

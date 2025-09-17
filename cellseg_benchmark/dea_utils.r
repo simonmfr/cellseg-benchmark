@@ -1,8 +1,12 @@
-# adapted from https://www.sc-best-practices.org/conditions/differential_gene_expression.html
-library(dplyr)
-library(data.table)
-library(edgeR)
-library(MAST)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(data.table)
+  library(edgeR)   
+  library(variancePartition)
+  library(limma)
+  library(BiocParallel)
+  library(MAST)
+})
 
 edgeR_loop <- function(adata, group_i, edger_methods, test_groups, ref_group="WT",
                        condition_col="genotype", batch_col=NULL) {
@@ -32,8 +36,6 @@ edgeR_loop <- function(adata, group_i, edger_methods, test_groups, ref_group="WT
   out <- dplyr::bind_rows(res, .id="result_id")
   out$gene <- sub("[.][.][.].*", "", rownames(out)); rownames(out) <- NULL
   dplyr::select(out, gene, FC, dplyr::everything())
-  #out$subset <- as.character(group_i)
-  #out <- dplyr::relocate(out, subset, .before = 1)
 }
 
 edgeR_fit_model <- function(
@@ -111,6 +113,156 @@ edgeR_run_test <- function(fit, design, edger_method, test_group, ref_group){
   de
 }
 
+dream_fit_model <- function(
+  adata,
+  condition_col = "genotype",
+  ref_group     = "WT",
+  batch_col     = NULL,
+  threads       = 4,
+  min_count     = 2
+){
+  df <- as.data.frame(colData(adata))
+
+  condition <- droplevels(factor(df[[condition_col]]))
+  if (is.null(condition) || nlevels(condition) < 2) stop("condition invalid or <2 levels")
+  if (!(ref_group %in% levels(condition)))         stop("ref_group not in condition levels")
+  condition <- stats::relevel(condition, ref = ref_group)
+  df$condition <- condition
+
+  use_batch <- !is.null(batch_col) &&
+               batch_col %in% colnames(df) &&
+               nlevels(droplevels(factor(df[[batch_col]]))) > 1
+  if (use_batch) {
+    df$batch <- droplevels(factor(df[[batch_col]]))
+    form <- ~ condition + batch
+  } else {
+    form <- ~ condition
+  }
+
+  design <- model.matrix(form, df)
+  rk   <- qr(design)$rank
+  rdof <- nrow(design) - rk
+
+  summarize_counts <- function(df){
+    out <- c()
+    if ("condition" %in% colnames(df)) {
+      tc <- table(df$condition)
+      out <- c(out, paste0("conditions [", length(tc), "]: ",
+                           paste(sprintf("%s (n=%d)", names(tc), tc), collapse=", ")))
+    }
+    if ("batch" %in% colnames(df)) {
+      tb <- table(df$batch)
+      out <- c(out, paste0("batches [", length(tb), "]: ",
+                           paste(sprintf("batch %s (n=%d)", names(tb), tb), collapse=", ")))
+    }
+    paste(out, collapse=" | ")
+  }
+
+  if (rk < ncol(design)) {
+    ne <- limma::nonEstimable(design)
+    msg_counts <- summarize_counts(df)
+    message("  Skip: design not full rank. Non-estimable coef: ",
+            paste(ne, collapse=", "), " | ", msg_counts)
+    return(NULL)
+  }
+
+  if (rdof <= 0) {
+    msg_counts <- summarize_counts(df)
+    message("  Skip: no residual df. | ", msg_counts)
+    return(NULL)
+  }
+      
+  y <- edgeR::DGEList(assay(adata, "X"), group = df$condition)
+  keep <- edgeR::filterByExpr(y, min.count = min_count, design = model.matrix(form, df))
+  y <- y[keep, , keep.lib.sizes = FALSE]
+
+  vol <- colData(adata)[["volume_sum"]]
+  if (is.null(vol) || any(vol <= 0)) stop("Invalid 'volume_sum' in colData(adata)")
+  y$samples$lib.size <- vol
+  y <- edgeR::calcNormFactors(y)
+
+  bp   <- BiocParallel::SnowParam(as.numeric(threads), "SOCK", progressbar = TRUE)
+  vobj <- variancePartition::voomWithDreamWeights(y, form, df, BPPARAM = bp)
+  fit  <- variancePartition::dream(vobj, form, df)
+  fit  <- limma::eBayes(fit)
+
+  list(fit = fit, ref_group = ref_group)
+}
+
+dream_extract <- function(fit_obj, test_groups){
+  fit       <- fit_obj$fit
+  ref_group <- fit_obj$ref_group
+
+  res_list <- lapply(test_groups, function(tg){
+    coef_name <- paste0("condition", make.names(tg))
+    if (!(coef_name %in% colnames(coef(fit)))) return(NULL)
+
+    tt <- variancePartition::topTable(fit, coef = coef_name, number = Inf, sort.by = "P")
+    if (!nrow(tt)) return(NULL)
+
+    data.table::setnames(tt, old = c("P.Value", "adj.P.Val"),
+                             new = c("PValue",  "FDR"),
+                             skip_absent = TRUE)
+      
+    tt <- as.data.table(tt, keep.rownames = "gene") |>
+      dplyr::mutate(
+        FC         = 2^logFC,
+        method     = "DREAM",
+        test_group = tg,
+        ref        = ref_group,
+        test       = paste0(tg, "vs", ref_group)
+      )
+
+    data.table::setcolorder(tt, c("gene","FC", setdiff(names(tt), c("gene","FC"))))
+    tt
+  })
+
+  data.table::rbindlist(Filter(Negate(is.null), res_list))
+}
+
+dream_loop <- function(
+  adata,
+  group_i,
+  test_groups,
+  ref_group     = "WT",
+  condition_col = "genotype",
+  batch_col     = NULL,
+  threads       = 4,
+  min_count     = 2
+){
+  condition <- droplevels(factor(colData(adata)[[condition_col]]))
+  if (is.null(condition) || nlevels(condition) < 2) {
+    message(group_i, ": skip (condition invalid or <2 levels)"); return(NULL)
+  }
+  present <- intersect(test_groups, levels(condition))
+  if (!(ref_group %in% levels(condition)) || !length(present)) {
+    message(group_i, ": skip (ref_group/test_groups missing)"); return(NULL)
+  }
+  missing <- setdiff(test_groups, present)
+  message(group_i, ": ", paste(present, collapse="/"), " vs ", ref_group,
+          if (length(missing)) paste0(" (missing:", paste(missing, collapse=","), ")") else "")
+
+  o <- tryCatch(
+    dream_fit_model(adata, condition_col, ref_group, batch_col,
+                    threads = threads, min_count = min_count),
+    error = function(e){ message("  Skip: ", e$message); return(NULL) }
+  )
+  if (is.null(o)) return(NULL)
+
+  dream_extract(o, present)
+}
+
+
+
+
+
+
+
+
+
+
+
+         
 mastre_run <- function(adata,
                         group_i,
                         test_groups,

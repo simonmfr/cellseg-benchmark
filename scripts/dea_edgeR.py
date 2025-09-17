@@ -2,6 +2,7 @@ import argparse
 import logging
 import re
 import warnings
+from importlib.resources import files
 from pathlib import Path
 
 import anndata as ad
@@ -16,6 +17,7 @@ import scanpy as sc
 from rpy2.rinterface_lib.embedded import RRuntimeError
 from rpy2.robjects.conversion import localconverter
 
+import cellseg_benchmark as csb
 from cellseg_benchmark._constants import cell_type_colors
 from cellseg_benchmark.adata_utils import plot_pseudobulk_pca
 from cellseg_benchmark.dea_utils import (
@@ -121,8 +123,10 @@ if __name__ == "__main__":
     setattr(rcb, "consolewrite_warnerror", rcb.consolewrite_warn)
 
     conv = ro.default_converter + ro.pandas2ri.converter + anndata2ri.converter
-    r_script = Path(__file__).resolve().parent / "cellseg_benchmark" / "dea_utils.r"
-    ro.r["source"](str(r_script))
+    # r_script = Path(__file__).resolve().parent / "cellseg_benchmark" / "dea_utils.r"
+    # ro.r["source"](str(r_script))
+    # edgeR_loop = ro.globalenv["edgeR_loop"]
+    ro.r["source"](str(files(csb) / "dea_utils.r"))
     edgeR_loop = ro.globalenv["edgeR_loop"]
 
     base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
@@ -266,11 +270,6 @@ if __name__ == "__main__":
         ignore_index=True,
     ).drop(columns=["result_id"], errors="ignore")
 
-    order = ["subset", "test", "test_group", "ref", "edgeR_method"]
-    collapsed_df = collapsed_df[
-        order + [c for c in collapsed_df.columns if c not in order]
-    ]
-
     collapsed_df = add_group_sample_counts(
         collapsed_df,
         adatas_pb,
@@ -282,6 +281,24 @@ if __name__ == "__main__":
     )
     collapsed_df = collapsed_df.set_index("gene")
     collapsed_df.insert(collapsed_df.columns.get_loc("FC"), "gene", collapsed_df.index)
+
+    order = [
+        "subset",
+        "gene",
+        "FC",
+        "logFC",
+        "PValue",
+        "FDR",
+        "logCPM",
+        "LR",
+        "edgeR_method",
+        "test_group",
+        "ref",
+        "test",
+    ]
+    collapsed_df = collapsed_df[
+        order + [c for c in collapsed_df.columns if c not in order]
+    ]
 
     logger.info("Add ensembl gene ids...")
     collapsed_df = add_ensembl_id(collapsed_df, logger=logger)

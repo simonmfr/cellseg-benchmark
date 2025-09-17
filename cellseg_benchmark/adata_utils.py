@@ -1063,7 +1063,7 @@ def integration_harmony(
     logger: logging.Logger = None,
     n_neighbors: int = 20,
     n_pcs: int = 50,
-    point_size_factor: int = 320000,
+    point_size_factor: int = 200000,
     point_size_3d: int = 0.5,
     point_alpha_3d: int = 0.02,
 ) -> AnnData:
