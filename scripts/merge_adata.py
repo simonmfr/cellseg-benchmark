@@ -65,7 +65,7 @@ excluded_samples = set(excluded.get(args.cohort, []))
 
 logger.info("Loading data...")
 loads = []
-for sample_dir in samples_path.glob(f"{args.cohort}*"):  ###############
+for sample_dir in samples_path.glob(f"{args.cohort}*"):
     if sample_dir.name in excluded_samples:
         continue
     if not (sample_dir / "sdata_z3.zarr").exists():
@@ -78,6 +78,13 @@ with ProcessPoolExecutor(max_workers=int(os.getenv("SLURM_CPUS_PER_TASK", 1))) a
     futures = {ex.submit(_load_one, p, args.seg_method, logger): p for p in loads}
     adata_list = [f.result() for f in as_completed(futures)]
 adata_list = [(x, y) for x, y in adata_list if y is not None]
+
+# temp fix for aging_s11_r0
+for i, (name, ad) in enumerate(adata_list):
+    if name == "aging_s11_r0":
+        ad.obs["region"] = "0"
+    ad.obs["region"] = ad.obs["region"].astype(str).astype("category")
+    adata_list[i] = (name, ad)
 
 # Merge and process
 adata = merge_adatas(

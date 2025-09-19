@@ -264,7 +264,7 @@ def add_group_sample_counts(
     counts = pd.concat(
         [
             (
-                a.obs.groupby(condition_key)[sample_key]
+                a.obs.groupby(condition_key, observed=True)[sample_key]
                 .nunique()
                 .rename("n_samples")
                 .reset_index()

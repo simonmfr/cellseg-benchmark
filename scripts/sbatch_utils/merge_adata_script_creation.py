@@ -63,7 +63,7 @@ for method in methods:
     else:
         time_limit = "06:00:00"
 
-    memory = "700G" if "Negative_Control" in method else "500G"
+    memory = "700G" if "Negative_Control" in method else "350G"
 
     with open(f"{sbatch_path}/{args.cohort}_{method}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash

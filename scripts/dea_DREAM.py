@@ -181,11 +181,18 @@ if __name__ == "__main__":
         args.condition_key,
         args.subset_key,
         args.sample_key,
-        args.batch_key,
         "n_cells_sum",
         "volume_mean",
         "volume_sum",
     ]
+    if args.batch_key and args.batch_key in adata.obs.columns:
+        obs_to_keep.append(args.batch_key)
+    else:
+        logger.warning(
+            f"Batch column '{args.batch_key}' was not found in adata.obs "
+            "or is invalid. Continuing **without** a batch covariate."
+        )
+        args.batch_key = None
 
     logger.info("Run pseudobulking...")
     total = len(groups_to_process)

@@ -2,7 +2,7 @@ import logging
 import math
 import re
 from os.path import isfile, join
-from typing import List, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -1063,7 +1063,7 @@ def integration_harmony(
     logger: logging.Logger = None,
     n_neighbors: int = 20,
     n_pcs: int = 50,
-    point_size_factor: int = 200000,
+    point_size_factor: int = 150000,
     point_size_3d: int = 0.5,
     point_alpha_3d: int = 0.02,
 ) -> AnnData:
@@ -1113,7 +1113,7 @@ def integration_harmony(
     sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key, n_components=2)
 
     if save_path is not None:
-        _plot_integration_comparison(
+        plot_integration_comparison(
             adata,
             save_path=save_path,
             umap_key=umap_key,
@@ -1150,77 +1150,110 @@ def integration_harmony(
     return adata
 
 
-def _plot_integration_comparison(
+def plot_integration_comparison(
     adata: AnnData,
     save_path: str,
     umap_key: str,
-    batch_key: str,
-    point_size_factor: int = 320000,
+    batch_key: Optional[str] = None,
+    color_keys: Optional[Sequence[tuple[str, str]]] = None,
+    point_size_factor: int = 150000,
+    dpi: int = 200,
+    filename: str = "UMAP_integrated_harmony.png",
 ) -> None:
-    """Helper function to plot before/after integration comparison."""
-    fig, axes = plt.subplots(
-        4, 2, figsize=(17, 22), gridspec_kw={"hspace": 0.01, "wspace": -0.54}
-    )
-
-    fig.text(0.40, 0.89, "Unintegrated", fontsize=16, ha="center")
-    fig.text(
-        0.62,
-        0.89,
-        f"Integrated (Harmony{f'; by {batch_key}' if batch_key else ''})",
-        fontsize=16,
-        ha="center",
-    )
-
-    plot_configs = [
+    """Before/after integration UMAPs in two columns ."""
+    cfg = color_keys or [
         ("sample", "Sample"),
         ("slide", "Slide"),
         ("condition", "Condition"),
         ("cell_type_mmc_raw_revised", "Cell Type"),
     ]
+    cfg = [(k, lbl) for k, lbl in cfg if k in adata.obs.columns]
+    if not cfg:
+        return
 
-    for i, (color_key, label) in enumerate(plot_configs):
-        # Unintegrated
+    if umap_key.replace("_harmony", "") not in adata.obsm or umap_key not in adata.obsm:
+        raise KeyError("Requested embedding(s) not found in adata.obsm")
+
+    nrows = len(cfg)
+    fig, axes = plt.subplots(
+        nrows,
+        2,
+        figsize=(7.5, 4 * nrows),
+        gridspec_kw={"wspace": 0.02, "hspace": 0.02},
+    )
+    if nrows == 1:
+        axes = axes.reshape(1, 2)
+
+    fig.subplots_adjust(
+        left=0.06, right=0.98, top=0.90, bottom=0.06, wspace=0.02, hspace=0.02
+    )
+
+    # Column headers
+    left_box = axes[0, 0].get_position(fig)
+    right_box = axes[0, 1].get_position(fig)
+    top_y = max(left_box.y1, right_box.y1) + 0.005
+    fig.text(
+        left_box.x0 + left_box.width / 2,
+        top_y,
+        "Unintegrated",
+        ha="center",
+        va="bottom",
+        fontsize=13,
+    )
+    fig.text(
+        right_box.x0 + right_box.width / 2,
+        top_y,
+        f"Integrated (Harmony{f'; by {batch_key}' if batch_key else ''})",
+        ha="center",
+        va="bottom",
+        fontsize=13,
+    )
+
+    # Plot rows
+    for i, (obs_key, row_label) in enumerate(cfg):
         sc.pl.embedding(
             adata,
             basis=umap_key.replace("_harmony", ""),
-            color=color_key,
-            show=False,
+            color=obs_key,
             ax=axes[i, 0],
-            size=point_size_factor / adata.shape[0],
+            show=False,
+            size=point_size_factor / adata.n_obs,
             legend_loc=None,
             title="",
         )
-
-        # Integrated
         sc.pl.embedding(
             adata,
             basis=umap_key,
-            color=color_key,
-            show=False,
+            color=obs_key,
             ax=axes[i, 1],
-            size=point_size_factor / adata.shape[0],
+            show=False,
+            size=point_size_factor / adata.n_obs,
             legend_loc="right margin",
+            legend_fontsize=8,
             title="",
         )
-
-        axes[i, 0].text(
-            -0.05,
-            0.5,
-            label,
-            transform=axes[i, 0].transAxes,
-            fontsize=14,
-            rotation=90,
+        axes[i, 0].annotate(
+            row_label,
+            xy=(-0.06, 0.5),
+            xycoords="axes fraction",
             va="center",
-            ha="center",
+            ha="right",
+            rotation=90,
+            fontsize=11,
         )
 
     for ax in axes.ravel():
-        ax.set_aspect("equal", adjustable="box")
+        if hasattr(ax, "set_box_aspect"):
+            ax.set_box_aspect(1)
+        else:
+            ax.set_aspect("equal", adjustable="datalim")
+        ax.set_xticks([])
+        ax.set_yticks([])
         ax.set_xlabel("")
         ax.set_ylabel("")
 
     plt.savefig(
-        join(save_path, "UMAP_integrated_harmony.png"), dpi=150, bbox_inches="tight"
+        join(save_path, filename), dpi=dpi, bbox_inches="tight", pad_inches=0.08
     )
     plt.close()
 
