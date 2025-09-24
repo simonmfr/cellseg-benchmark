@@ -36,7 +36,7 @@ for key, value in data.items():
 #SBATCH -J Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/sopa_proseg.sqsh"
 
 source ~/.bashrc
 conda activate sopa
