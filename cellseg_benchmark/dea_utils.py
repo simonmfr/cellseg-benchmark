@@ -12,7 +12,7 @@ from scipy.sparse import issparse
 
 def pseudobulk_aggregate_and_filter(
     adata: sc.AnnData,
-    subset_value: Optional[str],
+    subset_value: Optional[str] = None,
     sample_key: str = "sample",
     subset_key: str = "cell_type",
     min_cells: int = 15,

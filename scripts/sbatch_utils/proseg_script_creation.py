@@ -63,7 +63,7 @@ Cellpose_1_{args.staining}_model --voxel-layers {args.voxel}
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/sopa_proseg.sqsh"
 
-mamba activate sopa
+mamba activate sopa_2
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_Cellpose_{args.CP_version}_DAPI_{args.staining}
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_proseg.py {value["path"]} {key} \
 Cellpose_{args.CP_version}_DAPI_{args.staining} --voxel-layers {args.voxel}
