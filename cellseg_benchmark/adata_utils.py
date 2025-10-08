@@ -1002,14 +1002,22 @@ def pca_umap(
     return adata
 
 
-def pca_umap_single(adata: AnnData, save_path: str, logger=None) -> AnnData:
-    """Run PCA and ```a single``` UMAP projection (X_umap_20_50) on the z-scored layer of the input AnnData object.
+def pca_umap_single(
+    adata: AnnData,
+    save_path: str,
+    n_neighbors: int = 20,
+    n_pcs: int = 50,
+    logger=None
+) -> AnnData:
+    """Run PCA and a single UMAP projection on the z-scored layer of the input AnnData object.
 
     Exports PCA.png.
 
     Args:
         adata (AnnData): Annotated data matrix with a 'zscore' layer and relevant metadata in .obs.
         save_path (str): Directory path to save PCA plot.
+        n_neighbors (int, optional): Number of neighbors for UMAP. Default: 20.
+        n_pcs (int, optional): Number of principal components to use for UMAP. Default: 50.
         logger (optional): Logger instance for status messages.
 
     Returns:
@@ -1039,21 +1047,20 @@ def pca_umap_single(adata: AnnData, save_path: str, logger=None) -> AnnData:
         plt.close(fig)
 
     # Single UMAP
-    config = {"n_neighbors": 20, "n_pcs": 50, "key": "X_umap_20_50"}
+    key = f"X_umap_{n_neighbors}_{n_pcs}"
 
     if logger:
-        logger.info(f"Dimensionality reduction: UMAP with {config}")
+        logger.info(f"Dimensionality reduction: UMAP with n_neighbors={n_neighbors}, n_pcs={n_pcs}")
 
-    sc.pp.neighbors(adata, n_neighbors=config["n_neighbors"], n_pcs=config["n_pcs"])
-    sc.tl.umap(
-        adata, neighbors_key="neighbors", key_added=config["key"], n_components=2
-    )
+    sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
+    sc.tl.umap(adata, neighbors_key="neighbors", key_added=key, n_components=2)
 
     adata.uns.pop("neighbors", None)
     adata.obsp.pop("distances", None)
     adata.obsp.pop("connectivities", None)
 
     return adata
+
 
 
 def integration_harmony(
@@ -1252,9 +1259,12 @@ def plot_integration_comparison(
         ax.set_xlabel("")
         ax.set_ylabel("")
 
-    plt.savefig(
-        join(save_path, filename), dpi=dpi, bbox_inches="tight", pad_inches=0.08
-    )
+    if save_path:
+        plt.savefig(
+            join(save_path, filename), dpi=dpi, bbox_inches="tight", pad_inches=0.08
+        )
+    else:
+        plt.show()
     plt.close()
 
 

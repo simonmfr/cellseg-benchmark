@@ -264,12 +264,12 @@ dream_loop <- function(
 
          
 mastre_run <- function(adata,
-                        group_i,
-                        test_groups,
-                        ref_group,
-                        condition_col,
-                        sample_col,
-                        batch_col) {
+                       group_i,
+                       test_groups,
+                       ref_group,
+                       condition_col,
+                       sample_col,
+                       batch_col) {
   
   sca <- MAST::SceToSingleCellAssay(adata)
 
@@ -311,7 +311,7 @@ mastre_run <- function(adata,
 
     de <- merge(p_main, logfc, by = "gene", all.x = TRUE)
     de[, FDR := p.adjust(PValue, method = "BH")]
-    setorder(de, PValue)
+    data.table::setorder(de, PValue)
 
     de[, `:=`(
       subset_group = group_i,
@@ -325,8 +325,8 @@ mastre_run <- function(adata,
   })
 
   if (length(res_list) == 0) return(NULL)
-  res <- rbindlist(res_list, use.names = TRUE, fill = TRUE)
-  setDF(res)
+  res <- data.table::rbindlist(res_list, use.names = TRUE, fill = TRUE)
+  data.table::setDF(res)
   return(res)
 }
 

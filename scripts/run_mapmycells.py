@@ -49,12 +49,10 @@ if "SLURM_CPUS_PER_TASK" in os.environ:
 
 warnings.filterwarnings("ignore")
 
-parser = argparse.ArgumentParser(description="Compute mapmycells-output.")
-parser.add_argument("sample_name", help="Sample name.")
-parser.add_argument(
-    "method_name", help="Name of the method for which to compute cell type annotations."
-)
-parser.add_argument("data_dir", help="Sample name.")
+parser = argparse.ArgumentParser(description="Run cell type annotation using MapMyCells reference mapping to ABC mouse brain atlas.")
+parser.add_argument("sample_name", help="Sample name")
+parser.add_argument("seg_method", help="Segmentation method to annotate")
+parser.add_argument("data_dir", help="Base data directory")
 parser.add_argument(
     "--mad_factor",
     default=3,
@@ -66,7 +64,7 @@ args = parser.parse_args()
 mad_factor = args.mad_factor if args.mad_factor > 0 else 3
 
 path = os.path.join(
-    args.data_dir, "samples", args.sample_name, "results", args.method_name
+    args.data_dir, "samples", args.sample_name, "results", args.seg_method
 )
 annotation_path = os.path.join(path, "cell_type_annotation")
 os.makedirs(annotation_path, exist_ok=True)
@@ -84,7 +82,7 @@ logger.info("Running MapMyCells on mouse brain atlas")
 anno_utils.run_mapmycells(
     adata,
     sample_name=args.sample_name,
-    method_name=args.method_name,
+    method_name=args.seg_method,
     annotation_path=annotation_path,
     data_dir=args.data_dir,
 )
@@ -94,7 +92,7 @@ logger.info("Processing MapMyCells output")
 json_path = os.path.join(
     annotation_path,
     "mapmycells_out",
-    f"{today}_MapMyCells_{args.sample_name}_{args.method_name}.json",
+    f"{today}_MapMyCells_{args.sample_name}_{args.seg_method}.json",
 )
 with open(json_path, "rb") as src:
     json_results = json.load(src)
