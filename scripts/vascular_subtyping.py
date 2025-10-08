@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(1, "/dss/dsshome1/0C/ra98gaq/Git/cellseg-benchmark")
+
 import argparse
 import logging
 from pathlib import Path
@@ -15,7 +18,7 @@ from cellseg_benchmark._constants import (
 )
 from cellseg_benchmark.adata_utils import (
     clean_pca_umap,
-    dimensionality_reduction,
+    pca_umap_single,
     integration_harmony,
     normalize_counts,
 )
@@ -26,7 +29,7 @@ from cellseg_benchmark.cell_annotation_utils import (
 )
 
 # Logger Setup
-logger = logging.getLogger("vascular_subclustering")
+logger = logging.getLogger("vascular_subtyping")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
@@ -123,23 +126,24 @@ assert np.issubdtype(sub_adata.X.dtype, np.integer)
 sub_adata = normalize_counts(
     sub_adata, save_path=plot_path, seg_method=args.seg_method, logger=logger
 )
-sub_adata = dimensionality_reduction(
-    sub_adata, save_path=plot_path, point_size_factor=130000, logger=logger
+sub_adata = pca_umap_single(
+    sub_adata, n_neighbors=10, n_pcs=20, save_path=plot_path, logger=logger
 )
 sub_adata = integration_harmony(
     sub_adata,
-    batch_key="sample",
+    batch_key="slide",
     n_neighbors=10,
     n_pcs=20,
     save_path=plot_path,
     logger=logger,
 )
 
-# Annotate EC subtypes
 logger.info("Annotating EC zonation subtypes...")
+# Step 1: score marker genes
 sub_adata = score_cell_types(
     sub_adata, selected_EC_subtypes, top_n_genes=10, layer="volume_log1p_norm"
 )
+# Step 2: assign each cell by max scoring subtype
 sub_adata = annotate_cells_by_score(
     sub_adata, selected_EC_subtypes, out_col="ec_zonation", score_threshold=0.15
 )
@@ -179,10 +183,10 @@ ec_adata.X = ec_adata.layers["counts"]
 assert np.issubdtype(ec_adata.X.dtype, np.integer)
 
 ec_adata = normalize_counts(
-    ec_adata, save_path=plot_path_ecs, seg_method=args.seg_method, logger=logger
+    ec_adata, save_path=plot_path, seg_method=args.seg_method, logger=logger
 )
-ec_adata = dimensionality_reduction(
-    ec_adata, save_path=plot_path_ecs, point_size_factor=130000, logger=logger
+ec_adata = pca_umap_single(
+    ec_adata, n_neighbors=10, n_pcs=20, save_path=plot_path, logger=logger
 )
 
 # Plot EC zonation
