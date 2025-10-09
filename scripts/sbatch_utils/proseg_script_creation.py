@@ -39,7 +39,7 @@ for key, value in data.items():
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/sopa_proseg.sqsh"
 
 source ~/.bashrc
-conda activate sopa
+conda activate sopa_2
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_Cellpose_1_{args.staining}_model
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_proseg.py {value["path"]} {key} \
 Cellpose_1_{args.staining}_model --voxel-layers {args.voxel}
