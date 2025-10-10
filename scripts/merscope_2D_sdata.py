@@ -19,7 +19,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-assert any([".vzg" in file for file in os.listdir(args.save_path)]), (
+assert any(["cell_by_gene.csv" in file for file in os.listdir(args.save_path)]), (
     "not correctly computed"
 )
 sdata = merscope(
