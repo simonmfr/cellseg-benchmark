@@ -21,7 +21,7 @@ parser.add_argument("data_path", help="Path to data folder.")
 parser.add_argument("save_path", help="Path to output folder.")
 args = parser.parse_args()
 
-assert any(["cell_by_gene.csv" in file for file in listdir(args.save_path)]), (
+assert any(["cell_by_gene.csv" in file for file in listdir(join(args.save_path, "analysis_outputs"))]), (
     "not correctly computed"
 )
 logger.info("Loading data..")
