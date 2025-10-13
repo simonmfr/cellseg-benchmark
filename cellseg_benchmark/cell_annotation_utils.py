@@ -482,7 +482,7 @@ def process_adata(adata, seg_method, logger):
     )
     if not volume_col:
         raise ValueError(
-            "No 'area' or 'volume' column found in adata.obs; cannot process."
+            "No 'area' or 'volume' column found in adata.obs; cannot normalize counts."
         )
 
     adata = normalize_counts(
@@ -490,7 +490,7 @@ def process_adata(adata, seg_method, logger):
         save_path=None,
         seg_method=seg_method,
         target_sum=250,
-        trim_outliers=True,
+        trim_outliers=False,
         trim_percentiles=(1.0, 99.0),
         volume_col=volume_col,
         logger=logger,
