@@ -2,17 +2,19 @@ import os
 import subprocess
 import sys
 from datetime import date
+from pathlib import Path
 
 import anndata
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import scipy.sparse as sp
 import seaborn as sns
 from matplotlib.pyplot import rc_context
 from scipy import stats
 from scipy.stats import median_abs_deviation
+
+from cellseg_benchmark.adata_utils import normalize_counts
 
 
 def assign_cell_types_to_clusters(
@@ -51,7 +53,7 @@ def assign_cell_types_to_clusters(
 def assign_final_cell_types(
     adata,
     cluster_labels_dict,
-    match_dict,
+    mmc_to_score_dict,
     leiden_col,
     out_col="cell_type_final",
     score_threshold=0.25,
@@ -65,7 +67,7 @@ def assign_final_cell_types(
         Anndata object
     cluster_labels_dict : dict
         Dictionary mapping cluster IDs to initially assigned cell types, created by assign_cell_types_by_cluster()
-    match_dict : dict
+    mmc_to_score_dict : dict
         Dictionary mapping MapMyCells cell type names to their corresponding scanpy.tl.score_genes suffixes
     leiden_col : string
         Column in adata.obs containing Leiden clustering
@@ -82,7 +84,6 @@ def assign_final_cell_types(
     cluster_score_matrix : pandas.DataFrame
         Matrix of scores for each cluster-cell type combination
     """
-    # Initialize final cell types with Undefined
     adata.obs[out_col] = np.nan
 
     # Store reasons for undefined assignments
@@ -90,20 +91,16 @@ def assign_final_cell_types(
 
     # Initialize cluster-score matrix
     clusters = list(adata.obs[leiden_col].unique())
-    cell_types = list(match_dict.keys())
+    cell_types = list(mmc_to_score_dict.keys())
     cluster_score_matrix = pd.DataFrame(index=clusters, columns=cell_types, dtype=float)
 
-    # For each cluster
     for cluster in clusters:
-        # Get the cell type assigned by crosstab
         assigned_cell_type = cluster_labels_dict.get(cluster, "Undefined")
-
-        # Get cells in this cluster
         mask = adata.obs[leiden_col] == cluster
 
         # Collect all scores for this cluster
         all_scores = {}
-        for cell_type, score_suffix in match_dict.items():
+        for cell_type, score_suffix in mmc_to_score_dict.items():
             score_col = f"score_{score_suffix}"
             if score_col in adata.obs.columns:
                 mean_score = adata.obs.loc[mask, score_col].mean()
@@ -122,7 +119,7 @@ def assign_final_cell_types(
 
         # Get score for assigned cell type
         assigned_score_col = (
-            f"score_{match_dict.get(assigned_cell_type, assigned_cell_type)}"
+            f"score_{mmc_to_score_dict.get(assigned_cell_type, assigned_cell_type)}"
         )
         if assigned_score_col in adata.obs.columns:
             assigned_score = adata.obs.loc[mask, assigned_score_col].mean()
@@ -132,8 +129,9 @@ def assign_final_cell_types(
         # If highest score is above threshold, use it
         if highest_score > score_threshold:
             if highest_cell_type != assigned_cell_type:
-                logger.warning(
-                    f"    Cluster {cluster}: Reassigned from {assigned_cell_type} to {highest_cell_type} (higher score: {assigned_score:.4f} vs {highest_score:.4f})"
+                logger.info(
+                    f"    Cluster {cluster}: Reassigned from {assigned_cell_type} "
+                    f"to {highest_cell_type} (scores {assigned_score:.2f} → {highest_score:.2f}, Δ={highest_score - assigned_score:.2f})"
                 )
             adata.obs.loc[mask, out_col] = highest_cell_type
         else:
@@ -141,6 +139,115 @@ def assign_final_cell_types(
                 f"No cell type has score above threshold {score_threshold} (highest: {highest_cell_type} with {highest_score:.4f}). Set to undefined."
             )
             adata.obs.loc[mask, out_col] = "Undefined"
+
+    return adata, undefined_reasons, cluster_score_matrix
+
+
+def assign_final_cell_types_2(
+    adata,
+    cluster_labels_dict,
+    mmc_to_score_dict,
+    leiden_col,
+    out_col="cell_type_final",
+    score_high_threshold=0.5,  # high: reassign
+    score_low_threshold=0.25,  # low: set Undefined (only if no score ≥ score_low_threshold)
+    score_delta=0.2,
+    logger=None,
+):
+    """Assign final cell types based on cluster-mean marker gene scores.
+
+        - If highest_score ≥ score_high_threshold: reassign to highest-scoring cell type
+        - If all scores < score_low_threshold: mark cluster as 'Undefined'
+        - Otherwise: keep MMC majority vote label (no change)
+
+    Parameters
+    ----------
+    adata : AnnData
+        Annotated data matrix.
+    cluster_labels_dict : dict
+        Mapping from Leiden cluster ID → MMC-assigned cell type (majority vote).
+    mmc_to_score_dict : dict
+        Mapping from MMC cell type names → score column suffixes.
+    leiden_col : str
+        Column in adata.obs containing Leiden cluster IDs.
+    out_col : str, default "cell_type_final"
+        Column name for the final assigned cell type.
+    score_high_threshold : float, default 0.7
+        Minimum score to confidently reassign a cluster to the top-scoring cell type.
+    score_low_threshold : float, default 0.3
+        Threshold below which all scores are considered too weak → cluster set to 'Undefined'.
+    logger : logging.Logger, optional
+        Logger for progress reporting.
+
+    Returns:
+    -------
+    adata : AnnData
+        Updated AnnData with new column adata.obs[out_col].
+    undefined_reasons : dict
+        Reasons for why clusters were marked as 'Undefined'.
+    cluster_score_matrix : pd.DataFrame
+        Mean score per cluster and cell type.
+    """
+    adata.obs[out_col] = np.nan
+    undefined_reasons = {}
+    clusters = list(adata.obs[leiden_col].unique())
+    cell_types = list(mmc_to_score_dict.keys())
+    cluster_score_matrix = pd.DataFrame(index=clusters, columns=cell_types, dtype=float)
+
+    for cluster in clusters:
+        assigned_cell_type = cluster_labels_dict.get(cluster, "Undefined")
+        mask = adata.obs[leiden_col] == cluster
+
+        # Compute mean score per cell type for this cluster
+        all_scores = {}
+        for ct, suffix in mmc_to_score_dict.items():
+            col = f"score_{suffix}"
+            mean_score = (
+                adata.obs.loc[mask, col].mean() if col in adata.obs.columns else np.nan
+            )
+            all_scores[ct] = mean_score
+            cluster_score_matrix.loc[cluster, ct] = mean_score
+
+        valid_scores = {k: v for k, v in all_scores.items() if pd.notna(v)}
+        if not valid_scores:
+            undefined_reasons[cluster] = "No scores found for any cell type"
+            adata.obs.loc[mask, out_col] = "Undefined"
+            continue
+
+        highest_cell_type = max(valid_scores, key=valid_scores.get)
+        highest_score = valid_scores[highest_cell_type]
+        assigned_score = valid_scores.get(assigned_cell_type, np.nan)
+
+        # --- Decision logic ---
+        if highest_score >= score_high_threshold:
+            delta = (
+                (highest_score - assigned_score)
+                if not np.isnan(assigned_score)
+                else np.nan
+            )
+
+            if np.isnan(delta) or delta > score_delta:
+                # confident reassignment (only if delta > score_delta)
+                if highest_cell_type != assigned_cell_type and logger:
+                    logger.info(
+                        f"    Cluster {cluster}: Reassigned {assigned_cell_type} → {highest_cell_type} "
+                        f"(scores {assigned_score:.2f} → {highest_score:.2f}, Δ={delta:.2f})"
+                    )
+                adata.obs.loc[mask, out_col] = highest_cell_type
+            else:
+                adata.obs.loc[mask, out_col] = assigned_cell_type
+
+        elif all(v < score_low_threshold for v in valid_scores.values()):
+            # no sufficiently high score at all → undefined
+            top_ct, top_score = max(valid_scores.items(), key=lambda x: x[1])
+            undefined_reasons[cluster] = (
+                f"No cell type has score ≥ {score_low_threshold} (highest: {top_ct}={top_score:.2f})."
+            )
+            adata.obs.loc[mask, out_col] = "Undefined"
+
+        else:
+            # keep MMC majority label
+            adata.obs.loc[mask, out_col] = assigned_cell_type
 
     return adata, undefined_reasons, cluster_score_matrix
 
@@ -263,98 +370,6 @@ def group_cell_types(metadata_col):
     return result
 
 
-def map_gene_symbols_to_ensembl(adata, species="mouse", logger=None):
-    """Maps gene symbols in an AnnData object to Ensembl IDs.
-
-    Args:
-        adata: AnnData object with gene symbols in var['gene']
-        species: Species name for querying (default: 'mouse')
-        logger: Logger object (default: None)
-
-    Returns:
-        Updated AnnData object with Ensembl IDs in var['ensmus_id']
-    """
-    # load on demand
-    import mygene
-
-    mg = mygene.MyGeneInfo()
-
-    # Initial mapping of gene symbols to Ensembl IDs
-    gene_symbols = adata.var["gene"].unique().tolist()
-    results = mg.querymany(
-        gene_symbols,
-        scopes="symbol",
-        species=species,
-        fields="ensembl.gene",
-        returnall=True,
-    )
-
-    gene_to_ensembl = {}
-    for hit in results["out"]:
-        if hit.get("ensembl") and "gene" in hit["ensembl"]:
-            gene_to_ensembl[hit["query"]] = hit["ensembl"]["gene"]
-        else:
-            gene_to_ensembl[hit["query"]] = "NA"
-
-    adata.var["ensmus_id"] = adata.var["gene"].map(gene_to_ensembl)
-
-    # Handle missing Ensembl IDs
-    missing_genes = adata.var[adata.var["ensmus_id"] == "NA"]["gene"].unique().tolist()
-
-    # Query MyGene for extended info on missing genes
-    missing_results = mg.querymany(
-        missing_genes,
-        scopes=["symbol", "alias"],
-        species=species,
-        fields=["ensembl.gene", "symbol"],
-    )
-
-    ensembl_replacements = {}
-    symbol_replacements = {}
-    for result in missing_results:
-        if "ensembl" in result and "gene" in result["ensembl"]:
-            ensembl_replacements[result["query"]] = result["ensembl"]["gene"]
-            symbol_replacements[result["query"]] = result["symbol"]
-
-        # If still not found, try expansive search
-        if result["query"] not in ensembl_replacements:
-            expanded_search = mg.query(
-                result["query"] + "*",
-                species=species,
-                fields=["ensembl.gene", "symbol", "alias"],
-            )
-
-            if expanded_search["hits"]:
-                for hit in expanded_search["hits"]:
-                    aliases = hit.get("alias", [])
-                    if isinstance(aliases, str):
-                        aliases = [aliases]
-
-                    if (
-                        result["query"] in aliases
-                        and "ensembl" in hit
-                        and "gene" in hit["ensembl"]
-                    ):
-                        ensembl_replacements[result["query"]] = hit["ensembl"]["gene"]
-                        symbol_replacements[result["query"]] = hit["symbol"]
-                        break
-
-    # Apply replacements to both columns
-    for old_gene, new_gene in symbol_replacements.items():
-        mask = adata.var["gene"] == old_gene
-        adata.var.loc[mask, "gene"] = new_gene
-        adata.var.loc[mask, "ensmus_id"] = ensembl_replacements[old_gene]
-
-    # Summary statistics
-    genes_updated = len(symbol_replacements)
-    remaining_na = len(adata.var[adata.var["ensmus_id"] == "NA"]["gene"].unique())
-
-    logger.info("Genes updated: {}".format(genes_updated))
-    logger.info("Remaining gene symbols: {}".format(remaining_na))
-
-    return adata
-
-
 def mark_low_quality_mappings(metadata, target_column, mad_factor, level):
     """Add new column for low-quality mappings marked as "Undefined" based on correlation MAD threshold as suggested by Allen Institute."""
     level_key = f"{target_column}_{level}"
@@ -373,76 +388,6 @@ def mark_low_quality_mappings(metadata, target_column, mad_factor, level):
     # Create new column with either "Undefined" or original value
     metadata[out_key] = metadata[level_key]
     metadata.loc[low_quality_mask, out_key] = "Undefined"
-
-
-def normalize_counts(adata, method="area", target_sum=250, logger=None):
-    """Normalize counts by area/volume or library size, then compute log1p and z-score.
-
-    Parameters:
-    -----------
-    adata : AnnData
-        AnnData object with raw counts in .layers["counts"]
-    method : str, default="area"
-        Normalization method: "area", "volume", or "library"
-    target_sum : int, default=250
-        Target sum of counts per cell after normalization (250 used by Allen et al., 2024, Cell)
-
-    Returns:
-    --------
-    None, modifies adata in-place
-    """
-    if method == "library":
-        # Library size normalization
-        adata.layers["library_log1p_norm"] = adata.X.copy()
-        sc.pp.normalize_total(adata, target_sum=target_sum, layer="library_log1p_norm")
-        sc.pp.log1p(adata, layer="library_log1p_norm")
-        return adata
-
-    # Area/volume normalization
-    if method == "area":
-        if "area" in adata.obs.columns:
-            size_factor = adata.obs["area"].values
-            norm_layer_name = "area_norm"
-        elif "volume" in adata.obs.columns:
-            logger.warning("Area not found, using volume instead.")
-            size_factor = adata.obs["volume"].values
-            norm_layer_name = "volume_norm"
-        else:
-            raise ValueError("Neither 'area' nor 'volume' found in adata.obs.columns")
-    elif method == "volume":
-        if "volume" in adata.obs.columns:
-            size_factor = adata.obs["volume"].values
-            norm_layer_name = "volume_norm"
-        else:
-            raise ValueError("'volume' not found in adata.obs.columns")
-    else:
-        raise ValueError("Method must be one of: 'area', 'volume', or 'library'")
-
-    # Normalize by area/volume
-    adata.layers[norm_layer_name] = sp.csr_matrix(
-        sp.csr_matrix(adata.X, dtype=np.float32).multiply(1 / size_factor[:, None]),
-        dtype=np.float32,
-    )
-
-    # Scale to target sum
-    norm_matrix = adata.layers[norm_layer_name]
-    scaling_factors = target_sum / norm_matrix.sum(axis=1).A1
-    adata.layers[norm_layer_name] = norm_matrix.multiply(scaling_factors[:, None])
-
-    # Verify mean count matches target
-    assert round(adata.layers[norm_layer_name].sum(axis=1).mean()) == target_sum, (
-        f"normalized to {round(adata.layers[norm_layer_name].sum(axis=1).mean())}, norm_layer dtype: {type(adata.layers[norm_layer_name])}, adata shape: {adata.layers[norm_layer_name].shape}"
-    )
-
-    # Log-transform and z-score
-    log_layer_name = f"{norm_layer_name.split('_')[0]}_log1p_norm"
-    adata.layers[norm_layer_name] = sp.csr_matrix(adata.layers[norm_layer_name])
-    adata.layers[log_layer_name] = sc.pp.log1p(adata.layers[norm_layer_name], copy=True)
-    adata.layers["zscore"] = sc.pp.scale(
-        adata.layers[log_layer_name], zero_center=True, max_value=None, copy=True
-    )
-
-    return adata
 
 
 def plot_mad_thresholds(
@@ -505,7 +450,7 @@ def plot_mad_thresholds(
         return
 
 
-def process_adata(adata, logger):
+def process_adata(adata, seg_method, logger):
     """Preprocess AnnData object.
 
         - Filter cells
@@ -532,18 +477,30 @@ def process_adata(adata, logger):
         adata.layers["counts"] = adata.X.copy()
     adata.X = adata.layers["counts"].copy()
 
-    # Normalize counts
-    if "area" in adata.obs.columns:
-        normalize_counts(adata, method="area")
-    elif "volume" in adata.obs.columns:
-        normalize_counts(adata, method="volume")
+    volume_col = (
+        "area" if "area" in adata.obs else "volume" if "volume" in adata.obs else None
+    )
+    if not volume_col:
+        raise ValueError(
+            "No 'area' or 'volume' column found in adata.obs; cannot process."
+        )
 
-    normalize_counts(adata, method="library")
+    adata = normalize_counts(
+        adata,
+        save_path=None,
+        seg_method=seg_method,
+        target_sum=250,
+        trim_outliers=True,
+        trim_percentiles=(1.0, 99.0),
+        volume_col=volume_col,
+        logger=logger,
+    )
 
     selected_layer = "zscore"
     adata.X = adata.layers[selected_layer]
     logger.info(f"Using layer '{selected_layer}' for downstream analysis.")
 
+    logger.info("Running dim red...")
     sc.tl.pca(adata)
     sc.pp.neighbors(adata)
     sc.tl.umap(adata)
@@ -687,8 +644,9 @@ def revise_annotations(
     leiden_res=10.0,
     leiden_col=None,
     cell_type_colors=None,
-    mmc_to_score_dict=None,
-    score_threshold=0.5,
+    score_high_threshold=0.5,
+    score_low_threshold=0.25,
+    score_delta=0.2,
     top_n_genes=50,
     ABCAtlas_marker_df_path=None,
     logger=None,
@@ -703,8 +661,6 @@ def revise_annotations(
         Column containing leiden clusters
     cell_type_colors : dict
         Dictionary mapping cell types to colors.
-    mmc_to_score_dict : dict
-        Dictionary mapping cell type identifiers to their score cell types.
     score_threshold : float, default=0.5
         Threshold for cell type score to be considered valid.
     top_n_genes : int, default=50
@@ -714,12 +670,14 @@ def revise_annotations(
     """
     # Check if leiden clustering exists, run if not present
     if leiden_col not in adata.obs.columns:
-        logger.info(f"Running Leiden clustering with resolution {leiden_res}")
+        logger.info(f"Running Leiden clustering with resolution {leiden_res}...")
         sc.tl.leiden(adata, key_added=leiden_col, resolution=leiden_res)
     else:
-        logger.info(f"Using available Leiden clustering with resolution {leiden_res}")
+        logger.info(
+            f"Using available Leiden clustering with resolution {leiden_res}..."
+        )
 
-    logger.info("\n2. Scoring marker gene expression...")
+    logger.info("Scoring marker gene expression...")
 
     # load and format markers
     ABCAtlas_marker_df = pd.read_csv(ABCAtlas_marker_df_path)
@@ -734,12 +692,23 @@ def revise_annotations(
     del cell_type_dict["Bergmann"]  # too few cells
 
     # Score cell types using marker genes
-    adata = score_cell_types(
+    adata = score_cell_types_2(
         adata,
         marker_genes_dict=cell_type_dict,
         top_n_genes=top_n_genes,
         layer=None,
         logger=logger,
+    )
+
+    scored_types = [
+        c.replace("score_", "") for c in adata.obs.columns if c.startswith("score_")
+    ]
+    mmc_to_score_dict = {ct: ct for ct in scored_types}
+    # mmc-to-score cell type name matching (if not identical)
+    mmc_to_score_dict.update(
+        {
+            "Neurons-Dopa": "Neurons-Dopa-Gaba",
+        }
     )
 
     # Process each cell type annotation key
@@ -751,9 +720,9 @@ def revise_annotations(
     annotation_results = {}
 
     for key in annotation_keys:
-        logger.info(f"Processing {key}")
+        logger.info(f"--> Processing {key}")
 
-        logger.info("3. Assigning cell types to Leiden clusters using majority vote")
+        logger.info("Assigning cell types to Leiden clusters using majority vote...")
         assigned_cell_type_dict, normalized_percentage = assign_cell_types_to_clusters(
             adata, leiden_col=leiden_col, cell_type_col=key
         )
@@ -764,30 +733,49 @@ def revise_annotations(
         )
 
         logger.info(
-            "4. Revise majority vote using marker genes scores and identify final cell type"
+            "Revising majority vote using marker genes scores and identify final cell type..."
         )
-        adata, undefined_reasons, cluster_score_matrix = assign_final_cell_types(
+
+        # adata, undefined_reasons, cluster_score_matrix = assign_final_cell_types(
+        #    adata,
+        #    cluster_labels_dict=assigned_cell_type_dict,
+        #    mmc_to_score_dict=mmc_to_score_dict,
+        #    leiden_col=leiden_col,
+        #    out_col=f"{key}_revised",
+        #    score_threshold=score_threshold,
+        #    logger=logger,
+        # )
+
+        adata, undefined_reasons, cluster_score_matrix = assign_final_cell_types_2(
             adata,
             cluster_labels_dict=assigned_cell_type_dict,
-            match_dict=mmc_to_score_dict,
+            mmc_to_score_dict=mmc_to_score_dict,
             leiden_col=leiden_col,
             out_col=f"{key}_revised",
-            score_threshold=score_threshold,
+            score_high_threshold=score_high_threshold,
+            score_low_threshold=score_low_threshold,
+            score_delta=score_delta,
             logger=logger,
         )
 
-        # Print undefined reasons
         logger.info("Clusters marked as Undefined:")
         for cluster, reason in undefined_reasons.items():
-            logger.info(f"Cluster {cluster}: {reason}")
+            logger.info(f"    Cluster {cluster}: {reason}")
 
         # Calculate summary statistics
         defined_count = (adata.obs[f"{key}_revised"] != "Undefined").sum()
         total_count = len(adata.obs)
         defined_percent = defined_count / total_count * 100
+        undefined_count = total_count - defined_count  # new
 
         logger.info(
-            f"Annotation summary: {defined_count}/{total_count} cells ({defined_percent:.1f}%) assigned to cell types"
+            f"Annotation summary: {defined_count:,}/{total_count:,} cells ({defined_percent:.1f}%) assigned to cell types; "
+            f"{undefined_count:,} ({100 - defined_percent:.1f}%) set to Undefined."
+        )
+
+        reassigned = (adata.obs[f"{key}_clusters"] != adata.obs[f"{key}_revised"]).sum()
+        logger.info(
+            f"Reassigned {reassigned:,} cells ({reassigned / total_count:.1%}) based on marker-gene scores"
         )
 
         # Update categorical values if colors are provided
@@ -823,12 +811,9 @@ def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
         annotation_path: path for saving annotations
         data_dir: base directory
 
-    Returns:
-        None
     """
     today = date.today().strftime("%Y%m%d")
 
-    # Prepare adata
     adata_temp = adata.copy()
     adata_temp.var["gene"] = adata_temp.var.index
     adata_temp.var.index = adata_temp.var["ensmus_id"]
@@ -837,15 +822,12 @@ def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
     elif len(adata_temp.layers) > 0:
         raise ValueError("'counts' layer not found, and other layers are present.")
 
-    filename = f"{today}_adata_temp_mapmycells.h5ad"
-    temp_file_path = os.path.join(annotation_path, filename)
-    adata_temp.write(temp_file_path)
+    tmp = Path(annotation_path) / f"{today}_adata_temp_mapmycells.h5ad"
+    adata_temp.write(tmp)
 
-    # Ensure output directory exists
     output_dir = os.path.join(annotation_path, "mapmycells_out")
     os.makedirs(output_dir, exist_ok=True)
 
-    # Build command
     ref_path = os.path.join(
         data_dir,
         "misc",
@@ -858,7 +840,7 @@ def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
         "-m",
         "cell_type_mapper.cli.from_specified_markers",
         "--query_path",
-        os.path.join(annotation_path, filename),
+        str(tmp),
         "--extended_result_path",
         os.path.join(
             output_dir, f"{today}_MapMyCells_{sample_name}_{method_name}.json"
@@ -879,8 +861,20 @@ def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
         "4",
     ]
 
-    subprocess.run(cmd, check=True)
-    os.remove(temp_file_path)
+    env = os.environ.copy()
+    env.setdefault("NUMEXPR_NUM_THREADS", "1")
+    env.setdefault("MKL_NUM_THREADS", "1")
+    env.setdefault("OMP_NUM_THREADS", "1")
+    subprocess.run(cmd, check=True, env=env)
+
+    for _ in range(3):
+        try:
+            tmp.unlink()
+            break
+        except FileNotFoundError:
+            break
+        except PermissionError:
+            time.sleep(0.2)
 
 
 def flag_contamination(
@@ -988,6 +982,54 @@ def score_cell_types(adata, marker_genes_dict, top_n_genes=25, layer=None, logge
             if logger:
                 logger.warning(
                     f"No marker genes for {cell_type} found in dataset. Skipping."
+                )
+
+    return adata
+
+
+def score_cell_types_2(
+    adata, marker_genes_dict, top_n_genes=25, layer=None, logger=None
+):
+    """Score cells for marker gene expression using up to top_n_genes per cell type."""
+    if not marker_genes_dict:
+        if logger:
+            logger.warning("Empty marker_genes_dict. No scoring performed.")
+        return adata
+
+    name_width = min(
+        max((len(ct) for ct in marker_genes_dict.keys()), default=0) + 2, 32
+    )
+
+    for cell_type, genes in marker_genes_dict.items():
+        if not genes:
+            if logger:
+                logger.warning(
+                    f"    {cell_type:<{name_width}} (0 genes) — empty list, skipping."
+                )
+            continue
+
+        genes_to_use = genes[:top_n_genes] if len(genes) > top_n_genes else genes
+        available_genes = [g for g in genes_to_use if g in adata.var_names]
+
+        n_total = len(genes)
+        n_used = len(genes_to_use)
+        n_avail = len(available_genes)
+        suffix_cap = f", top {top_n_genes}" if n_total > top_n_genes else ""
+        gene_word = "gene" if n_avail == 1 else "genes"
+
+        if n_avail > 0:
+            if logger:
+                extra = f"{suffix_cap}" if suffix_cap else ""
+                logger.info(
+                    f"    {cell_type:<{name_width}} ({n_avail}/{n_used} {gene_word}{extra})"
+                )
+            sc.tl.score_genes(
+                adata, available_genes, score_name=f"score_{cell_type}", layer=layer
+            )
+        else:
+            if logger:
+                logger.warning(
+                    f"    {cell_type:<{name_width}} (0/{n_used} genes) — none found in dataset, skipping."
                 )
 
     return adata

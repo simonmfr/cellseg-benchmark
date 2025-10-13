@@ -1003,11 +1003,7 @@ def pca_umap(
 
 
 def pca_umap_single(
-    adata: AnnData,
-    save_path: str,
-    n_neighbors: int = 20,
-    n_pcs: int = 50,
-    logger=None
+    adata: AnnData, save_path: str, n_neighbors: int = 20, n_pcs: int = 50, logger=None
 ) -> AnnData:
     """Run PCA and a single UMAP projection on the z-scored layer of the input AnnData object.
 
@@ -1050,7 +1046,9 @@ def pca_umap_single(
     key = f"X_umap_{n_neighbors}_{n_pcs}"
 
     if logger:
-        logger.info(f"Dimensionality reduction: UMAP with n_neighbors={n_neighbors}, n_pcs={n_pcs}")
+        logger.info(
+            f"Dimensionality reduction: UMAP with n_neighbors={n_neighbors}, n_pcs={n_pcs}"
+        )
 
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
     sc.tl.umap(adata, neighbors_key="neighbors", key_added=key, n_components=2)
@@ -1060,7 +1058,6 @@ def pca_umap_single(
     adata.obsp.pop("connectivities", None)
 
     return adata
-
 
 
 def integration_harmony(
