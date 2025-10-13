@@ -11,7 +11,11 @@ from pandas import read_csv
 from sopa._constants import SopaAttrs, SopaKeys
 from sopa.aggregation.aggregation import add_standardized_table
 from sopa.segmentation._transcripts import _check_transcript_patches
-from sopa.segmentation.methods._proseg import _read_proseg, _run_proseg, _use_zarr_output
+from sopa.segmentation.methods._proseg import (
+    _read_proseg,
+    _run_proseg,
+    _use_zarr_output,
+)
 from sopa.segmentation.methods._utils import _get_executable_path
 from sopa.utils import (
     delete_transcripts_patches_dirs,
@@ -42,7 +46,9 @@ def _get_proseg_command(
     sdata: SpatialData, points_key: str, command_line_suffix: str
 ) -> str:
     proseg_executable = _get_executable_path("proseg", ".cargo")
-    prior_shapes_key = sdata.shapes[SopaKeys.TRANSCRIPTS_PATCHES][SopaKeys.PRIOR_SHAPES_KEY].iloc[0]
+    prior_shapes_key = sdata.shapes[SopaKeys.TRANSCRIPTS_PATCHES][
+        SopaKeys.PRIOR_SHAPES_KEY
+    ].iloc[0]
     use_zarr = _use_zarr_output(proseg_executable)
     feature_key = get_feature_key(sdata[points_key], raise_error=True)
     return f"proseg transcripts.csv -x x -y y -z global_z --gene-column {feature_key} --cell-id-column {prior_shapes_key} --cell-id-unassigned 0 {'--exclude-spatialdata-transcripts' if use_zarr else ''} {command_line_suffix}"
