@@ -83,7 +83,7 @@ export OPENBLAS_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 
 cd ~/gitrepos/cellseg-benchmark
-git pull
+git pull --quiet
 mamba activate cellseg_benchmark
 python scripts/merge_adata.py {args.cohort} {method}
 """)
