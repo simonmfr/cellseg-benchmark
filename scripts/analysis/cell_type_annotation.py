@@ -169,16 +169,16 @@ adata.obsm["allen_cell_type_mapping"] = allen_mmc_metadata.loc[adata.obs.index]
 
 # if matrix contains integer-like floats, convert to int64
 for name, arr in [("X", adata.X), *adata.layers.items()]:
-    data = arr.data if hasattr(arr, "data") else arr
-    if np.issubdtype(data.dtype, np.floating) and np.allclose(
-        data, np.round(data), atol=1e-8
+    values = arr.data if sp.issparse(arr) else np.asarray(arr)
+    if np.issubdtype(values.dtype, np.floating) and np.allclose(
+        values, np.round(values), rtol=0, atol=1e-8
     ):
-        arr = arr.astype(np.int64)
+        casted = arr.astype(np.int64) if sp.issparse(arr) else arr.astype(np.int64, copy=False)
         if name == "X":
-            adata.X = arr
+            adata.X = casted
         else:
-            adata.layers[name] = arr
-        logger.info(f"Cast {name} (integer-like floats) to int64.")
+            adata.layers[name] = casted
+        logger.info(f"Converting {name} (integer-like floats) to int64.")
 
 adata = anno_utils.process_adata(adata=adata, seg_method=args.seg_method, logger=logger)
 
