@@ -30,7 +30,7 @@ for key, value in data.items():
 
 
 cd ~/gitrepos/cellseg-benchmark
-git pull
+git pull --quiet
 mamba activate cellseg_benchmark
 python scripts/master_sdata.py {key} {value["path"]} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark \
 --genotype {value["genotype"]} \

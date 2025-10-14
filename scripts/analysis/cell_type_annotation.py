@@ -499,7 +499,7 @@ adata.obs = adata.obs[
     [
         col
         for col in adata.obs.columns
-        if any(substr in col for substr in ["cell_id", "leiden", "score", "mmc"])
+        if any(substr in col for substr in ["cell_id", "leiden", "score", "cell_type"])
     ]
 ]
 # replace np.nan with "None" for downstream compatibility
