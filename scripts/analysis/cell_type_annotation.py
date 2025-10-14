@@ -27,6 +27,7 @@ import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 import scanpy as sc
 import seaborn as sns
 from matplotlib.pyplot import rc_context
