@@ -396,13 +396,13 @@ def add_cell_type_annotation(
     if logger:
         logger.info(f"Adding cell type annotations for {seg_method}...")
     cell_type_information = [
-        "cell_type_mmc_incl_low_quality_revised",
+        "cell_type_incl_low_quality_revised",
         "cell_type_mmc_incl_low_quality_clusters",
         "cell_type_mmc_incl_low_quality",
-        "cell_type_mmc_incl_mixed_revised",
+        "cell_type_incl_mixed_revised",
         "cell_type_mmc_incl_mixed_clusters",
         "cell_type_mmc_incl_mixed",
-        "cell_type_mmc_raw_revised",
+        "cell_type_revised",
         "cell_type_mmc_raw_clusters",
         "cell_type_mmc_raw",
         "cell_id",
@@ -420,7 +420,7 @@ def add_cell_type_annotation(
     except KeyError:
         if logger:
             logger.warning(
-                "no propper cell annotation found for {}. Skipping.".format(seg_method)
+                "no cell type annotation found for {}. Skipping.".format(seg_method)
             )
         return sdata_main
     if set(cell_type_information) & set(sdata_main[f"adata_{seg_method}"].obs.columns):
