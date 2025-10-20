@@ -86,7 +86,19 @@ if __name__ == "__main__":
 
     logger.info("Loading integrated AnnData...")
     adata = sc.read_h5ad(method_path / "adatas" / "adata_integrated.h5ad.gz")
-    adata.obs["cell_type"] = adata.obs["cell_type_mmc_raw_revised"]
+    adata.obs["cell_type"] = adata.obs["cell_type_revised"]
+
+    # re-group cell types
+    adata.obs["cell_type"] = (
+        adata.obs["cell_type"]
+        .astype(str)
+        .replace({
+            "Tanycytes": "Ependymal",
+            "Astroependymal": "Astrocytes",
+            "Neurons-Glyc-Gaba" : "Neurons-Other"
+        })
+        .astype("category")
+    )
 
     if args.test_groups is None:
         groups = adata.obs[args.condition_key].dropna().unique().tolist()

@@ -37,10 +37,12 @@ for sample, meta in data.items():
 #SBATCH -t 02:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=20
-#SBATCH --mem=150G
+#SBATCH --mem=180G
 #SBATCH -J master_sdata_{sample}
 #SBATCH -o {BASE}/misc/logs/merged/%x.log
 #SBATCH --container-image="{BASE}/misc/cellseg_benchmark_2.sqsh"
+
+set -eu
 
 cd ~/gitrepos/cellseg-benchmark
 git pull --quiet origin dev-sf
