@@ -41,7 +41,6 @@ parser.add_argument(
     "--age_months", type=str, help="age(months), if available.", default=None
 )
 parser.add_argument("--run_date", type=str, help="run date (YYYYMMDD).", default=None)
-parser.add_argument("--animal_id", type=str, help="animal ID.", default=None)
 parser.add_argument("--organism", type=str, help="organism.", default=None)
 parser.add_argument("--slide", type=str, help="slide.", default=None)
 parser.add_argument("--region", type=str, help="region.", default=None)
@@ -51,15 +50,14 @@ parser.add_argument("--obs", action="append", default=[], metavar="KEY=VAL",
 args = parser.parse_args()
 
 NONES = {"", "None", "none", "null", "NULL", None}
-for k in ["genotype", "animal_id", "organism", "slide", "region", "cohort"]:
+for k in ["organism", "slide", "region", "cohort"]:
     if getattr(args, k) in NONES:
         setattr(args, k, None)
-args.age_months = None if args.age_months in NONES else int(args.age_months)
 
 extra_obs = {}
 for kv in args.obs:
     k, v = kv.split("=", 1)
-    extra_obs[k] = None if v in NONEISH else v
+    extra_obs[k] = None if v in NONES else v
 
 logger.info("Importing images and points...")
 su.process_merscope(args.sample, args.data_dir, args.data_path, zmode=args.zmode)
@@ -78,10 +76,7 @@ su.integrate_segmentation_data(
     sdata_path,
     seg_methods,
     sdata_main,
-    genotype=args.genotype,
-    age_months=args.age_months,
     run_date=args.run_date,
-    animal_id=args.animal_id,
     organism=args.organism,
     slide=args.slide,
     region=args.region,

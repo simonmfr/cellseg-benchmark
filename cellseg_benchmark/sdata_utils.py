@@ -149,7 +149,6 @@ def integrate_segmentation_data(
     genotype: str = None,
     age_months: int = None,
     run_date: str = None,
-    animal_id: str = None,
     organism: str = None,
     slide: str = None,
     region: str = None,
@@ -157,6 +156,7 @@ def integrate_segmentation_data(
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
+    **obs,
 ) -> sd.SpatialData:
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
@@ -167,7 +167,6 @@ def integrate_segmentation_data(
         genotype: genotype of sample
         age_months: Age of sample
         run_date: Run date of sample
-        animal_id: Animal of sample
         organism: Organism of sample
         slide: Slide of sample
         region: Region of sample
@@ -302,23 +301,26 @@ def integrate_segmentation_data(
                 #)
 
                 adata = sdata_main[f"adata_{seg_method}"]
-                meta = {
-                    "genotype": genotype,
-                    "age_months": age_months,
-                    "condition": f"{genotype}_{age_months}" if genotype and age_months else None,
-                    "run_date": run_date,
-                    "animal_id": animal_id,
-                    "organism": organism,
-                    "cohort": cohort,
-                    "slide": slide,
-                    "region": region,
-                    "sample": f"{cohort}_s{slide}_r{region}" if cohort and slide and region else None,
-                }
-                meta.update(obs)
+
+                meta = {**obs,
+                        "run_date": run_date,
+                        "organism": organism,
+                        "cohort": cohort,
+                        "slide": slide,
+                        "region": region,
+                        "sample": f"{cohort}_s{slide}_r{region}" if cohort and slide and region else None,
+                        "condition": obs.get("condition") or (
+                            f"{g}_{a}"
+                            if (g := obs.get("genotype") or genotype)
+                            and (a := obs.get("age_months") or age_months)
+                            else None
+                        )
+                       }
+            
                 for k, v in meta.items():
                     if v is not None:
                         adata.obs[k] = v
-                
+                            
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
             elif len(sdata.tables) > 1:
