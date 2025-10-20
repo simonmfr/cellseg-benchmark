@@ -286,20 +286,39 @@ def integrate_segmentation_data(
                             seg_method
                         )
                     )
-                sdata_main[f"adata_{seg_method}"].obs["genotype"] = genotype
-                sdata_main[f"adata_{seg_method}"].obs["age_months"] = age_months
-                sdata_main[f"adata_{seg_method}"].obs["condition"] = (
-                    genotype + "_" + str(age_months)
-                )
-                sdata_main[f"adata_{seg_method}"].obs["run_date"] = run_date
-                sdata_main[f"adata_{seg_method}"].obs["animal_id"] = animal_id
-                sdata_main[f"adata_{seg_method}"].obs["organism"] = organism
-                sdata_main[f"adata_{seg_method}"].obs["cohort"] = cohort
-                sdata_main[f"adata_{seg_method}"].obs["slide"] = slide
-                sdata_main[f"adata_{seg_method}"].obs["region"] = region
-                sdata_main[f"adata_{seg_method}"].obs["sample"] = (
-                    cohort + "_s" + slide + "_r" + region
-                )
+                #sdata_main[f"adata_{seg_method}"].obs["genotype"] = genotype
+                #sdata_main[f"adata_{seg_method}"].obs["age_months"] = age_months
+                #sdata_main[f"adata_{seg_method}"].obs["condition"] = (
+                #    genotype + "_" + str(age_months)
+                #)
+                #sdata_main[f"adata_{seg_method}"].obs["run_date"] = run_date
+                #sdata_main[f"adata_{seg_method}"].obs["animal_id"] = animal_id
+                #sdata_main[f"adata_{seg_method}"].obs["organism"] = organism
+                #sdata_main[f"adata_{seg_method}"].obs["cohort"] = cohort
+                #sdata_main[f"adata_{seg_method}"].obs["slide"] = slide
+                #sdata_main[f"adata_{seg_method}"].obs["region"] = region
+                #sdata_main[f"adata_{seg_method}"].obs["sample"] = (
+                #    cohort + "_s" + slide + "_r" + region
+                #)
+
+                adata = sdata_main[f"adata_{seg_method}"]
+                meta = {
+                    "genotype": genotype,
+                    "age_months": age_months,
+                    "condition": f"{genotype}_{age_months}" if genotype and age_months else None,
+                    "run_date": run_date,
+                    "animal_id": animal_id,
+                    "organism": organism,
+                    "cohort": cohort,
+                    "slide": slide,
+                    "region": region,
+                    "sample": f"{cohort}_s{slide}_r{region}" if cohort and slide and region else None,
+                }
+                meta.update(obs)
+                for k, v in meta.items():
+                    if v is not None:
+                        adata.obs[k] = v
+                
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
             elif len(sdata.tables) > 1:
@@ -420,7 +439,7 @@ def add_cell_type_annotation(
     except KeyError:
         if logger:
             logger.warning(
-                "no cell type annotation found for {}. Skipping.".format(seg_method)
+                "No cell type annotation found for {}. Skipping.".format(seg_method)
             )
         return sdata_main
     if set(cell_type_information) & set(sdata_main[f"adata_{seg_method}"].obs.columns):

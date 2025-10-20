@@ -1,45 +1,50 @@
 from pathlib import Path
+import shlex, yaml
 
-import yaml
+BASE = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+YAML = f"{BASE}/misc/sample_metadata.yaml"
+OUT  = f"{BASE}/misc/sbatches/sbatch_master_sdata"
+MANDATORY = {"cohort", "slide", "region", "organism", "run_date", "path"}
 
-with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
-) as f:
+with open(YAML) as f:
     data = yaml.safe_load(f)
 
-Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_master_sdata"
-).mkdir(parents=False, exist_ok=True)
-for key, value in data.items():
-    f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_master_sdata/{key}.sbatch",
-        "w",
-    )
-    f.write(f"""#!/bin/bash
+Path(OUT).mkdir(parents=False, exist_ok=True)
+
+for sample, meta in data.items():
+    # extra obs = non-mandatory keys
+    extras = []
+    for k, v in meta.items():
+        if k in MANDATORY or v is None or isinstance(v, (list, dict)):
+            continue
+        extras += ["--obs", f"{k}={v}"]
+
+    argv = [
+        "python", "scripts/master_sdata.py", sample, meta["path"], "z3", BASE,
+        "--cohort", meta["cohort"],
+        "--slide", str(meta["slide"]),
+        "--region", str(meta["region"]),
+        "--organism", meta["organism"],
+        "--run_date", str(meta["run_date"]),
+        *extras,
+    ]
+    cli = " \\\n".join(shlex.quote(str(a)) for a in argv)
+
+    sbatch = f"""#!/bin/bash
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 01:00:00
+#SBATCH -t 02:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=150G
-#SBATCH -J master_sdata_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/master_sdata_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/master_sdata_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/cellseg_benchmark_2.sqsh"
-
+#SBATCH -J master_sdata_{sample}
+#SBATCH -o {BASE}/misc/logs/merged/%x.log
+#SBATCH --container-image="{BASE}/misc/cellseg_benchmark_2.sqsh"
 
 cd ~/gitrepos/cellseg-benchmark
-git pull --quiet
+git pull --quiet origin dev-sf
 mamba activate cellseg_benchmark
-python scripts/master_sdata.py {key} {value["path"]} z3 /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark \
---genotype {value["genotype"]} \
---age_months {value["age_months"]} \
---run_date {value["run_date"]} \
---animal_id {value["animal_id"]} \
---organism {value["organism"]} \
---slide {value["slide"]} \
---region {value["region"]} \
---cohort {value["cohort"]} \
-""")
-    f.close()
+{cli}
+"""
+    (Path(OUT) / f"{sample}.sbatch").write_text(sbatch)

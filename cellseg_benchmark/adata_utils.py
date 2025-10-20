@@ -82,19 +82,19 @@ def merge_adatas(
     adata = concat(adatas, join="outer", merge="first")
     for i in {"cell_id", "cell_id_x", "cell_id_y"} & set(adata.obs.columns):
         del adata.obs[i]
-    adata.obs["cell_type_mmc_raw_revised"] = pd.Categorical(
-        adata.obs["cell_type_mmc_raw_revised"], categories=list(cell_type_colors.keys())
+    adata.obs["cell_type_revised"] = pd.Categorical(
+        adata.obs["cell_type_revised"], categories=list(cell_type_colors.keys())
     )
-    adata.obs["cell_type_mmc_raw_revised"] = adata.obs[
-        "cell_type_mmc_raw_revised"
+    adata.obs["cell_type_revised"] = adata.obs[
+        "cell_type_revised"
     ].cat.remove_unused_categories()
 
     # set colors in adata.uns
     colors = [
         cell_type_colors[cat]
-        for cat in adata.obs["cell_type_mmc_raw_revised"].cat.categories
+        for cat in adata.obs["cell_type_revised"].cat.categories
     ]
-    adata.uns["cell_type_mmc_raw_revised_colors"] = colors
+    adata.uns["cell_type_revised_colors"] = colors
     adata.obs_names_make_unique()
     if logger:
         n = len(adata.obs["sample"].unique())
@@ -943,7 +943,7 @@ def pca_umap(
         fig.savefig(join(save_path, "PCA.png"))
         plt.close(fig)
 
-    color_schemes = ["sample", "condition", "cell_type_mmc_raw_revised"]
+    color_schemes = ["sample", "condition", "cell_type_revised"]
     umap_configs = [
         {"n_neighbors": 10, "n_pcs": 20, "key": "X_umap_10_20"},
         {"n_neighbors": 15, "n_pcs": 40, "key": "X_umap_15_40"},
@@ -1137,7 +1137,7 @@ def integration_harmony(
             sc.pl.embedding(
                 adata,
                 basis=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
-                color=["sample", "condition", "cell_type_mmc_raw_revised"],
+                color=["sample", "condition", "cell_type_revised"],
                 size=point_size_3d,
                 alpha=point_alpha_3d,
                 wspace=0.1,

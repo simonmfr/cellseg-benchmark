@@ -96,7 +96,7 @@ adata = merge_adatas(
 )
 del adata_list
 
-# workaround to fix adata.obs formatting ###############
+# temp fix adata.obs formatting ###############
 adata.obs["sample"] = adata.obs["sample"].str.replace(
     rf"^{args.cohort}_(\d+)_(\d+)$", rf"{args.cohort}_s\1_r\2", regex=True
 )

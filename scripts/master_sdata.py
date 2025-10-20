@@ -25,7 +25,7 @@ parser.add_argument(
     help="Path to folder with merscope output data (e.g. /cohort1/slide2/region0).",
 )
 parser.add_argument(
-    "zmode", choices=["z3", "3d"], help="Mode of master sdata. Either 'z3' or '3d'."
+    "zmode", choices=["z3"], help="Mode of master sdata. Either 'z3' or '3d'." # '3d' currently unused.
 )
 parser.add_argument("data_dir", help="Output data folder.")
 parser.add_argument(
@@ -38,7 +38,7 @@ parser.add_argument(
     "--genotype", default="WT", help="genotype, assumed to be WT if not provided."
 )
 parser.add_argument(
-    "--age_months", type=int, help="age(months), if available.", default=None
+    "--age_months", type=str, help="age(months), if available.", default=None
 )
 parser.add_argument("--run_date", type=str, help="run date (YYYYMMDD).", default=None)
 parser.add_argument("--animal_id", type=str, help="animal ID.", default=None)
@@ -46,7 +46,20 @@ parser.add_argument("--organism", type=str, help="organism.", default=None)
 parser.add_argument("--slide", type=str, help="slide.", default=None)
 parser.add_argument("--region", type=str, help="region.", default=None)
 parser.add_argument("--cohort", type=str, help="cohort.", default=None)
+parser.add_argument("--obs", action="append", default=[], metavar="KEY=VAL",
+                    help="Extra covariates to add to adata.obs (repeatable), e.g. --obs tissue=brain.")
 args = parser.parse_args()
+
+NONES = {"", "None", "none", "null", "NULL", None}
+for k in ["genotype", "animal_id", "organism", "slide", "region", "cohort"]:
+    if getattr(args, k) in NONES:
+        setattr(args, k, None)
+args.age_months = None if args.age_months in NONES else int(args.age_months)
+
+extra_obs = {}
+for kv in args.obs:
+    k, v = kv.split("=", 1)
+    extra_obs[k] = None if v in NONEISH else v
 
 logger.info("Importing images and points...")
 su.process_merscope(args.sample, args.data_dir, args.data_path, zmode=args.zmode)
@@ -76,5 +89,6 @@ su.integrate_segmentation_data(
     write_to_disk=True,
     data_path=args.data_path,
     logger=logger,
+    **extra_obs,
 )
 logger.info("Done.")
