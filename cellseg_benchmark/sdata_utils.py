@@ -285,23 +285,8 @@ def integrate_segmentation_data(
                             seg_method
                         )
                     )
-                #sdata_main[f"adata_{seg_method}"].obs["genotype"] = genotype
-                #sdata_main[f"adata_{seg_method}"].obs["age_months"] = age_months
-                #sdata_main[f"adata_{seg_method}"].obs["condition"] = (
-                #    genotype + "_" + str(age_months)
-                #)
-                #sdata_main[f"adata_{seg_method}"].obs["run_date"] = run_date
-                #sdata_main[f"adata_{seg_method}"].obs["animal_id"] = animal_id
-                #sdata_main[f"adata_{seg_method}"].obs["organism"] = organism
-                #sdata_main[f"adata_{seg_method}"].obs["cohort"] = cohort
-                #sdata_main[f"adata_{seg_method}"].obs["slide"] = slide
-                #sdata_main[f"adata_{seg_method}"].obs["region"] = region
-                #sdata_main[f"adata_{seg_method}"].obs["sample"] = (
-                #    cohort + "_s" + slide + "_r" + region
-                #)
 
                 adata = sdata_main[f"adata_{seg_method}"]
-
                 meta = {**obs,
                         "run_date": run_date,
                         "organism": organism,

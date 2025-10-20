@@ -1,8 +1,8 @@
 import argparse
 import logging
 import os
-import warnings
 from os.path import join
+import warnings
 
 from spatialdata import read_zarr
 
@@ -16,38 +16,32 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
-parser = argparse.ArgumentParser(
+p = argparse.ArgumentParser(
     description="Creates a master sdata for a given sample, containing multiple segmentation results."
 )
-parser.add_argument("sample", help="Sample name.")
-parser.add_argument(
+p.add_argument("sample", help="Sample name.")
+p.add_argument(
     "data_path",
     help="Path to folder with merscope output data (e.g. /cohort1/slide2/region0).",
 )
-parser.add_argument(
-    "zmode", choices=["z3"], help="Mode of master sdata. Either 'z3' or '3d'." # '3d' currently unused.
+p.add_argument(
+    "zmode", choices=["z3"], help="Mode of master sdata. Either 'z3' or '3d' (currently only z3 is implemented)."
 )
-parser.add_argument("data_dir", help="Output data folder.")
-parser.add_argument(
+p.add_argument("data_dir", help="Output data folder.")
+p.add_argument(
     "--n_ficture",
     default=21,
     type=int,
     help="Consider Ficture model with n_ficture factors.",
 )
-parser.add_argument(
-    "--genotype", default="WT", help="genotype, assumed to be WT if not provided."
-)
-parser.add_argument(
-    "--age_months", type=str, help="age(months), if available.", default=None
-)
-parser.add_argument("--run_date", type=str, help="run date (YYYYMMDD).", default=None)
-parser.add_argument("--organism", type=str, help="organism.", default=None)
-parser.add_argument("--slide", type=str, help="slide.", default=None)
-parser.add_argument("--region", type=str, help="region.", default=None)
-parser.add_argument("--cohort", type=str, help="cohort.", default=None)
-parser.add_argument("--obs", action="append", default=[], metavar="KEY=VAL",
+p.add_argument("--run_date", type=str, help="run date (YYYYMMDD).", default=None)
+p.add_argument("--organism", type=str, help="organism.", default=None)
+p.add_argument("--slide", type=str, help="slide.", default=None)
+p.add_argument("--region", type=str, help="region.", default=None)
+p.add_argument("--cohort", type=str, help="cohort.", default=None)
+p.add_argument("--obs", action="append", default=[], metavar="KEY=VAL",
                     help="Extra covariates to add to adata.obs (repeatable), e.g. --obs tissue=brain.")
-args = parser.parse_args()
+args = p.parse_args()
 
 NONES = {"", "None", "none", "null", "NULL", None}
 for k in ["organism", "slide", "region", "cohort"]:
