@@ -113,7 +113,7 @@ def main(data_path, sample, proseg_flags):
     sdata.write(join(path, "Proseg_pure", "sdata_tmp.zarr"), overwrite=True)
     sdata = read_zarr(join(path, "Proseg_pure", "sdata_tmp.zarr"))
 
-    sopa.make_transcript_patches(sdata, patch_width=None)
+    sopa.make_transcript_patches(sdata, patch_width=None, prior_shapes_key="cellpose_boundaries")
 
     sopa.settings.parallelization_backend = "dask"
     sopa.settings.dask_client_kwargs["n_workers"] = int(
