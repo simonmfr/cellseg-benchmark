@@ -104,8 +104,17 @@ def proseg(
 
 def main(data_path, sample, proseg_flags, base_segmentation):
     """ComSeg algorithm by sopa with dask backend parallelized."""
-    sdata = sopa.io.merscope(data_path)  # to read in the images and points
+    sdata_tmp = sopa.io.merscope(data_path)  # to read in the images and points
     path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
+    sdata = read_zarr(
+        join(path, base_segmentation, "sdata.zarr")
+    )  # enthält keine Bilder oder transcripte
+    sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
+        list(sdata_tmp.images.keys())[0]
+    ]
+    sdata[list(sdata_tmp.points.keys())[0]] = sdata_tmp[
+        list(sdata_tmp.points.keys())[0]
+    ]
     translation = read_csv(
         join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",

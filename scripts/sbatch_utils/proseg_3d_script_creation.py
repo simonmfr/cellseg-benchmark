@@ -42,7 +42,7 @@ source ~/.bashrc
 conda activate sopa_2
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_Cellpose_1_{args.staining}_model
 python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/proseg_3D.py {value["path"]} {key} \
-Cellpose_1_{args.staining}_model --voxel-layers {args.voxel}  --output-cell-polxgon-layers cell-polygons.geojson.gz
+Cellpose_1_{args.staining}_model --voxel-layers {args.voxel} --output-cell-polxgon-layers cell-polygons.geojson.gz
             """)
         f.close()
     else:
