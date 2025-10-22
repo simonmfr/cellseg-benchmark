@@ -26,6 +26,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument("data_path", help="Path to data folder.")
 parser.add_argument("sample", help="Sample name.")
 parser.add_argument(
+    "base_segmentation", help="prior segmentation to use for initialisaton."
+)
+parser.add_argument(
     "proseg_flags", nargs=argparse.REMAINDER, help="Additional flags to pass to proseg."
 )
 args = parser.parse_args()
@@ -99,7 +102,7 @@ def proseg(
     )
 
 
-def main(data_path, sample, proseg_flags):
+def main(data_path, sample, proseg_flags, base_segmentation):
     """ComSeg algorithm by sopa with dask backend parallelized."""
     sdata = sopa.io.merscope(data_path)  # to read in the images and points
     path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
@@ -110,8 +113,8 @@ def main(data_path, sample, proseg_flags):
     )
 
     # backing für memory efficiency
-    sdata.write(join(path, "Proseg_pure", "sdata_tmp.zarr"), overwrite=True)
-    sdata = read_zarr(join(path, "Proseg_pure", "sdata_tmp.zarr"))
+    sdata.write(join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True)
+    sdata = read_zarr(join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"))
 
     sopa.make_transcript_patches(sdata, patch_width=None, prior_shapes_key="cellpose_boundaries")
 
@@ -125,7 +128,7 @@ def main(data_path, sample, proseg_flags):
         sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10
     )
     sopa.io.explorer.write(
-        join(path, "Proseg_pure", "sdata.explorer"),
+        join(path, f"Proseg_3D_{base_segmentation}", "sdata.explorer"),
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
@@ -134,7 +137,7 @@ def main(data_path, sample, proseg_flags):
 
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(path, "Proseg_pure", "sdata.zarr"), overwrite=True)
+    sdata.write(join(path, f"Proseg_3D_{base_segmentation}", "sdata.zarr"), overwrite=True)
     run(
         [
             "cp",
@@ -142,14 +145,14 @@ def main(data_path, sample, proseg_flags):
             cache_dir,
             join(
                 path,
-                "Proseg_pure",
+                f"Proseg_3D_{base_segmentation}",
                 "sdata.zarr",
                 str(cache_dir).split("/")[-1],
             ),
         ]
     )
-    run(["rm", "-r", join(path, "Proseg_pure", "sdata_tmp.zarr")])
+    run(["rm", "-r", join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr")])
 
 
 if __name__ == "__main__":
-    main(args.data_path, args.sample, proseg_flags)
+    main(args.data_path, args.sample, proseg_flags, base_segmentation=args.base_segmentation)
