@@ -92,6 +92,13 @@ logger.debug(f"adata columns: {adata.obs.columns}")
 adata = adata[:, ~adata.var_names.str.startswith("Blank")]  # remove blank genes
 adata.var["gene"] = adata.var.index
 
+# Fix mislabeled genes in public data from Vizgen
+if "VizgenMouseBrain" in args.sample_name:
+    adata.var_names = adata.var_names.str.replace(r"^ADGRF3$", "Adgrf3", regex=True)
+    adata.var["gene"] = adata.var["gene"].replace("ADGRF3", "Adgrf3")
+    mask = adata.var_names != "missing"
+    adata = adata[:, mask].copy()
+
 logger.info("Adding ensembl IDs...")
 adata.var = add_ensembl_id(
     adata.var, species="mouse", out_col="ensmus_id", logger=logger

@@ -503,7 +503,7 @@ def calculate_volume(
             z_level_name = "ZIndex"
             cell_identifier = "cell_id"
         if logger:
-            logger.info(f"collecting volume metadata for {seg_method}")
+            logger.info(f"Collecting volume metadata for {seg_method}")
         global_z_min, global_z_max = (
             boundaries[z_level_name].min(),
             boundaries[z_level_name].max(),
@@ -530,7 +530,7 @@ def calculate_volume(
         grouped = boundaries.groupby(level=0)
 
         if logger:
-            logger.info(f"calculate volume metrics {seg_method}")
+            logger.info(f"Calculate volume metrics {seg_method}")
         scale = z_spacing * n_planes_2d
         items = [(entity_id, group.geometry.iat[0]) for entity_id, group in grouped]
         morphology_rows = Parallel(n_jobs=-1, backend="loky")(

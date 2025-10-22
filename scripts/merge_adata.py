@@ -3,6 +3,7 @@ import logging
 import os
 import warnings
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import partial
 from pathlib import Path
 from typing import Tuple
 
@@ -62,22 +63,26 @@ sample_metadata_file, excluded = (
     for f in ["sample_metadata.yaml", "samples_excluded.yaml"]
 )
 excluded_samples = set(excluded.get(args.cohort, []))
+yaml_samples = [name for name, meta in sample_metadata_file.items()
+                if meta.get("cohort") == args.cohort and name not in excluded]
 
 logger.info("Loading data...")
 loads = []
-for sample_dir in samples_path.glob(f"{args.cohort}*"):
-    if sample_dir.name in excluded_samples:
+for name in yaml_samples:
+    p = samples_path / name
+    if not (p / "sdata_z3.zarr").exists():
+        logger.error("master sdata in %s not found.", p)
         continue
-    if not (sample_dir / "sdata_z3.zarr").exists():
-        logger.error("master sdata in %s not found.", sample_dir)
-        continue
-    loads.append(sample_dir)
+    loads.append(p)
 
-# drop samples where AnnData could not be loaded (missing or invalid), e.g. aging s8 r1 Cellpose 2 Transcripts
-with ProcessPoolExecutor(max_workers=int(os.getenv("SLURM_CPUS_PER_TASK", 1))) as ex:
-    futures = {ex.submit(_load_one, p, args.seg_method, logger): p for p in loads}
-    adata_list = [f.result() for f in as_completed(futures)]
-adata_list = [(x, y) for x, y in adata_list if y is not None]
+max_workers = int(os.getenv("SLURM_CPUS_PER_TASK", 1))
+loader = partial(_load_one, seg_method=args.seg_method, logger=None)
+
+with ProcessPoolExecutor(max_workers=max_workers) as ex:
+    results = list(ex.map(loader, loads))
+
+# keep YAML order, drop Nones
+adata_list = [(name, adata) for name, adata in results if adata is not None]
 
 # temp fix for aging_s11_r0
 for i, (name, ad) in enumerate(adata_list):
@@ -97,12 +102,12 @@ adata = merge_adatas(
 del adata_list
 
 # temp fix adata.obs formatting ###############
-adata.obs["sample"] = adata.obs["sample"].str.replace(
-    rf"^{args.cohort}_(\d+)_(\d+)$", rf"{args.cohort}_s\1_r\2", regex=True
-)
-adata.obs["condition"] = (
-    adata.obs["genotype"].astype(str) + "_" + adata.obs["age_months"].astype(str)
-)
+#adata.obs["sample"] = adata.obs["sample"].str.replace(
+#    rf"^{args.cohort}_(\d+)_(\d+)$", rf"{args.cohort}_s\1_r\2", regex=True
+#)
+#adata.obs["condition"] = (
+#    adata.obs["genotype"].astype(str) + "_" + adata.obs["age_months"].astype(str)
+#)
 ###############
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
@@ -114,23 +119,19 @@ adata = filter_spatial_outlier_cells(
     logger=logger,
 )
 
-# Special case: rerun filter_low_quality_cells with lower threshold for vpt_3D
-if "vpt_3D" in args.seg_method:
-    logger.info(
-        "Segmentation method contains 'vpt_3D': applying low-quality cell filtering with min_counts=10 due to smaller cell sizes."
-    )
-    adata = filter_low_quality_cells(
-        adata,
-        save_path=save_path / "plots",
-        min_counts=10,
-        logger=logger,
-    )
+if "vpt_3D" in args.seg_method: # min_counts=10 due to smaller cell sizes
+    min_counts = 10
+elif args.cohort == "SynergyLung": # more lenient for initial analysis
+    min_counts = 15
 else:
-    adata = filter_low_quality_cells(
-        adata,
-        save_path=save_path / "plots",
-        logger=logger,
-    )
+    min_counts = None # default = 25
+
+adata = filter_low_quality_cells(
+    adata,
+    save_path=save_path / "plots",
+    **({"min_counts": min_counts} if min_counts is not None else {}),
+    logger=logger,
+)
 
 adata = filter_genes(adata, save_path=save_path / "plots", logger=logger)
 

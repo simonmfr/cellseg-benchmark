@@ -8,7 +8,7 @@ from spatialdata import read_zarr
 
 from cellseg_benchmark import sdata_utils as su
 
-warnings.filterwarnings("ignore")
+#warnings.filterwarnings("ignore")
 
 logger = logging.getLogger("shape_mapping")
 logger.setLevel(logging.INFO)
