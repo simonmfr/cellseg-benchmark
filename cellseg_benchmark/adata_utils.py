@@ -1256,7 +1256,7 @@ def plot_integration_comparison(
         ("sample", "Sample"),
         ("slide", "Slide"),
         ("condition", "Condition"),
-        ("cell_type_mmc_raw_revised", "Cell Type"),
+        ("cell_type_revised", "Cell Type"),
     ]
     cfg = [(k, lbl) for k, lbl in cfg if k in adata.obs.columns]
     if not cfg:

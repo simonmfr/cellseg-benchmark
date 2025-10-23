@@ -64,7 +64,7 @@ sample_metadata_file, excluded = (
 )
 excluded_samples = set(excluded.get(args.cohort, []))
 yaml_samples = [name for name, meta in sample_metadata_file.items()
-                if meta.get("cohort") == args.cohort and name not in excluded]
+                if meta.get("cohort") == args.cohort and name not in excluded_samples]
 
 logger.info("Loading data...")
 loads = []
@@ -85,11 +85,11 @@ with ProcessPoolExecutor(max_workers=max_workers) as ex:
 adata_list = [(name, adata) for name, adata in results if adata is not None]
 
 # temp fix for aging_s11_r0
-for i, (name, ad) in enumerate(adata_list):
-    if name == "aging_s11_r0":
-        ad.obs["region"] = "0"
-    ad.obs["region"] = ad.obs["region"].astype(str).astype("category")
-    adata_list[i] = (name, ad)
+#for i, (name, ad) in enumerate(adata_list):
+#    if name == "aging_s11_r0":
+#        ad.obs["region"] = "0"
+#    ad.obs["region"] = ad.obs["region"].astype(str).astype("category")
+#    adata_list[i] = (name, ad)
 
 # Merge and process
 adata = merge_adatas(

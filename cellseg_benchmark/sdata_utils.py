@@ -285,29 +285,32 @@ def integrate_segmentation_data(
                             seg_method
                         )
                     )
-
+                    
                 adata = sdata_main[f"adata_{seg_method}"]
-                meta = {**obs,
-                        "run_date": run_date,
-                        "organism": organism,
-                        "cohort": cohort,
-                        "slide": slide,
-                        "region": region,
-                        "sample": f"{cohort}_s{slide}_r{region}" if cohort and slide and region else None,
-                        "condition": obs.get("condition") or (
-                            f"{g}_{a}"
-                            if (g := obs.get("genotype") or genotype)
-                            and (a := obs.get("age_months") or age_months)
-                            else None
-                        )
-                       }
-            
+                
+                meta = {
+                    "genotype": genotype,
+                    "age_months": age_months,
+                    "run_date": run_date,
+                    "organism": organism,
+                    "cohort": cohort,
+                    "slide": slide,
+                    "region": region,
+                    "sample": f"{cohort}_s{slide}_r{region}" if cohort and slide and region else None,
+                }
+                
+                meta.update(obs)
+                
+                g, a = meta.get("genotype"), meta.get("age_months")
+                meta["condition"] = meta.get("condition") or (f"{g}_{a}" if g and a else None)
+                
                 for k, v in meta.items():
                     if v is not None:
-                        adata.obs[k] = v
-                            
+                        adata.obs[k] = [v] * adata.n_obs
+                
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
+
             elif len(sdata.tables) > 1:
                 if logger:
                     logger.warning(
