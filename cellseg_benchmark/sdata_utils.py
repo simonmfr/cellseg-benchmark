@@ -453,7 +453,8 @@ def add_cell_type_annotation(
         if col.startswith("cell_type"):
             if isinstance(new_obs[col].dtype, pd.CategoricalDtype):
                 new_obs[col] = new_obs[col].cat.add_categories("Low-Read-Cells")
-            new_obs[col].fillna("Low-Read-Cells", inplace=True)
+            #new_obs[col].fillna("Low-Read-Cells", inplace=True)
+            new_obs[col] = new_obs[col].fillna("Low-Read-Cells")
             new_obs[col] = new_obs[col].astype("category")
     sdata_main[f"adata_{seg_method}"].obs = new_obs
     return sdata_main
