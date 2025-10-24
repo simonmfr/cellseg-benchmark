@@ -43,7 +43,7 @@ for sample, meta in data.items():
 #SBATCH -o {BASE}/misc/logs/merged/%x.log
 #SBATCH --container-image="{BASE}/misc/cellseg_benchmark_2.sqsh"
 
-set -eu
+set -euo pipefail
 
 cd ~/gitrepos/cellseg-benchmark
 git pull --quiet origin dev-sf
