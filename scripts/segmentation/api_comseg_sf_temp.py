@@ -32,6 +32,11 @@ def main(data_path, sample, base_segmentation):
     sdata[list(sdata_tmp.points.keys())[0]] = sdata_tmp[
         list(sdata_tmp.points.keys())[0]
     ]
+
+    # fix legacy path inconsistency
+    sdata.attrs["cell_segmentation_image"] = "_".join(data_path.rstrip("/").split("/")[-2:]) + "_z3"
+    sdata.attrs["transcripts_dataframe"] = "_".join(data_path.rstrip("/").split("/")[-2:]) + "_transcripts"
+    
     translation = read_csv(
         join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
