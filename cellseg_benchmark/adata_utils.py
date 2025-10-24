@@ -22,96 +22,83 @@ from cellseg_benchmark._constants import cell_type_colors
 def merge_adatas(
     adatas_list: List[Tuple[str, AnnData]],
     seg_method: str,
+    cell_type_col: str = "cell_type_revised",
     logger: logging.Logger = None,
-    plot_qc_stats=False,
+    plot_qc_stats: bool = False,
     save_path=None,
 ) -> AnnData:
-    """Merge AnnData objects extracted from multiple SpatialData objects into a single AnnData.
+    """Merge AnnData objects extracted from multiple SpatialData objects into one AnnData.
 
-    Each SpatialData object contains results of multiple segmentation approaches (for a single
-    respective sample). This function extracts AnnData objects for a given segmentation method key,
-    annotates them with metadata, optionally exports QC visualizations, and merges them into a
-    single AnnData object. No integration or batch effect correction is performed.
+    Each SpatialData object contains results of multiple segmentation methods (per sample).
+    This function extracts AnnData objects for a given segmentation key, adds basic QC metrics,
+    optionally plots QC summaries, and merges them into a single AnnData without integration.
 
     Args:
-        adatas_list (List[Tuple[str, AnnData]]): List of tuples, each containing a unique
-            sample name (str) and a AnnData object.
+        adatas_list (List[Tuple[str, AnnData]]): Tuples of (sample_name, AnnData).
         seg_method (str): Segmentation method key.
-        logger (logging.Logger, optional): Logger instance for informational and warning
-            messages. If None, logging is disabled. Defaults to None.
-        plot_qc_stats (bool, optional): If True, triggers QC plotting via the `plot_qc` function internally. Defaults to False.
-        save_path (str, optional): File path or directory where QC plots will be saved
-            if `plot_qc_stats` is True. Defaults to None.
+        cell_type_col (str): Column name for cell type annotations. Defaults to "cell_type_revised".
+        logger (logging.Logger, optional): Logger for messages. Defaults to None.
+        plot_qc_stats (bool, optional): If True, run `plot_qc` for QC visualization. Defaults to False.
+        save_path (str, optional): Directory to save QC plots if enabled. Defaults to None.
 
     Returns:
-        AnnData: A merged AnnData object containing concatenated cells from all input datasets.
+        AnnData: Merged AnnData with all cells from input datasets.
     """
-    y_limits = [0, 0, 0, 0]
     if logger:
         logger.info(f"Merging adatas of {seg_method}")
 
+    y_limits = [0, 0, 0, 0]
     adatas = []
+
     for name, adata in tqdm(adatas_list):
-        if "spt_region" in adata.obs.columns:
+        
+        if "spt_region" in adata.obs:
             del adata.obs["spt_region"]
+
         if not sp.issparse(adata.X):
             adata.X = sp.csr_matrix(adata.X)
-        adata.obs["n_counts"] = adata.X.sum(axis=1)
-        adata.obs["n_genes"] = adata.X.count_nonzero(axis=1)
+
+        adata.obs["n_counts"] = np.asarray(adata.X.sum(axis=1)).ravel()
+        adata.obs["n_genes"] = np.asarray(adata.X.getnnz(axis=1)).ravel()
         adatas.append(adata)
 
         if plot_qc_stats:
-            y_limits[0] = max(
-                y_limits[0], max(np.histogram(adata.obs["n_counts"], bins=60)[0])
-            )
-            y_limits[1] = max(
-                y_limits[1],
-                max(
-                    np.histogram(
-                        adata.obs["n_counts"][adata.obs["n_counts"] < 1000], bins=60
-                    )[0]
-                ),
-            )
-            y_limits[2] = max(
-                y_limits[2], max(np.histogram(adata.obs["n_genes"], bins=60)[0])
-            )
-            y_limits[3] = max(
-                y_limits[3], max(np.histogram(adata.obs["volume_final"], bins=100)[0])
-            )
+            y_limits[0] = max(y_limits[0], np.histogram(adata.obs["n_counts"], bins=60)[0].max())
+            y_limits[1] = max(y_limits[1], np.histogram(adata.obs["n_counts"][adata.obs["n_counts"] < 1000], bins=60)[0].max())
+            y_limits[2] = max(y_limits[2], np.histogram(adata.obs["n_genes"], bins=60)[0].max())
+            if "volume_final" in adata.obs:
+                y_limits[3] = max(y_limits[3], np.histogram(adata.obs["volume_final"], bins=100)[0].max())
 
     adata = concat(adatas, join="outer", merge="first")
-    for i in {"cell_id", "cell_id_x", "cell_id_y"} & set(adata.obs.columns):
-        del adata.obs[i]
-    adata.obs["cell_type_mmc_raw_revised"] = pd.Categorical(
-        adata.obs["cell_type_mmc_raw_revised"], categories=list(cell_type_colors.keys())
-    )
-    adata.obs["cell_type_mmc_raw_revised"] = adata.obs[
-        "cell_type_mmc_raw_revised"
-    ].cat.remove_unused_categories()
 
-    # set colors in adata.uns
-    colors = [
-        cell_type_colors[cat]
-        for cat in adata.obs["cell_type_mmc_raw_revised"].cat.categories
-    ]
-    adata.uns["cell_type_mmc_raw_revised_colors"] = colors
+    for col in {"cell_id", "cell_id_x", "cell_id_y"} & set(adata.obs.columns):
+        del adata.obs[col]
+
+    if cell_type_col in adata.obs:
+        adata.obs[cell_type_col] = pd.Categorical(
+            adata.obs[cell_type_col],
+            categories=list(cell_type_colors.keys()),
+        ).remove_unused_categories()
+        adata.uns[f"{cell_type_col}_colors"] = [
+            cell_type_colors[c] for c in adata.obs[cell_type_col].cat.categories
+        ]
+
     adata.obs_names_make_unique()
-    if logger:
-        n = len(adata.obs["sample"].unique())
-        logger.info(f"{seg_method}: # of cells: {len(adata)}, # of samples: {n}")
 
     if logger:
-        n = len(adata.obs["sample"].unique())
-        logger.info(f"{seg_method}: # of cells: {len(adata)}, # of samples: {n}")
-        if n == 1:
-            logger.warning(
-                f"Only one sample found ({adata.obs['sample'].unique()[0]})!"
-            )
+        n_samples = adata.obs["sample"].nunique() if "sample" in adata.obs else None
+        logger.info(f"{seg_method}: #cells={adata.n_obs}" + (f", #samples={n_samples}" if n_samples else ""))
+        if n_samples == 1:
+            logger.warning(f"Only one sample found ({adata.obs['sample'].unique()[0]})!")
 
     if plot_qc_stats:
-        save_path.mkdir(parents=True, exist_ok=True)
-        plot_qc(adata, save_path, y_limits, logger)
+        from pathlib import Path
+        save_dir = Path(save_path) if save_path else Path(".")
+        save_dir.mkdir(parents=True, exist_ok=True)
+        plot_qc(adata, save_dir, y_limits, logger)
+
     return adata
+
 
 
 def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
@@ -141,7 +128,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
         squeeze=False,
     )
     for i, name in enumerate(sample_names):
-        adata_tmp = adata[adata.obs["sample"] == name]
+        adata_tmp = adata[adata.obs["sample"] == name].copy()
 
         for ax, data, bins, y_limit in zip(
             axs[i, :],
@@ -162,9 +149,9 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
 
     pad = 5
     cols = [
-        "Number of Counts per Cell",
-        "Number of Counts per Cell (until n=1000)",
-        "Number of Genes per Cell",
+        "Counts per Cell",
+        "Counts per Cell (n<=1000)",
+        "Genes per Cell",
         "Volume",
     ]
     rows = sample_names
@@ -208,7 +195,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     )
     axs = axs[:, 0]
     for ax, name in zip(axs, sample_names):
-        adata_tmp = adata[adata.obs["sample"] == name]
+        adata_tmp = adata[adata.obs["sample"] == name].copy()
         sc.pl.scatter(
             adata_tmp,
             x="n_counts",
@@ -255,7 +242,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
         squeeze=False,
     )
     for i, name in enumerate(sample_names):
-        adata_tmp = adata[adata.obs["sample"] == name]
+        adata_tmp = adata[adata.obs["sample"] == name].copy()
         adata_tmp.var["n_counts"] = adata_tmp.X.sum(axis=0).T
         log10_counts = np.log10(adata_tmp.var["n_counts"] + 1)
 
@@ -291,7 +278,7 @@ def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
     fig, axs = plt.subplots(n_samples, 1, figsize=(6, n_samples * 4), squeeze=False)
     axs = axs[:, 0]
     for ax, name in zip(axs, sample_names):
-        adata_tmp = adata[adata.obs["sample"] == name]
+        adata_tmp = adata[adata.obs["sample"] == name].copy()
         sc.pl.highest_expr_genes(adata_tmp, n_top=20, ax=ax, show=False)
 
     for ax, row in zip(axs, rows):
@@ -943,7 +930,7 @@ def pca_umap(
         fig.savefig(join(save_path, "PCA.png"))
         plt.close(fig)
 
-    color_schemes = ["sample", "condition", "cell_type_mmc_raw_revised"]
+    color_schemes = ["sample", "condition", "cell_type_revised"]
     umap_configs = [
         {"n_neighbors": 10, "n_pcs": 20, "key": "X_umap_10_20"},
         {"n_neighbors": 15, "n_pcs": 40, "key": "X_umap_15_40"},
@@ -1002,14 +989,18 @@ def pca_umap(
     return adata
 
 
-def pca_umap_single(adata: AnnData, save_path: str, logger=None) -> AnnData:
-    """Run PCA and ```a single``` UMAP projection (X_umap_20_50) on the z-scored layer of the input AnnData object.
+def pca_umap_single(
+    adata: AnnData, save_path: str, n_neighbors: int = 20, n_pcs: int = 50, logger=None
+) -> AnnData:
+    """Run PCA and a single UMAP projection on the z-scored layer of the input AnnData object.
 
     Exports PCA.png.
 
     Args:
         adata (AnnData): Annotated data matrix with a 'zscore' layer and relevant metadata in .obs.
         save_path (str): Directory path to save PCA plot.
+        n_neighbors (int, optional): Number of neighbors for UMAP. Default: 20.
+        n_pcs (int, optional): Number of principal components to use for UMAP. Default: 50.
         logger (optional): Logger instance for status messages.
 
     Returns:
@@ -1039,15 +1030,15 @@ def pca_umap_single(adata: AnnData, save_path: str, logger=None) -> AnnData:
         plt.close(fig)
 
     # Single UMAP
-    config = {"n_neighbors": 20, "n_pcs": 50, "key": "X_umap_20_50"}
+    key = f"X_umap_{n_neighbors}_{n_pcs}"
 
     if logger:
-        logger.info(f"Dimensionality reduction: UMAP with {config}")
+        logger.info(
+            f"Dimensionality reduction: UMAP with n_neighbors={n_neighbors}, n_pcs={n_pcs}"
+        )
 
-    sc.pp.neighbors(adata, n_neighbors=config["n_neighbors"], n_pcs=config["n_pcs"])
-    sc.tl.umap(
-        adata, neighbors_key="neighbors", key_added=config["key"], n_components=2
-    )
+    sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
+    sc.tl.umap(adata, neighbors_key="neighbors", key_added=key, n_components=2)
 
     adata.uns.pop("neighbors", None)
     adata.obsp.pop("distances", None)
@@ -1133,7 +1124,107 @@ def integration_harmony(
             sc.pl.embedding(
                 adata,
                 basis=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
-                color=["sample", "condition", "cell_type_mmc_raw_revised"],
+                color=["sample", "condition", "cell_type_revised"],
+                size=point_size_3d,
+                alpha=point_alpha_3d,
+                wspace=0.1,
+                show=False,
+                projection="3d",
+            )
+            plt.savefig(
+                join(save_path, "UMAP_integrated_harmony_3D.png"),
+                dpi=150,
+                bbox_inches="tight",
+            )
+            plt.close()
+
+    return adata
+
+
+def integration_harmony_new(
+    adata: AnnData,
+    batch_key: str,
+    save_path: str,
+    logger: logging.Logger = None,
+    n_neighbors: int = 20,
+    n_pcs: int = 50,
+    point_size_factor: int = 150000,
+    point_size_3d: float = 0.5,
+    point_alpha_3d: float = 0.02,
+    cell_type_col: str = "cell_type_revised",
+) -> AnnData:
+    """Harmony integration by `batch_key`.
+
+    Exports 3 UMAP plots (unintegrated, integrated 2D, integrated 3D).
+
+    Args:
+        adata (AnnData): AnnData object. Should have 'zscore' layer and 'X_pca' in .obsm.
+        batch_key (str): Column in `adata.obs` with batch IDs.
+        save_path (str): Directory to save plots.
+        logger (logging.Logger, optional): Logger for messages.
+        n_neighbors (int, optional): Neighbors for graph. Defaults to 20.
+        n_pcs (int, optional): PCs to use. Defaults to 50.
+        point_size_factor (int, optional): Point size factor. Defaults to 150000.
+        point_size_3d (float, optional): Point size (3D). Defaults to 0.5.
+        point_alpha_3d (float, optional): Alpha (3D). Defaults to 0.02.
+        cell_type_col (str, optional): Obs column for cell types. Defaults to "cell_type_revised".
+
+    Returns:
+        AnnData: Integrated data with new embeddings:
+            - obsm['X_pca_harmony']         : Harmony-corrected PCA
+            - obsm['X_umap_harmony_n_n']    : 2D UMAP from Harmony PCs
+            - obsm['X_umap_harmony_n_n_3d'] : 3D UMAP from Harmony PCs
+            - uns['neighbors_harmony_n_n']  : neighbors meta; graphs in obsp with same key prefix
+    """
+    # avoid view-modification warnings
+    if adata.is_view:
+        adata = adata.copy()
+
+    # use z-scored matrix if present
+    if "zscore" in adata.layers:
+        adata.X = adata.layers["zscore"]
+    elif logger:
+        logger.warning("Layer 'zscore' not found; using current adata.X.")
+
+    if logger:
+        logger.info("Integration: Run Harmony")
+    sc.external.pp.harmony_integrate(adata, key=batch_key, basis="X_pca")
+
+    if logger:
+        logger.info("Integration: Compute neighbors and UMAP")
+
+    neighbors_key = f"neighbors_harmony_{n_neighbors}_{n_pcs}"
+    umap_key = f"X_umap_harmony_{n_neighbors}_{n_pcs}"
+    umap_key_3d = f"{umap_key}_3d"
+
+    sc.pp.neighbors(
+        adata,
+        use_rep="X_pca_harmony",
+        key_added=neighbors_key,
+        n_neighbors=n_neighbors,
+        n_pcs=n_pcs,
+    )
+    sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key, n_components=2)
+
+    if save_path is not None:
+        plot_integration_comparison(
+            adata,
+            save_path=save_path,
+            umap_key=umap_key,
+            batch_key=batch_key,
+            point_size_factor=point_size_factor,
+        )
+
+    # 3D UMAP + plot (use cell_type_col only if present)
+    sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key_3d, n_components=3)
+
+    if save_path is not None:
+        colors = [c for c in ["sample", "condition", cell_type_col] if c in adata.obs]
+        with mpl.rc_context({"figure.figsize": (8, 8)}):
+            sc.pl.embedding(
+                adata,
+                basis=umap_key_3d,
+                color=colors if colors else None,
                 size=point_size_3d,
                 alpha=point_alpha_3d,
                 wspace=0.1,
@@ -1165,7 +1256,7 @@ def plot_integration_comparison(
         ("sample", "Sample"),
         ("slide", "Slide"),
         ("condition", "Condition"),
-        ("cell_type_mmc_raw_revised", "Cell Type"),
+        ("cell_type_revised", "Cell Type"),
     ]
     cfg = [(k, lbl) for k, lbl in cfg if k in adata.obs.columns]
     if not cfg:
@@ -1252,9 +1343,12 @@ def plot_integration_comparison(
         ax.set_xlabel("")
         ax.set_ylabel("")
 
-    plt.savefig(
-        join(save_path, filename), dpi=dpi, bbox_inches="tight", pad_inches=0.08
-    )
+    if save_path:
+        plt.savefig(
+            join(save_path, filename), dpi=dpi, bbox_inches="tight", pad_inches=0.08
+        )
+    else:
+        plt.show()
     plt.close()
 
 

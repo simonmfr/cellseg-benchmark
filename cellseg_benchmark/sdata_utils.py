@@ -149,7 +149,6 @@ def integrate_segmentation_data(
     genotype: str = None,
     age_months: int = None,
     run_date: str = None,
-    animal_id: str = None,
     organism: str = None,
     slide: str = None,
     region: str = None,
@@ -157,6 +156,7 @@ def integrate_segmentation_data(
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
+    **obs,
 ) -> sd.SpatialData:
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
@@ -167,7 +167,6 @@ def integrate_segmentation_data(
         genotype: genotype of sample
         age_months: Age of sample
         run_date: Run date of sample
-        animal_id: Animal of sample
         organism: Organism of sample
         slide: Slide of sample
         region: Region of sample
@@ -286,22 +285,32 @@ def integrate_segmentation_data(
                             seg_method
                         )
                     )
-                sdata_main[f"adata_{seg_method}"].obs["genotype"] = genotype
-                sdata_main[f"adata_{seg_method}"].obs["age_months"] = age_months
-                sdata_main[f"adata_{seg_method}"].obs["condition"] = (
-                    genotype + "_" + str(age_months)
-                )
-                sdata_main[f"adata_{seg_method}"].obs["run_date"] = run_date
-                sdata_main[f"adata_{seg_method}"].obs["animal_id"] = animal_id
-                sdata_main[f"adata_{seg_method}"].obs["organism"] = organism
-                sdata_main[f"adata_{seg_method}"].obs["cohort"] = cohort
-                sdata_main[f"adata_{seg_method}"].obs["slide"] = slide
-                sdata_main[f"adata_{seg_method}"].obs["region"] = region
-                sdata_main[f"adata_{seg_method}"].obs["sample"] = (
-                    cohort + "_s" + slide + "_r" + region
-                )
+                    
+                adata = sdata_main[f"adata_{seg_method}"]
+                
+                meta = {
+                    "genotype": genotype,
+                    "age_months": age_months,
+                    "run_date": run_date,
+                    "organism": organism,
+                    "cohort": cohort,
+                    "slide": slide,
+                    "region": region,
+                    "sample": f"{cohort}_s{slide}_r{region}" if cohort and slide and region else None,
+                }
+                
+                meta.update(obs)
+                
+                g, a = meta.get("genotype"), meta.get("age_months")
+                meta["condition"] = meta.get("condition") or (f"{g}_{a}" if g and a else None)
+                
+                for k, v in meta.items():
+                    if v is not None:
+                        adata.obs[k] = [v] * adata.n_obs
+                
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
+
             elif len(sdata.tables) > 1:
                 if logger:
                     logger.warning(
@@ -396,13 +405,13 @@ def add_cell_type_annotation(
     if logger:
         logger.info(f"Adding cell type annotations for {seg_method}...")
     cell_type_information = [
-        "cell_type_mmc_incl_low_quality_revised",
+        "cell_type_incl_low_quality_revised",
         "cell_type_mmc_incl_low_quality_clusters",
         "cell_type_mmc_incl_low_quality",
-        "cell_type_mmc_incl_mixed_revised",
+        "cell_type_incl_mixed_revised",
         "cell_type_mmc_incl_mixed_clusters",
         "cell_type_mmc_incl_mixed",
-        "cell_type_mmc_raw_revised",
+        "cell_type_revised",
         "cell_type_mmc_raw_clusters",
         "cell_type_mmc_raw",
         "cell_id",
@@ -420,7 +429,7 @@ def add_cell_type_annotation(
     except KeyError:
         if logger:
             logger.warning(
-                "no propper cell annotation found for {}. Skipping.".format(seg_method)
+                "No cell type annotation found for {}. Skipping.".format(seg_method)
             )
         return sdata_main
     if set(cell_type_information) & set(sdata_main[f"adata_{seg_method}"].obs.columns):
@@ -444,7 +453,7 @@ def add_cell_type_annotation(
         if col.startswith("cell_type"):
             if isinstance(new_obs[col].dtype, pd.CategoricalDtype):
                 new_obs[col] = new_obs[col].cat.add_categories("Low-Read-Cells")
-            new_obs[col].fillna("Low-Read-Cells", inplace=True)
+            new_obs[col] = new_obs[col].fillna("Low-Read-Cells")
             new_obs[col] = new_obs[col].astype("category")
     sdata_main[f"adata_{seg_method}"].obs = new_obs
     return sdata_main
@@ -497,7 +506,7 @@ def calculate_volume(
             z_level_name = "ZIndex"
             cell_identifier = "cell_id"
         if logger:
-            logger.info(f"collecting volume metadata for {seg_method}")
+            logger.info(f"Collecting volume metadata for {seg_method}")
         global_z_min, global_z_max = (
             boundaries[z_level_name].min(),
             boundaries[z_level_name].max(),
@@ -524,7 +533,7 @@ def calculate_volume(
         grouped = boundaries.groupby(level=0)
 
         if logger:
-            logger.info(f"calculate volume metrics {seg_method}")
+            logger.info(f"Calculate volume metrics {seg_method}")
         scale = z_spacing * n_planes_2d
         items = [(entity_id, group.geometry.iat[0]) for entity_id, group in grouped]
         morphology_rows = Parallel(n_jobs=-1, backend="loky")(
