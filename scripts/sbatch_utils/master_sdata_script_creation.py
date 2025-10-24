@@ -1,5 +1,6 @@
 from pathlib import Path
-import shlex, yaml
+import shlex
+import yaml
 
 BASE = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 YAML = f"{BASE}/misc/sample_metadata.yaml"
