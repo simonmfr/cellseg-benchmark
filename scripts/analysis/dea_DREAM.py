@@ -135,11 +135,13 @@ if __name__ == "__main__":
     adata.obs["cell_type"] = (
         adata.obs["cell_type"]
         .astype(str)
-        .replace({
-            "Tanycytes": "Ependymal",
-            "Astroependymal": "Astrocytes",
-            "Neurons-Glyc-Gaba": "Neurons-Other"
-        })
+        .replace(
+            {
+                "Tanycytes": "Ependymal",
+                "Astroependymal": "Astrocytes",
+                "Neurons-Glyc-Gaba": "Neurons-Other",
+            }
+        )
         .astype("category")
     )
 

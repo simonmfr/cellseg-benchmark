@@ -27,8 +27,8 @@ import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.sparse as sp
 import scanpy as sc
+import scipy.sparse as sp
 import seaborn as sns
 from matplotlib.pyplot import rc_context
 from spatialdata import read_zarr
@@ -181,7 +181,11 @@ for name, arr in [("X", adata.X), *adata.layers.items()]:
     if np.issubdtype(values.dtype, np.floating) and np.allclose(
         values, np.round(values), rtol=0, atol=1e-8
     ):
-        casted = arr.astype(np.int64) if sp.issparse(arr) else arr.astype(np.int64, copy=False)
+        casted = (
+            arr.astype(np.int64)
+            if sp.issparse(arr)
+            else arr.astype(np.int64, copy=False)
+        )
         if name == "X":
             adata.X = casted
         else:

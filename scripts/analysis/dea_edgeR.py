@@ -142,14 +142,16 @@ if __name__ == "__main__":
     adata.obs["cell_type"] = (
         adata.obs["cell_type"]
         .astype(str)
-        .replace({
-            "Tanycytes": "Ependymal",
-            "Astroependymal": "Astrocytes",
-            "Neurons-Glyc-Gaba": "Neurons-Other"
-        })
+        .replace(
+            {
+                "Tanycytes": "Ependymal",
+                "Astroependymal": "Astrocytes",
+                "Neurons-Glyc-Gaba": "Neurons-Other",
+            }
+        )
         .astype("category")
     )
-    
+
     # Clean up group names for R conversion
     adata.obs[args.subset_key] = [
         key.replace(" ", "_")

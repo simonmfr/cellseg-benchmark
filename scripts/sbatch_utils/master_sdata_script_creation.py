@@ -1,10 +1,11 @@
-from pathlib import Path
 import shlex
+from pathlib import Path
+
 import yaml
 
 BASE = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 YAML = f"{BASE}/misc/sample_metadata.yaml"
-OUT  = f"{BASE}/misc/sbatches/sbatch_master_sdata"
+OUT = f"{BASE}/misc/sbatches/sbatch_master_sdata"
 MANDATORY = {"cohort", "slide", "region", "organism", "run_date", "path"}
 
 with open(YAML) as f:
@@ -21,12 +22,22 @@ for sample, meta in data.items():
         extras += ["--obs", f"{k}={v}"]
 
     argv = [
-        "python", "scripts/master_sdata.py", sample, meta["path"], "z3", BASE,
-        "--cohort", meta["cohort"],
-        "--slide", str(meta["slide"]),
-        "--region", str(meta["region"]),
-        "--organism", meta["organism"],
-        "--run_date", str(meta["run_date"]),
+        "python",
+        "scripts/master_sdata.py",
+        sample,
+        meta["path"],
+        "z3",
+        BASE,
+        "--cohort",
+        meta["cohort"],
+        "--slide",
+        str(meta["slide"]),
+        "--region",
+        str(meta["region"]),
+        "--organism",
+        meta["organism"],
+        "--run_date",
+        str(meta["run_date"]),
         *extras,
     ]
     cli = " \\\n".join(shlex.quote(str(a)) for a in argv)

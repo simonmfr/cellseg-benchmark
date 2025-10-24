@@ -34,9 +34,13 @@ def main(data_path, sample, base_segmentation):
     ]
 
     # fix legacy path inconsistency
-    sdata.attrs["cell_segmentation_image"] = "_".join(data_path.rstrip("/").split("/")[-2:]) + "_z3"
-    sdata.attrs["transcripts_dataframe"] = "_".join(data_path.rstrip("/").split("/")[-2:]) + "_transcripts"
-    
+    sdata.attrs["cell_segmentation_image"] = (
+        "_".join(data_path.rstrip("/").split("/")[-2:]) + "_z3"
+    )
+    sdata.attrs["transcripts_dataframe"] = (
+        "_".join(data_path.rstrip("/").split("/")[-2:]) + "_transcripts"
+    )
+
     translation = read_csv(
         join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",

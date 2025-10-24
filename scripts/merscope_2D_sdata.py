@@ -19,9 +19,12 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-assert any(["cell_by_gene.csv" in file for file in os.listdir(join(args.save_path, "analysis_outputs"))]), (
-    "not correctly computed"
-)
+assert any(
+    [
+        "cell_by_gene.csv" in file
+        for file in os.listdir(join(args.save_path, "analysis_outputs"))
+    ]
+), "not correctly computed"
 sdata = merscope(
     args.data_path,
     vpt_outputs={

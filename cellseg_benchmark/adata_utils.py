@@ -51,7 +51,6 @@ def merge_adatas(
     adatas = []
 
     for name, adata in tqdm(adatas_list):
-        
         if "spt_region" in adata.obs:
             del adata.obs["spt_region"]
 
@@ -63,11 +62,23 @@ def merge_adatas(
         adatas.append(adata)
 
         if plot_qc_stats:
-            y_limits[0] = max(y_limits[0], np.histogram(adata.obs["n_counts"], bins=60)[0].max())
-            y_limits[1] = max(y_limits[1], np.histogram(adata.obs["n_counts"][adata.obs["n_counts"] < 1000], bins=60)[0].max())
-            y_limits[2] = max(y_limits[2], np.histogram(adata.obs["n_genes"], bins=60)[0].max())
+            y_limits[0] = max(
+                y_limits[0], np.histogram(adata.obs["n_counts"], bins=60)[0].max()
+            )
+            y_limits[1] = max(
+                y_limits[1],
+                np.histogram(
+                    adata.obs["n_counts"][adata.obs["n_counts"] < 1000], bins=60
+                )[0].max(),
+            )
+            y_limits[2] = max(
+                y_limits[2], np.histogram(adata.obs["n_genes"], bins=60)[0].max()
+            )
             if "volume_final" in adata.obs:
-                y_limits[3] = max(y_limits[3], np.histogram(adata.obs["volume_final"], bins=100)[0].max())
+                y_limits[3] = max(
+                    y_limits[3],
+                    np.histogram(adata.obs["volume_final"], bins=100)[0].max(),
+                )
 
     adata = concat(adatas, join="outer", merge="first")
 
@@ -87,18 +98,23 @@ def merge_adatas(
 
     if logger:
         n_samples = adata.obs["sample"].nunique() if "sample" in adata.obs else None
-        logger.info(f"{seg_method}: #cells={adata.n_obs}" + (f", #samples={n_samples}" if n_samples else ""))
+        logger.info(
+            f"{seg_method}: #cells={adata.n_obs}"
+            + (f", #samples={n_samples}" if n_samples else "")
+        )
         if n_samples == 1:
-            logger.warning(f"Only one sample found ({adata.obs['sample'].unique()[0]})!")
+            logger.warning(
+                f"Only one sample found ({adata.obs['sample'].unique()[0]})!"
+            )
 
     if plot_qc_stats:
         from pathlib import Path
+
         save_dir = Path(save_path) if save_path else Path(".")
         save_dir.mkdir(parents=True, exist_ok=True)
         plot_qc(adata, save_dir, y_limits, logger)
 
     return adata
-
 
 
 def plot_qc(adata: AnnData, save_dir, y_limits, logger) -> None:
@@ -1216,7 +1232,9 @@ def integration_harmony_new(
         )
 
     # 3D UMAP + plot (use cell_type_col only if present)
-    sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key_3d, n_components=3)
+    sc.tl.umap(
+        adata, neighbors_key=neighbors_key, key_added=umap_key_3d, n_components=3
+    )
 
     if save_path is not None:
         colors = [c for c in ["sample", "condition", cell_type_col] if c in adata.obs]

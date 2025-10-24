@@ -128,10 +128,14 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     )
 
     # backing für memory efficiency
-    sdata.write(join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True)
+    sdata.write(
+        join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True
+    )
     sdata = read_zarr(join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"))
 
-    sopa.make_transcript_patches(sdata, patch_width=None, prior_shapes_key="cellpose_boundaries")
+    sopa.make_transcript_patches(
+        sdata, patch_width=None, prior_shapes_key="cellpose_boundaries"
+    )
 
     sopa.settings.parallelization_backend = "dask"
     sopa.settings.dask_client_kwargs["n_workers"] = int(
@@ -152,7 +156,9 @@ def main(data_path, sample, proseg_flags, base_segmentation):
 
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(path, f"Proseg_3D_{base_segmentation}", "sdata.zarr"), overwrite=True)
+    sdata.write(
+        join(path, f"Proseg_3D_{base_segmentation}", "sdata.zarr"), overwrite=True
+    )
     run(
         [
             "cp",
@@ -170,4 +176,9 @@ def main(data_path, sample, proseg_flags, base_segmentation):
 
 
 if __name__ == "__main__":
-    main(args.data_path, args.sample, proseg_flags, base_segmentation=args.base_segmentation)
+    main(
+        args.data_path,
+        args.sample,
+        proseg_flags,
+        base_segmentation=args.base_segmentation,
+    )

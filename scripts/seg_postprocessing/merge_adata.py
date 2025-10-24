@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 import warnings
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from pathlib import Path
 from typing import Tuple
@@ -63,8 +63,11 @@ sample_metadata_file, excluded = (
     for f in ["sample_metadata.yaml", "samples_excluded.yaml"]
 )
 excluded_samples = set(excluded.get(args.cohort, []))
-yaml_samples = [name for name, meta in sample_metadata_file.items()
-                if meta.get("cohort") == args.cohort and name not in excluded_samples]
+yaml_samples = [
+    name
+    for name, meta in sample_metadata_file.items()
+    if meta.get("cohort") == args.cohort and name not in excluded_samples
+]
 
 logger.info("Loading data...")
 loads = []
@@ -85,7 +88,7 @@ with ProcessPoolExecutor(max_workers=max_workers) as ex:
 adata_list = [(name, adata) for name, adata in results if adata is not None]
 
 # temp fix for aging_s11_r0
-#for i, (name, ad) in enumerate(adata_list):
+# for i, (name, ad) in enumerate(adata_list):
 #    if name == "aging_s11_r0":
 #        ad.obs["region"] = "0"
 #    ad.obs["region"] = ad.obs["region"].astype(str).astype("category")
@@ -102,12 +105,12 @@ adata = merge_adatas(
 del adata_list
 
 # temp fix adata.obs formatting ###############
-#adata.obs["sample"] = adata.obs["sample"].str.replace(
+# adata.obs["sample"] = adata.obs["sample"].str.replace(
 #    rf"^{args.cohort}_(\d+)_(\d+)$", rf"{args.cohort}_s\1_r\2", regex=True
-#)
-#adata.obs["condition"] = (
+# )
+# adata.obs["condition"] = (
 #    adata.obs["genotype"].astype(str) + "_" + adata.obs["age_months"].astype(str)
-#)
+# )
 ###############
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
@@ -119,12 +122,12 @@ adata = filter_spatial_outlier_cells(
     logger=logger,
 )
 
-if "vpt_3D" in args.seg_method: # min_counts=10 due to smaller cell sizes
+if "vpt_3D" in args.seg_method:  # min_counts=10 due to smaller cell sizes
     min_counts = 10
-elif args.cohort == "SynergyLung": # more lenient for initial analysis
+elif args.cohort == "SynergyLung":  # more lenient for initial analysis
     min_counts = 15
 else:
-    min_counts = None # default = 25
+    min_counts = None  # default = 25
 
 adata = filter_low_quality_cells(
     adata,

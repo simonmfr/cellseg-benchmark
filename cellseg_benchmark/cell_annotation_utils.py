@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -460,6 +461,7 @@ def process_adata(adata, seg_method, logger):
 
     Args:
         adata: Anndata object.
+        seg_method: Segmentation method.
         logger: logging.Logger object
 
     Returns:

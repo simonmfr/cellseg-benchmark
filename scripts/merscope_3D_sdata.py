@@ -21,9 +21,12 @@ parser.add_argument("data_path", help="Path to data folder.")
 parser.add_argument("save_path", help="Path to output folder.")
 args = parser.parse_args()
 
-assert any(["cell_by_gene.csv" in file for file in listdir(join(args.save_path, "analysis_outputs"))]), (
-    "not correctly computed"
-)
+assert any(
+    [
+        "cell_by_gene.csv" in file
+        for file in listdir(join(args.save_path, "analysis_outputs"))
+    ]
+), "not correctly computed"
 logger.info("Loading data..")
 sdata = merscope(
     args.data_path,

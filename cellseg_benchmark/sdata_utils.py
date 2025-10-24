@@ -174,6 +174,8 @@ def integrate_segmentation_data(
         write_to_disk: Whether to write elements to disk immediately
         data_path: Optional path to directory to get transformation for adatas
         logger: Optional logger object to write messages to console
+        **obs: Additional per-cell annotations to add to `.obs`
+              (e.g. condition, batch, etc.).
 
     Returns:
         Updated sdata_main object
@@ -285,9 +287,9 @@ def integrate_segmentation_data(
                             seg_method
                         )
                     )
-                    
+
                 adata = sdata_main[f"adata_{seg_method}"]
-                
+
                 meta = {
                     "genotype": genotype,
                     "age_months": age_months,
@@ -296,18 +298,22 @@ def integrate_segmentation_data(
                     "cohort": cohort,
                     "slide": slide,
                     "region": region,
-                    "sample": f"{cohort}_s{slide}_r{region}" if cohort and slide and region else None,
+                    "sample": f"{cohort}_s{slide}_r{region}"
+                    if cohort and slide and region
+                    else None,
                 }
-                
+
                 meta.update(obs)
-                
+
                 g, a = meta.get("genotype"), meta.get("age_months")
-                meta["condition"] = meta.get("condition") or (f"{g}_{a}" if g and a else None)
-                
+                meta["condition"] = meta.get("condition") or (
+                    f"{g}_{a}" if g and a else None
+                )
+
                 for k, v in meta.items():
                     if v is not None:
                         adata.obs[k] = [v] * adata.n_obs
-                
+
                 if write_to_disk:
                     sdata_main.write_element(f"adata_{seg_method}")
 

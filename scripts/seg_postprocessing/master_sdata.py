@@ -2,12 +2,10 @@ import argparse
 import logging
 import os
 from os.path import join
-import warnings
 
 from spatialdata import read_zarr
 
 from cellseg_benchmark import sdata_utils as su
-
 
 logger = logging.getLogger("shape_mapping")
 logger.setLevel(logging.INFO)
@@ -24,7 +22,9 @@ p.add_argument(
     help="Path to folder with merscope output data (e.g. /cohort1/slide2/region0).",
 )
 p.add_argument(
-    "zmode", choices=["z3"], help="Mode of master sdata. Either 'z3' or '3d' (currently only z3 is implemented)."
+    "zmode",
+    choices=["z3"],
+    help="Mode of master sdata. Either 'z3' or '3d' (currently only z3 is implemented).",
 )
 p.add_argument("data_dir", help="Output data folder.")
 p.add_argument(
@@ -38,8 +38,13 @@ p.add_argument("--organism", type=str, help="organism.", default=None)
 p.add_argument("--slide", type=str, help="slide.", default=None)
 p.add_argument("--region", type=str, help="region.", default=None)
 p.add_argument("--cohort", type=str, help="cohort.", default=None)
-p.add_argument("--obs", action="append", default=[], metavar="KEY=VAL",
-                    help="Extra covariates to add to adata.obs (repeatable), e.g. --obs tissue=brain.")
+p.add_argument(
+    "--obs",
+    action="append",
+    default=[],
+    metavar="KEY=VAL",
+    help="Extra covariates to add to adata.obs (repeatable), e.g. --obs tissue=brain.",
+)
 args = p.parse_args()
 
 NONES = {"", "None", "none", "null", "NULL", None}
