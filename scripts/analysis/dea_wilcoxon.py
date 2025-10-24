@@ -95,7 +95,7 @@ if __name__ == "__main__":
         .replace({
             "Tanycytes": "Ependymal",
             "Astroependymal": "Astrocytes",
-            "Neurons-Glyc-Gaba" : "Neurons-Other"
+            "Neurons-Glyc-Gaba": "Neurons-Other"
         })
         .astype("category")
     )
