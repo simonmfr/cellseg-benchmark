@@ -46,7 +46,7 @@ for sample, meta in data.items():
 set -euo pipefail
 
 cd ~/gitrepos/cellseg-benchmark
-git pull --quiet origin
+git pull --quiet
 mamba activate cellseg_benchmark
 {cli}
 """
