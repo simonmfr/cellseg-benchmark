@@ -41,6 +41,8 @@ def main(data_path, sample, base_segmentation, proseg_flags):
         sep=" ",
         header=None,
     )
+    sdata.attrs["cell_segmentation_image"] = sdata_tmp.attrs["cell_segmentation_image"]
+    sdata.attrs["transcripts_dataframe"] = sdata_tmp.attrs["transcripts_dataframe"]
     del sdata_tmp
 
     # backing für memory efficiency
