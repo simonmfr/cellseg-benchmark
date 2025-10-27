@@ -39,8 +39,8 @@ for key, value in data.items():
 source ~/.bashrc
 conda activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_1_{args.staining}_model_{args.confidence}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_baysor.py {value["path"]} Cellpose_1_{args.staining}_model {args.confidence} {key}
-            """)
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/baysor.py {value["path"]} Cellpose_1_{args.staining}_model {args.confidence} {key}
+""")
         f.close()
     else:
         f = open(
@@ -63,6 +63,6 @@ python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_bay
 source ~/.bashrc
 conda activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_{args.CP_version}_DAPI_{args.staining}_{args.confidence}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_baysor.py {value["path"]} Cellpose_{args.CP_version}_DAPI_{args.staining} {args.confidence} {key}
-            """)
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/baysor.py {value["path"]} Cellpose_{args.CP_version}_DAPI_{args.staining} {args.confidence} {key}
+""")
         f.close()

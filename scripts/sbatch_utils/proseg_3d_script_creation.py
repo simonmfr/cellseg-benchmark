@@ -65,7 +65,7 @@ Cellpose_1_{args.staining}_model --voxel-layers {args.voxel} --output-cell-polyg
 
 mamba activate sopa_2
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_Cellpose_{args.CP_version}_DAPI_{args.staining}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/proseg_3D.py {value["path"]} {key} \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/proseg_3D.py {value["path"]} {key} \
 Cellpose_{args.CP_version}_DAPI_{args.staining} --voxel-layers {args.voxel} --output-cell-polygon-layers cell-polygons.geojson.gz 
             """)
         f.close()

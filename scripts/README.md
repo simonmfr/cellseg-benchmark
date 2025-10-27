@@ -1,6 +1,6 @@
 # User guide
 
-## [api_baysor.py](api_baysor.py)
+## [api_baysor.py](segmentation/baysor.py)
 Arguments:
 1) `base segmentation`: full name, i.e. Cellpose_1_DAPI_PolyT
 2) `confidence`: confidence of prior segmentation
@@ -11,7 +11,7 @@ Usage:
 python api_baysor.py base_segmentation confidence sample_name
 ```
 
-## [api_cellpose_1.py](api_cellpose_1.py)
+## [api_cellpose_1.py](segmentation/cellpose_1.py)
 Arguments:
 1) `data_path`: Path to Merscope output
 2) `save_path`: Path to results folder
@@ -22,7 +22,7 @@ Usage:
 python api_cellpose_1.py data_path save_path staining
 ```
 
-## [api_cellpose_2.py](api_cellpose_2.py)
+## [api_cellpose_2.py](segmentation/cellpose_2.py)
 Arguments:
 1) `data_path`: Path to Merscope output
 2) `save_path`: Path to results folder
@@ -33,7 +33,7 @@ Usage:
 python api_cellpose_2.py data_path save_path staining
 ```
 
-## [api_nuclei.py](api_nuclei.py)
+## [api_nuclei.py](segmentation/nuclei.py)
 Arguments:
 1) `data_path`: Path to Merscope output
 2) `save_path`: Path to results folder
@@ -41,19 +41,6 @@ Arguments:
 Usage:
 ```
 python api_nuclei.py data_path save_path
-```
-
-## [master_sdata_to_explorer.py](master_sdata_to_explorer.py)
-Convert multiple shapes and boundaries into one explorer.
-Arguments:
-1) `data_path`: Path to sdata_z3.zarr
-2) `method_1`: Method to add to explorer
-3) `method_2`: Method to add to explorer
-4) `...`: More methods to add to explorer
-
-Usage:
-```
-python master_sdata_to_explorer.py data_path method_1 method_2 ...
 ```
 
 ## [merge_adata.py](merge_adata.py)
@@ -64,7 +51,7 @@ Usage:
 python merge_adata.py segmentation_method
 ```
 
-## [rastered_segmentation.py](rastered_segmentation.py)
+## [rastered_segmentation.py](segmentation/rastered_segmentation.py)
 Arguments:
 1) `data_path`: Path to Merscope output
 2) `save_path`: Path to results folder
@@ -107,7 +94,7 @@ Usage:
 python transcript_tif.py data_path
 ```
 
-## [voronoi_segmentation.py](voronoi_segmentation.py)
+## [voronoi_segmentation.py](segmentation/voronoi_segmentation.py)
 Arguments:
 1) `data_path`: Path to Merscope output
 2) `save_path`: Path to results folder

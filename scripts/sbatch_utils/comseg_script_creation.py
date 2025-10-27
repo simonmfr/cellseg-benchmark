@@ -38,9 +38,9 @@ for key, value in data.items():
 source ~/.bashrc
 conda activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_1_{args.staining}_model
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_comseg.py {value["path"]} {key} \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/comseg.py {value["path"]} {key} \
 Cellpose_1_{args.staining}_model
-            """)
+""")
         f.close()
     else:
         f = open(
@@ -63,7 +63,7 @@ Cellpose_1_{args.staining}_model
 mamba activate sopa
 pip install igraph
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/ComSeg_Cellpose_{args.CP_version}_DAPI_{args.staining}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/api_comseg.py {value["path"]} {key} \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/comseg.py {value["path"]} {key} \
  Cellpose_{args.CP_version}_DAPI_{args.staining}
-            """)
+""")
         f.close()

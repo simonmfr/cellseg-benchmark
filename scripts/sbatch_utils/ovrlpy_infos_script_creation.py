@@ -36,6 +36,6 @@ for key, value in data.items():
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
-python scripts/ovrlpy_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
+python scripts/segmentation/ovrlpy_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
 """)
     f.close()

@@ -39,6 +39,6 @@ for key, value in data.items():
 cd ~/gitrepos/cellseg-benchmark
 git pull
 mamba activate cellseg_benchmark
-python scripts/ficture_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
+python scripts/segmentation/ficture_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
 """)
     f.close()

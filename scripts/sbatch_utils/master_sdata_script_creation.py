@@ -23,7 +23,7 @@ for sample, meta in data.items():
 
     argv = [
         "python",
-        "scripts/master_sdata.py",
+        "scripts/seg_postprocessing/master_sdata.py",
         sample,
         meta["path"],
         "z3",

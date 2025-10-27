@@ -39,7 +39,7 @@ for key, value in data.items():
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
 
 mamba activate sopa
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/rastered_segmentation.py \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/rastered_segmentation.py \
  {value["path"]} \
  /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Rastered_{args.width} \
  {args.width} {args.overlap} {args.unit} {args.intens_rat}
