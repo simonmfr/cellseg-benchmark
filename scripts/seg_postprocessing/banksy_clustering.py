@@ -117,7 +117,7 @@ if "SLURM_CPUS_PER_TASK" in os.environ:
     print(sc.settings.n_jobs)
 logger.info("Loading integrated adata...")
 #adata = sc.read_h5ad(os.path.join(base_path, "analysis", args.cohort, args.seg_method, "adatas", "adata_integrated.h5ad.gz"))
-adata = sc.read_h5ad(base_path / "misc" / f"{args.cohort}_Neg_25_banksy_adata_integrated.h5ad")
+adata = sc.read_h5ad(base_path / "misc" / f"{args.cohort}_Neg_25_banksy_adata_integrated.h5ad.gz")
 point_size_factor = 320000
 celltype_col = "cell_type_mmc_raw_revised"
 
