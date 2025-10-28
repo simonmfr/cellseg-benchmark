@@ -57,99 +57,6 @@ def assign_final_cell_types(
     mmc_to_score_dict,
     leiden_col,
     out_col="cell_type_final",
-    score_threshold=0.25,
-    logger=None,
-):
-    """Assign final cell types based on scoring results in-place.
-
-    Parameters:
-    -----------
-    adata : anndata.AnnData
-        Anndata object
-    cluster_labels_dict : dict
-        Dictionary mapping cluster IDs to initially assigned cell types, created by assign_cell_types_by_cluster()
-    mmc_to_score_dict : dict
-        Dictionary mapping MapMyCells cell type names to their corresponding scanpy.tl.score_genes suffixes
-    leiden_col : string
-        Column in adata.obs containing Leiden clustering
-    score_threshold : float, default=0.25
-        Minimum score required to assign a cell type
-    logger : logger, default=None
-
-    Returns:
-    --------
-    adata : anndata.AnnData
-        Updated anndata object with out_col in adata.obs
-    undefined_reasons : dict
-        Dictionary explaining why some clusters remained undefined
-    cluster_score_matrix : pandas.DataFrame
-        Matrix of scores for each cluster-cell type combination
-    """
-    adata.obs[out_col] = np.nan
-
-    # Store reasons for undefined assignments
-    undefined_reasons = {}
-
-    # Initialize cluster-score matrix
-    clusters = list(adata.obs[leiden_col].unique())
-    cell_types = list(mmc_to_score_dict.keys())
-    cluster_score_matrix = pd.DataFrame(index=clusters, columns=cell_types, dtype=float)
-
-    for cluster in clusters:
-        assigned_cell_type = cluster_labels_dict.get(cluster, "Undefined")
-        mask = adata.obs[leiden_col] == cluster
-
-        # Collect all scores for this cluster
-        all_scores = {}
-        for cell_type, score_suffix in mmc_to_score_dict.items():
-            score_col = f"score_{score_suffix}"
-            if score_col in adata.obs.columns:
-                mean_score = adata.obs.loc[mask, score_col].mean()
-                all_scores[cell_type] = mean_score
-                cluster_score_matrix.loc[cluster, cell_type] = mean_score
-            else:
-                cluster_score_matrix.loc[cluster, cell_type] = np.nan
-
-        if not all_scores:
-            undefined_reasons[cluster] = "No scores found for any cell type"
-            continue
-
-        # Find highest scoring cell type
-        highest_cell_type = max(all_scores, key=all_scores.get)
-        highest_score = all_scores[highest_cell_type]
-
-        # Get score for assigned cell type
-        assigned_score_col = (
-            f"score_{mmc_to_score_dict.get(assigned_cell_type, assigned_cell_type)}"
-        )
-        if assigned_score_col in adata.obs.columns:
-            assigned_score = adata.obs.loc[mask, assigned_score_col].mean()
-        else:  # e.g. "Undefined" or "Mixed"
-            assigned_score = np.nan
-
-        # If highest score is above threshold, use it
-        if highest_score > score_threshold:
-            if highest_cell_type != assigned_cell_type:
-                logger.info(
-                    f"    Cluster {cluster}: Reassigned from {assigned_cell_type} "
-                    f"to {highest_cell_type} (scores {assigned_score:.2f} → {highest_score:.2f}, Δ={highest_score - assigned_score:.2f})"
-                )
-            adata.obs.loc[mask, out_col] = highest_cell_type
-        else:
-            undefined_reasons[cluster] = (
-                f"No cell type has score above threshold {score_threshold} (highest: {highest_cell_type} with {highest_score:.4f}). Set to undefined."
-            )
-            adata.obs.loc[mask, out_col] = "Undefined"
-
-    return adata, undefined_reasons, cluster_score_matrix
-
-
-def assign_final_cell_types_2(
-    adata,
-    cluster_labels_dict,
-    mmc_to_score_dict,
-    leiden_col,
-    out_col="cell_type_final",
     score_high_threshold=0.5,  # high: reassign
     score_low_threshold=0.25,  # low: set Undefined (only if no score ≥ score_low_threshold)
     score_delta=0.2,
@@ -157,9 +64,10 @@ def assign_final_cell_types_2(
 ):
     """Assign final cell types based on cluster-mean marker gene scores.
 
-        - If highest_score ≥ score_high_threshold: reassign to highest-scoring cell type
-        - If all scores < score_low_threshold: mark cluster as 'Undefined'
-        - Otherwise: keep MMC majority vote label (no change)
+        - If highest_score ≥ score_high_threshold → reassign to top-scoring cell type 
+          (only if ≥ score_delta higher than current MMC label)
+        - If all scores < score_low_threshold → mark as 'Undefined'
+        - Otherwise → keep MMC label (no change)
 
     Parameters
     ----------
@@ -175,8 +83,10 @@ def assign_final_cell_types_2(
         Column name for the final assigned cell type.
     score_high_threshold : float, default 0.7
         Minimum score to confidently reassign a cluster to the top-scoring cell type.
-    score_low_threshold : float, default 0.3
-        Threshold below which all scores are considered too weak → cluster set to 'Undefined'.
+    score_low_threshold : float, default 0.25
+        If all scores are below this, cluster is set to 'Undefined'.
+    score_delta : float, default 0.2
+        Minimum score difference required to justify reassignment.
     logger : logging.Logger, optional
         Logger for progress reporting.
 
@@ -694,7 +604,7 @@ def revise_annotations(
     del cell_type_dict["Bergmann"]  # too few cells
 
     # Score cell types using marker genes
-    adata = score_cell_types_2(
+    adata = score_cell_types(
         adata,
         marker_genes_dict=cell_type_dict,
         top_n_genes=top_n_genes,
@@ -738,17 +648,7 @@ def revise_annotations(
             "Revising majority vote using marker genes scores and identify final cell type..."
         )
 
-        # adata, undefined_reasons, cluster_score_matrix = assign_final_cell_types(
-        #    adata,
-        #    cluster_labels_dict=assigned_cell_type_dict,
-        #    mmc_to_score_dict=mmc_to_score_dict,
-        #    leiden_col=leiden_col,
-        #    out_col=f"{key}_revised",
-        #    score_threshold=score_threshold,
-        #    logger=logger,
-        # )
-
-        adata, undefined_reasons, cluster_score_matrix = assign_final_cell_types_2(
+        adata, undefined_reasons, cluster_score_matrix = assign_final_cell_types(
             adata,
             cluster_labels_dict=assigned_cell_type_dict,
             mmc_to_score_dict=mmc_to_score_dict,
@@ -956,41 +856,8 @@ def flag_contamination(
 
     return adata
 
-
-def score_cell_types(adata, marker_genes_dict, top_n_genes=25, layer=None, logger=None):
-    """Score cells for marker gene expression using top n genes from marker_genes_dict in selected layer."""
-    if not marker_genes_dict:
-        if logger:
-            logger.warning("Empty marker_genes_dict. No scoring performed.")
-        return adata
-
-    for cell_type, genes in marker_genes_dict.items():
-        if not genes:
-            if logger:
-                logger.warning(f"Empty gene list for {cell_type}. Skipping.")
-            continue
-
-        genes_to_use = genes[:top_n_genes] if len(genes) > top_n_genes else genes
-        available_genes = [gene for gene in genes_to_use if gene in adata.var_names]
-
-        if available_genes:
-            score_name = f"score_{cell_type}"
-            if logger:
-                logger.info(f"Scoring {cell_type} with {len(available_genes)} genes")
-            sc.tl.score_genes(
-                adata, available_genes, score_name=score_name, layer=layer
-            )
-        else:
-            if logger:
-                logger.warning(
-                    f"No marker genes for {cell_type} found in dataset. Skipping."
-                )
-
-    return adata
-
-
-def score_cell_types_2(
-    adata, marker_genes_dict, top_n_genes=25, layer=None, logger=None
+def score_cell_types(
+    adata, marker_genes_dict, top_n_genes=25, layer=None, score_prefix="score", logger=None
 ):
     """Score cells for marker gene expression using up to top_n_genes per cell type."""
     if not marker_genes_dict:
@@ -1026,7 +893,7 @@ def score_cell_types_2(
                     f"    {cell_type:<{name_width}} ({n_avail}/{n_used} {gene_word}{extra})"
                 )
             sc.tl.score_genes(
-                adata, available_genes, score_name=f"score_{cell_type}", layer=layer
+                adata, available_genes, score_name=f"{score_prefix}_{cell_type}", layer=layer
             )
         else:
             if logger:

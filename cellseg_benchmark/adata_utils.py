@@ -675,14 +675,13 @@ def normalize_counts(
         save_path (str): Directory for diagnostic plots.
         seg_method (str): Name of segmentation method for processing logic.
         target_sum (int, optional): Target sum per cell after rescaling.
-            Defaults to 250 as in Allen et al.
+            Defaults to 250 as in Allen et al., Cell 2023
         trim_outliers (bool, optional): Whether to remove outlier cells based on
             total volume-normalised counts. Defaults to True.
         trim_percentiles (tuple[float, float], optional): Percentile thresholds
             for outlier trimming. Defaults to (1.0, 99.0).
         volume_col (str, optional): Column in ``adata.obs`` containing the
             per-cell volume estimate. Defaults to ``"volume_final"``.
-        logger (logging.Logger, optional): Logger instance for status messages.
         logger (logging.Logger, optional): Logger instance for status messages.
 
     Returns:
@@ -694,10 +693,7 @@ def normalize_counts(
     if sp.issparse(adata.X) and not isinstance(adata.X, sp.csr_matrix):
         adata.X = adata.X.tocsr()
 
-    if (
-        not np.issubdtype(adata.X.dtype, np.integer)
-        and "proseg" not in seg_method.lower()
-    ):  # exception for proseg: counts are non-integer posterior expectations
+    if not np.issubdtype(adata.X.dtype, np.integer):  # exception for proseg removed after update to proseg v3 (in proseg v2 counts were non-integer posterior expectations)
         raise TypeError(
             f"adata.X must contain integer counts, found instead: {adata.X.dtype}"
         )
@@ -1071,100 +1067,6 @@ def integration_harmony(
     n_neighbors: int = 20,
     n_pcs: int = 50,
     point_size_factor: int = 150000,
-    point_size_3d: int = 0.5,
-    point_alpha_3d: int = 0.02,
-) -> AnnData:
-    """Harmony integration by batch_key.
-
-    Also exports 3 UMAP plots (unintegrated, integrated 2D, integrated 3D).
-
-    Args:
-        adata (AnnData): AnnData data object. Must have 'zscore' layer and 'X_pca' obsm
-            for PCA coordinates.
-        batch_key (str): Column name in adata.obs containing batch identifier for integration.
-        save_path (str): Directory path to save plots.
-        logger (logging.Logger, optional): Optional logger object. Defaults to None.
-        n_neighbors (int, optional): Number of neighbors for graph construction.
-            Defaults to 20.
-        n_pcs (int, optional): Number of principal components to use. Defaults to 50.
-        point_size_factor (int, optional): Point size factor for images. Defaults to 320000.
-        point_size_3d (int, optional): Point size factor for images. Defaults to 0.5.
-        point_alpha_3d (int, optional): Point size factor for images. Defaults to 0.02.
-
-    Returns:
-        AnnData: Integrated data with new embeddings:
-            - obsm['X_pca_harmony']: Harmony-corrected PCA coordinates
-            - obsm['X_umap_harmony_n_n']: UMAP from harmony coordinates
-            - obsp['neighbors_harmony_n_n']: Neighbor graph from harmony coordinates
-    """
-    adata.X = adata.layers["zscore"]
-
-    if logger:
-        logger.info("Integration: Run Harmony")
-    sc.external.pp.harmony_integrate(adata, key=batch_key, basis="X_pca")
-
-    if logger:
-        logger.info("Integration: Compute neighbors and UMAP")
-
-    neighbors_key = f"neighbors_harmony_{n_neighbors}_{n_pcs}"
-    umap_key = f"X_umap_harmony_{n_neighbors}_{n_pcs}"
-
-    sc.pp.neighbors(
-        adata,
-        use_rep="X_pca_harmony",
-        key_added=neighbors_key,
-        n_neighbors=n_neighbors,
-        n_pcs=n_pcs,
-    )
-
-    sc.tl.umap(adata, neighbors_key=neighbors_key, key_added=umap_key, n_components=2)
-
-    if save_path is not None:
-        plot_integration_comparison(
-            adata,
-            save_path=save_path,
-            umap_key=umap_key,
-            batch_key=batch_key,
-            point_size_factor=point_size_factor,
-        )
-
-    # 3D UMAP
-    sc.tl.umap(
-        adata,
-        neighbors_key=neighbors_key,
-        key_added=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
-        n_components=3,
-    )
-    if save_path is not None:
-        with mpl.rc_context({"figure.figsize": (8, 8)}):
-            sc.pl.embedding(
-                adata,
-                basis=f"neighbors_harmony_{n_neighbors}_{n_pcs}_3D",
-                color=["sample", "condition", "cell_type_revised"],
-                size=point_size_3d,
-                alpha=point_alpha_3d,
-                wspace=0.1,
-                show=False,
-                projection="3d",
-            )
-            plt.savefig(
-                join(save_path, "UMAP_integrated_harmony_3D.png"),
-                dpi=150,
-                bbox_inches="tight",
-            )
-            plt.close()
-
-    return adata
-
-
-def integration_harmony_new(
-    adata: AnnData,
-    batch_key: str,
-    save_path: str,
-    logger: logging.Logger = None,
-    n_neighbors: int = 20,
-    n_pcs: int = 50,
-    point_size_factor: int = 150000,
     point_size_3d: float = 0.5,
     point_alpha_3d: float = 0.02,
     cell_type_col: str = "cell_type_revised",
@@ -1192,11 +1094,9 @@ def integration_harmony_new(
             - obsm['X_umap_harmony_n_n_3d'] : 3D UMAP from Harmony PCs
             - uns['neighbors_harmony_n_n']  : neighbors meta; graphs in obsp with same key prefix
     """
-    # avoid view-modification warnings
     if adata.is_view:
         adata = adata.copy()
 
-    # use z-scored matrix if present
     if "zscore" in adata.layers:
         adata.X = adata.layers["zscore"]
     elif logger:
@@ -1231,7 +1131,6 @@ def integration_harmony_new(
             point_size_factor=point_size_factor,
         )
 
-    # 3D UMAP + plot (use cell_type_col only if present)
     sc.tl.umap(
         adata, neighbors_key=neighbors_key, key_added=umap_key_3d, n_components=3
     )
