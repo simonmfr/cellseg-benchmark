@@ -6,6 +6,8 @@ suppressPackageStartupMessages({
   library(limma)
   library(BiocParallel)
   library(MAST)
+  library(SummarizedExperiment)
+  library(Matrix)
 })
 
 edgeR_loop <- function(adata, group_i, edger_methods, test_groups, ref_group="WT",
@@ -252,373 +254,222 @@ dream_loop <- function(
   dream_extract(o, present)
 }
 
+mast_run_cached <- function(adata,
+                            group_i,
+                            test_groups,
+                            ref_group,
+                            condition_col,
+                            sample_col,
+                            batch_col = NULL,
+                            cache_dir = ".",
+                            overwrite = FALSE,
+                            clear_cache = TRUE,
+                            sample_random_effects = TRUE,
+                            max_cells_per_condition = 10000) {
+  mode_tag <- if (isTRUE(sample_random_effects)) "RE" else "FE"
 
+  ## interpret cap
+  unlimited_cap <- is.null(max_cells_per_condition) ||
+                   !is.finite(max_cells_per_condition)
+  cap_val <- if (unlimited_cap) "ALL" else as.integer(max_cells_per_condition)
 
+  ## parallel setup
+  n <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = NA))
+  if (is.na(n)) n <- parallel::detectCores(logical = FALSE)
+  if (is.na(n)) n <- parallel::detectCores()
+  n <- max(1L, n - 1L)
+  options(mc.cores = n)
+  Sys.setenv(OMP_NUM_THREADS="1", MKL_NUM_THREADS="1",
+             OPENBLAS_NUM_THREADS="1", BLIS_NUM_THREADS="1")
+  data.table::setDTthreads(1)
 
+  ## paths (cap-aware)
+  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  prefix <- file.path(
+    cache_dir,
+    paste0("DE_", group_i, "_", mode_tag, "_cap", cap_val)
+  )
+  res_path <- paste0(prefix, "_res.rds")
+  contrast_path <- function(g) paste0(prefix, "_", g, ".rds")
+  log_file <- paste0(prefix, "_R.log")
 
-
-
-
-
-
-
-         
-mastre_run <- function(adata,
-                       group_i,
-                       test_groups,
-                       ref_group,
-                       condition_col,
-                       sample_col,
-                       batch_col) {
-  
-  sca <- MAST::SceToSingleCellAssay(adata)
-
-  colData(sca)[[condition_col]] <- factor(colData(sca)[[condition_col]])
-  colData(sca)[[condition_col]] <- stats::relevel(colData(sca)[[condition_col]], ref = ref_group)
-  colData(sca)[[sample_col]]    <- factor(colData(sca)[[sample_col]])
-
-  # Use batch only if present and has >1 level
-  use_batch <- !is.null(batch_col) &&
-               batch_col %in% colnames(colData(sca)) &&
-               nlevels(droplevels(factor(colData(sca)[[batch_col]]))) > 1
-
-  if (use_batch) {
-    colData(sca)[[batch_col]] <- droplevels(factor(colData(sca)[[batch_col]]))
-    formula_str <- paste0("~ ", condition_col, " + ", batch_col, " + (1 | ", sample_col, ")")
-  } else {
-    formula_str <- paste0("~ ", condition_col, " + (1 | ", sample_col, ")")
-  }
-
-  message("Fitting hurdle model: ", formula_str,
-          if (!use_batch) "  (batch not used: missing or single level)" else "", " ...")
-
-  fit <- MAST::zlm(as.formula(formula_str),
-                   sca,
-                   method = "glmer",
-                   ebayes = FALSE,
-                   strictConvergence = FALSE)
-
-  message("Collecting contrasts...")
-  res_list <- lapply(test_groups, function(g) {
-    contrast_i <- paste0(condition_col, g)
-    summaryCond <- MAST::summary(fit, doLRT = contrast_i)
-    dt <- summaryCond$datatable
-
-    p_main <- dt[component == "H" & contrast == contrast_i,
-                 .(gene = primerid, PValue = `Pr(>Chisq)`)]
-    logfc  <- dt[component == "logFC" & contrast == contrast_i,
-                 .(gene = primerid, log2FC = coef, wald = z)]
-
-    de <- merge(p_main, logfc, by = "gene", all.x = TRUE)
-    de[, FDR := p.adjust(PValue, method = "BH")]
-    data.table::setorder(de, PValue)
-
-    de[, `:=`(
-      subset_group = group_i,
-      method       = "MAST-RE",
-      test         = paste0(g, "vs", ref_group),
-      test_group   = g,
-      ref          = ref_group,
-      FC           = 2^log2FC
-    )]
-    de
-  })
-
-  if (length(res_list) == 0) return(NULL)
-  res <- data.table::rbindlist(res_list, use.names = TRUE, fill = TRUE)
-  data.table::setDF(res)
-  return(res)
-}
-
-
-
-# ---- mastre_run_fast.R ----
-mastre_run_fast <- function(adata,
-                       group_i,
-                       test_groups,
-                       ref_group,
-                       condition_col,
-                       sample_col,
-                       batch_col,
-                       cache_dir = NULL,
-                       cores = max(1, parallel::detectCores() - 1),
-                       detrate_min_any = 0.10,     # detection rate filter
-                       detrate_min_overall = 0.20, # applied if no groups passed the "any" filter
-                       reuse_fit_if_cached = TRUE,
-                       verbose = TRUE) {
-
-  if (!is.null(cache_dir)) dir.create(cache_dir, showWarnings = FALSE, recursive = TRUE)
-  res_path <- if (!is.null(cache_dir)) file.path(cache_dir, paste0("DE_", group_i, ".rds")) else NULL
-  fit_path <- if (!is.null(cache_dir)) file.path(cache_dir, paste0("FIT_", group_i, ".rds")) else NULL
-
-  # If results already exist, return them
-  if (!is.null(res_path) && file.exists(res_path)) {
-    if (verbose) message("Loading cached DE results for ", group_i)
+  ## fast return if cached
+  if (file.exists(res_path) && !overwrite) {
+    message("-> Using cached final result: ", res_path)
     return(readRDS(res_path))
   }
 
+  ## logging (only for fresh run)
+  log_con <- file(log_file, open = "wt")
+  sink(log_con, type = "output"); sink(log_con, type = "message")
+  on.exit({ sink(type = "message"); sink(); close(log_con) }, add = TRUE)
+
+  t_all_start <- Sys.time()
+
+  ## 1) Prep + filter
+  t1_start <- Sys.time()
+  message("-> Step 1: preparing SCA")
   sca <- MAST::SceToSingleCellAssay(adata)
   cd <- SummarizedExperiment::colData(sca)
-
-  # Ensure factors & reference level
-  cd[[condition_col]] <- stats::relevel(factor(cd[[condition_col]]), ref = ref_group)
+  cd[[condition_col]] <- factor(cd[[condition_col]])
   cd[[sample_col]]    <- factor(cd[[sample_col]])
+  if (!ref_group %in% levels(cd[[condition_col]]))
+    stop("ref_group not found in condition_col")
+  cd[[condition_col]] <- stats::relevel(cd[[condition_col]], ref = ref_group)
   SummarizedExperiment::colData(sca) <- cd
 
-  # Gene filtering (for speed)
-  Y <- SummarizedExperiment::assay(sca)   # expected log-transformed; dgCMatrix ok
-  nz_mat <- as(Y != 0, "dgCMatrix")
-  det_overall <- Matrix::rowMeans(nz_mat)
+  message("   total cells: ", ncol(sca),
+          " | conditions: ", length(unique(cd[[condition_col]])))
+  message("   max_cells_per_condition: ",
+          if (unlimited_cap) "unlimited" else cap_val)
 
-  # detection per test group and ref
-  grp <- cd[[condition_col]]
-  det_by_grp <- lapply(unique(grp), function(g) Matrix::rowMeans(nz_mat[, grp == g, drop=FALSE]))
-  names(det_by_grp) <- as.character(unique(grp))
-  det_any <- do.call(pmax, det_by_grp)
-
-  keep <- (det_any >= detrate_min_any) | (det_overall >= detrate_min_overall)
-  if (verbose) {
-    kept  <- sum(keep)
-    total <- nrow(Y)
-    perc  <- round(100 * kept / total, 1)
-    message(
-      "Filtering genes for ", group_i, ": kept ", kept, "/", total,
-      " (", perc, "%); criteria = ≥", detrate_min_any*100, "% in ≥1 condition OR ≥",
-      detrate_min_overall*100, "% overall"
-    )
-  }
-  sca <- sca[keep, ]
-
-  # Batch: only if present with >1 level
-  cd <- SummarizedExperiment::colData(sca)
-  use_batch <- !is.null(batch_col) &&
-               batch_col %in% colnames(cd) &&
-               nlevels(droplevels(factor(cd[[batch_col]]))) > 1
-  if (use_batch) cd[[batch_col]] <- droplevels(factor(cd[[batch_col]]))
-  SummarizedExperiment::colData(sca) <- cd
-
-  # Formula
-  formula_str <- if (use_batch) {
-    paste0("~ ", condition_col, " + ", batch_col, " + (1 | ", sample_col, ")")
-  } else {
-    paste0("~ ", condition_col, " + (1 | ", sample_col, ")")
-  }
-  if (verbose) message("Fitting hurdle model: ", formula_str,
-                       if (!use_batch) "  (batch not used)" else "")
-
-  # Parallel
-  if (cores > 1) {
-    BPPARAM <- BiocParallel::MulticoreParam(workers = cores, progressbar = verbose)
-  } else {
-    BPPARAM <- BiocParallel::SerialParam(progressbar = verbose)
+  ## subsample per condition if needed (skip if unlimited)
+  if (!unlimited_cap && ncol(sca) > cap_val) {
+    set.seed(1L)
+    cond_now <- SummarizedExperiment::colData(sca)[[condition_col]]
+    idx_keep <- unlist(lapply(
+      split(seq_len(ncol(sca)), cond_now),
+      function(ix)
+        if (length(ix) > cap_val)
+          sample(ix, cap_val)
+        else ix
+    ), use.names = FALSE)
+    new_n <- length(unique(idx_keep))
+    if (new_n < ncol(sca)) {
+      sca <- sca[, sort(unique(idx_keep))]
+      message("   subsampled to ", new_n, " cells total")
+    }
   }
 
-  # Fit or reuse cached fit
-  fit <- NULL
-  if (!is.null(fit_path) && reuse_fit_if_cached && file.exists(fit_path)) {
-    if (verbose) message("Loading cached FIT for ", group_i)
-    fit <- readRDS(fit_path)
-  }
-  if (is.null(fit)) {
-    fit <- MAST::zlm(
-      formula = as.formula(formula_str),
-      sca     = sca,
-      method  = "glmer",
-      ebayes  = FALSE,
-      strictConvergence = FALSE,
-      parallel = (cores > 1),
-      BPPARAM  = BPPARAM,
-      fitArgsD = list(
-        nAGQ = 0,
-        control = lme4::glmerControl(optimizer = "bobyqa",
-                                     optCtrl   = list(maxfun = 50000))
-      )
-    )
-    if (!is.null(fit_path)) saveRDS(fit, fit_path)
-  }
-
-  if (verbose) message("Collecting contrasts...")
-  res_list <- lapply(test_groups, function(g) {
-    contrast_i <- paste0(condition_col, g)
-    summaryCond <- MAST::summary(fit, doLRT = contrast_i)
-    dt <- summaryCond$datatable
-
-    p_main <- dt[component == "H" & contrast == contrast_i,
-                 .(gene = primerid, PValue = `Pr(>Chisq)`)]
-    logfc  <- dt[component == "logFC" & contrast == contrast_i,
-                 .(gene = primerid, log2FC = coef, wald = z)]
-
-    de <- merge(p_main, logfc, by = "gene", all.x = TRUE)
-    de[, FDR := p.adjust(PValue, method = "BH")]
-    data.table::setorder(de, PValue)
-    de[, `:=`(
-      subset_group = group_i,
-      method       = "MAST-RE",
-      test         = paste0(g, "vs", ref_group),
-      test_group   = g,
-      ref          = ref_group,
-      FC           = 2^log2FC
-    )]
-    de
-  })
-
-  if (length(res_list) == 0) return(NULL)
-  res <- data.table::rbindlist(res_list, use.names = TRUE, fill = TRUE)
-  res <- as.data.frame(res)
-
-  if (!is.null(res_path)) saveRDS(res, res_path)
-  return(res)
-}
-
-
-
-
-
-
-
-
-
-                       
-
-
-fit_mast_and_cache <- function(adata,
-                               group_i,
-                               condition_col,
-                               sample_col,
-                               batch_col = NULL,
-                               cache_dir,
-                               detrate_min_any = 0.10,
-                               detrate_min_overall = 0.20,
-                               verbose = TRUE,
-                               cores = 1) {
-
-  # ensure cache dir exists & is writable
-  ok_dir <- try({
-    if (!dir.exists(cache_dir)) dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
-    isTRUE(file.access(cache_dir, 2) == 0)
-  }, silent = TRUE)
-  if (!isTRUE(ok_dir)) {
-    stop("Cache directory not writable: ", cache_dir)
-  }
-
-  sca <- MAST::SceToSingleCellAssay(adata)
+  ## recompute after possible subsampling
   cd  <- SummarizedExperiment::colData(sca)
+  grp <- droplevels(factor(cd[[condition_col]]))
 
-  # factors
-  cd[[condition_col]] <- stats::relevel(factor(cd[[condition_col]]), ref = levels(factor(cd[[condition_col]]))[1])
-  cd[[sample_col]]    <- factor(cd[[sample_col]])
-  SummarizedExperiment::colData(sca) <- cd
-
-  # filtering (single-line message)
-  Y <- SummarizedExperiment::assay(sca)
-  nz <- as(Y != 0, "dMatrix") # avoid deprecated path
+  ## gene filtering
+  Y  <- SummarizedExperiment::assay(sca)
+  nz <- as(Y != 0, "dMatrix")
   det_overall <- Matrix::rowMeans(nz)
-  grp <- cd[[condition_col]]
-  det_by_grp <- lapply(unique(grp), function(g) Matrix::rowMeans(nz[, grp == g, drop=FALSE]))
+
+  det_by_grp <- lapply(levels(grp), function(lvl) {
+    idx <- which(!is.na(grp) & grp == lvl)
+    Matrix::rowMeans(nz[, idx, drop = FALSE])
+  })
   det_any <- do.call(pmax, det_by_grp)
-  keep <- (det_any >= detrate_min_any) | (det_overall >= detrate_min_overall)
-  if (verbose) {
-    kept <- sum(keep); total <- nrow(Y); perc <- round(100 * kept / total, 1)
-    message("Filtering genes for ", group_i, ": kept ", kept, "/", total,
-            " (", perc, "%); criteria = ≥", detrate_min_any*100, "% in ≥1 condition OR ≥",
-            detrate_min_overall*100, "% overall")
-  }
-  sca <- sca[keep, ]
 
-  # formula
+  message("   filtering genes: keep if detected in ≥10% of cells in any condition OR ≥20% overall")
+  keep <- (det_any >= 0.10) | (det_overall >= 0.20)
+  sca  <- sca[keep, ]
+  message("   kept: ", sum(keep), " / ", nrow(Y), " genes")
+
+  t1_end <- Sys.time()
+  message(sprintf("   [Step 1 done in %.2f min]", as.numeric(difftime(t1_end, t1_start, units = "mins"))))
+
+  ## 2) Model
+  t2_start <- Sys.time()
+  cd <- SummarizedExperiment::colData(sca)
   use_batch <- !is.null(batch_col) &&
-               batch_col %in% colnames(cd) &&
-               nlevels(droplevels(factor(cd[[batch_col]]))) > 1
-  if (use_batch) {
-    cd <- SummarizedExperiment::colData(sca)
-    cd[[batch_col]] <- droplevels(factor(cd[[batch_col]]))
-    SummarizedExperiment::colData(sca) <- cd
-  }
-  formula_str <- if (use_batch) {
-    paste0("~ ", condition_col, " + ", batch_col, " + (1 | ", sample_col, ")")
+    batch_col %in% colnames(cd) &&
+    nlevels(droplevels(factor(cd[[batch_col]]))) > 1
+
+  if (isTRUE(sample_random_effects)) {
+    model_str <- if (use_batch) {
+      paste0("~ ", condition_col, " + ", batch_col, " + (1 | ", sample_col, ")")
+    } else {
+      paste0("~ ", condition_col, " + (1 | ", sample_col, ")")
+    }
+    zlm_method <- "glmer"
   } else {
-    paste0("~ ", condition_col, " + (1 | ", sample_col, ")")
+    model_str <- if (use_batch) {
+      paste0("~ ", condition_col, " + ", batch_col)
+    } else {
+      paste0("~ ", condition_col)
+    }
+    zlm_method <- "bayesglm"
   }
-  message("Fitting hurdle model: ", formula_str)
 
-  # parallel
-  BPPARAM <- if (cores > 1) BiocParallel::MulticoreParam(workers = cores) else BiocParallel::SerialParam()
+  message("-> Step 2: fitting model (", model_str, "; method = ", zlm_method, ")")
+  form <- as.formula(model_str)
 
-  fit <- MAST::zlm(
-    as.formula(formula_str), sca,
-    method = "glmer", ebayes = FALSE, strictConvergence = FALSE,
-    parallel = (cores > 1), BPPARAM = BPPARAM,
-    fitArgsD = list(
-      nAGQ = 0,
-      control = lme4::glmerControl(optimizer = "bobyqa",
-                                   optCtrl   = list(maxfun = 50000))
-    )
-  )
-  message("Done!")
+  fit <- MAST::zlm(form, sca, method = zlm_method,
+                   ebayes = FALSE, strictConvergence = FALSE, parallel = TRUE)
+  t2_end <- Sys.time()
+  message(sprintf("   [Step 2 done in %.2f min]", as.numeric(difftime(t2_end, t2_start, units = "mins"))))
 
-  fit_path <- file.path(cache_dir, paste0("FIT_", group_i, ".rds"))
+  ## 3) Contrasts
+  t3_start <- Sys.time()
+  message("-> Step 3: contrasts")
+  groups_to_test <- test_groups[vapply(test_groups, \(g)
+    !file.exists(contrast_path(g)) || overwrite, logical(1))]
 
-  # robust save with tryCatch and a fallback to tempdir
-  saved_path <- tryCatch({
-    saveRDS(fit, fit_path)
-    fit_path
-  }, error = function(e) {
-    alt <- file.path(tempdir(), paste0("FIT_", group_i, ".rds"))
-    warning("saveRDS failed for '", fit_path, "': ", conditionMessage(e),
-            "  -> saving to tempdir: ", alt)
-    saveRDS(fit, alt)
-    alt
+  res_list <- lapply(setNames(test_groups, test_groups), function(g) {
+    if (!g %in% groups_to_test) {
+      message("   using cached: ", g)
+      return(readRDS(contrast_path(g)))
+    }
+    NULL
   })
 
-  rm(fit); gc()  # free memory after checkpoint
-  return(saved_path) # return tiny string path only
-}
+  if (length(groups_to_test) > 0) {
+    message("   computing: ", paste(groups_to_test, collapse = ", "))
+    avail_coefs <- if ("coefD" %in% slotNames(fit)) colnames(fit@coefD) else character()
+    cond_coefs  <- grep(paste0("^", condition_col), avail_coefs, value = TRUE)
+    cond_groups <- sub(paste0("^", condition_col), "", cond_coefs)
+    coefs_to_test <- cond_coefs[cond_groups %in% groups_to_test]
 
+    if (length(coefs_to_test) > 0) {
+      dt_all <- MAST::summary(
+        fit,
+        doLRT = coefs_to_test,
+        parallel = FALSE
+      )$datatable
 
-summarize_mast_fit <- function(fit_path,
-                               group_i,
-                               test_groups,
-                               ref_group,
-                               condition_col,
-                               cache_dir) {
-  fit <- readRDS(fit_path)
-  message("Collecting contrasts...")
-  res_list <- lapply(test_groups, function(g) {
-    contrast_i <- paste0(condition_col, g)
-    summaryCond <- MAST::summary(fit, doLRT = contrast_i)
-    dt <- summaryCond$datatable
+      p_all   <- dt_all[component == "H",     .(gene = primerid, contrast, PValue = `Pr(>Chisq)`)]
+      lfc_all <- dt_all[component == "logFC", .(gene = primerid, contrast, log2FC = coef, wald = z)]
+      merged  <- merge(p_all, lfc_all, by = c("gene", "contrast"), all.x = TRUE)
 
-    p_main <- dt[component == "H" & contrast == contrast_i,
-                 .(gene = primerid, PValue = `Pr(>Chisq)`)]
-    logfc  <- dt[component == "logFC" & contrast == contrast_i,
-                 .(gene = primerid, log2FC = coef, wald = z)]
+      for (g in groups_to_test) {
+        ci <- paste0(condition_col, g)
+        de <- merged[contrast == ci]
+        if (!nrow(de)) next
+        de[, FDR := p.adjust(PValue, "BH")]
+        data.table::setorder(de, PValue)
+        de[, `:=`(
+          subset_group = group_i, method = paste0("MAST-", mode_tag),
+          test = paste0(g, "vs", ref_group), test_group = g, ref = ref_group,
+          FC = 2^log2FC, model = model_str
+        )]
+        saveRDS(as.data.frame(de), contrast_path(g))
+        res_list[[g]] <- de
+      }
+    } else {
+      message("   no valid contrasts for ", condition_col)
+    }
+  }
 
-    de <- merge(p_main, logfc, by = "gene", all.x = TRUE)
-    de[, FDR := p.adjust(PValue, method = "BH")]
-    data.table::setorder(de, PValue)
-    de[, `:=`(
-      subset_group = group_i,
-      method       = "MAST-RE",
-      test         = paste0(g, "vs", ref_group),
-      test_group   = g,
-      ref          = ref_group,
-      FC           = 2^log2FC
-    )]
-    de
-  })
-  if (length(res_list) == 0) return(NA_character_)
+  ## 4) Combine + save
+  res <- data.table::rbindlist(res_list, use.names = TRUE)
+  if ("contrast" %in% names(res)) res[, contrast := NULL]
+  if (!"model" %in% names(res)) res[, model := model_str]
+  saveRDS(as.data.frame(res), res_path)
+  message("-> Done. Saved: ", res_path)
 
-  res <- data.table::rbindlist(res_list, use.names = TRUE, fill = TRUE)
-  res <- as.data.frame(res)
-  res_path <- file.path(cache_dir, paste0("DE_", group_i, ".rds"))
-  res_path <- tryCatch({
-    saveRDS(res, res_path); res_path
-  }, error = function(e) {
-    alt <- file.path(tempdir(), paste0("DE_", group_i, ".rds"))
-    warning("saveRDS failed for '", res_path, "': ", conditionMessage(e),
-            "  -> saving to tempdir: ", alt)
-    saveRDS(res, alt)
-    alt
-  })
-  return(res_path)
+  ## 5) Cleanup
+  # Always drop per-group caches; they're redundant once res_path exists
+  unlink(vapply(test_groups, contrast_path, character(1)), force = TRUE)
+
+  # clear_cache now controls only the combined cache
+  if (clear_cache) {
+    unlink(res_path, force = TRUE)
+    message("-> Final res cache cleared (clear_cache = TRUE)")
+  } else {
+    message("-> Final res cache kept (clear_cache = FALSE)")
+  }
+
+  t3_end <- Sys.time()
+  message(sprintf("   [Step 3 done in %.2f min]", as.numeric(difftime(t3_end, t3_start, units = "mins"))))
+
+  t_all_end <- Sys.time()
+  message(sprintf("[Total runtime %.2f min]", as.numeric(difftime(t_all_end, t_all_start, units = "mins"))))
+
+  return(res)
 }

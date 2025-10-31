@@ -7,6 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import Tuple
 
+import pandas as pd
 import scanpy as sc
 import yaml
 from anndata import AnnData
@@ -88,11 +89,13 @@ with ProcessPoolExecutor(max_workers=max_workers) as ex:
 adata_list = [(name, adata) for name, adata in results if adata is not None]
 
 # temp fix for aging_s11_r0
-# for i, (name, ad) in enumerate(adata_list):
-#    if name == "aging_s11_r0":
-#        ad.obs["region"] = "0"
-#    ad.obs["region"] = ad.obs["region"].astype(str).astype("category")
-#    adata_list[i] = (name, ad)
+for i, (n, ad) in enumerate(adata_list):
+    if n == "aging_s11_r0":
+    #if "aging" in n:
+        m = sample_metadata_file[n]
+        for k, v in {**m, "sample": n, "condition": f"{m['genotype']}_{m['age_months']}"} .items():
+            ad.obs[k] = pd.Categorical([str(v)] * len(ad))
+        adata_list[i] = (n, ad)
 
 # Merge and process
 adata = merge_adatas(
@@ -103,15 +106,6 @@ adata = merge_adatas(
     save_path=save_path / "plots",
 )
 del adata_list
-
-# temp fix adata.obs formatting ###############
-# adata.obs["sample"] = adata.obs["sample"].str.replace(
-#    rf"^{args.cohort}_(\d+)_(\d+)$", rf"{args.cohort}_s\1_r\2", regex=True
-# )
-# adata.obs["condition"] = (
-#    adata.obs["genotype"].astype(str) + "_" + adata.obs["age_months"].astype(str)
-# )
-###############
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 adata = filter_spatial_outlier_cells(

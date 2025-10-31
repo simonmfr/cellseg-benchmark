@@ -805,6 +805,8 @@ def plot_spatial_multiplot(
     palette: dict | None = None,
     figsize_per_ax: float = 4.0,
     add_legend: bool = True,
+    size: float | None = None,
+    return_fig: bool = False,
 ):
     """Plot multi-panel spatial scatter plots per sample.
 
@@ -855,7 +857,7 @@ def plot_spatial_multiplot(
 
         coords = sd.obsm["spatial"]
         colors = [_get_color(v) for v in sd.obs[obs_key].astype(object)]
-        s = max(2, min(15, 30_000 / max(1, len(coords))))
+        s = size if size is not None else max(2, min(15, 30_000 / max(1, len(coords))))
 
         ax.scatter(
             coords[:, 0], coords[:, 1], c=colors, s=s, alpha=0.75, edgecolors="none"
@@ -893,12 +895,15 @@ def plot_spatial_multiplot(
         fig.subplots_adjust(right=0.8)
 
     fig.tight_layout()
-
+    
     if save_path and save_name:
         fig.savefig(join(save_path, save_name), dpi=200, bbox_inches="tight")
         plt.close(fig)
-
-    return fig
+    else:
+        plt.show()
+    
+    if return_fig:
+        return fig
 
 
 def pca_umap(
