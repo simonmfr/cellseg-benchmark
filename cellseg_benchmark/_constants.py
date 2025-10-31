@@ -1033,7 +1033,7 @@ astro_cell_subtypes_merfish_panel_500_mouse_brain = {
     ],
 }
 
-co = {
+neuronal_cell_subtypes_merfish_panel_500_mouse_brain  = {
     "Pan-Neuronal": [
         "Meg3",
         "Rbfox3",
