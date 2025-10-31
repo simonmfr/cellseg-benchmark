@@ -121,11 +121,14 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     sdata[list(sdata_tmp.points.keys())[0]] = sdata_tmp[
         list(sdata_tmp.points.keys())[0]
     ]
+    sdata.attrs["cell_segmentation_image"] = sdata_tmp.attrs["cell_segmentation_image"]
+    sdata.attrs["transcripts_dataframe"] = sdata_tmp.attrs["transcripts_dataframe"]
     translation = read_csv(
         join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     )
+    del sdata_tmp
 
     # backing für memory efficiency
     sdata.write(
