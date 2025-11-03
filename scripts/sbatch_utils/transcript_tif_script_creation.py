@@ -24,9 +24,14 @@ for key, value in data.items():
 #SBATCH -J transcript_tif_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/transcript_tif_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/transcript_tif_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+
+cd ~/gitrepos/spatialdata
+git pull -q
+cd ~/gitrepos/cellseg-benchmark
+git pull -q
 
 mamba activate sopa
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/transcript_tif.py {value["path"]}
+python scripts/transcript_tif.py {value["path"]}
 """)
     f.close()

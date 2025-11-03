@@ -36,11 +36,15 @@ for key, value in data.items():
 #SBATCH -J rastered{args.width}_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/rastered{args.width}_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/rastered{args.width}_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+
+cd ~/gitrepos/spatialdata
+git pull -q
+cd ~/gitrepos/cellseg-benchmark
+git pull -q
 
 mamba activate sopa
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/rastered_segmentation.py \
- {value["path"]} \
+python scripts/segmentation/rastered_segmentation.py {value["path"]} \
  /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Rastered_{args.width} \
  {args.width} {args.overlap} {args.unit} {args.intens_rat}
 """)

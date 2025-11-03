@@ -52,13 +52,16 @@ for sample, meta in data.items():
 #SBATCH --mem=200G
 #SBATCH -J master_sdata_{sample}
 #SBATCH -o {BASE}/misc/logs/merged/%x.log
-#SBATCH --container-image="{BASE}/misc/cellseg_benchmark_2.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+
+cd ~/gitrepos/spatialdata
+git pull -q
+cd ~/gitrepos/cellseg-benchmark
+git pull -q
 
 set -euo pipefail
 
-cd ~/gitrepos/cellseg-benchmark
-git pull --quiet
-mamba activate cellseg_benchmark
+mamba activate cellseg-benchmark
 {cli}
 """
     (Path(OUT) / f"{sample}.sbatch").write_text(sbatch)

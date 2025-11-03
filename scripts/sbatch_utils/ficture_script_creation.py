@@ -32,5 +32,5 @@ for key, value in data.items():
 source $HOME/.bashrc
 conda activate ficture
 bash /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/ficture.sh {key} {value["path"]}/detected_transcripts.csv
-            """)
+""")
     f.close()

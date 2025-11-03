@@ -34,12 +34,16 @@ for key, value in data.items():
 #SBATCH -J Baysor_{key}_CP1_{args.staining}_{args.confidence}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP1_{args.staining}_{args.confidence}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP1_{args.staining}_{args.confidence}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
 
-source ~/.bashrc
-conda activate sopa
+cd ~/gitrepos/spatialdata
+git pull -q
+cd ~/gitrepos/cellseg-benchmark
+git pull -q
+
+mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_1_{args.staining}_model_{args.confidence}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/baysor.py {value["path"]} Cellpose_1_{args.staining}_model {args.confidence} {key}
+python scripts/segmentation/baysor.py {value["path"]} Cellpose_1_{args.staining}_model {args.confidence} {key}
 """)
         f.close()
     else:
@@ -58,11 +62,15 @@ python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segment
 #SBATCH -J Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
 
-source ~/.bashrc
-conda activate sopa
+cd ~/gitrepos/spatialdata
+git pull -q
+cd ~/gitrepos/cellseg-benchmark
+git pull -q
+
+mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_{args.CP_version}_DAPI_{args.staining}_{args.confidence}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/baysor.py {value["path"]} Cellpose_{args.CP_version}_DAPI_{args.staining} {args.confidence} {key}
+python scripts/segmentation/baysor.py {value["path"]} Cellpose_{args.CP_version}_DAPI_{args.staining} {args.confidence} {key}
 """)
         f.close()

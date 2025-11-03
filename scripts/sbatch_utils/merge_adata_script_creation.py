@@ -13,7 +13,7 @@ args = parser.parse_args()
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
-container_image = f"{base_path}/misc/cellseg_benchmark_2.sqsh"
+container_image = f"{base_path}/misc/enroot_images/benchmark_py3_12.sqsh"
 log_path = f"{base_path}/misc/logs/merged"
 
 methods = [
@@ -82,8 +82,11 @@ export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 
+cd ~/gitrepos/spatialdata
+git pull -q
 cd ~/gitrepos/cellseg-benchmark
-git pull --quiet
-mamba activate cellseg_benchmark
+git pull -q
+
+mamba activate cellseg-benchmark
 python scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
 """)

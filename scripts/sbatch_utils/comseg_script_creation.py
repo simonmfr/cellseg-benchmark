@@ -36,18 +36,18 @@ for key, value in data.items():
 #SBATCH -J {job_name}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/%x.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/%x.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sopa.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+
+cd ~/gitrepos/spatialdata
+git pull -q
+cd ~/gitrepos/cellseg-benchmark
+git pull -q
 
 set -eu
 
-source ~/.bashrc
-conda activate sopa
+mamba activate sopa
 
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/ComSeg_{result_dir}
 
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/comseg.py \\
-    {value["path"]} \\
-    {key} \\
-    {result_dir}
-"""
-        )
+python scripts/segmentation/comseg.py {value["path"]} {key} {result_dir}
+""")
