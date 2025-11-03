@@ -827,8 +827,6 @@ def plot_spatial_multiplot(
         matplotlib.figure.Figure: The generated figure.
     """
     categories = adata.obs[obs_key].astype("category").cat.categories.tolist()
-    if sort:
-        categories.sort()
 
     # palette: prefer AnnData-stored colors, else tab20
     if palette is None:
@@ -842,6 +840,8 @@ def plot_spatial_multiplot(
         return palette.get(v, "#bdbdbd")
 
     samples = pd.unique(adata.obs["sample"])
+    if sort:
+        samples.sort()
     n_rows = -(-len(samples) // n_cols)  # ceil division
 
     fig, axes = plt.subplots(
