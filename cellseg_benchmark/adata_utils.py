@@ -841,7 +841,7 @@ def plot_spatial_multiplot(
 
     samples = pd.unique(adata.obs["sample"])
     if sort:
-        samples.sort()
+        samples.sort_values(inplace=True)
     n_rows = -(-len(samples) // n_cols)  # ceil division
 
     fig, axes = plt.subplots(
