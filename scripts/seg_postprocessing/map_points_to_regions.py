@@ -6,6 +6,7 @@ from pathlib import Path
 from geopandas import read_parquet
 from pandas import concat
 from scanpy import read_h5ad
+from tqdm import tqdm
 
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
@@ -32,12 +33,14 @@ if args.seg_methods is not None:
 else:
     seg_methods = listdir(data_path / "analysis" / args.cohort)
 
+logger.info("read in reference.")
 gdf = read_parquet(data_path / "misc" / "brain_regions" / f"{args.cohort}_brain_regions.parquet")
 anatom_annot = {}
 for (sample, label), sub in gdf.groupby(["sample", "label"]):
     anatom_annot.setdefault(sample, {})[label] = list(sub.geometry)
 
-for method in seg_methods:
+for method in tqdm(seg_methods):
+    logger.info(f"processing {method}")
     adata_points = read_h5ad(data_path / "analysis" / args.cohort / method / "adatas" / "adata_integrated.h5ad.gz")
     results = map_points_to_regions_from_anndata(adata_points,
                                                  regions_by_slide=anatom_annot,
