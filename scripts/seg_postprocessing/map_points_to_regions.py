@@ -7,7 +7,7 @@ from geopandas import read_parquet
 from pandas import concat
 from scanpy import read_h5ad
 
-from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata, plot_spatial_multiplot
+from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 
 logger = logging.getLogger("annotation")
