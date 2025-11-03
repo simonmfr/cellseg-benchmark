@@ -55,6 +55,7 @@ for method in seg_methods:
     df_all.to_csv(data_path / "analysis" / args.cohort / method / "spatial_registration.csv")
     plot_spatial_multiplot(adata_points, "region_mapped",
                            save_path=data_path / "analysis" / args.cohort / method,
-                           save_name="spatial_registration.png"
+                           save_name="spatial_registration.png",
+                           sort=True
                            )
 

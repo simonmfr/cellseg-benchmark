@@ -807,6 +807,7 @@ def plot_spatial_multiplot(
     add_legend: bool = True,
     size: float | None = None,
     return_fig: bool = False,
+    sort: bool = False,
 ):
     """Plot multi-panel spatial scatter plots per sample.
 
@@ -826,6 +827,8 @@ def plot_spatial_multiplot(
         matplotlib.figure.Figure: The generated figure.
     """
     categories = adata.obs[obs_key].astype("category").cat.categories.tolist()
+    if sort:
+        categories.sort()
 
     # palette: prefer AnnData-stored colors, else tab20
     if palette is None:
