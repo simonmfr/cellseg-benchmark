@@ -27,7 +27,7 @@ parser.add_argument("seg_methods", nargs=argparse.REMAINDER,
 args = parser.parse_args()
 
 data_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-if args.seg_method is not None:
+if args.seg_methods is not None:
     seg_methods = args.seg_methods
 else:
     seg_methods = listdir(data_path / "analysis" / args.cohort)
