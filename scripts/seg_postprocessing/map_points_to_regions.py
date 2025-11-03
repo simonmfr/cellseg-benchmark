@@ -41,7 +41,11 @@ for (sample, label), sub in gdf.groupby(["sample", "label"]):
 
 for method in tqdm(seg_methods):
     logger.info(f"processing {method}")
-    adata_points = read_h5ad(data_path / "analysis" / args.cohort / method / "adatas" / "adata_integrated.h5ad.gz")
+    try:
+        adata_points = read_h5ad(data_path / "analysis" / args.cohort / method / "adatas" / "adata_integrated.h5ad.gz")
+    except FileNotFoundError:
+        logger.warning(f"{method} not found, skipping")
+        continue
     results = map_points_to_regions_from_anndata(adata_points,
                                                  regions_by_slide=anatom_annot,
                                                  coord_key="spatial_microns",
