@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(
     description="Map points to brain regions."
 )
 parser.add_argument("cohort", help="cohort name")
-parser.add_argument("seg_methods", nargs=argparse.REMAINDER,
+parser.add_argument("--seg_methods", nargs=argparse.REMAINDER,
                     help="If not set, all segmentation methods within cohort will be mapped. Otherwise provide segmentation method to annotate."
                     )
 args = parser.parse_args()
