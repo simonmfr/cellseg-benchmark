@@ -1,4 +1,6 @@
 from pathlib import Path
+
+from geopandas import GeoDataFrame
 import numpy as np
 from skimage.measure import label as cc_label, find_contours
 from scipy.ndimage import binary_fill_holes, convolve
@@ -569,6 +571,17 @@ def plot_progress_pipeline(
     return clean_holes, clean_final, regions, fig, geo
 
 
+def _overlay_points(points_xy, ax=None, size=12, marker="o"):
+    """
+    Scatter arbitrary points (µm) on current axes.
+    """
+    if ax is None:
+        _, ax = plt.subplots(figsize=(6, 5))
+    pts = np.asarray(points_xy, float)
+    ax.scatter(pts[:, 0], pts[:, 1], s=size, marker=marker)
+    return ax
+
+
 def _flatten_to_polys(geom):
     """Return a list of Polygon(s) from any Shapely geometry, ignoring non-areas."""
     if geom is None or geom.is_empty:
@@ -735,6 +748,8 @@ def plot_slide_regions(
     else:
         # Use (dissolved) polygons to set bounds
         xmin, ymin, xmax, ymax = _bounds_from_polys(label_polys)
+        pad_x = 0.02 * (xmax - xmin) if xmax > xmin else 1.0
+        pad_y = 0.02 * (ymax - ymin) if ymax > ymin else 1.0
         ax.set_xlim(xmin - pad_x, xmax + pad_x)
         ax.set_ylim(ymin - pad_y, ymax + pad_y)
 
@@ -987,3 +1002,11 @@ def map_points_to_regions_from_anndata(
         results[sid] = out
 
     return results
+
+def to_gdf(d):
+    rows = []
+    for sample, labels in d.items():
+        for label, geoms in labels.items():
+            for i, g in enumerate(geoms):
+                rows.append({"sample": sample, "label": label, "idx": i, "geometry": g})
+    return GeoDataFrame(rows, geometry="geometry")
