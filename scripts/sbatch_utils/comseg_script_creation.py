@@ -38,6 +38,8 @@ for key, value in data.items():
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/%x.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
 
+set -eu
+
 cd ~/gitrepos/spatialdata
 git pull -q
 cd ~/gitrepos/cellseg-benchmark

@@ -30,8 +30,9 @@ edgeR_loop <- function(adata, group_i, edger_methods, test_groups, ref_group="WT
     for (tg in present) {
       tmp <- edgeR_run_test(o$fit, o$design, m, tg, ref_group)
       if (is.null(tmp)) next
-      tmp <- dplyr::mutate(as.data.frame(tmp), FC = 2^logFC, edgeR_method = m, test_group = tg, ref = ref_group)
-      res[[paste(tg, m, sep="_")]] <- tmp
+      met <- paste0("edgeR_", m)
+      tmp <- dplyr::mutate(as.data.frame(tmp), FC = 2^logFC, method = met, test_group = tg, ref = ref_group)
+      res[[paste(tg, met, sep="_")]] <- tmp
     }
   }
   if (!length(res)) return(NULL)
@@ -265,30 +266,22 @@ mast_run_cached <- function(adata,
                             overwrite = FALSE,
                             clear_cache = TRUE,
                             sample_random_effects = TRUE,
-                            max_cells_per_condition = 10000) {
+                            max_cells_per_condition = 10000,
+                            brain_region_subset = NULL) {
+
   mode_tag <- if (isTRUE(sample_random_effects)) "RE" else "FE"
 
   ## interpret cap
-  unlimited_cap <- is.null(max_cells_per_condition) ||
-                   !is.finite(max_cells_per_condition)
+  unlimited_cap <- is.null(max_cells_per_condition) || !is.finite(max_cells_per_condition)
   cap_val <- if (unlimited_cap) "ALL" else as.integer(max_cells_per_condition)
 
-  ## parallel setup
-  n <- as.integer(Sys.getenv("SLURM_CPUS_PER_TASK", unset = NA))
-  if (is.na(n)) n <- parallel::detectCores(logical = FALSE)
-  if (is.na(n)) n <- parallel::detectCores()
-  n <- max(1L, n - 1L)
-  options(mc.cores = n)
-  Sys.setenv(OMP_NUM_THREADS="1", MKL_NUM_THREADS="1",
-             OPENBLAS_NUM_THREADS="1", BLIS_NUM_THREADS="1")
-  data.table::setDTthreads(1)
+  ## --- concise tag (use user input, not expanded list) ---
+  br_tag <- if (!is.null(brain_region_subset) && nzchar(brain_region_subset))
+    paste0("_Subset-", gsub("\\s+", "", brain_region_subset)) else ""
 
-  ## paths (cap-aware)
+  ## paths (cap- & subset-aware)
   dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
-  prefix <- file.path(
-    cache_dir,
-    paste0("DE_", group_i, "_", mode_tag, "_cap", cap_val)
-  )
+  prefix <- file.path(cache_dir, paste0("DE_", group_i, "_", mode_tag, "_cap", cap_val, br_tag))
   res_path <- paste0(prefix, "_res.rds")
   contrast_path <- function(g) paste0(prefix, "_", g, ".rds")
   log_file <- paste0(prefix, "_R.log")
@@ -296,7 +289,8 @@ mast_run_cached <- function(adata,
   ## fast return if cached
   if (file.exists(res_path) && !overwrite) {
     message("-> Using cached final result: ", res_path)
-    return(readRDS(res_path))
+    out <- readRDS(res_path)
+    return(out)
   }
 
   ## logging (only for fresh run)
@@ -349,7 +343,6 @@ mast_run_cached <- function(adata,
   Y  <- SummarizedExperiment::assay(sca)
   nz <- as(Y != 0, "dMatrix")
   det_overall <- Matrix::rowMeans(nz)
-
   det_by_grp <- lapply(levels(grp), function(lvl) {
     idx <- which(!is.na(grp) & grp == lvl)
     Matrix::rowMeans(nz[, idx, drop = FALSE])
@@ -389,7 +382,6 @@ mast_run_cached <- function(adata,
 
   message("-> Step 2: fitting model (", model_str, "; method = ", zlm_method, ")")
   form <- as.formula(model_str)
-
   fit <- MAST::zlm(form, sca, method = zlm_method,
                    ebayes = FALSE, strictConvergence = FALSE, parallel = TRUE)
   t2_end <- Sys.time()
@@ -417,12 +409,7 @@ mast_run_cached <- function(adata,
     coefs_to_test <- cond_coefs[cond_groups %in% groups_to_test]
 
     if (length(coefs_to_test) > 0) {
-      dt_all <- MAST::summary(
-        fit,
-        doLRT = coefs_to_test,
-        parallel = FALSE
-      )$datatable
-
+      dt_all <- MAST::summary(fit, doLRT = coefs_to_test, parallel = FALSE)$datatable
       p_all   <- dt_all[component == "H",     .(gene = primerid, contrast, PValue = `Pr(>Chisq)`)]
       lfc_all <- dt_all[component == "logFC", .(gene = primerid, contrast, log2FC = coef, wald = z)]
       merged  <- merge(p_all, lfc_all, by = c("gene", "contrast"), all.x = TRUE)
@@ -434,9 +421,13 @@ mast_run_cached <- function(adata,
         de[, FDR := p.adjust(PValue, "BH")]
         data.table::setorder(de, PValue)
         de[, `:=`(
-          subset_group = group_i, method = paste0("MAST-", mode_tag),
-          test = paste0(g, "vs", ref_group), test_group = g, ref = ref_group,
-          FC = 2^log2FC, model = model_str
+          subset_group = group_i,
+          method = paste0("MAST-", mode_tag),
+          test = paste0(g, "vs", ref_group),
+          test_group = g,
+          ref = ref_group,
+          FC = 2^log2FC,
+          model = model_str
         )]
         saveRDS(as.data.frame(de), contrast_path(g))
         res_list[[g]] <- de
@@ -454,10 +445,7 @@ mast_run_cached <- function(adata,
   message("-> Done. Saved: ", res_path)
 
   ## 5) Cleanup
-  # Always drop per-group caches; they're redundant once res_path exists
   unlink(vapply(test_groups, contrast_path, character(1)), force = TRUE)
-
-  # clear_cache now controls only the combined cache
   if (clear_cache) {
     unlink(res_path, force = TRUE)
     message("-> Final res cache cleared (clear_cache = TRUE)")
@@ -467,7 +455,6 @@ mast_run_cached <- function(adata,
 
   t3_end <- Sys.time()
   message(sprintf("   [Step 3 done in %.2f min]", as.numeric(difftime(t3_end, t3_start, units = "mins"))))
-
   t_all_end <- Sys.time()
   message(sprintf("[Total runtime %.2f min]", as.numeric(difftime(t_all_end, t_all_start, units = "mins"))))
 

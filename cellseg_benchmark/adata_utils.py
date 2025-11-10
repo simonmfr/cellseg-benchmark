@@ -808,36 +808,55 @@ def plot_spatial_multiplot(
     size: float | None = None,
     return_fig: bool = False,
     sort: bool = False,
+    title_keys: str | list[str] | None = "sample",
 ):
     """Plot multi-panel spatial scatter plots per sample.
 
     Args:
-        adata: AnnData object with spatial coordinates in `.obsm["spatial"]`.
+        adata: AnnData with `.obsm["spatial"]`.
         obs_key: Column in `.obs` used for coloring (categorical).
         save_path: Directory for saving the figure. If None, does not save.
         n_cols: Number of columns in the subplot grid.
-        max_points_per_sample: Maximum number of points plotted per sample.
+        max_points_per_sample: Max points per sample.
         title: Global title for the figure.
-        save_name: Filename if saving the figure (requires `save_path`).
+        save_name: Filename if saving (requires `save_path`).
         palette: Mapping from category → color. If None, uses AnnData or tab20.
         figsize_per_ax: Size (in inches) of each subplot axis.
         add_legend: Whether to add a legend outside the plot.
-
-    Returns:
-        matplotlib.figure.Figure: The generated figure.
+        size: Marker size override.
+        return_fig: Return the figure instead of closing.
+        title_keys: `.obs` column(s) to use for subpanel titles.
     """
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import scanpy as sc
+    from os.path import join
+
     categories = adata.obs[obs_key].astype("category").cat.categories.tolist()
 
-    # palette: prefer AnnData-stored colors, else tab20
     if palette is None:
         stored = adata.uns.get(f"{obs_key}_colors")
-        base = (list(stored) if stored is not None else list(plt.cm.tab20.colors))[
-            : len(categories)
-        ]
-        palette = dict(zip(categories, base))
+        if stored is not None:
+            base = list(stored)
+        else:
+            base = sc.plotting.palettes.default_20
+        palette = dict(zip(categories, base[:len(categories)]))
 
     def _get_color(v):
         return palette.get(v, "#bdbdbd")
+
+    if isinstance(title_keys, str):
+        title_keys = [title_keys] if title_keys else None
+
+    def _panel_title(sd):
+        if not title_keys:
+            return None
+        vals = []
+        for k in title_keys:
+            col = sd.obs[k]
+            v = col.iloc[0] if col.nunique(dropna=False) <= 1 else col.mode(dropna=False).iloc[0]
+            vals.append(str(v))
+        return " · ".join(vals)
 
     samples = pd.unique(adata.obs["sample"])
     if sort:
@@ -854,25 +873,20 @@ def plot_spatial_multiplot(
     for ax, sample in zip(axes.flat, samples):
         sd = adata[adata.obs["sample"] == sample]
         if sd.n_obs > max_points_per_sample:
-            sd = sc.pp.subsample(
-                sd, n_obs=max_points_per_sample, random_state=42, copy=True
-            )
+            sd = sc.pp.subsample(sd, n_obs=max_points_per_sample, random_state=42, copy=True)
 
         coords = sd.obsm["spatial"]
         colors = [_get_color(v) for v in sd.obs[obs_key].astype(object)]
         s = size if size is not None else max(2, min(15, 30_000 / max(1, len(coords))))
 
-        ax.scatter(
-            coords[:, 0], coords[:, 1], c=colors, s=s, alpha=0.75, edgecolors="none"
-        )
-        ax.set(title=str(sample))
+        ax.scatter(coords[:, 0], coords[:, 1], c=colors, s=s, alpha=0.75, edgecolors="none")
+        ax.set(title=_panel_title(sd) or str(sample))
         ax.set_xticks([])
         ax.set_yticks([])
         for spn in ax.spines.values():
             spn.set_visible(False)
 
-    # Hide any unused axes
-    for ax in axes.flat[len(samples) :]:
+    for ax in axes.flat[len(samples):]:
         ax.set_visible(False)
 
     if title:
@@ -880,31 +894,20 @@ def plot_spatial_multiplot(
 
     if add_legend:
         handles = [
-            plt.Line2D(
-                [0],
-                [0],
-                marker="o",
-                ls="",
-                mfc=_get_color(cat),
-                mec="none",
-                ms=6,
-                label=cat,
-            )
+            plt.Line2D([0], [0], marker="o", ls="", mfc=_get_color(cat), mec="none", ms=6, label=cat)
             for cat in categories
         ]
-        fig.legend(
-            handles=handles, loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8
-        )
+        fig.legend(handles=handles, loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8)
         fig.subplots_adjust(right=0.8)
 
     fig.tight_layout()
-    
+
     if save_path and save_name:
         fig.savefig(join(save_path, save_name), dpi=200, bbox_inches="tight")
         plt.close(fig)
     else:
         plt.show()
-    
+
     if return_fig:
         return fig
 

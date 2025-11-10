@@ -312,7 +312,7 @@ if __name__ == "__main__":
         "FDR",
         "logCPM",
         "LR",
-        "edgeR_method",
+        "method",
         "test_group",
         "ref",
         "test",
@@ -328,9 +328,9 @@ if __name__ == "__main__":
     subset_key_clean = re.sub(r"[_-]", "", args.subset_key)
     name = f"{args.cohort}-by-{subset_key_clean}_pseudobulk_edgeR"
 
-    for (edgeR_method, test), df_mt in collapsed_df.groupby(["edgeR_method", "test"]):
+    for (method, test), df_mt in collapsed_df.groupby(["method", "test"]):
         df_mt = df_mt.loc[:, df_mt.notna().any()]  # drop all-NaN cols
-        xlsx = output_dir / f"{name}_{edgeR_method}_{test}.xlsx"
+        xlsx = output_dir / f"{name}_{method.split("_", 1)[-1]}_{test}.xlsx"
         if xlsx.exists() and not args.overwrite:
             logger.info(f"  Exists, skip: {xlsx}")
             continue
