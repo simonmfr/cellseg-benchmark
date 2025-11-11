@@ -364,9 +364,17 @@ def build_shapes(
     """Insert shapes of segmentation method into sdata_main."""
     if logger:
         logger.info(f"Adding shapes of {seg_method}...")
-    boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
 
-    if seg_method.startswith("Proseg"):
+    boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
+    obj = None  # will hold the Shapes-like object to insert
+
+    filename = None
+    if seg_method.startswith("Proseg_3D"):
+        filename = "cell-polygons.geojson.gz"
+    elif seg_method.startswith("Proseg"):
+        filename = "cell-polygons-layers.geojson.gz"
+
+    if filename is not None:
         path = join(
             sdata_path,
             "results",
@@ -375,29 +383,31 @@ def build_shapes(
             ".sopa_cache",
             "transcript_patches",
             "0",
-            "cell-polygons-layers.geojson.gz",
+            filename,
         )
         with gzip.open(path, "rt", encoding="utf-8") as f:
             geojson_text = f.read()
-        geojson_io = io.StringIO(geojson_text)
-        gdf = gpd.read_file(geojson_io)
+        gdf = gpd.read_file(io.StringIO(geojson_text))
         gdf = gdf.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
-        sdata_main[f"boundaries_{seg_method}"] = ShapesModel.parse(gdf)
-        assign_transformations(sdata_main, seg_method)
-    elif boundary_key in sdata.shapes.keys():
-        sdata_main[f"boundaries_{seg_method}"] = sdata[boundary_key]
+        obj = ShapesModel.parse(gdf)
+
+    elif boundary_key in sdata.shapes:
+        obj = sdata[boundary_key]
+
+    if obj is not None:
+        sdata_main[f"boundaries_{seg_method}"] = obj
         assign_transformations(sdata_main, seg_method)
     else:
+        msg = (
+            f"Shapes file missing for {seg_method}. "
+            "Skipping boundary import. Check conformity with the sopa pipeline, "
+            "especially sdata['table'].uns['spatialdata_attrs']['region']."
+        )
         if logger:
-            logger.warning(
-                "Shapes file missing for {}. Skipping boundary import. Check conformaty with sopa pipeline, especially sdata['table'].uns['spatialdata_attrs']['region'].".format(
-                    seg_method
-                )
-            )
+            logger.warning(msg)
         else:
-            print(
-                f"Shapes file missing for {seg_method}. Skipping boundary import. Check conformaty with sopa pipeline, especially sdata['table'].uns['spatialdata_attrs']['region']."
-            )
+            print(msg)
+
     return sdata_main
 
 

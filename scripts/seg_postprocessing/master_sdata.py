@@ -64,7 +64,6 @@ sdata_path = join(args.data_dir, "samples", args.sample)
 sdata_main = read_zarr(join(sdata_path, "sdata_z3.zarr"))
 
 logger.info("Integrating segmentation data from available methods into main sdata...")
-# only work on methods with actual data available
 seg_methods = [
     method
     for method in os.listdir(join(sdata_path, "results"))
