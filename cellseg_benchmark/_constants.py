@@ -1616,7 +1616,7 @@ gwas_hits = {
     ],
 }
 
-methods_3D = ["Proseg", "vpt_3D", "Watershed_Merlin"]
+methods_3D = ["Proseg_3D", "vpt_3D", "Watershed_Merlin"]
 
 image_based = ["Cellpose", "Negative_Control"]
 
@@ -1790,6 +1790,7 @@ method_colors = {
     "Cellpose_2_DAPI_PolyT": "#74c476",
     "Cellpose_2_DAPI_Transcripts": "#9cd8a2",
     # Proseg variants (purple palette)
+    #TODO: add 3D models
     "Proseg_pure": "#4a1486",
     "Proseg_Cellpose_1_DAPI_PolyT": "#5a0876",
     "Proseg_Cellpose_1_DAPI_Transcripts": "#6a1894",

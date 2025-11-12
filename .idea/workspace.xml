@@ -5,8 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="048a8a57-1aa6-47da-ad84-3860fc806524" name="Changes" comment="sdata save issue fix">
-      <change beforePath="$PROJECT_DIR$/cellseg_benchmark/metrics/F1_score.py" beforeDir="false" afterPath="$PROJECT_DIR$/cellseg_benchmark/metrics/F1_score.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ficture_stats.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ficture_stats.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -16,8 +15,8 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="Jupyter Notebook" />
         <option value="Python Script" />
+        <option value="Jupyter Notebook" />
       </list>
     </option>
   </component>
@@ -64,7 +63,7 @@
     &quot;SHELLCHECK.PATH&quot;: &quot;/Users/jonasflor/Library/Application Support/JetBrains/PyCharm2025.1/plugins/Shell Script/shellcheck&quot;,
     &quot;database.data.extractors.current.export.id&quot;: &quot;Comma-separated (CSV)_id&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/jonasflor/Desktop/gitrepos/cellseg-benchmark/scripts/sbatch_utils&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/jonasflor/Desktop/gitrepos/cellseg-benchmark/notebooks&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -84,9 +83,12 @@
 }</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/notebooks" />
       <recent name="$PROJECT_DIR$/scripts/sbatch_utils" />
+      <recent name="$PROJECT_DIR$/scripts" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/scripts/segmentation" />
       <recent name="$PROJECT_DIR$/scripts" />
       <recent name="$PROJECT_DIR$/cellseg_benchmark" />
     </key>
@@ -125,8 +127,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-b26f3e71634d-JavaScript-PY-251.26094.141" />
-        <option value="bundled-python-sdk-9f8e2b94138c-36ea0e71a18c-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-251.26094.141" />
+        <option value="bundled-js-predefined-d6986cc7102b-3aa1da707db6-JavaScript-PY-252.27397.106" />
+        <option value="bundled-python-sdk-4e2b1448bda8-9a97661f3031-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.27397.106" />
       </set>
     </attachedChunks>
   </component>
@@ -157,6 +159,40 @@
       <workItem from="1751826943532" duration="1113000" />
       <workItem from="1751879678419" duration="41903000" />
       <workItem from="1752000275235" duration="14456000" />
+      <workItem from="1754984472243" duration="10019000" />
+      <workItem from="1755074638513" duration="2484000" />
+      <workItem from="1755078289161" duration="4159000" />
+      <workItem from="1755160449458" duration="2456000" />
+      <workItem from="1755505158570" duration="25585000" />
+      <workItem from="1755617653716" duration="1353000" />
+      <workItem from="1755676550851" duration="14057000" />
+      <workItem from="1756196458217" duration="16579000" />
+      <workItem from="1756474714548" duration="1780000" />
+      <workItem from="1756712861718" duration="1839000" />
+      <workItem from="1756818700802" duration="1181000" />
+      <workItem from="1756917469948" duration="2548000" />
+      <workItem from="1757054392367" duration="10924000" />
+      <workItem from="1757424789333" duration="484000" />
+      <workItem from="1757448545372" duration="1089000" />
+      <workItem from="1757513670810" duration="1207000" />
+      <workItem from="1757572958568" duration="6772000" />
+      <workItem from="1757669475457" duration="6344000" />
+      <workItem from="1758531779372" duration="9945000" />
+      <workItem from="1758715001331" duration="30020000" />
+      <workItem from="1759312356230" duration="12329000" />
+      <workItem from="1759913269100" duration="47753000" />
+      <workItem from="1760962005336" duration="27330000" />
+      <workItem from="1761199982562" duration="2774000" />
+      <workItem from="1761294032686" duration="8454000" />
+      <workItem from="1761556002599" duration="8132000" />
+      <workItem from="1761640151174" duration="8386000" />
+      <workItem from="1761809330041" duration="1730000" />
+      <workItem from="1761902308776" duration="6900000" />
+      <workItem from="1761919639951" duration="6684000" />
+      <workItem from="1762164577551" duration="11256000" />
+      <workItem from="1762244164734" duration="687000" />
+      <workItem from="1762251696679" duration="18815000" />
+      <workItem from="1762438335508" duration="866000" />
     </task>
     <servers />
   </component>

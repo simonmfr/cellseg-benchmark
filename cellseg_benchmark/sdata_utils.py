@@ -512,7 +512,7 @@ def calculate_volume(
         sdata_main[f"boundaries_{seg_method}"], to_coordinate_system="micron"
     )
     if any([seg_method.startswith(x) for x in methods_3D]):
-        if seg_method.startswith("Proseg"):
+        if seg_method.startswith("Proseg_3D"):
             z_level_name = "layer"
             cell_identifier = "cell_id"
         elif seg_method.startswith("vpt_3D"):
