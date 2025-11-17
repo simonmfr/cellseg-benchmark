@@ -368,13 +368,7 @@ def build_shapes(
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
     obj = None  # will hold the Shapes-like object to insert
 
-    filename = None
-    if seg_method.startswith("Proseg_3D"):
-        filename = "cell-polygons.geojson.gz"
-    elif seg_method.startswith("Proseg"):
-        filename = "cell-polygons-layers.geojson.gz"
-
-    if filename is not None:
+    if seg_method.startswith("Proseg"):
         path = join(
             sdata_path,
             "results",
@@ -383,7 +377,7 @@ def build_shapes(
             ".sopa_cache",
             "transcript_patches",
             "0",
-            filename,
+            "cell-polygons-layers.geojson.gz", # 3D boundaries
         )
         with gzip.open(path, "rt", encoding="utf-8") as f:
             geojson_text = f.read()
