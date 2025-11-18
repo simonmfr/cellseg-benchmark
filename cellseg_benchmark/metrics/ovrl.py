@@ -78,7 +78,7 @@ def run_ovrlpy(
     ovrlpy_obj.analyse()
 
     output_path = os.path.join(
-        data_dir, "samples", sample_name, "vertical_doublets_ovrlpy_output.npz"
+        data_dir, "vertical_doublets_ovrlpy_output.npz"
     )
     np.savez_compressed(
         output_path, integrity=ovrlpy_obj.integrity_map, signal=ovrlpy_obj.signal_map
@@ -86,11 +86,11 @@ def run_ovrlpy(
 
     if logger:
         logger.info(
-            f"[{sample_name}] Analysis complete. Results saved to: data_dir/{os.path.join('samples', sample_name, 'vertical_doublets_ovrlpy_output.npz')}"
+            f"[{sample_name}] Analysis complete. Results saved to: data_dir/vertical_doublets_ovrlpy_output.npz"
         )
     else:
         print(
-            f"[{sample_name}] Analysis complete. Results saved to: data_dir/{os.path.join('samples', sample_name, 'vertical_doublets_ovrlpy_output.npz')}"
+            f"[{sample_name}] Analysis complete. Results saved to: data_dir/vertical_doublets_ovrlpy_output.npz"
         )
 
 
