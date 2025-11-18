@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from cellseg_benchmark.metrics import (
+from cellseg_benchmark.metrics.ovrl import (
     compute_mean_vsi_per_polygon,
     compute_ovrl,
     plot_vsi_overview,

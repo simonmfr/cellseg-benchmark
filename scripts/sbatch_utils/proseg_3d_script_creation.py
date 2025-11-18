@@ -75,6 +75,6 @@ git pull -q
 mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_Cellpose_{args.CP_version}_DAPI_{args.staining}
 python scripts/segmentation/proseg_3D.py {value["path"]} {key} Cellpose_{args.CP_version}_DAPI_{args.staining} \
---voxel-layers {args.voxel} --output-cell-polygon-layers cell-polygons.geojson.gz 
+--voxel-layers {args.voxel} --output-cell-polygon-layers cell-polygons-layers.geojson.gz 
 """)
         f.close()
