@@ -368,7 +368,7 @@ def build_shapes(
     boundary_key = sdata["table"].uns["spatialdata_attrs"]["region"]
     obj = None  # will hold the Shapes-like object to insert
 
-    if seg_method.startswith("Proseg"):
+    if seg_method.startswith("Proseg_3D"):
         path = join(
             sdata_path,
             "results",
