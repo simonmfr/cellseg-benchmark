@@ -13,7 +13,7 @@ args = parser.parse_args()
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
-container_image = f"{base_path}/misc/enroot_images/benchmark_py3_12.sqsh"
+container_image = f"{base_path}/misc/enroot_images/cellseg_benchmark_2.sqsh"
 log_path = f"{base_path}/misc/logs/merged"
 
 methods = [
@@ -32,7 +32,11 @@ methods = [
     "Cellpose_1_Merlin",
     "Cellpose_2_DAPI_PolyT",
     "Cellpose_2_DAPI_Transcripts",
-    "Proseg_pure",
+    "Proseg_3D_Cellpose_1_DAPI_Transcripts",
+    "Proseg_3D_Cellpose_1_DAPI_PolyT",
+    "Proseg_3D_Cellpose_1_nuclei_model",
+    "Proseg_3D_Cellpose_2_DAPI_PolyT",
+    "Proseg_3D_Cellpose_2_DAPI_Transcripts",
     "Proseg_Cellpose_1_DAPI_Transcripts",
     "Proseg_Cellpose_1_DAPI_PolyT",
     "Proseg_Cellpose_1_nuclei_model",
@@ -82,11 +86,13 @@ export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 
-cd ~/gitrepos/spatialdata
-git pull -q
+set -eu
+
+#cd ~/gitrepos/spatialdata
+#git pull -q
 cd ~/gitrepos/cellseg-benchmark
 git pull -q
 
-mamba activate cellseg-benchmark
+mamba activate cellseg_benchmark
 python scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
 """)

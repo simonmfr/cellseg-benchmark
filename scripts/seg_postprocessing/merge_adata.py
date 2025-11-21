@@ -23,7 +23,6 @@ from cellseg_benchmark.adata_utils import (
     pca_umap_single,
 )
 
-
 def _load_one(
     sample_dir: Path, seg_method: str, logger: logging.Logger
 ) -> Tuple[str, AnnData | None]:
@@ -69,6 +68,8 @@ yaml_samples = [
     for name, meta in sample_metadata_file.items()
     if meta.get("cohort") == args.cohort and name not in excluded_samples
 ]
+if args.cohort == "htra1": # add 6/18m WT samples from aging cohort as additional controls
+    yaml_samples += ["aging_s1_r0", "aging_s5_r1", "aging_s6_r0", "aging_s7_r2", "aging_s8_r2", "aging_s11_r0"]
 
 logger.info("Loading data...")
 loads = []
