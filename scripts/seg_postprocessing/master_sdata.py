@@ -69,13 +69,6 @@ seg_methods = [
     for method in os.listdir(join(sdata_path, "results"))
     if os.path.isdir(join(sdata_path, "results", method, "sdata.zarr"))
 ]
-
-# temp workaround
-seg_methods = [
-    s for s in seg_methods
-    if not (s.startswith("Proseg_") and not s.startswith("Proseg_3D"))
-]
-
 su.integrate_segmentation_data(
     sdata_path,
     seg_methods,
