@@ -109,6 +109,9 @@ adata = merge_adatas(
 del adata_list
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
+if args.seg_method == "Cellpose_1_Merlin": # workaround, as explorer is in pixel units
+    adata.obsm["spatial"] = adata.obsm.get("spatial_pixel", adata.obsm["spatial"])
+    
 adata = filter_spatial_outlier_cells(
     adata,
     data_dir=str(base_path),
@@ -116,6 +119,9 @@ adata = filter_spatial_outlier_cells(
     save_path=save_path / "plots",
     logger=logger,
 )
+
+if args.seg_method == "Cellpose_1_Merlin": # workaround, as explorer is in pixel units
+    adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 
 if "vpt_3D" in args.seg_method:  # min_counts=10 due to smaller cell sizes
     min_counts = 10
