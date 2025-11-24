@@ -63,7 +63,7 @@ for method in methods:
         "Negative_Control_Rastered_10",
         "Negative_Control_Voronoi",
     ]:
-        time_limit = "12:00:00"
+        time_limit = "20:00:00"
     else:
         time_limit = "06:00:00"
 

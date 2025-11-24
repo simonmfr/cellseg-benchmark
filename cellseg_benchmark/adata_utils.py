@@ -580,7 +580,7 @@ def filter_low_quality_cells(
         for ax in axes.flat[n_samples:]:
             ax.set_visible(False)
 
-        fig.suptitle(f"{flag.replace('_', ' ').title()} by sample", fontsize=14, y=1)
+        fig.suptitle(f"{flag.replace('_', ' ').title()}s by sample", fontsize=14, y=1)
         fig.tight_layout()
         fig.savefig(join(save_path, fname), dpi=200, bbox_inches="tight")
         plt.close(fig)
@@ -689,14 +689,24 @@ def normalize_counts(
     """
     if logger:
         logger.info("Normalizing counts...")
-
+   
     if sp.issparse(adata.X) and not isinstance(adata.X, sp.csr_matrix):
         adata.X = adata.X.tocsr()
 
-    if not np.issubdtype(adata.X.dtype, np.integer):  # exception for proseg removed after update to proseg v3 (in proseg v2 counts were non-integer posterior expectations)
-        raise TypeError(
-            f"adata.X must contain integer counts, found instead: {adata.X.dtype}"
-        )
+    X = adata.X
+
+    # require integer-valued counts, but allow float dtype if all entries are integers
+    # previous exception for proseg removed after update to proseg v3 (in proseg v2 counts were non-integer posterior expectations)
+    if np.issubdtype(X.dtype, np.floating):
+        if sp.issparse(X):
+            if np.any(X.data % 1):
+                raise TypeError("adata.X must contain integer counts; found non-integer floats")
+        else:
+            if np.any(X % 1):
+                raise TypeError("adata.X must contain integer counts; found non-integer floats")
+        adata.X = X.astype(np.int32)
+    elif not np.issubdtype(X.dtype, np.integer):
+        raise TypeError(f"adata.X must contain integer counts, found instead: {X.dtype}")
 
     # 1 Volume normalisation
     adata.layers["counts"] = adata.X
