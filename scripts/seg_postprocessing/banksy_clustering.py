@@ -228,4 +228,4 @@ for s in adata.obs['sample'].unique():
         save=f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/banksy_tests/{args.cohort}/banksy_align_{s}_1.png"
     )
 adata.write(
-    f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/analysis/{args.cohort}/{args.seg_method}/spatial_reg_adata.h5ad")
+    f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/analysis/{args.cohort}/{args.seg_method}/adatas/spatial_reg_adata.h5ad")

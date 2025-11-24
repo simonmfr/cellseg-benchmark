@@ -28,7 +28,9 @@ setup(
         "ovrlpy",
         "harmonypy",
         "IProgress",
-        #    "igraph"
+        #"igraph",
+        #"leidenalg,
+        #"squidpy",
         "rtree",
     ],
     python_requires=">=3.11",

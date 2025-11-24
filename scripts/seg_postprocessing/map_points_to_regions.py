@@ -61,7 +61,7 @@ for method in tqdm(seg_methods):
     adata_points.obs["region_poly_index"] = df_all['poly_index'].values
     df_all.to_csv(data_path / "analysis" / args.cohort / method / "spatial_registration.csv")
     plot_spatial_multiplot(adata_points, "region_mapped",
-                           save_path=data_path / "analysis" / args.cohort / method,
+                           save_path=data_path / "analysis" / args.cohort / method / "plots",
                            save_name="spatial_registration.png",
                            sort=True
                            )
