@@ -69,7 +69,7 @@ for seg_method in methods:
     memory = "270G" if "Negative_Control" in seg_method else "65G"
 
     job_name = f"vasc_subty_{args.cohort}_{seg_method}"
-    sbatch_file = sbatch_path / f"{job_name}.sbatch"
+    sbatch_file = Path(sbatch_path) / f"{job_name}.sbatch"
 
     with open(sbatch_file, "w") as f:
 
