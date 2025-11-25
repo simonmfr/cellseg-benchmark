@@ -322,6 +322,7 @@ def filter_spatial_outlier_cells(
     save_path: str,
     logger: logging.Logger = None,
     remove_outliers: bool = True,
+    sample_key: str = "sample",
 ) -> AnnData:
     """Remove cells outside main tissue using manually defined spatial outlier regions.
 
@@ -338,6 +339,7 @@ def filter_spatial_outlier_cells(
         logger (logging.Logger, optional): Optional logger object. Defaults to None.
         remove_outliers (bool, optional): If True, remove outlier cells from adata.
             If False, only mark outliers without filtering. Defaults to True.
+        sample_key (str): Sample key.
 
     Returns:
         AnnData: Modified adata with "spatial_outlier" column added to obs.
@@ -348,7 +350,7 @@ def filter_spatial_outlier_cells(
         and columns: Selection, X, Y
     """
     n_cols = 3
-    samples = adata.obs["sample"].unique()
+    samples = adata.obs[sample_key].unique()
     n_samples = len(samples)
     n_rows = math.ceil(n_samples / n_cols)
 
@@ -366,7 +368,7 @@ def filter_spatial_outlier_cells(
     for idx, sample in enumerate(samples):
         ax = axes[idx // n_cols][idx % n_cols]
 
-        mask = adata.obs["sample"] == sample
+        mask = adata.obs[sample_key] == sample
         coords = adata.obsm["spatial"][mask]
 
         # Subsample for plotting if needed
@@ -689,7 +691,7 @@ def normalize_counts(
     """
     if logger:
         logger.info("Normalizing counts...")
-   
+
     if sp.issparse(adata.X) and not isinstance(adata.X, sp.csr_matrix):
         adata.X = adata.X.tocsr()
 
@@ -700,13 +702,19 @@ def normalize_counts(
     if np.issubdtype(X.dtype, np.floating):
         if sp.issparse(X):
             if np.any(X.data % 1):
-                raise TypeError("adata.X must contain integer counts; found non-integer floats")
+                raise TypeError(
+                    "adata.X must contain integer counts; found non-integer floats"
+                )
         else:
             if np.any(X % 1):
-                raise TypeError("adata.X must contain integer counts; found non-integer floats")
+                raise TypeError(
+                    "adata.X must contain integer counts; found non-integer floats"
+                )
         adata.X = X.astype(np.int32)
     elif not np.issubdtype(X.dtype, np.integer):
-        raise TypeError(f"adata.X must contain integer counts, found instead: {X.dtype}")
+        raise TypeError(
+            f"adata.X must contain integer counts, found instead: {X.dtype}"
+        )
 
     # 1 Volume normalisation
     adata.layers["counts"] = adata.X
@@ -835,12 +843,14 @@ def plot_spatial_multiplot(
         add_legend: Whether to add a legend outside the plot.
         size: Marker size override.
         return_fig: Return the figure instead of closing.
+        sort: Sort samples alphabetically.
         title_keys: `.obs` column(s) to use for subpanel titles.
     """
+    from os.path import join
+
     import matplotlib.pyplot as plt
     import pandas as pd
     import scanpy as sc
-    from os.path import join
 
     categories = adata.obs[obs_key].astype("category").cat.categories.tolist()
 
@@ -850,7 +860,7 @@ def plot_spatial_multiplot(
             base = list(stored)
         else:
             base = sc.plotting.palettes.default_20
-        palette = dict(zip(categories, base[:len(categories)]))
+        palette = dict(zip(categories, base[: len(categories)]))
 
     def _get_color(v):
         return palette.get(v, "#bdbdbd")
@@ -864,7 +874,11 @@ def plot_spatial_multiplot(
         vals = []
         for k in title_keys:
             col = sd.obs[k]
-            v = col.iloc[0] if col.nunique(dropna=False) <= 1 else col.mode(dropna=False).iloc[0]
+            v = (
+                col.iloc[0]
+                if col.nunique(dropna=False) <= 1
+                else col.mode(dropna=False).iloc[0]
+            )
             vals.append(str(v))
         return " · ".join(vals)
 
@@ -883,20 +897,24 @@ def plot_spatial_multiplot(
     for ax, sample in zip(axes.flat, samples):
         sd = adata[adata.obs["sample"] == sample]
         if sd.n_obs > max_points_per_sample:
-            sd = sc.pp.subsample(sd, n_obs=max_points_per_sample, random_state=42, copy=True)
+            sd = sc.pp.subsample(
+                sd, n_obs=max_points_per_sample, random_state=42, copy=True
+            )
 
         coords = sd.obsm["spatial"]
         colors = [_get_color(v) for v in sd.obs[obs_key].astype(object)]
         s = size if size is not None else max(2, min(15, 30_000 / max(1, len(coords))))
 
-        ax.scatter(coords[:, 0], coords[:, 1], c=colors, s=s, alpha=0.75, edgecolors="none")
+        ax.scatter(
+            coords[:, 0], coords[:, 1], c=colors, s=s, alpha=0.75, edgecolors="none"
+        )
         ax.set(title=_panel_title(sd) or str(sample))
         ax.set_xticks([])
         ax.set_yticks([])
         for spn in ax.spines.values():
             spn.set_visible(False)
 
-    for ax in axes.flat[len(samples):]:
+    for ax in axes.flat[len(samples) :]:
         ax.set_visible(False)
 
     if title:
@@ -904,10 +922,21 @@ def plot_spatial_multiplot(
 
     if add_legend:
         handles = [
-            plt.Line2D([0], [0], marker="o", ls="", mfc=_get_color(cat), mec="none", ms=6, label=cat)
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                ls="",
+                mfc=_get_color(cat),
+                mec="none",
+                ms=6,
+                label=cat,
+            )
             for cat in categories
         ]
-        fig.legend(handles=handles, loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8)
+        fig.legend(
+            handles=handles, loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8
+        )
         fig.subplots_adjust(right=0.8)
 
     fig.tight_layout()

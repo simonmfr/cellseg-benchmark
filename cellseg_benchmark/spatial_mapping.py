@@ -1,41 +1,46 @@
 from pathlib import Path
 
-from geopandas import GeoDataFrame
 import numpy as np
-from skimage.measure import label as cc_label, find_contours
+from geopandas import GeoDataFrame
 from scipy.ndimage import binary_fill_holes, convolve
-
-from shapely.strtree import STRtree
-from shapely.geometry import Polygon, Point, box, MultiPolygon, GeometryCollection
-from shapely.prepared import prep
+from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
+from shapely.prepared import prep
+from shapely.strtree import STRtree
+from skimage.measure import find_contours
+from skimage.measure import label as cc_label
+
 try:
     import shapely
     from packaging.version import Version
     from shapely.prepared import prep as _prepare
+
     _SHAPELY2 = Version(shapely.__version__).major >= 2
 except Exception:
     from shapely.prepare import prepare as _prepare
+
     _SHAPELY2 = False
 
-from matplotlib import cm
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from matplotlib.collections import LineCollection
 from matplotlib.patches import Polygon as MplPolygon
+
 
 # ------------------------- 0) Build Grid -----------------------------------
 def gridify(adata, banksy_clustering):
     # --- 0) Pull data once ---
-    sp = np.asarray(adata.obsm['spatial_microns'], dtype=float)  # columns: [x, y] in µm
+    sp = np.asarray(adata.obsm["spatial_microns"], dtype=float)  # columns: [x, y] in µm
     labels = np.asarray(adata.obs[banksy_clustering])
 
     # --- 1) Infer geo with TOP-LEFT physical origin ---
     minx, maxx = sp[:, 0].min(), sp[:, 0].max()
     miny, maxy = sp[:, 1].min(), sp[:, 1].max()
 
-    ux = np.unique(sp[:, 0]); uy = np.unique(sp[:, 1])
-    dx = (np.median(np.diff(ux)) if ux.size > 1 else 1.0)
-    dy = (np.median(np.diff(uy)) if uy.size > 1 else 1.0)
+    ux = np.unique(sp[:, 0])
+    uy = np.unique(sp[:, 1])
+    dx = np.median(np.diff(ux)) if ux.size > 1 else 1.0
+    dy = np.median(np.diff(uy)) if uy.size > 1 else 1.0
 
     x0 = float(minx)
     y0 = float(maxy)  # TOP edge in physical coords
@@ -46,8 +51,8 @@ def gridify(adata, banksy_clustering):
     ext_y = int(np.rint((y0 - miny) / dy)) + 1  # note y0 - miny (top-to-bottom)
 
     # --- 3) Vectorized binning (x,y) -> (row,col) for UPPER-LEFT origin ---
-    cols = np.rint((sp[:, 0] - x0) / dx).astype(int)           # 0..ext_x-1
-    rows = np.rint((y0 - sp[:, 1]) / dy).astype(int)           # 0..ext_y-1 (top down)
+    cols = np.rint((sp[:, 0] - x0) / dx).astype(int)  # 0..ext_x-1
+    rows = np.rint((y0 - sp[:, 1]) / dy).astype(int)  # 0..ext_y-1 (top down)
 
     # --- 4) In-bounds mask ---
     inb = (cols >= 0) & (cols < ext_x) & (rows >= 0) & (rows < ext_y)
@@ -68,11 +73,12 @@ def gridify(adata, banksy_clustering):
     grid[rows, cols] = labels
     return grid, geo
 
+
 # ---------- 1) CLEAN SMALL HOLES (ENCLOSED INCLUSIONS) ---------------------
 
+
 def relabel_small_holes(grid, *, min_hole_area_um2, dx, dy, connectivity=1):
-    """
-    grid: 2D array of label *codes* (-1 for background is fine, but not required)
+    """grid: 2D array of label *codes* (-1 for background is fine, but not required)
     Relabels fully enclosed inclusions smaller than threshold to the surrounding majority label.
     """
     G = np.asarray(grid).copy()
@@ -82,7 +88,7 @@ def relabel_small_holes(grid, *, min_hole_area_um2, dx, dy, connectivity=1):
     K8 = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], int)  # for boundary majority
 
     for L in np.unique(G[G >= 0]):
-        maskL = (G == L)
+        maskL = G == L
 
         filled = binary_fill_holes(maskL)  # fills all holes of L
         holes = filled & (~maskL)
@@ -91,7 +97,7 @@ def relabel_small_holes(grid, *, min_hole_area_um2, dx, dy, connectivity=1):
 
         lab = cc_label(holes, connectivity=connectivity)
         for hid in range(1, lab.max() + 1):
-            H = (lab == hid)
+            H = lab == hid
             if H.sum() > min_hole_px:
                 continue  # keep larger internal structure
 
@@ -110,10 +116,9 @@ def relabel_small_holes(grid, *, min_hole_area_um2, dx, dy, connectivity=1):
 
 # ---------- 2) (OPTIONAL) DROP TINY ISLANDS OF EACH LABEL ------------------
 
+
 def remove_small_islands(grid, *, min_island_area_um2, dx, dy, connectivity=1):
-    """
-    Reassigns small connected components of each label to the local boundary majority.
-    """
+    """Reassigns small connected components of each label to the local boundary majority."""
     G = np.asarray(grid).copy()
     pix_area = float(dx) * float(dy)
     min_comp_px = int(np.floor(min_island_area_um2 / pix_area + 1e-9))
@@ -122,7 +127,7 @@ def remove_small_islands(grid, *, min_island_area_um2, dx, dy, connectivity=1):
     for L in np.unique(G[G >= 0]):
         lab = cc_label(G == L, connectivity=connectivity)
         for cid in range(1, lab.max() + 1):
-            comp = (lab == cid)
+            comp = lab == cid
             sz = int(comp.sum())
             if sz == 0 or sz > min_comp_px:
                 continue
@@ -141,9 +146,9 @@ def remove_small_islands(grid, *, min_island_area_um2, dx, dy, connectivity=1):
 
 # ---------- 3) POLYGONIZE EACH CONNECTED COMPONENT (NO HULLS) --------------
 
+
 def polygons_per_component_from_grid(clean_grid, geo, value_map=None, connectivity=1):
-    """
-    clean_grid: 2D array of label *codes* (>=0); -1 treated as background.
+    """clean_grid: 2D array of label *codes* (>=0); -1 treated as background.
     geo: (x0, y0, dx, dy) with TOP-LEFT origin; pixel (row,col) -> (x0+col*dx, y0 - row*dy)
     """
     x0, y0, dx, dy = [float(v) for v in geo]
@@ -162,7 +167,7 @@ def polygons_per_component_from_grid(clean_grid, geo, value_map=None, connectivi
             for crv in curves:
                 rr, cc = crv[:, 0], crv[:, 1]
                 x = x0 + cc * dx
-                y = y0 - rr * dy          # <— top-left origin mapping
+                y = y0 - rr * dy  # <— top-left origin mapping
                 a = np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1))  # signed area
                 rings.append((a, np.column_stack([x, y])))
 
@@ -176,22 +181,28 @@ def polygons_per_component_from_grid(clean_grid, geo, value_map=None, connectivi
             if poly.is_empty:
                 continue
 
-            regions.append({
-                "poly": poly,
-                "code": int(code),
-                "value": (value_map[int(code)] if value_map is not None else int(code)),
-                "comp_id": int(cid - 1)
-            })
+            regions.append(
+                {
+                    "poly": poly,
+                    "code": int(code),
+                    "value": (
+                        value_map[int(code)] if value_map is not None else int(code)
+                    ),
+                    "comp_id": int(cid - 1),
+                }
+            )
     return regions
 
 
 # ---------- 4) SHAPELY INDEX + POINT → REGION MAPPING ----------------------
+
 
 def build_region_index(regions):
     geoms = [r["poly"] for r in regions]
     tree = STRtree(geoms)
     prepared = [prep(g) for g in geoms]
     if _SHAPELY2:
+
         def candidates(geom):
             return tree.query(geom)  # idx array
     else:
@@ -199,10 +210,13 @@ def build_region_index(regions):
 
         def candidates(geom):
             return [id_to_idx[id(g)] for g in tree.query(geom)]
+
     return prepared, candidates
 
 
-def map_points_to_regions(points_xy, regions, prepared, candidates_fn, *, include_boundary=True):
+def map_points_to_regions(
+    points_xy, regions, prepared, candidates_fn, *, include_boundary=True
+):
     pts = np.asarray(points_xy, float)
     region_idx = np.full(len(pts), -1, int)
     cluster_val = [None] * len(pts)
@@ -222,33 +236,47 @@ def map_points_to_regions(points_xy, regions, prepared, candidates_fn, *, includ
 
 # ---------- 5) PIPELINE ENTRY POINT (FROM YOUR EXISTING GRID) --------------
 
+
 def segment_from_grid_and_map_points(
-        label_grid,  # 2D array of label codes (>=0) and/or background (-1)
-        geo,  # (x0, y0, dx, dy); here dx=dy=25 for your case
-        points_xy,  # (N,2) points in same coord frame as geo
-        *,
-        min_hole_area_um2,  # e.g. 2000.0
-        min_island_area_um2=None,  # optional, e.g. 2000.0
-        connectivity=1,  # 1 (4-neigh) preserves thin gaps; 2 (8-neigh) smoother
-        value_map=None  # optional mapping code->original label value
+    label_grid,  # 2D array of label codes (>=0) and/or background (-1)
+    geo,  # (x0, y0, dx, dy); here dx=dy=25 for your case
+    points_xy,  # (N,2) points in same coord frame as geo
+    *,
+    min_hole_area_um2,  # e.g. 2000.0
+    min_island_area_um2=None,  # optional, e.g. 2000.0
+    connectivity=1,  # 1 (4-neigh) preserves thin gaps; 2 (8-neigh) smoother
+    value_map=None,  # optional mapping code->original label value
 ):
     # 1) hole-fix
     x0, y0, dx, dy = geo
-    clean = relabel_small_holes(label_grid, min_hole_area_um2=min_hole_area_um2,
-                                dx=dx, dy=dy, connectivity=connectivity)
+    clean = relabel_small_holes(
+        label_grid,
+        min_hole_area_um2=min_hole_area_um2,
+        dx=dx,
+        dy=dy,
+        connectivity=connectivity,
+    )
 
     # 2) optional tiny-island cleanup
     if min_island_area_um2 is not None and min_island_area_um2 > 0:
-        clean = remove_small_islands(clean, min_island_area_um2=min_island_area_um2,
-                                     dx=dx, dy=dy, connectivity=connectivity)
+        clean = remove_small_islands(
+            clean,
+            min_island_area_um2=min_island_area_um2,
+            dx=dx,
+            dy=dy,
+            connectivity=connectivity,
+        )
 
     # 3) polygons per connected component
-    regions = polygons_per_component_from_grid(clean, geo, value_map=value_map,
-                                               connectivity=connectivity)
+    regions = polygons_per_component_from_grid(
+        clean, geo, value_map=value_map, connectivity=connectivity
+    )
 
     # 4) spatial index + mapping
     prepared, cand = build_region_index(regions)
-    mapping = map_points_to_regions(points_xy, regions, prepared, cand, include_boundary=True)
+    mapping = map_points_to_regions(
+        points_xy, regions, prepared, cand, include_boundary=True
+    )
 
     return clean, regions, mapping
 
@@ -265,26 +293,31 @@ def polygons_per_component_exact(clean_grid, geo, value_map=None, connectivity=1
             # TOP-LEFT origin: row r spans [y_top, y_bot] = [y0 - r*dy, y0 - (r+1)*dy]
             polys = []
             for r, c in zip(rr, cc):
-                x_left  = x0 + c * dx
+                x_left = x0 + c * dx
                 x_right = x0 + (c + 1) * dx
-                y_top   = y0 - r * dy
-                y_bot   = y0 - (r + 1) * dy
+                y_top = y0 - r * dy
+                y_bot = y0 - (r + 1) * dy
                 ymin, ymax = (y_bot, y_top) if y_bot < y_top else (y_top, y_bot)
                 polys.append(box(x_left, ymin, x_right, ymax))
 
             poly = unary_union(polys)
             if not poly.is_empty:
-                regions.append({
-                    "poly": poly,
-                    "code": int(code),
-                    "value": (value_map[int(code)] if value_map is not None else int(code)),
-                    "comp_id": int(cid - 1)
-                })
+                regions.append(
+                    {
+                        "poly": poly,
+                        "code": int(code),
+                        "value": (
+                            value_map[int(code)] if value_map is not None else int(code)
+                        ),
+                        "comp_id": int(cid - 1),
+                    }
+                )
     return regions
 
 
 # ---------- plot_steps.py ----------
 # ======== small helpers ========
+
 
 def _extent_from_geo(grid, geo):
     """Imshow extent in physical units from (x0, y0, dx, dy) with TOP-LEFT origin."""
@@ -301,8 +334,15 @@ def _show_grid(grid, geo, title="", ax=None, cmap="tab20", vmin=None, vmax=None)
     else:
         fig = ax.figure
     extent = _extent_from_geo(grid, geo)
-    im = ax.imshow(grid, origin="upper", extent=extent, cmap=cmap,
-                   interpolation="nearest", vmin=vmin, vmax=vmax)
+    im = ax.imshow(
+        grid,
+        origin="upper",
+        extent=extent,
+        cmap=cmap,
+        interpolation="nearest",
+        vmin=vmin,
+        vmax=vmax,
+    )
     ax.set_title(title)
     ax.set_xlabel("x (µm)")
     ax.set_ylabel("y (µm)")
@@ -321,7 +361,11 @@ def _resolve_highlight_indices(regions, highlight):
     # tuple (code, comp_id) or (code, None)
     if isinstance(highlight, tuple) and len(highlight) == 2:
         code, comp = highlight
-        idxs = [i for i, r in enumerate(regions) if r["code"] == code and (comp is None or r["comp_id"] == comp)]
+        idxs = [
+            i
+            for i, r in enumerate(regions)
+            if r["code"] == code and (comp is None or r["comp_id"] == comp)
+        ]
         return idxs
 
     # dict form
@@ -332,23 +376,26 @@ def _resolve_highlight_indices(regions, highlight):
         code = highlight.get("code", None)
         comp = highlight.get("comp_id", None)
         if code is not None:
-            return [i for i, r in enumerate(regions) if r["code"] == code and (comp is None or r["comp_id"] == comp)]
+            return [
+                i
+                for i, r in enumerate(regions)
+                if r["code"] == code and (comp is None or r["comp_id"] == comp)
+            ]
 
     # unsupported → nothing
     return []
 
 
 def _overlay_polygons(
-        regions,
-        ax=None,
-        *,
-        highlight=None,
-        base_edge_kw=None,
-        highlight_edge_kw=None,
-        highlight_face_alpha=0.20
+    regions,
+    ax=None,
+    *,
+    highlight=None,
+    base_edge_kw=None,
+    highlight_edge_kw=None,
+    highlight_face_alpha=0.20,
 ):
-    """
-    Draw polygon boundaries for a list of region dicts.
+    """Draw polygon boundaries for a list of region dicts.
     Optionally highlight one or more regions.
 
     Parameters
@@ -411,11 +458,13 @@ def _overlay_polygons(
                 else:
                     face_color = None
                 if face_color and highlight_face_alpha > 0:
-                    patch = MplPolygon(np.column_stack([x, y]),
-                                       closed=True,
-                                       facecolor=face_color,
-                                       alpha=float(highlight_face_alpha),
-                                       edgecolor="none")
+                    patch = MplPolygon(
+                        np.column_stack([x, y]),
+                        closed=True,
+                        facecolor=face_color,
+                        alpha=float(highlight_face_alpha),
+                        edgecolor="none",
+                    )
                     ax.add_patch(patch)
 
     return ax
@@ -423,9 +472,9 @@ def _overlay_polygons(
 
 # ======== step A: original ========
 
+
 def plot_original_grid(label_grid, geo, *, cmap="tab20"):
-    """
-    Input:
+    """Input:
       label_grid: (H,W) int array (codes; -1 allowed)
       geo: (x0, y0, dx, dy) in µm
     Returns: fig, ax
@@ -436,56 +485,90 @@ def plot_original_grid(label_grid, geo, *, cmap="tab20"):
 
 # ======== step B: after hole relabeling ========
 
-def plot_after_holes(label_grid, geo, *, relabel_func, min_hole_area_um2, connectivity=1, cmap="tab20"):
-    """
-    Runs the provided relabel_func and plots the result.
+
+def plot_after_holes(
+    label_grid, geo, *, relabel_func, min_hole_area_um2, connectivity=1, cmap="tab20"
+):
+    """Runs the provided relabel_func and plots the result.
     Inputs:
       relabel_func: callable(grid, min_hole_area_um2, dx, dy, connectivity) -> grid
     Returns: clean_holes_grid, fig, ax
     """
     x0, y0, dx, dy = geo
-    clean_holes = relabel_func(label_grid, min_hole_area_um2=min_hole_area_um2,
-                               dx=dx, dy=dy, connectivity=connectivity)
-    fig, ax = _show_grid(clean_holes, geo,
-                         title=f"B) After hole relabeling (≤ {min_hole_area_um2:g} µm²)",
-                         cmap=cmap)
+    clean_holes = relabel_func(
+        label_grid,
+        min_hole_area_um2=min_hole_area_um2,
+        dx=dx,
+        dy=dy,
+        connectivity=connectivity,
+    )
+    fig, ax = _show_grid(
+        clean_holes,
+        geo,
+        title=f"B) After hole relabeling (≤ {min_hole_area_um2:g} µm²)",
+        cmap=cmap,
+    )
     return clean_holes, fig, ax
 
 
 # ======== step C: after tiny-island removal (optional) ========
 
-def plot_after_islands(clean_holes_grid, geo, *, remove_islands_func,
-                       min_island_area_um2, connectivity=1, cmap="tab20"):
-    """
-    Runs the provided remove_islands_func and plots the result.
+
+def plot_after_islands(
+    clean_holes_grid,
+    geo,
+    *,
+    remove_islands_func,
+    min_island_area_um2,
+    connectivity=1,
+    cmap="tab20",
+):
+    """Runs the provided remove_islands_func and plots the result.
     Inputs:
       remove_islands_func: callable(grid, min_island_area_um2, dx, dy, connectivity) -> grid
     Returns: clean_final_grid, fig, ax
     """
     x0, y0, dx, dy = geo
-    clean_final = remove_islands_func(clean_holes_grid,
-                                      min_island_area_um2=min_island_area_um2,
-                                      dx=dx, dy=dy, connectivity=connectivity)
-    fig, ax = _show_grid(clean_final, geo,
-                         title=f"C) After tiny-island removal (≤ {min_island_area_um2:g} µm²)",
-                         cmap=cmap)
+    clean_final = remove_islands_func(
+        clean_holes_grid,
+        min_island_area_um2=min_island_area_um2,
+        dx=dx,
+        dy=dy,
+        connectivity=connectivity,
+    )
+    fig, ax = _show_grid(
+        clean_final,
+        geo,
+        title=f"C) After tiny-island removal (≤ {min_island_area_um2:g} µm²)",
+        cmap=cmap,
+    )
     return clean_final, fig, ax
 
 
 # ======== step D: final boundaries (+ optional points) ========
 
-def plot_final_boundaries(clean_grid, geo, *, polygonize_func,
-                          connectivity=1, value_map=None,
-                          points_xy=None, points_kwargs=None, cmap="tab20"):
-    """
-    Builds polygons from the cleaned grid and overlays them.
+
+def plot_final_boundaries(
+    clean_grid,
+    geo,
+    *,
+    polygonize_func,
+    connectivity=1,
+    value_map=None,
+    points_xy=None,
+    points_kwargs=None,
+    cmap="tab20",
+):
+    """Builds polygons from the cleaned grid and overlays them.
     Inputs:
       polygonize_func: callable(clean_grid, geo, value_map, connectivity) -> list of region dicts
       points_xy: optional (N,2) array in µm to overlay
       points_kwargs: dict of matplotlib scatter kwargs (size, marker, etc.)
     Returns: regions, fig, ax
     """
-    regions = polygonize_func(clean_grid, geo, value_map=value_map, connectivity=connectivity)
+    regions = polygonize_func(
+        clean_grid, geo, value_map=value_map, connectivity=connectivity
+    )
     fig, ax = _show_grid(clean_grid, geo, title="D) Final boundaries", cmap=cmap)
     _overlay_polygons(regions, ax)
     if points_xy is not None:
@@ -498,26 +581,25 @@ def plot_final_boundaries(clean_grid, geo, *, polygonize_func,
 
 
 def plot_progress_pipeline(
-        adata,
-        sample,
-        banksy_clustering,
-        *,
-        relabel_func,  # function(grid, min_hole_area_um2, dx, dy, connectivity) -> grid
-        remove_islands_func=None,  # function(grid, min_island_area_um2, dx, dy, connectivity) -> grid
-        polygonize_func=None,  # function(clean_grid, geo, value_map, connectivity) -> regions
-        points_xy=None,  # optional (N,2) in µm; plotted on final panel
-        min_hole_area_um2=2500.0,
-        min_island_area_um2=None,
-        connectivity=1,
-        value_map=None,
-        figsize=(14, 9),
-        cmap="tab20",
-        save=None,  # None => don't save; str/Path => save figure there and don't return fig
-        save_dpi=200,
-        save_kwargs=None
+    adata,
+    sample,
+    banksy_clustering,
+    *,
+    relabel_func,  # function(grid, min_hole_area_um2, dx, dy, connectivity) -> grid
+    remove_islands_func=None,  # function(grid, min_island_area_um2, dx, dy, connectivity) -> grid
+    polygonize_func=None,  # function(clean_grid, geo, value_map, connectivity) -> regions
+    points_xy=None,  # optional (N,2) in µm; plotted on final panel
+    min_hole_area_um2=2500.0,
+    min_island_area_um2=None,
+    connectivity=1,
+    value_map=None,
+    figsize=(14, 9),
+    cmap="tab20",
+    save=None,  # None => don't save; str/Path => save figure there and don't return fig
+    save_dpi=200,
+    save_kwargs=None,
 ):
-    """
-    End-to-end visualizer:
+    """End-to-end visualizer:
       Panel A: original grid
       Panel B: after hole relabeling
       Panel C: after tiny-island removal (if requested)
@@ -526,7 +608,7 @@ def plot_progress_pipeline(
     Returns:
       clean_holes, clean_final, regions
     """
-    adata_tmp = adata[adata.obs['sample'] == sample].copy()
+    adata_tmp = adata[adata.obs["sample"] == sample].copy()
     label_grid, geo = gridify(adata_tmp, banksy_clustering)
 
     x0, y0, dx, dy = geo
@@ -535,13 +617,28 @@ def plot_progress_pipeline(
     _show_grid(label_grid, geo, title="A) Original grid", ax=axs[0, 0], cmap=cmap)
 
     # B) after holes
-    clean_holes = relabel_func(label_grid, min_hole_area_um2=min_hole_area_um2, dx=dx, dy=dy, connectivity=connectivity)
-    _show_grid(clean_holes, geo, title="B) After hole relabeling", ax=axs[0, 1], cmap=cmap)
+    clean_holes = relabel_func(
+        label_grid,
+        min_hole_area_um2=min_hole_area_um2,
+        dx=dx,
+        dy=dy,
+        connectivity=connectivity,
+    )
+    _show_grid(
+        clean_holes, geo, title="B) After hole relabeling", ax=axs[0, 1], cmap=cmap
+    )
 
     # C) after islands (optional)
-    if remove_islands_func is not None and (min_island_area_um2 is not None and min_island_area_um2 > 0):
-        clean_final = remove_islands_func(clean_holes, min_island_area_um2=min_island_area_um2, dx=dx, dy=dy,
-                                          connectivity=connectivity)
+    if remove_islands_func is not None and (
+        min_island_area_um2 is not None and min_island_area_um2 > 0
+    ):
+        clean_final = remove_islands_func(
+            clean_holes,
+            min_island_area_um2=min_island_area_um2,
+            dx=dx,
+            dy=dy,
+            connectivity=connectivity,
+        )
         c_title = f"C) After tiny-island removal (≤ {min_island_area_um2:.0f} µm²)"
     else:
         clean_final = clean_holes
@@ -550,10 +647,14 @@ def plot_progress_pipeline(
 
     # D) boundaries + points
     axD = axs[1, 1]
-    _show_grid(clean_final, geo, title="D) Final boundaries + points", ax=axD, cmap=cmap)
+    _show_grid(
+        clean_final, geo, title="D) Final boundaries + points", ax=axD, cmap=cmap
+    )
     regions = []
     if polygonize_func is not None:
-        regions = polygonize_func(clean_final, geo, value_map=value_map, connectivity=connectivity)
+        regions = polygonize_func(
+            clean_final, geo, value_map=value_map, connectivity=connectivity
+        )
         _overlay_polygons(regions, ax=axD)
     if points_xy is not None:
         _overlay_points(points_xy, ax=axD, size=18, marker="x")
@@ -572,9 +673,7 @@ def plot_progress_pipeline(
 
 
 def _overlay_points(points_xy, ax=None, size=12, marker="o"):
-    """
-    Scatter arbitrary points (µm) on current axes.
-    """
+    """Scatter arbitrary points (µm) on current axes."""
     if ax is None:
         _, ax = plt.subplots(figsize=(6, 5))
     pts = np.asarray(points_xy, float)
@@ -599,13 +698,13 @@ def _flatten_to_polys(geom):
     return []  # lines/points/etc. are ignored
 
 
-def dissolve_slide_labels(label_polys_for_slide: dict,
-                          *,
-                          join_distance: float = 0.0,  # µm; 0 = only edge-sharing/overlap
-                          min_area: float = 0.0  # µm²; drop tiny slivers after dissolve
-                          ) -> dict:
-    """
-    Input:  { label: [Polygon, Polygon, ...], ... }
+def dissolve_slide_labels(
+    label_polys_for_slide: dict,
+    *,
+    join_distance: float = 0.0,  # µm; 0 = only edge-sharing/overlap
+    min_area: float = 0.0,  # µm²; drop tiny slivers after dissolve
+) -> dict:
+    """Input:  { label: [Polygon, Polygon, ...], ... }
     Output: { label: [MergedPolygon, MergedPolygon, ...] }  (each item is a connected piece)
     - If join_distance > 0: close small gaps by buffering out + union + buffer back.
     - min_area removes tiny artefacts produced by buffering or topology fixes.
@@ -631,9 +730,12 @@ def dissolve_slide_labels(label_polys_for_slide: dict,
         except Exception:
             pass
 
-        parts = [g for g in _flatten_to_polys(u) if (min_area <= 0 or g.area >= min_area)]
+        parts = [
+            g for g in _flatten_to_polys(u) if (min_area <= 0 or g.area >= min_area)
+        ]
         merged[lab] = parts
     return merged
+
 
 # ---------------- utilities ----------------
 def _bounds_from_polys(label_polys):
@@ -678,31 +780,31 @@ def _iter_all_polylines(geom):
 
 # -------------- main plotting ----------------
 
+
 def plot_slide_regions(
-        regions_by_slide: dict,
-        slide_id: str,
-        *,
-        # optional background
-        label_grid=None,  # 2D int array; if given, shown as background
-        geo=None,  # (x0,y0,dx,dy) needed if label_grid is given
-        cmap_grid="tab20",
-        show_grid_colorbar: bool = False,
-        # styling
-        base_edge_kw=None,  # kwargs for non-highlighted outlines
-        highlight=None,  # label string OR tuple ("label", index) to highlight
-        highlight_edge_kw=None,  # kwargs for highlighted outline (e.g. {"color":"red","linewidth":3})
-        highlight_face_alpha=0.18,  # translucent fill for highlighted region(s)
-        dissolve: bool = True,
-        join_distance: float = 0.0,  # µm, how far to “bridge” gaps within a label
-        min_area: float = 0.0,
-        # figure output
-        figsize=(8, 7),
-        save=None,  # None -> return fig,ax; str/Path -> save and return None
-        save_dpi=300,
-        save_kwargs=None
+    regions_by_slide: dict,
+    slide_id: str,
+    *,
+    # optional background
+    label_grid=None,  # 2D int array; if given, shown as background
+    geo=None,  # (x0,y0,dx,dy) needed if label_grid is given
+    cmap_grid="tab20",
+    show_grid_colorbar: bool = False,
+    # styling
+    base_edge_kw=None,  # kwargs for non-highlighted outlines
+    highlight=None,  # label string OR tuple ("label", index) to highlight
+    highlight_edge_kw=None,  # kwargs for highlighted outline (e.g. {"color":"red","linewidth":3})
+    highlight_face_alpha=0.18,  # translucent fill for highlighted region(s)
+    dissolve: bool = True,
+    join_distance: float = 0.0,  # µm, how far to “bridge” gaps within a label
+    min_area: float = 0.0,
+    # figure output
+    figsize=(8, 7),
+    save=None,  # None -> return fig,ax; str/Path -> save and return None
+    save_dpi=300,
+    save_kwargs=None,
 ):
-    """
-    Plot borders for a single slide from your nested dict:
+    """Plot borders for a single slide from your nested dict:
       regions_by_slide[slide_id] = { label: [Polygon, Polygon, ...], ... }
 
     highlight:
@@ -729,10 +831,11 @@ def plot_slide_regions(
 
     # 2) (DO THIS NOW) Optionally dissolve per label
     label_polys = (
-        dissolve_slide_labels(label_polys_src,
-                              join_distance=join_distance,
-                              min_area=min_area)
-        if dissolve else label_polys_src
+        dissolve_slide_labels(
+            label_polys_src, join_distance=join_distance, min_area=min_area
+        )
+        if dissolve
+        else label_polys_src
     )
 
     # 3) Set up figure/axes
@@ -741,8 +844,13 @@ def plot_slide_regions(
     # 4) Background (optional)
     if label_grid is not None and geo is not None:
         extent = _extent_from_geo(label_grid, geo)
-        im = ax.imshow(label_grid, origin="upper", extent=extent,   # <-- was "lower"
-                       cmap=cmap_grid, interpolation="nearest")
+        im = ax.imshow(
+            label_grid,
+            origin="upper",
+            extent=extent,  # <-- was "lower"
+            cmap=cmap_grid,
+            interpolation="nearest",
+        )
         if show_grid_colorbar:
             plt.colorbar(im, ax=ax)
     else:
@@ -774,7 +882,11 @@ def plot_slide_regions(
         if isinstance(highlight, tuple) and len(highlight) == 2:
             lab_sel, idx = highlight
             polys = label_polys.get(lab_sel, [])
-            to_highlight = [(lab_sel, i, p) for i, p in enumerate(polys) if (idx is None or i == idx)]
+            to_highlight = [
+                (lab_sel, i, p)
+                for i, p in enumerate(polys)
+                if (idx is None or i == idx)
+            ]
         else:
             # treat as label name -> highlight all in that label
             lab_sel = str(highlight)
@@ -789,17 +901,18 @@ def plot_slide_regions(
                 ax.plot(seg[:, 0], seg[:, 1], **highlight_edge_kw)
             # translucent fill for the exterior only
             try:
-                from shapely.geometry import Polygon as ShPoly
                 geoms = [g] if g.geom_type == "Polygon" else list(g.geoms)
                 face_color = highlight_edge_kw.get("color", None)
                 if face_color and highlight_face_alpha > 0:
                     for poly in geoms:
                         x, y = poly.exterior.xy
-                        patch = MplPolygon(np.column_stack([x, y]),
-                                           closed=True,
-                                           facecolor=face_color,
-                                           alpha=float(highlight_face_alpha),
-                                           edgecolor="none")
+                        patch = MplPolygon(
+                            np.column_stack([x, y]),
+                            closed=True,
+                            facecolor=face_color,
+                            alpha=float(highlight_face_alpha),
+                            edgecolor="none",
+                        )
                         ax.add_patch(patch)
             except Exception:
                 pass
@@ -810,7 +923,12 @@ def plot_slide_regions(
         for lab, col in label_colors.items():
             h = plt.Line2D([0], [0], color=col, lw=2, label=lab)
             handles.append(h)
-        ax.legend(handles=handles, bbox_to_anchor=(1.02, 1.0), loc="upper left", borderaxespad=0.)
+        ax.legend(
+            handles=handles,
+            bbox_to_anchor=(1.02, 1.0),
+            loc="upper left",
+            borderaxespad=0.0,
+        )
 
     ax.set_aspect("equal")
     ax.set_title(f"Borders — {slide_id}")
@@ -830,14 +948,14 @@ def plot_slide_regions(
 
     return fig, ax
 
+
 # ---------- build per-slide spatial index ----------
 def _build_slide_index(label_polys_for_slide: dict):
-    """
-    Returns:
-      tree        : STRtree over all polygons of this slide
-      prepared    : list of prepared geometries (same order as tree input)
-      meta        : list of tuples (label, poly_idx_within_label)
-      cand_fn     : function(Point)->iter(indices) (handles Shapely 1.8 vs 2.x)
+    """Returns:
+    tree        : STRtree over all polygons of this slide
+    prepared    : list of prepared geometries (same order as tree input)
+    meta        : list of tuples (label, poly_idx_within_label)
+    cand_fn     : function(Point)->iter(indices) (handles Shapely 1.8 vs 2.x)
     """
     geoms, meta = [], []
     for lab, polys in label_polys_for_slide.items():
@@ -852,35 +970,47 @@ def _build_slide_index(label_polys_for_slide: dict):
         dummy = [Polygon()]
         tree = STRtree(dummy)
         prepared = [_prepare(dummy[0])]
-        def cand_fn(_): return []
+
+        def cand_fn(_):
+            return []
+
         return tree, prepared, meta, cand_fn
 
     tree = STRtree(geoms)
     prepared = [_prepare(g) for g in geoms]
     if _SHAPELY2:
+
         def cand_fn(geom):  # returns integer indices
             return tree.query(geom)
     else:
         # Shapely 1.8 returns geometries; map to indices
         id_to_idx = {id(g): i for i, g in enumerate(geoms)}
+
         def cand_fn(geom):
             return [id_to_idx[id(g)] for g in tree.query(geom)]
+
     return tree, prepared, meta, cand_fn
 
+
 # ---------- map points for ONE slide ----------
-def _map_points_for_slide(points_xy: np.ndarray,
-                          tree, prepared, meta, cand_fn,
-                          *,
-                          include_boundary: bool = True):
-    """
-    Returns:
-      labels_out : length-N object array with label (or None)
-      poly_idx   : length-N int array with polygon index within that label (or -1)
+def _map_points_for_slide(
+    points_xy: np.ndarray,
+    tree,
+    prepared,
+    meta,
+    cand_fn,
+    *,
+    include_boundary: bool = True,
+):
+    """Returns:
+    labels_out : length-N object array with label (or None)
+    poly_idx   : length-N int array with polygon index within that label (or -1)
     """
     pts = np.asarray(points_xy, float)
     N = len(pts)
-    labels_out = np.empty(N, dtype=object); labels_out[:] = None
-    poly_idx   = np.full(N, -1, dtype=int)
+    labels_out = np.empty(N, dtype=object)
+    labels_out[:] = None
+    poly_idx = np.full(N, -1, dtype=int)
 
     for i, (x, y) in enumerate(pts):
         p = Point(float(x), float(y))
@@ -889,27 +1019,27 @@ def _map_points_for_slide(points_xy: np.ndarray,
             if ok:
                 lab, j = meta[k]
                 labels_out[i] = lab
-                poly_idx[i]   = j
+                poly_idx[i] = j
                 break
     return labels_out, poly_idx
+
 
 # ---------- AnnData-aware wrapper ----------
 def map_points_to_regions_from_anndata(
     adata,
     regions_by_slide: dict,
     *,
-    coord_key: str = "spatial_microns",   # obsm key with (N,2) microns
-    slide_key: str = "sample",            # obs key with slide id per cell
-    slides: list | None = None,           # restrict to subset; None = all present in adata
-    include_boundary: bool = True,        # covers vs contains
-    dissolve: bool = False,               # merge touching polys per label first
-    join_distance: float = 0.0,           # µm; only used if dissolve=True
-    min_area: float = 0.0,                # µm²; only used if dissolve=True
-    index_kind: str = "name",             # 'name' -> use obs_names, 'pos' -> integer positions
-    return_df: bool = True
+    coord_key: str = "spatial_microns",  # obsm key with (N,2) microns
+    slide_key: str = "sample",  # obs key with slide id per cell
+    slides: list | None = None,  # restrict to subset; None = all present in adata
+    include_boundary: bool = True,  # covers vs contains
+    dissolve: bool = False,  # merge touching polys per label first
+    join_distance: float = 0.0,  # µm; only used if dissolve=True
+    min_area: float = 0.0,  # µm²; only used if dissolve=True
+    index_kind: str = "name",  # 'name' -> use obs_names, 'pos' -> integer positions
+    return_df: bool = True,
 ):
-    """
-    For each slide in `adata.obs[slide_key]`, map points in `adata.obsm[coord_key]`
+    """For each slide in `adata.obs[slide_key]`, map points in `adata.obsm[coord_key]`
     to region labels using polygons in `regions_by_slide[slide_id][label] = [Polygon,...]`.
 
     Returns dict[slide_id] with:
@@ -942,8 +1072,8 @@ def map_points_to_regions_from_anndata(
             # No polygons for this slide → all None
             idxs = np.nonzero(mask)[0]
             labels_out = np.array([None] * mask.sum(), dtype=object)
-            poly_idx   = np.full(mask.sum(), -1, dtype=int)
-            obs_ids = (adata.obs_names.values[idxs] if index_kind == "name" else idxs)
+            poly_idx = np.full(mask.sum(), -1, dtype=int)
+            obs_ids = adata.obs_names.values[idxs] if index_kind == "name" else idxs
             idx_and_lab = list(zip(obs_ids, labels_out.tolist()))
             out = {
                 "indices_and_labels": idx_and_lab,
@@ -952,29 +1082,35 @@ def map_points_to_regions_from_anndata(
             }
             if return_df:
                 import pandas as pd
+
                 pts = coords_all[mask, :]
-                out["df"] = pd.DataFrame({
-                    "obs_id": obs_ids,
-                    "slide": sid,
-                    "x": pts[:, 0],
-                    "y": pts[:, 1],
-                    "label": labels_out,
-                    "poly_index": poly_idx
-                })
+                out["df"] = pd.DataFrame(
+                    {
+                        "obs_id": obs_ids,
+                        "slide": sid,
+                        "x": pts[:, 0],
+                        "y": pts[:, 1],
+                        "label": labels_out,
+                        "poly_index": poly_idx,
+                    }
+                )
             results[sid] = out
             continue
 
         # gather points for this slide
         pts = coords_all[mask, :]
         idxs = np.nonzero(mask)[0]
-        obs_ids = (adata.obs_names.values[idxs] if index_kind == "name" else idxs)
+        obs_ids = adata.obs_names.values[idxs] if index_kind == "name" else idxs
 
         # dissolve (optional) then index
         label_polys_src = regions_by_slide[sid]
-        label_polys = (dissolve_slide_labels(label_polys_src,
-                                             join_distance=join_distance,
-                                             min_area=min_area)
-                       if dissolve else label_polys_src)
+        label_polys = (
+            dissolve_slide_labels(
+                label_polys_src, join_distance=join_distance, min_area=min_area
+            )
+            if dissolve
+            else label_polys_src
+        )
 
         tree, prepared, meta, cand_fn = _build_slide_index(label_polys)
         labels_out, poly_idx = _map_points_for_slide(
@@ -990,18 +1126,22 @@ def map_points_to_regions_from_anndata(
 
         if return_df:
             import pandas as pd
-            out["df"] = pd.DataFrame({
-                "obs_id": obs_ids,
-                "slide": sid,
-                "x": pts[:, 0],
-                "y": pts[:, 1],
-                "label": labels_out,
-                "poly_index": poly_idx
-            })
+
+            out["df"] = pd.DataFrame(
+                {
+                    "obs_id": obs_ids,
+                    "slide": sid,
+                    "x": pts[:, 0],
+                    "y": pts[:, 1],
+                    "label": labels_out,
+                    "poly_index": poly_idx,
+                }
+            )
 
         results[sid] = out
 
     return results
+
 
 def to_gdf(d):
     rows = []

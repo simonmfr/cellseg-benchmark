@@ -23,6 +23,7 @@ from cellseg_benchmark.adata_utils import (
     pca_umap_single,
 )
 
+
 def _load_one(
     sample_dir: Path, seg_method: str, logger: logging.Logger
 ) -> Tuple[str, AnnData | None]:
@@ -68,8 +69,17 @@ yaml_samples = [
     for name, meta in sample_metadata_file.items()
     if meta.get("cohort") == args.cohort and name not in excluded_samples
 ]
-if args.cohort == "htra1": # add 6/18m WT samples from aging cohort as additional controls
-    yaml_samples += ["aging_s1_r0", "aging_s5_r1", "aging_s6_r0", "aging_s7_r2", "aging_s8_r2", "aging_s11_r0"]
+if (
+    args.cohort == "htra1"
+):  # add 6/18m WT samples from aging cohort as additional controls
+    yaml_samples += [
+        "aging_s1_r0",
+        "aging_s5_r1",
+        "aging_s6_r0",
+        "aging_s7_r2",
+        "aging_s8_r2",
+        "aging_s11_r0",
+    ]
 
 logger.info("Loading data...")
 loads = []
@@ -92,9 +102,13 @@ adata_list = [(name, adata) for name, adata in results if adata is not None]
 # temp fix for aging_s11_r0
 for i, (n, ad) in enumerate(adata_list):
     if n == "aging_s11_r0":
-    #if "aging" in n:
+        # if "aging" in n:
         m = sample_metadata_file[n]
-        for k, v in {**m, "sample": n, "condition": f"{m['genotype']}_{m['age_months']}"} .items():
+        for k, v in {
+            **m,
+            "sample": n,
+            "condition": f"{m['genotype']}_{m['age_months']}",
+        }.items():
             ad.obs[k] = pd.Categorical([str(v)] * len(ad))
         adata_list[i] = (n, ad)
 
@@ -109,9 +123,9 @@ adata = merge_adatas(
 del adata_list
 
 adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
-if args.seg_method == "Cellpose_1_Merlin": # workaround, as explorer is in pixel units
+if args.seg_method == "Cellpose_1_Merlin":  # workaround, as explorer is in pixel units
     adata.obsm["spatial"] = adata.obsm.get("spatial_pixel", adata.obsm["spatial"])
-    
+
 adata = filter_spatial_outlier_cells(
     adata,
     data_dir=str(base_path),
@@ -120,7 +134,7 @@ adata = filter_spatial_outlier_cells(
     logger=logger,
 )
 
-if args.seg_method == "Cellpose_1_Merlin": # workaround, as explorer is in pixel units
+if args.seg_method == "Cellpose_1_Merlin":  # workaround, as explorer is in pixel units
     adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 
 if "vpt_3D" in args.seg_method:  # min_counts=10 due to smaller cell sizes

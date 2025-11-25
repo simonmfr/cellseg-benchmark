@@ -77,9 +77,7 @@ def run_ovrlpy(
     ovrlpy_obj = ovrlpy.Ovrlp(coordinate_df, n_workers=n_workers, random_state=42)
     ovrlpy_obj.analyse()
 
-    output_path = os.path.join(
-        data_dir, "vertical_doublets_ovrlpy_output.npz"
-    )
+    output_path = os.path.join(data_dir, "vertical_doublets_ovrlpy_output.npz")
     np.savez_compressed(
         output_path, integrity=ovrlpy_obj.integrity_map, signal=ovrlpy_obj.signal_map
     )

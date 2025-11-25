@@ -14,22 +14,21 @@
 #
 # ---------------------------------------------------------------------------
 # Bootstrap rpy2
-import os
-
 import argparse
 import logging
-from pathlib import Path
-import pandas as pd
-import scanpy as sc
-import squidpy as sq
-
-import rpy2.rinterface_lib.callbacks as rcb
-import rpy2.robjects as ro
-from rpy2.robjects.conversion import localconverter
-from rpy2.robjects import pandas2ri, default_converter, numpy2ri
+import os
 
 # Activate automatic converters (pandas <-> R, numpy <-> R)
 from datetime import date
+from pathlib import Path
+
+import pandas as pd
+import rpy2.rinterface_lib.callbacks as rcb
+import rpy2.robjects as ro
+import scanpy as sc
+import squidpy as sq
+from rpy2.robjects import default_converter, numpy2ri, pandas2ri
+from rpy2.robjects.conversion import localconverter
 
 today = date.today().strftime("%Y%m%d")
 
@@ -102,11 +101,13 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
-parser = argparse.ArgumentParser(
-    description="DEA"
-)
+parser = argparse.ArgumentParser(description="DEA")
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
-parser.add_argument("--seg_method", default="Negative_Control_Rastered_25", help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'")
+parser.add_argument(
+    "--seg_method",
+    default="Negative_Control_Rastered_25",
+    help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'",
+)
 args = parser.parse_args()
 
 base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
@@ -116,8 +117,10 @@ if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])
     print(sc.settings.n_jobs)
 logger.info("Loading integrated adata...")
-#adata = sc.read_h5ad(os.path.join(base_path, "analysis", args.cohort, args.seg_method, "adatas", "adata_integrated.h5ad.gz"))
-adata = sc.read_h5ad(base_path / "misc" / f"{args.cohort}_Neg_25_banksy_adata_integrated.h5ad.gz")
+# adata = sc.read_h5ad(os.path.join(base_path, "analysis", args.cohort, args.seg_method, "adatas", "adata_integrated.h5ad.gz"))
+adata = sc.read_h5ad(
+    base_path / "misc" / f"{args.cohort}_Neg_25_banksy_adata_integrated.h5ad.gz"
+)
 point_size_factor = 320000
 celltype_col = "cell_type_mmc_raw_revised"
 
@@ -146,16 +149,17 @@ key_dict = adata.obs["sample"]
 cells = adata.obs_names
 genes = adata.var_names
 data = adata.layers[
-    "volume_log1p_norm"].T.toarray()  # see https://prabhakarlab.github.io/Banksy/articles/multi-sample.html
+    "volume_log1p_norm"
+].T.toarray()  # see https://prabhakarlab.github.io/Banksy/articles/multi-sample.html
 # get coords
 coords = pd.DataFrame(adata.obsm["spatial"])
 coords.columns = ["x", "y"]
 coords.index = adata.obs.index
-ro.globalenv['coords'] = pandas_to_r(coords)
-ro.globalenv['genes'] = pandas_to_r(genes)
-ro.globalenv['cells'] = pandas_to_r(cells)
-ro.globalenv['data'] = pandas_to_r(data)
-ro.globalenv['key_dict'] = pandas_to_r(key_dict)
+ro.globalenv["coords"] = pandas_to_r(coords)
+ro.globalenv["genes"] = pandas_to_r(genes)
+ro.globalenv["cells"] = pandas_to_r(cells)
+ro.globalenv["data"] = pandas_to_r(data)
+ro.globalenv["key_dict"] = pandas_to_r(key_dict)
 
 R("""
 # move to R
@@ -212,20 +216,28 @@ new_cnames <- gsub("_lam0.8_", "_spatial_domains_lam0.8_", new_cnames)
 colnames(banksy_clusters) <- new_cnames
 """)
 
-r_obj = ro.globalenv['banksy_clusters']
-as_df = ro.r['as.data.frame']
+r_obj = ro.globalenv["banksy_clusters"]
+as_df = ro.r["as.data.frame"]
 r_df = as_df(r_obj)
 
 # convert to pandas DataFrame
-with ro.conversion.localconverter(ro.default_converter + pandas2ri.converter + numpy2ri.converter):
+with ro.conversion.localconverter(
+    ro.default_converter + pandas2ri.converter + numpy2ri.converter
+):
     pd_df = ro.conversion.rpy2py(r_df)
 
 adata.obs = adata.obs.join(pd_df)
-for s in adata.obs['sample'].unique():
+for s in adata.obs["sample"].unique():
     sq.pl.spatial_scatter(
-        adata[adata.obs['sample'] == s], shape=None, color=pd_df, size=0.5, library_id="spatial", figsize=(7, 7),
+        adata[adata.obs["sample"] == s],
+        shape=None,
+        color=pd_df,
+        size=0.5,
+        library_id="spatial",
+        figsize=(7, 7),
         wspace=0.25,
-        save=f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/banksy_tests/{args.cohort}/banksy_align_{s}_1.png"
+        save=f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/banksy_tests/{args.cohort}/banksy_align_{s}_1.png",
     )
 adata.write(
-    f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/analysis/{args.cohort}/{args.seg_method}/adatas/spatial_reg_adata.h5ad")
+    f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/analysis/{args.cohort}/{args.seg_method}/adatas/spatial_reg_adata.h5ad"
+)

@@ -1,17 +1,17 @@
 import argparse
 import logging
+from multiprocessing import cpu_count
 from os import listdir
 from pathlib import Path
 
 from geopandas import read_parquet
+from joblib import Parallel, delayed
 from pandas import concat
 from scanpy import read_h5ad
 from tqdm import tqdm
-from joblib import Parallel, delayed
-from multiprocessing import cpu_count
 
-from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
+from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 
 # ---------------------------------------------------------------------
 # Logging
@@ -26,9 +26,7 @@ logger.addHandler(handler)
 # ---------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------
-parser = argparse.ArgumentParser(
-    description="Map points to brain regions."
-)
+parser = argparse.ArgumentParser(description="Map points to brain regions.")
 parser.add_argument("cohort", help="cohort name")
 parser.add_argument(
     "--seg_methods",
@@ -61,6 +59,7 @@ gdf = read_parquet(
 anatom_annot = {}
 for (sample, label), sub in gdf.groupby(["sample", "label"]):
     anatom_annot.setdefault(sample, {})[label] = list(sub.geometry)
+
 
 # ---------------------------------------------------------------------
 # Worker function for one segmentation method
@@ -113,12 +112,15 @@ def process_method(method: str, cohort: str, anatom_annot: dict) -> str:
     logger.info(f"finished {method}")
     return f"{method}: done"
 
+
 if args.n_jobs == -1:
     n_jobs = cpu_count()
 else:
     n_jobs = args.n_jobs
 
-logger.info(f"Starting parallel processing of {len(seg_methods)} methods with n_jobs={n_jobs}")
+logger.info(
+    f"Starting parallel processing of {len(seg_methods)} methods with n_jobs={n_jobs}"
+)
 
 Parallel(n_jobs=n_jobs)(
     delayed(process_method)(m, args.cohort, anatom_annot)

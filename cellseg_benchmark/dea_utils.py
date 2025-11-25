@@ -1,15 +1,15 @@
 import logging
 import random
 import re
-from typing import Any, Optional, Sequence
 from pathlib import Path
+from typing import Any, Optional, Sequence
 
+import anndata as ad
 import numpy as np
 import pandas as pd
 import scanpy as sc
 import scipy.sparse as sp
 from scipy.sparse import issparse
-import anndata as ad
 
 
 def pseudobulk_aggregate_and_filter(
@@ -181,7 +181,7 @@ def prepare_adata_for_rpy2(adata_, key="cell_type"):
     for col in adata_.obs.columns:
         if pd.api.types.is_unsigned_integer_dtype(adata_.obs[col].dtype):
             adata_.obs[col] = adata_.obs[col].astype("int64")
-    
+
     return adata_
 
 
@@ -307,7 +307,8 @@ def add_group_sample_counts(
     out[["test_group_n", "ref_n"]] = (
         out[["test_group_n", "ref_n"]].fillna(0).astype(int)
     )
-    # out = out.set_index("gene"); out.index.name = None
+    # out = out.set_index("gene")
+    # out.index.name = None
     return out
 
 
@@ -322,14 +323,28 @@ def safe_sheet(s, used):
     return s
 
 
-def subset_by_brain_region(adata: ad.AnnData, method_path: Path, subset: str | None, logger: logging.Logger):
-    """Subset AnnData by brain region; subset may be alias (cortex/hippocampus/white_matter/grey_matter)
-    or comma-separated raw labels from spatial_registration.csv."""
+def subset_by_brain_region(
+    adata: ad.AnnData, method_path: Path, subset: str | None, logger: logging.Logger
+):
+    """Subset AnnData by brain region.
+
+    Subset may be alias (cortex/hippocampus/white_matter/grey_matter)
+    or comma-separated raw labels from spatial_registration.csv.
+    """
     if not subset:
         return adata, None
 
     REGION_MAP = {
-        "grey_matter": ["CTX", "HIP", "CAsp", "DG-sg", "STR", "BS", "BS/STR", "Meninges"],
+        "grey_matter": [
+            "CTX",
+            "HIP",
+            "CAsp",
+            "DG-sg",
+            "STR",
+            "BS",
+            "BS/STR",
+            "Meninges",
+        ],
         "white_matter": ["fiber_tracts"],
         "cortex": ["CTX"],
         "hippocampus": ["HIP", "DG-sg", "CAsp"],
@@ -339,24 +354,35 @@ def subset_by_brain_region(adata: ad.AnnData, method_path: Path, subset: str | N
     try:
         region_df = pd.read_csv(reg_csv, index_col=0)
     except FileNotFoundError:
-        logger.warning(f"--brain_region_subset ignored (missing {reg_csv})."); return adata, None
+        logger.warning(f"--brain_region_subset ignored (missing {reg_csv}).")
+        return adata, None
     if "label" not in region_df.columns:
-        logger.warning("--brain_region_subset ignored (no 'label' column)."); return adata, None
+        logger.warning("--brain_region_subset ignored (no 'label' column).")
+        return adata, None
 
-    adata.obs["brain_region"] = region_df["label"].reindex(adata.obs_names).astype("string")
+    adata.obs["brain_region"] = (
+        region_df["label"].reindex(adata.obs_names).astype("string")
+    )
 
     key = subset.strip()
-    requested = REGION_MAP.get(key.lower(), [s.strip() for s in key.split(",") if s.strip()])
+    requested = REGION_MAP.get(
+        key.lower(), [s.strip() for s in key.split(",") if s.strip()]
+    )
 
     valid = pd.Index(adata.obs["brain_region"].dropna().unique())
     keep = pd.Index(requested).intersection(valid).tolist()
     if not keep:
-        logger.warning(f"--brain_region_subset ignored (none found in data): {requested}"); return adata, None
+        logger.warning(
+            f"--brain_region_subset ignored (none found in data): {requested}"
+        )
+        return adata, None
     missing = sorted(set(requested) - set(keep))
     if missing:
         logger.info(f"--brain_region_subset: ignoring absent labels: {missing}")
 
     before = adata.n_obs
     adata = adata[adata.obs["brain_region"].isin(keep)].copy()
-    logger.info(f"Subsetting brain regions to {keep} (kept {adata.n_obs} of {before} cells).")
+    logger.info(
+        f"Subsetting brain regions to {keep} (kept {adata.n_obs} of {before} cells)."
+    )
     return adata, keep

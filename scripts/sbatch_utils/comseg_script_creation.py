@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+
 import yaml
 
 parser = argparse.ArgumentParser(description="Generate ComSeg sbatch scripts.")
@@ -21,7 +22,11 @@ outdir.mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     cp_tag = "CP1" if args.staining == "nuclei" else f"CP{args.CP_version}"
     job_name = f"ComSeg_{key}_{cp_tag}_{args.staining}"
-    result_dir = f"Cellpose_{args.CP_version}_DAPI_{args.staining}" if args.staining != "nuclei" else f"Cellpose_1_{args.staining}_model"
+    result_dir = (
+        f"Cellpose_{args.CP_version}_DAPI_{args.staining}"
+        if args.staining != "nuclei"
+        else f"Cellpose_1_{args.staining}_model"
+    )
 
     sbatch_path = outdir / f"{key}.sbatch"
     with open(sbatch_path, "w") as f:
@@ -52,4 +57,5 @@ mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/ComSeg_{result_dir}
 
 python scripts/segmentation/comseg.py {value["path"]} {key} {result_dir}
-""")
+"""
+        )

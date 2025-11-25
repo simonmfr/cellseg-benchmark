@@ -377,7 +377,7 @@ def build_shapes(
             ".sopa_cache",
             "transcript_patches",
             "0",
-            "cell-polygons-layers.geojson.gz", # 3D boundaries
+            "cell-polygons-layers.geojson.gz",  # 3D boundaries
         )
         with gzip.open(path, "rt", encoding="utf-8") as f:
             geojson_text = f.read()

@@ -64,7 +64,7 @@ def assign_final_cell_types(
 ):
     """Assign final cell types based on cluster-mean marker gene scores.
 
-        - If highest_score ≥ score_high_threshold → reassign to top-scoring cell type 
+        - If highest_score ≥ score_high_threshold → reassign to top-scoring cell type
           (only if ≥ score_delta higher than current MMC label)
         - If all scores < score_low_threshold → mark as 'Undefined'
         - Otherwise → keep MMC label (no change)
@@ -856,8 +856,14 @@ def flag_contamination(
 
     return adata
 
+
 def score_cell_types(
-    adata, marker_genes_dict, top_n_genes=25, layer=None, score_prefix="score", logger=None
+    adata,
+    marker_genes_dict,
+    top_n_genes=25,
+    layer=None,
+    score_prefix="score",
+    logger=None,
 ):
     """Score cells for marker gene expression using up to top_n_genes per cell type."""
     if not marker_genes_dict:
@@ -893,7 +899,10 @@ def score_cell_types(
                     f"    {cell_type:<{name_width}} ({n_avail}/{n_used} {gene_word}{extra})"
                 )
             sc.tl.score_genes(
-                adata, available_genes, score_name=f"{score_prefix}_{cell_type}", layer=layer
+                adata,
+                available_genes,
+                score_name=f"{score_prefix}_{cell_type}",
+                layer=layer,
             )
         else:
             if logger:

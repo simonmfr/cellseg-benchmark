@@ -330,7 +330,7 @@ if __name__ == "__main__":
 
     for (method, test), df_mt in collapsed_df.groupby(["method", "test"]):
         df_mt = df_mt.loc[:, df_mt.notna().any()]  # drop all-NaN cols
-        xlsx = output_dir / f"{name}_{method.split("_", 1)[-1]}_{test}.xlsx"
+        xlsx = output_dir / f"{name}_{method.split('_', 1)[-1]}_{test}.xlsx"
         if xlsx.exists() and not args.overwrite:
             logger.info(f"  Exists, skip: {xlsx}")
             continue
