@@ -1,7 +1,3 @@
-import sys
-
-sys.path.insert(1, "/dss/dsshome1/0C/ra98gaq/Git/cellseg-benchmark")
-
 import argparse
 import logging
 from pathlib import Path
@@ -19,9 +15,9 @@ from cellseg_benchmark._constants import (
 )
 from cellseg_benchmark.adata_utils import (
     clean_pca_umap,
+    pca_umap_single,
     integration_harmony,
     normalize_counts,
-    pca_umap_single,
 )
 from cellseg_benchmark.cell_annotation_utils import (
     annotate_cells_by_score,
@@ -29,301 +25,330 @@ from cellseg_benchmark.cell_annotation_utils import (
     score_cell_types,
 )
 
-# Logger Setup
-logger = logging.getLogger("vascular_subtyping")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
-logger.addHandler(handler)
 
-# CLI arguments
-parser = argparse.ArgumentParser(
-    description="Identify vascular subtypes, including EC zonation"
-)
-parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
-parser.add_argument(
-    "seg_method", help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'"
-)
-args = parser.parse_args()
-
-# Paths
-base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-method_path = base_path / "analysis" / args.cohort / args.seg_method
-plot_path = method_path / "plots" / "vascular-subtypes"
-plot_path_ecs = method_path / "plots" / "ec-zonation"
-plot_path_spat = plot_path / "Spatial"
-results_path = method_path / "vascular-subtypes"
-adata_path = method_path / "adatas"
-
-for p in [plot_path, plot_path_ecs, plot_path_spat, results_path, adata_path]:
-    p.mkdir(parents=True, exist_ok=True)
-
-logger.info("Loading integrated adata...")
-adata = sc.read_h5ad(adata_path / "adata_integrated.h5ad.gz")
-
-cell_type_col = "cell_type_revised"
-adata.obs[cell_type_col] = pd.Categorical(
-    adata.obs[cell_type_col], categories=list(cell_type_colors.keys())
-).remove_unused_categories()
-adata.uns[f"{cell_type_col}_colors"] = [
-    cell_type_colors[ct] for ct in adata.obs[cell_type_col].cat.categories
-]
-
-logger.info("Subsetting vascular cells...")
-vascular_types = ["ECs", "SMCs", "Pericytes", "VLMCs", "BAMs"]
-sub_adata = adata[adata.obs[cell_type_col].isin(vascular_types)].copy()
-del adata
-
-with rc_context({"figure.figsize": (8, 7)}):
-    sc.pl.embedding(
-        sub_adata, basis="X_umap_harmony_20_50", color=cell_type_col, show=False
+def main():
+    parser = argparse.ArgumentParser(
+        description="Identify vascular subtypes."
     )
-    plt.savefig(
-        plot_path / "UMAP_integrated_harmony_subset.png", dpi=200, bbox_inches="tight"
+    parser.add_argument("cohort")
+    parser.add_argument("seg_method")
+    parser.add_argument(
+        "--cell-type-col",
+        default="cell_type_revised",
     )
-    plt.close()
-
-logger.info("Filtering out contaminated cells...")
-sub_adata = flag_contamination(
-    sub_adata,
-    contamination_markers,
-    layer="volume_log1p_norm",
-    absolute_min=1,
-    z_threshold=2,
-    logger=logger,
-)
-
-with rc_context({"figure.figsize": (6, 6)}):
-    sc.pl.embedding(
-        sub_adata,
-        basis="X_umap_harmony_20_50",
-        color=[
-            "contaminated",
-            "contaminated_Neuronal",
-            "contaminated_Oligodendrocytes",
-            "contaminated_Astrocytes",
-            "contaminated_Immune",
-        ],
-        size=50000 / sub_adata.shape[0],
-        show=False,
+    parser.add_argument(
+        "--condition-col",
+        default="condition",
     )
-    plt.savefig(
-        plot_path / "UMAP_cell_type_contaminations.png", dpi=150, bbox_inches="tight"
+    parser.add_argument(
+        "--batch-key",
+        default="slide",
     )
-    plt.close()
-
-sub_adata = sub_adata[~sub_adata.obs["contaminated"]].copy()
-
-logger.info("Re-processing vascular subset...")
-sub_adata = clean_pca_umap(sub_adata, logger=logger)
-sub_adata.X = sub_adata.layers["counts"]
-assert np.issubdtype(sub_adata.X.dtype, np.integer)
-
-sub_adata = normalize_counts(
-    sub_adata, save_path=plot_path, seg_method=args.seg_method, logger=logger
-)
-sub_adata = pca_umap_single(
-    sub_adata, n_neighbors=10, n_pcs=20, save_path=plot_path, logger=logger
-)
-sub_adata = integration_harmony(
-    sub_adata,
-    batch_key="slide",
-    n_neighbors=10,
-    n_pcs=20,
-    save_path=plot_path,
-    logger=logger,
-)
-
-logger.info("Annotating EC zonation subtypes...")
-# Step 1: score marker genes
-sub_adata = score_cell_types(
-    sub_adata, selected_EC_subtypes, top_n_genes=10, layer="volume_log1p_norm"
-)
-# Step 2: assign each cell by max scoring subtype
-sub_adata = annotate_cells_by_score(
-    sub_adata, selected_EC_subtypes, out_col="ec_zonation", score_threshold=0.15
-)
-
-sub_adata.obs["ec_zonation"] = pd.Categorical(
-    sub_adata.obs["ec_zonation"], categories=list(cell_type_colors.keys())
-).remove_unused_categories()
-sub_adata.uns["ec_zonation_colors"] = [
-    cell_type_colors[ct] for ct in sub_adata.obs["ec_zonation"].cat.categories
-]
-
-with rc_context({"figure.figsize": (7, 6)}):
-    sc.pl.embedding(
-        sub_adata,
-        basis="X_umap_harmony_10_20",
-        color="ec_zonation",
-        size=320000 / sub_adata.shape[0],
-        show=False,
+    parser.add_argument(
+        "--input-filename",
+        default="adata_integrated.h5ad.gz",
     )
-    plt.tight_layout()
-    plt.savefig(
-        plot_path_ecs / "UMAP_integrated_harmony_EC_scoring.png",
-        dpi=150,
-        bbox_inches="tight",
+    parser.add_argument(
+        "--base-path",
+        type=Path,
+        default=Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"),
     )
-    plt.close()
+    args = parser.parse_args()
 
-# Subset and reprocess ECs
-ec_adata = sub_adata[
-    sub_adata.obs["ec_zonation"].isin(["capECs", "aECs", "vECs"])
-].copy()
-logger.info(f"Cells removed (non-ECs): {sub_adata.shape[0] - ec_adata.shape[0]}")
-logger.info(f"Remaining ECs: {ec_adata.shape[0]}")
+    # Logger Setup
+    logger = logging.getLogger("vascular_subtyping")
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
+        logger.addHandler(handler)
+    
+    logger.info("Starting vascular subtyping for %s / %s", args.cohort, args.seg_method)
 
-ec_adata = clean_pca_umap(ec_adata)
-ec_adata.X = ec_adata.layers["counts"]
-assert np.issubdtype(ec_adata.X.dtype, np.integer)
+    # Paths
+    method_path = args.base_path / "analysis" / args.cohort / args.seg_method
+    adatas_path = method_path / "adatas"
+    plot_path = method_path / "plots" / "subtyping-vascular"
 
-ec_adata = normalize_counts(
-    ec_adata, save_path=plot_path, seg_method=args.seg_method, logger=logger
-)
-ec_adata = pca_umap_single(
-    ec_adata, n_neighbors=10, n_pcs=20, save_path=plot_path, logger=logger
-)
+    for p in [plot_path, plot_path / "ecs-only", plot_path / "spatial", adatas_path]:
+        p.mkdir(parents=True, exist_ok=True)
 
-# Plot EC zonation
-ec_adata.obs["ec_zonation"] = pd.Categorical(
-    ec_adata.obs["ec_zonation"], categories=list(cell_type_colors.keys())
-).remove_unused_categories()
-ec_adata.uns["ec_zonation_colors"] = [
-    cell_type_colors[ct] for ct in ec_adata.obs["ec_zonation"].cat.categories
-]
+    logger.info("Load adata...")
+    adata = sc.read_h5ad(adatas_path / args.input_filename)
+    cell_type_col = args.cell_type_col
 
-with rc_context({"figure.figsize": (8, 7)}):
-    sc.pl.embedding(
-        ec_adata,
-        basis="X_umap_10_20",
-        color="ec_zonation",
-        size=320000 / ec_adata.shape[0],
-        show=False,
+    if cell_type_col not in adata.obs.columns:
+        raise KeyError(f"'{cell_type_col}' not in adata.obs")
+
+    adata.obs[cell_type_col] = pd.Categorical(
+        adata.obs[cell_type_col], categories=list(cell_type_colors.keys())
+    ).remove_unused_categories()
+    adata.uns[f"{cell_type_col}_colors"] = [
+        cell_type_colors[c] for c in adata.obs[cell_type_col].cat.categories
+    ]
+
+    logger.info("Subset vascular cells...")
+    vascular_types = ["ECs", "SMCs", "Pericytes", "VLMCs", "BAMs"]
+    sub = adata[adata.obs[cell_type_col].isin(vascular_types)].copy()
+    del adata
+
+    logger.info("Filter out contaminated cells...")
+    sub = flag_contamination(
+        sub, contamination_markers, layer="volume_log1p_norm",
+        absolute_min=1, z_threshold=2, logger=logger
     )
-    plt.savefig(
-        plot_path_ecs / "UMAP_reprocessed_ECs.png", dpi=150, bbox_inches="tight"
-    )
-    plt.close()
 
-# 3D UMAP
-sc.pp.neighbors(ec_adata, n_neighbors=10, n_pcs=20)
-sc.tl.umap(ec_adata, key_added="X_umap_10_20_3D", n_components=3)
-
-with rc_context({"figure.figsize": (8, 8)}):
-    sc.pl.embedding(
-        ec_adata,
-        basis="X_umap_10_20_3D",
-        color=["sample", "ec_zonation", cell_type_col],
-        projection="3d",
-        alpha=0.2,
-        show=False,
-    )
-    plt.savefig(
-        plot_path_ecs / "UMAP_reprocessed_ECs_3D.png", dpi=150, bbox_inches="tight"
-    )
-    plt.close()
-
-with rc_context({"figure.figsize": (7, 6)}):
-    sc.pl.embedding(
-        ec_adata,
-        basis="X_umap_10_20",
-        color=["n_counts", "n_genes", "volume_final"],
-        cmap="turbo",
-        size=320000 / ec_adata.shape[0],
-        show=False,
-    )
-    plt.tight_layout()
-    plt.savefig(
-        plot_path_ecs / "UMAP_reprocessed_ECs_metadata.png",
-        dpi=100,
-        bbox_inches="tight",
-    )
-    plt.close()
-
-logger.info("Merging EC zonation subtypes back into vascular dataset...")
-cell_type_zonation = "cell_type_incl_zonation"
-
-if "ec_zonation" in sub_adata.obs.columns:
-    sub_adata.obs = sub_adata.obs.drop(columns="ec_zonation")
-
-# transfer labels
-sub_adata.obs = sub_adata.obs.merge(
-    ec_adata.obs[["ec_zonation"]], left_index=True, right_index=True, how="left"
-)
-sub_adata.obs[cell_type_zonation] = (
-    sub_adata.obs["ec_zonation"]
-    .astype("object")
-    .fillna(sub_adata.obs[cell_type_col].astype("object"))
-)
-
-# set "Undefined" for specific cell types without ec_adata annotation. these were removed as contamination.
-missed_ECs_mask = sub_adata.obs["ec_zonation"].isna() & sub_adata.obs[
-    cell_type_col
-].isin(["ECs"])
-sub_adata.obs.loc[missed_ECs_mask, cell_type_zonation] = "otherECs"
-
-# convert back to categorical
-sub_adata.obs[cell_type_zonation] = sub_adata.obs[cell_type_zonation].astype("category")
-sub_adata.obs.drop(columns="ec_zonation", inplace=True)
-
-# Set ordered categories and color map
-sub_adata.obs[cell_type_zonation] = pd.Categorical(
-    sub_adata.obs[cell_type_zonation], categories=list(cell_type_colors.keys())
-).remove_unused_categories()
-
-sub_adata.uns[f"{cell_type_zonation}_colors"] = [
-    cell_type_colors[ct] for ct in sub_adata.obs[cell_type_zonation].cat.categories
-]
-
-with rc_context({"figure.figsize": (7, 6)}):
-    sc.pl.embedding(
-        sub_adata,
-        basis="X_umap_harmony_10_20",
-        color=cell_type_zonation,
-        size=320000 / sub_adata.shape[0],
-        show=False,
-    )
-    plt.savefig(
-        plot_path / "UMAP_integrated_harmony_incl_zonation.png",
-        dpi=150,
-        bbox_inches="tight",
-    )
-    plt.close()
-
-logger.info("Exporting cell type proportions to csv...")
-pd.crosstab(
-    [sub_adata.obs["condition"], sub_adata.obs["sample"]],
-    sub_adata.obs[cell_type_zonation],
-    normalize="index",
-).mul(100).round(1).to_csv(results_path / "fraction_vasc_cells_per_condition.csv")
-
-pd.crosstab(
-    sub_adata.obs["condition"], sub_adata.obs[cell_type_zonation], normalize="index"
-).mul(100).round(1).to_csv(results_path / "fraction_vasc_cells_per_condition_sum.csv")
-
-sub_adata.obs[cell_type_zonation].value_counts().to_csv(
-    results_path / "total_vasc_cells.csv"
-)
-
-logger.info("Exporting spatial plots...")
-for sample in sub_adata.obs["sample"].unique():
-    with rc_context({"figure.figsize": (10, 10)}):
+    with rc_context({"figure.figsize": (6, 6)}):
         sc.pl.embedding(
-            sub_adata[sub_adata.obs["sample"] == sample],
-            basis="spatial_microns",
-            color=cell_type_zonation,
-            size=9,
-            title=sample,
+            sub,
+            basis="X_umap_harmony_20_50",
+            color=[
+                "contaminated",
+                "contaminated_Neuronal",
+                "contaminated_Oligodendrocytes",
+                "contaminated_Astrocytes",
+                "contaminated_Immune",
+            ],
+            size=50000 / sub.shape[0],
+            show=False,
+        )
+        plt.savefig(plot_path / "UMAP_cell_type_contaminations.png", dpi=200)
+        plt.close()
+
+    sub = sub[~sub.obs["contaminated"]].copy()
+
+    with rc_context({"figure.figsize": (6,6)}):
+        sc.pl.embedding(
+            sub, 
+            basis="X_umap_harmony_20_50", 
+            color=cell_type_col, 
             show=False,
         )
         plt.savefig(
-            plot_path_spat / f"Spatial_{sample}.png", dpi=300, bbox_inches="tight"
+            plot_path / "UMAP_integrated_subset.png", dpi=200, bbox_inches="tight"
+        )
+        plt.close()
+    
+    logger.info("Re-process vascular subset...")
+    sub = clean_pca_umap(sub, logger=logger)
+    sub.X = sub.layers["counts"]
+    assert np.issubdtype(sub.X.dtype, np.integer)
+    sub = normalize_counts( # do not trim cells again in subset
+        sub, save_path=None, seg_method=args.seg_method, trim_outliers=False, logger=logger
+    )
+    sub = pca_umap_single(
+        sub, n_neighbors=10, n_pcs=20, save_path=None, logger=logger
+    )
+    sub = integration_harmony(
+        sub,
+        batch_key=args.batch_key,
+        n_neighbors=10,
+        n_pcs=20,
+        save_path=None,
+        logger=logger,
+    )
+
+    logger.info("Score EC zonation subtypes...")
+    # Step 1: score marker genes
+    sub = score_cell_types(
+        sub, selected_EC_subtypes, top_n_genes=10, layer="volume_log1p_norm"
+    )
+    # Step 2: assign each cell by max scoring subtype
+    sub = annotate_cells_by_score(
+        sub, selected_EC_subtypes, out_col="ec_zonation", score_threshold=0.15
+    )
+
+    sub.obs["ec_zonation"] = pd.Categorical(
+        sub.obs["ec_zonation"], categories=list(cell_type_colors.keys())
+    ).remove_unused_categories()
+    sub.uns["ec_zonation_colors"] = [
+        cell_type_colors[ct] for ct in sub.obs["ec_zonation"].cat.categories
+    ]
+
+    logger.info("Re-process EC-only subset...")
+    ec = sub[sub.obs["ec_zonation"].isin(["aECs", "capECs", "vECs"])].copy()
+    logger.info(f"Cells removed (non-ECs): {sub.shape[0]-ec.shape[0]}")
+    logger.info(f"Remaining ECs: {ec.shape[0]}")
+    
+    ec = clean_pca_umap(ec, logger=logger)
+    ec.X = ec.layers["counts"]
+    assert np.issubdtype(ec.X.dtype, np.integer)
+    ec = normalize_counts( # do not trim cells again in subset
+        ec, save_path=None, seg_method=args.seg_method, trim_outliers=False, logger=logger
+    )
+    ec = pca_umap_single(
+        ec, n_neighbors=10, n_pcs=20, save_path=None, logger=logger
+    )
+    ec = integration_harmony(
+        ec,
+        batch_key=args.batch_key,
+        n_neighbors=10,
+        n_pcs=20,
+        save_path=None,
+        logger=logger,
+    )
+
+    with rc_context({"figure.figsize": (6,6)}):
+        sc.pl.embedding(
+            ec,
+            basis="X_umap_harmony_10_20",
+            color=[cell_type_col, "ec_zonation", "score_aECs", "score_capECs", "score_vECs"], 
+            cmap="inferno",
+            ncols=5,
+            wspace=0.25,
+            size=320000 / ec.shape[0],
+            show=False,
+        )
+        plt.savefig(
+            plot_path / "ecs-only" / "UMAP_ECs.png", dpi=150, bbox_inches="tight"
+        )
+        plt.close()
+        
+    # run 3D UMAP (computation affects 2D components, therefore save separately)
+    sc.pp.neighbors(ec, n_neighbors=10, n_pcs=20)
+    sc.tl.umap(ec, neighbors_key="neighbors_harmony_10_20", key_added="X_umap_harmony_10_20_3D", n_components=3)
+    with rc_context({'figure.figsize': (6,6)}):
+        sc.pl.embedding(ec, 
+                        basis="X_umap_harmony_10_20_3D", 
+                        color=[cell_type_col, "sample", "ec_zonation"], 
+                        alpha=0.2, 
+                        wspace=0.1, 
+                        projection='3d', 
+                        show=False,
+                       )
+        plt.savefig(
+            plot_path / "ecs-only" / "UMAP_ECs_3D.png", dpi=150, bbox_inches="tight"
+        )
+        plt.close()
+        
+    with rc_context({'figure.figsize': (6,6)}):
+        sc.pl.embedding(ec, 
+                        basis="X_umap_harmony_10_20", 
+                        color=['n_counts','n_genes', 'volume_final'], 
+                        cmap='turbo',
+                        size=320000 / ec.shape[0], 
+                        show=False,
+                       )
+        plt.savefig(
+            plot_path / "ecs-only" / "UMAP_ECs_metadata.png", dpi=100, bbox_inches="tight"
         )
         plt.close()
 
-logger.info("Saving re-processed vascular subset to h5ad...")
-sub_adata.obs["fov"] = sub_adata.obs.get("fov", "").astype(str)
-sub_adata.write(adata_path / "adata_integrated_vascular.h5ad.gz", compression="gzip")
+    sc.external.tl.trimap(ec)
+    with rc_context({"figure.figsize": (6,6)}):
+        sc.external.pl.trimap(ec,
+                              color=[cell_type_col, "ec_zonation", "score_aECs", "score_capECs", "score_vECs"], 
+                              cmap="inferno",
+                              ncols=5,
+                              wspace=0.25
+                              size=320000 / ec.shape[0], 
+                              show=False, 
+                             )
+        plt.savefig(
+            plot_path / "ecs-only" / "TRIMAP_ECs.png", dpi=150, bbox_inches="tight"
+        )
+        plt.close()
+    
+    sc.external.tl.phate(ec)
+    with rc_context({"figure.figsize": (6,6)}):
+        sc.external.pl.phate(ec, ncols=5,
+                             color=[cell_type_col, "ec_zonation", "score_aECs", "score_capECs", "score_vECs"], 
+                             cmap="inferno",
+                             ncols=5,
+                             wspace=0.25
+                             size=320000 / ec.shape[0], 
+                             show=False, 
+                            )
+        plt.savefig(
+            plot_path / "ecs-only" / "PHATE_ECs.png", dpi=150, bbox_inches="tight"
+        )
+        plt.close()
 
-logger.info("Done.")
+    logger.info("Summaries by condition...")
+    cond = args.condition_col
+    if cond in ec.obs.columns:
+        df_counts = pd.crosstab(ec.obs[cond], ec.obs["ec_zonation"], margins=True)
+        df_frac = pd.crosstab(ec.obs[cond], ec.obs["ec_zonation"], normalize="index", margins=True).mul(100).round(1)
+        df_frac_sample = pd.crosstab(
+            [ec.obs[cond], ec.obs["sample"]],
+            ec.obs["ec_zonation"],
+            normalize='index',
+            margins=True
+        ).mul(100).round(1)
+        logger.info("EC subtype counts:\n%s", df_counts)
+        logger.info("EC subtype fractions:\n%s", df_frac)
+        logger.info("EC subtype fractions (per sample):\n%s", df_frac_sample)
+
+    logger.info("Merge EC zonation subtypes back into vascular set...")
+    merged = sub.copy()
+    if "ec_zonation" in merged.obs.columns:
+        merged.obs = merged.obs.drop(columns="ec_zonation")
+    
+    merged.obs = merged.obs.merge(
+        ec.obs[["ec_zonation"]], left_index=True, right_index=True, how="left"
+    )
+    merged.obs["cell_type_incl_zonation"] = (
+        merged.obs["ec_zonation"]
+        .astype("object")
+        .fillna(merged.obs[cell_type_col].astype("object"))
+    )
+    
+    # set "otherECs" for specific cell types without ec annotation. these were previously removed as contamination.
+    missed_ECs_mask = merged.obs["ec_zonation"].isna() & merged.obs[
+        cell_type_col
+    ].isin(["ECs"])
+    merged.obs.loc[missed_ECs_mask, "cell_type_incl_zonation"] = "otherECs"
+    
+    merged.obs["cell_type_incl_zonation"] = merged.obs["cell_type_incl_zonation"].astype("category")
+    merged.obs.drop(columns="ec_zonation", inplace=True)
+    
+    # Set ordered categories and color map
+    merged.obs["cell_type_incl_zonation"] = pd.Categorical(
+        merged.obs["cell_type_incl_zonation"], categories=list(cell_type_colors.keys())
+    ).remove_unused_categories()
+    
+    merged.uns["cell_type_incl_zonation_colors"] = [
+        cell_type_colors[ct] for ct in merged.obs["cell_type_incl_zonation"].cat.categories
+    ]
+
+    with rc_context({"figure.figsize": (6,6)}):
+        sc.pl.embedding(
+            merged,
+            basis="X_umap_harmony_10_20",
+            color=[cell_type_col, "cell_type_incl_zonation", "score_aECs", "score_capECs", "score_vECs"], 
+            cmap="inferno",
+            ncols=5,
+            wspace=0.25
+            size=320000 / ec.shape[0], 
+            show=False, 
+           )
+        plt.savefig(
+            plot_path / "UMAP_integrated_EC_scoring.png", dpi=150, bbox_inches="tight", 
+        )
+        plt.close()
+    
+    logger.info(f"Exporting spatial plots to: {plot_path/"spatial"}...")
+    if "sample" in merged.obs.columns:
+        for s in merged.obs["sample"].unique():
+            with rc_context({"figure.figsize": (10, 10)}):
+                sc.pl.embedding(
+                    merged[merged.obs["sample"] == s],
+                    basis="spatial_microns",
+                    color="cell_type_incl_zonation",
+                    size=9,
+                    show=False,
+                )
+                plt.savefig(plot_path / "spatial" / f"Spatial_{s}.png", dpi=500)
+                plt.close()
+    
+    out = adatas_path / "adata_vascular_subset.h5ad.gz"
+    logger.info("Saving to %s", out)
+    if "fov" in merged.obs.columns:
+        merged.obs["fov"] = merged.obs["fov"].astype(str)
+
+    merged.write(out, compression="gzip")
+    logger.info("Done.")
+
+
+if __name__ == "__main__":
+    main()
