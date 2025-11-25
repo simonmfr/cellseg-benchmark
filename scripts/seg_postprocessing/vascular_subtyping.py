@@ -134,7 +134,7 @@ def main():
         plt.close()
 
     logger.info("Re-process vascular subset...")
-    sub = clean_pca_umap(sub, logger=logger)
+    sub = clean_pca_umap(sub, logger=None)
     sub.X = sub.layers["counts"]
     assert np.issubdtype(sub.X.dtype, np.integer)
     sub = normalize_counts(  # do not trim cells again in subset
@@ -176,7 +176,7 @@ def main():
     logger.info(f"Cells removed (non-ECs): {sub.shape[0] - ec.shape[0]}")
     logger.info(f"Remaining ECs: {ec.shape[0]}")
 
-    ec = clean_pca_umap(ec, logger=logger)
+    ec = clean_pca_umap(ec, logger=None)
     ec.X = ec.layers["counts"]
     assert np.issubdtype(ec.X.dtype, np.integer)
     ec = normalize_counts(  # do not trim cells again in subset
@@ -257,6 +257,7 @@ def main():
         )
         plt.close()
 
+    logger.info("Run Trimap...")
     sc.external.tl.trimap(ec)
     with rc_context({"figure.figsize": (6, 6)}):
         sc.external.pl.trimap(
@@ -278,7 +279,8 @@ def main():
             plot_path / "ecs-only" / "TRIMAP_ECs.png", dpi=150, bbox_inches="tight"
         )
         plt.close()
-
+        
+    logger.info("Run Phate...")
     sc.external.tl.phate(ec)
     with rc_context({"figure.figsize": (6, 6)}):
         sc.external.pl.phate(
