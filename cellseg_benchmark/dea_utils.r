@@ -275,7 +275,7 @@ mast_run_cached <- function(adata,
   unlimited_cap <- is.null(max_cells_per_condition) || !is.finite(max_cells_per_condition)
   cap_val <- if (unlimited_cap) "ALL" else as.integer(max_cells_per_condition)
 
-  ## --- concise tag (use user input, not expanded list) ---
+  ## concise tag (use user input, not expanded list)
   br_tag <- if (!is.null(brain_region_subset) && nzchar(brain_region_subset))
     paste0("_Subset-", gsub("\\s+", "", brain_region_subset)) else ""
 
@@ -305,8 +305,15 @@ mast_run_cached <- function(adata,
   message("-> Step 1: preparing SCA")
   sca <- MAST::SceToSingleCellAssay(adata)
   cd <- SummarizedExperiment::colData(sca)
-  cd[[condition_col]] <- factor(cd[[condition_col]])
-  cd[[sample_col]]    <- factor(cd[[sample_col]])
+
+  ## factor / droplevels hygiene
+  cd[[condition_col]] <- droplevels(factor(cd[[condition_col]]))
+  cd[[sample_col]]    <- droplevels(factor(cd[[sample_col]]))
+  if (!is.null(batch_col) && batch_col %in% colnames(cd)) {
+    cd[[batch_col]] <- droplevels(factor(cd[[batch_col]]))
+  }
+
+  ## relevel condition and write back
   if (!ref_group %in% levels(cd[[condition_col]]))
     stop("ref_group not found in condition_col")
   cd[[condition_col]] <- stats::relevel(cd[[condition_col]], ref = ref_group)
@@ -359,7 +366,54 @@ mast_run_cached <- function(adata,
 
   ## 2) Model
   t2_start <- Sys.time()
-  cd <- SummarizedExperiment::colData(sca)
+  
+  cd  <- SummarizedExperiment::colData(sca)
+  grp <- droplevels(factor(cd[[condition_col]]))
+  
+  n_cells <- ncol(sca)
+  n_sample_levels <- nlevels(cd[[sample_col]])
+  
+  ## 2a) global size check
+  min_cells = 250L # required for GLMM stability
+  if (n_cells < min_cells) {
+    message("   Skipping group '", group_i,
+            "': too few cells for a mixed-effects model (",
+            n_cells, " cells across conditions).")
+    return(NULL)
+  }
+  
+  ## 2b) drop tiny samples, then re-check
+  tab_sample <- table(cd[[sample_col]])
+  small_samples <- names(tab_sample[tab_sample < 10L])
+  
+  if (length(small_samples) > 0L) {
+    message("   Removing ", length(small_samples),
+            " samples with <10 cells: ",
+            paste(small_samples, collapse = ", "))
+  
+    keep_idx <- !(cd[[sample_col]] %in% small_samples)
+    sca <- sca[, keep_idx, drop = FALSE]
+  
+    cd  <- SummarizedExperiment::colData(sca)
+    grp <- droplevels(factor(cd[[condition_col]]))
+    n_cells <- ncol(sca)
+  
+    if (n_cells < min_cells) {
+      message("   Skipping group '", group_i,
+              "': too few cells after removing samples with few cells (",
+              n_cells, " cells).")
+      return(NULL)
+    }
+  }
+
+  if (n_sample_levels <= 1L || n_sample_levels >= n_cells) {
+    message("   Skipping group '", group_i,
+            "': random effect '", sample_col,
+            "' not estimable (", n_sample_levels,
+            " levels, ", n_cells, " cells).")
+    return(NULL)
+  }
+        
   use_batch <- !is.null(batch_col) &&
     batch_col %in% colnames(cd) &&
     nlevels(droplevels(factor(cd[[batch_col]]))) > 1
@@ -382,8 +436,27 @@ mast_run_cached <- function(adata,
 
   message("-> Step 2: fitting model (", model_str, "; method = ", zlm_method, ")")
   form <- as.formula(model_str)
-  fit <- MAST::zlm(form, sca, method = zlm_method,
-                   ebayes = FALSE, strictConvergence = FALSE, parallel = TRUE)
+
+  fit <- tryCatch(
+    {
+      MAST::zlm(form, sca, method = zlm_method,
+                ebayes = FALSE, strictConvergence = FALSE, parallel = TRUE)
+    },
+    error = function(e) {
+      msg <- conditionMessage(e)
+      if (grepl("Downdated VtV is not positive definite", msg, fixed = TRUE)) {
+        message("   Skipping group '", group_i,
+                "': mixed-effects model did not converge (non–positive definite random-effects covariance).")
+        return(NULL)
+      }
+      stop(e)
+    }
+  )
+
+  if (is.null(fit)) {
+    return(NULL)
+  }
+
   t2_end <- Sys.time()
   message(sprintf("   [Step 2 done in %.2f min]", as.numeric(difftime(t2_end, t2_start, units = "mins"))))
 

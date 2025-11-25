@@ -174,6 +174,14 @@ def prepare_adata_for_rpy2(adata_, key="cell_type"):
     if hasattr(adata_, "layers"):
         del adata_.layers
 
+    for col in adata_.var.columns:
+        if pd.api.types.is_unsigned_integer_dtype(adata_.var[col].dtype):
+            adata_.var[col] = adata_.var[col].astype("int64")
+
+    for col in adata_.obs.columns:
+        if pd.api.types.is_unsigned_integer_dtype(adata_.obs[col].dtype):
+            adata_.obs[col] = adata_.obs[col].astype("int64")
+    
     return adata_
 
 
