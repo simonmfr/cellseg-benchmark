@@ -1049,7 +1049,7 @@ def map_points_to_regions_from_anndata(
       - if return_df: "df": pandas.DataFrame with columns [obs_id, slide, x, y, label, poly_index]
     """
     # --- sanity
-    if coord_key not in adata.obsm_keys():
+    if coord_key not in adata.obsm.keys():
         raise KeyError(f"obsm['{coord_key}'] not found.")
     if slide_key not in adata.obs:
         raise KeyError(f"obs['{slide_key}'] not found.")
