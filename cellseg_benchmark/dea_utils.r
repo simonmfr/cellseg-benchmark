@@ -56,11 +56,16 @@ edgeR_fit_model <- function(
   use_batch <- !is.null(batch_col) && batch_col %in% colnames(colData(adata)) &&
                nlevels(droplevels(factor(colData(adata)[[batch_col]]))) > 1
   
-  design <- if (use_batch) {
-    batch <- droplevels(factor(colData(adata)[[batch_col]]))
-    model.matrix(~ condition + batch)
+  if (use_batch) {
+    batch  <- droplevels(factor(colData(adata)[[batch_col]]))
+    design <- model.matrix(~ condition + batch)
+      
+    if (qr(design)$rank < ncol(design)) {
+      message("  Skip: design not full rank with batch (", batch_col, ")")
+      return(NULL)
+    }
   } else {
-    model.matrix(~ condition)
+    design <- model.matrix(~ condition)
   }
   
   message("  Design: ~ ", condition_col, if (use_batch) paste0(" + ", batch_col) else "")

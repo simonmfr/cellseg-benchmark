@@ -60,16 +60,12 @@ Path(sbatch_path).mkdir(parents=False, exist_ok=True)
 
 for seg_method in methods:
     if seg_method == "Negative_Control_Rastered_5":
-        time_limit = "1-00:00:00"
-    elif any(keyword in seg_method for keyword in ["Baysor"]) or seg_method in [
-        "Negative_Control_Rastered_10",
-        "Negative_Control_Voronoi",
-    ]:
-        time_limit = "15:00:00"
+        time_limit, memory = "1-00:00:00", "200G"
+    elif (any(k in seg_method for k in ["Baysor", "Cellpose"])
+          or seg_method in ["Negative_Control_Rastered_10", "Negative_Control_Voronoi"]):
+        time_limit, memory = "10:00:00", "150G"
     else:
-        time_limit = "03:00:00"
-
-    memory = "200G" if "Negative_Control" in seg_method else "25G"
+        time_limit, memory = "02:00:00", "25G"
 
     job_name = f"dea_edgeR_{args.cohort}_{seg_method}"
     sbatch_file = Path(sbatch_path) / f"{job_name}.sbatch"
