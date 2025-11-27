@@ -115,10 +115,10 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     sdata = read_zarr(
         join(path, base_segmentation, "sdata.zarr")
     )
-    sdata['boundaries_cellpose'] = sdata[sdata['table'].uns['spatialdata_attrs']['region']]
+    sdata['cellpose_boundaries'] = sdata[sdata['table'].uns['spatialdata_attrs']['region']]
     del sdata[sdata['table'].uns['spatialdata_attrs']['region']]
-    sdata['table'].uns['spatialdata_attrs']['region'] = "boundaries_cellpose"
-    sdata['table'].obs['cells_region'] = "boundaries_cellpose"
+    sdata['table'].uns['spatialdata_attrs']['region'] = "cellpose_boundaries"
+    sdata['table'].obs['cells_region'] = "cellpose_boundaries"
 
     sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
         list(sdata_tmp.images.keys())[0]
