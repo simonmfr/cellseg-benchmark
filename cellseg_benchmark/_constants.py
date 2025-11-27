@@ -1805,3 +1805,17 @@ method_colors = {
     # ComSeg standalone (dark purple)
     "ComSeg": "#d7f035",
 }
+
+brain_regions_colors = {
+    "BS": 'FF7080',
+    "CA3sp": "66A83D",
+    "CTX": "B0FFB8",
+    "DG-sg": '66A83D',
+    "HIP": "7ED04B",
+    "STR": "98D6F9",
+    "VS": "AAAAAA",
+    "fiber tracts": "CCCCCC",
+    "BS/STR": "CCA3BC",
+    "STR/CTX": "A4EAD8",
+    "Meninges": "480091"
+}
