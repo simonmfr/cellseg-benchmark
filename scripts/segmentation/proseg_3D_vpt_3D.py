@@ -23,6 +23,7 @@ from sopa.utils import (
     get_transcripts_patches_dirs,
 )
 from spatialdata import SpatialData, read_zarr
+from spatialdata_io import merscope
 
 parser = argparse.ArgumentParser(
     description="Compute ProSeg segmentation without any prior segmentation."
@@ -110,38 +111,45 @@ def proseg(
 
 def main(data_path, sample, proseg_flags, base_segmentation):
     """Proseg 3D with vpt 3D segmentation."""
-    sdata_tmp = sopa.io.merscope(data_path)
-    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
-    sdata = read_zarr(
-        join(path, base_segmentation, "sdata.zarr")
+    save_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples") / sample / "results" / base_segmentation
+    sdata = merscope(
+        data_path,
+        transcripts=True,
+        mosaic_images=True,
+        cells_boundaries=True,
+        vpt_outputs={
+            "cell_by_gene": save_path / "analysis_outputs" / "cell_by_gene.csv",
+            "cell_metadata": save_path / "analysis_outputs" / "cell_metadata.csv",
+            "cell_boundaries": save_path / "analysis_outputs" / "cellpose2_micron_space.parquet",
+        },
     )
-    sdata['cellpose_boundaries'] = sdata[sdata['table'].uns['spatialdata_attrs']['region']]
-    del sdata[sdata['table'].uns['spatialdata_attrs']['region']]
-    sdata['table'].uns['spatialdata_attrs']['region'] = "cellpose_boundaries"
-    sdata['table'].obs['cells_region'] = "cellpose_boundaries"
 
-    sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
-        list(sdata_tmp.images.keys())[0]
-    ]
-    sdata[list(sdata_tmp.points.keys())[0]] = sdata_tmp[
-        list(sdata_tmp.points.keys())[0]
-    ]
-    sdata.attrs["cell_segmentation_image"] = sdata_tmp.attrs["cell_segmentation_image"]
-    sdata.attrs["transcripts_dataframe"] = sdata_tmp.attrs["transcripts_dataframe"]
+    image_key = list(sdata.images.keys())[0]
+    boundaries_key = list(sdata.shapes.keys())[0]
+    transcripts_key = list(sdata.points.keys())[0]
+
+    sdata['transcripts'] = sdata[transcripts_key]
+    sdata['boundaries'] = sdata[boundaries_key]
+    sdata['image'] = sdata[image_key]
+
+    del sdata[image_key], sdata[boundaries_key], sdata[transcripts_key]
+
+    sdata.attrs["cell_segmentation_image"] = 'image'
+    sdata.attrs["transcripts_dataframe"] = 'transcripts'
+    sdata.attrs["transcript_to_cell_assignment"] = ['cell_id', -1]
     translation = read_csv(
         join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     )
-    del sdata_tmp
 
     sdata.write(
-        join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True
+        save_path / f"Proseg_3D_{base_segmentation}" / "sdata_tmp.zarr", overwrite=True
     )
-    sdata = read_zarr(join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"))
+    sdata = read_zarr(save_path / f"Proseg_3D_{base_segmentation}" / "sdata_tmp.zarr")
 
     sopa.make_transcript_patches(
-        sdata, patch_width=None, prior_shapes_key="cellpose_boundaries"
+        sdata, patch_width=None, prior_shapes_key="auto"
     )
 
     sopa.settings.parallelization_backend = "dask"
@@ -154,7 +162,7 @@ def main(data_path, sample, proseg_flags, base_segmentation):
         sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10
     )
     sopa.io.explorer.write(
-        join(path, f"Proseg_3D_{base_segmentation}", "sdata.explorer"),
+        save_path / f"Proseg_3D_{base_segmentation}" / "sdata.explorer",
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
@@ -164,22 +172,17 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
     sdata.write(
-        join(path, f"Proseg_3D_{base_segmentation}", "sdata.zarr"), overwrite=True
+        save_path / f"Proseg_3D_{base_segmentation}" / "sdata.zarr", overwrite=True
     )
     run(
         [
             "cp",
             "-r",
             cache_dir,
-            join(
-                path,
-                f"Proseg_3D_{base_segmentation}",
-                "sdata.zarr",
-                str(cache_dir).split("/")[-1],
-            ),
+            str(save_path / f"Proseg_3D_{base_segmentation}" / "sdata.zarr" / str(cache_dir).split("/")[-1]),
         ]
     )
-    run(["rm", "-r", join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr")])
+    run(["rm", "-r", join(str(save_path), f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr")])
 
 
 if __name__ == "__main__":
