@@ -3,6 +3,7 @@ import logging
 from multiprocessing import cpu_count
 from os import listdir
 from pathlib import Path
+from typing import Tuple
 
 from geopandas import read_parquet
 from joblib import Parallel, delayed
@@ -12,6 +13,53 @@ from tqdm import tqdm
 
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
+
+# ---------------------------------------------------------------------
+# Worker function for one segmentation method
+# ---------------------------------------------------------------------
+def process_method(method: str, cohort: str, anatom_annot: dict, data_path: Path) -> None:
+    """Process a single segmentation method: read, map, save CSV & plot."""
+    method_dir = data_path / "analysis" / cohort / method
+    adata_points = read_h5ad(method_dir / "adatas" / "adata_integrated.h5ad.gz")
+
+    # Map points to regions
+    results = map_points_to_regions_from_anndata(
+        adata_points,
+        regions_by_slide=anatom_annot,
+        coord_key="spatial_microns",
+        slide_key="sample",
+        include_boundary=True,
+        dissolve=False,
+        index_kind="name",
+        return_df=True,
+    )
+
+    # Combine results into a single DataFrame
+    df_all = concat([v["df"] for v in results.values()], ignore_index=True)
+    df_all = df_all.set_index("obs_id").reindex(adata_points.obs_names)
+
+    # Add to AnnData
+    adata_points.obs["region_mapped"] = df_all["label"].values
+    adata_points.obs["region_poly_index"] = df_all["poly_index"].values
+
+    # Save CSV
+    df_all.to_csv(method_dir / "spatial_registration.csv")
+
+    # Produce plot
+    plot_spatial_multiplot(
+        adata_points,
+        "region_mapped",
+        save_path=method_dir / "plots",
+        save_name="spatial_registration.png",
+    )
+
+def _process_method_wrapper(method: str, cohort: str, anatom_annot: dict, data_path: Path) -> Tuple[str, str]:
+    """Small wrapper so we see failures per method instead of crashing everything."""
+    try:
+        process_method(method, cohort, anatom_annot, data_path)
+        return method, "ok"
+    except Exception as e:
+        return method, f"error: {e}"
 
 # ---------------------------------------------------------------------
 # Logging
@@ -55,63 +103,9 @@ gdf = read_parquet(
     data_path / "misc" / "brain_regions" / f"{args.cohort}_brain_regions.parquet"
 )
 
-# Build a nested dict: anatom_annot[sample][label] -> list of Polygons
 anatom_annot = {}
 for (sample, label), sub in gdf.groupby(["sample", "label"]):
     anatom_annot.setdefault(sample, {})[label] = list(sub.geometry)
-
-
-# ---------------------------------------------------------------------
-# Worker function for one segmentation method
-# ---------------------------------------------------------------------
-def process_method(method: str, cohort: str, anatom_annot: dict) -> str:
-    """Process a single segmentation method: read, map, save CSV & plot."""
-    logger = logging.getLogger("annotation")
-    logger.info(f"processing {method}")
-
-    method_dir = data_path / "analysis" / cohort / method
-
-    try:
-        adata_points = read_h5ad(method_dir / "adatas" / "adata_integrated.h5ad.gz")
-    except FileNotFoundError:
-        logger.warning(f"{method} not found, skipping")
-        return f"{method}: missing"
-
-    # Map points to regions
-    results = map_points_to_regions_from_anndata(
-        adata_points,
-        regions_by_slide=anatom_annot,
-        coord_key="spatial_microns",
-        slide_key="sample",
-        include_boundary=True,
-        dissolve=False,
-        index_kind="name",
-        return_df=True,
-    )
-
-    # Combine results into a single DataFrame
-    df_all = concat([v["df"] for v in results.values()], ignore_index=True)
-    df_all = df_all.set_index("obs_id").reindex(adata_points.obs_names)
-
-    # Add to AnnData
-    adata_points.obs["region_mapped"] = df_all["label"].values
-    adata_points.obs["region_poly_index"] = df_all["poly_index"].values
-
-    # Save CSV
-    df_all.to_csv(method_dir / "spatial_registration.csv")
-
-    # Produce plot
-    plot_spatial_multiplot(
-        adata_points,
-        "region_mapped",
-        save_path=method_dir / "plots",
-        save_name="spatial_registration.png",
-        sort=True,
-    )
-
-    logger.info(f"finished {method}")
-    return f"{method}: done"
-
 
 if args.n_jobs == -1:
     n_jobs = cpu_count()
@@ -121,8 +115,10 @@ else:
 logger.info(
     f"Starting parallel processing of {len(seg_methods)} methods with n_jobs={n_jobs}"
 )
-
-Parallel(n_jobs=n_jobs)(
-    delayed(process_method)(m, args.cohort, anatom_annot)
-    for m in tqdm(seg_methods, total=len(seg_methods))
+results = Parallel(n_jobs=n_jobs)(
+    delayed(_process_method_wrapper)(m, args.cohort, anatom_annot, data_path) for m in tqdm(seg_methods, desc="spatial registration")
 )
+for m, status in results:
+    if status != "ok":
+        logger.warning(f"method {m}: {status}")
+logger.info("Done")
