@@ -272,6 +272,13 @@ if __name__ == "__main__":
     all_degs = {}
     for group_i in adatas_pb:
         adata_tmp = adatas_pb[group_i]
+        counts = (
+            adata_tmp.obs.groupby(args.condition_key)[args.sample_key].nunique().to_dict()
+        )
+        # require ≥2 samples per condition
+        if any(v < 2 for v in counts.values()):
+            logger.warning(f"Skipping '{group_i}' due to too few samples: {counts}")
+            continue
         with localconverter(conv):
             combined_results = edgeR_loop(
                 adata=adata_tmp,
@@ -336,7 +343,10 @@ if __name__ == "__main__":
             continue
         used = set()
         with pd.ExcelWriter(xlsx, engine="xlsxwriter") as writer:
-            for gid, g in df_mt.groupby("subset", sort=True):
+            subgroups = list(df_mt["subset"].unique())
+            subgroups.sort(key=lambda x: (x != "all", x))
+            for gid in subgroups:
+                g = df_mt[df_mt["subset"] == gid]
                 g.sort_values("PValue").to_excel(
                     writer, sheet_name=safe_sheet(gid, used), index=False
                 )
