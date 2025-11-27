@@ -916,6 +916,14 @@ def prepare_ficture(
     for file in listdir(ficture_path):
         if file.endswith(".pixel.sorted.tsv.gz"):
             ficture_full_path = join(ficture_path, file)
+    if ficture_full_path == "": #Previous computations have flatter hierarchies. Now the ouput is saved in Ficture/output/nF21.../analysis/nF21.../FILE
+        ficture_path = join(ficture_path, "analysis")
+        for file in listdir(ficture_path):
+            if n_ficture == int(split(r"\.|F", file)[1]):
+                ficture_path = join(ficture_path, file)
+            for file in listdir(ficture_path):
+                if file.endswith(".pixel.sorted.tsv.gz"):
+                    ficture_full_path = join(ficture_path, file)
     assert ficture_full_path != "", "Ficture output not correctly computed."
 
     fic_header = ["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
