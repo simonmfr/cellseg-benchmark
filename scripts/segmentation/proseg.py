@@ -3,9 +3,14 @@ import os
 from os.path import join
 from subprocess import run
 
+import pandas as pd
 import sopa
+from geopandas import GeoDataFrame
 from pandas import read_csv
+from shapely import Polygon
+from shapely.affinity import affine_transform
 from spatialdata import read_zarr
+from spatialdata.models import ShapesModel
 
 parser = argparse.ArgumentParser(
     description="Compute ProSeg segmentation with a prior."
@@ -50,6 +55,21 @@ def main(data_path, sample, base_segmentation, proseg_flags):
         join(path, f"Proseg_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True
     )
     sdata = read_zarr(join(path, f"Proseg_{base_segmentation}", "sdata_tmp.zarr"))
+
+    if "ABCAtlas" in data_path:
+        coords = pd.read_csv(
+            join("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/ABC_explorers/",
+                 f"{data_path.split('/')[-1]}_ROI.csv"),
+            skiprows=2
+            )
+        polygon = Polygon([
+            (x, y) for x, y in coords.values
+        ])
+        polygon_spat = affine_transform(polygon,
+                                        [translation.iloc[0, 0], translation.iloc[0, 1], translation.iloc[1, 0],
+                                         translation.iloc[1, 1], translation.iloc[0, 2], translation.iloc[1, 2]])
+        gdf = GeoDataFrame({'geometry': [polygon_spat]}, geometry='geometry')
+        sdata['region_of_interest'] = ShapesModel(gdf)
 
     # Annahme: nur cellpose prior wird benutzt
     sopa.make_transcript_patches(

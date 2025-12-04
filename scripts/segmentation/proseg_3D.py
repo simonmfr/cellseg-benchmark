@@ -6,8 +6,12 @@ from os.path import join
 from pathlib import Path
 from subprocess import run
 
+import pandas as pd
 import sopa
+from geopandas import GeoDataFrame
 from pandas import read_csv
+from shapely import Polygon
+from shapely.affinity import affine_transform
 from sopa._constants import SopaAttrs, SopaKeys
 from sopa.aggregation.aggregation import add_standardized_table
 from sopa.segmentation._transcripts import _check_transcript_patches
@@ -23,6 +27,7 @@ from sopa.utils import (
     get_transcripts_patches_dirs,
 )
 from spatialdata import SpatialData, read_zarr
+from spatialdata.models import ShapesModel
 
 parser = argparse.ArgumentParser(
     description="Compute ProSeg segmentation without any prior segmentation."
@@ -135,6 +140,21 @@ def main(data_path, sample, proseg_flags, base_segmentation):
         join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True
     )
     sdata = read_zarr(join(path, f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr"))
+
+    if "ABCAtlas" in data_path:
+        coords = pd.read_csv(
+            join("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/ABC_explorers/",
+                 f"{data_path.split('/')[-1]}_ROI.csv"),
+            skiprows=2
+            )
+        polygon = Polygon([
+            (x, y) for x, y in coords.values
+        ])
+        polygon_spat = affine_transform(polygon,
+                                        [translation.iloc[0, 0], translation.iloc[0, 1], translation.iloc[1, 0],
+                                         translation.iloc[1, 1], translation.iloc[0, 2], translation.iloc[1, 2]])
+        gdf = GeoDataFrame({'geometry': [polygon_spat]}, geometry='geometry')
+        sdata['region_of_interest'] = ShapesModel(gdf)
 
     sopa.make_transcript_patches(
         sdata, patch_width=None, prior_shapes_key="cellpose_boundaries"
