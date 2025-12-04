@@ -34,7 +34,7 @@ def main(data_path, save_path, staining):
     if "ABCAtlas" in data_path:
         coords = pd.read_csv(
             join("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/ABC_explorers/",
-                 f"{data_path.split('/')[-1]}_ROI.csv"),
+                 f"{data_path.split('/')[-1]}_ROI.csv"), index_col=0,
             skiprows=2
             )
         polygon = Polygon([
@@ -44,7 +44,7 @@ def main(data_path, save_path, staining):
                                         [translation.iloc[0, 0], translation.iloc[0, 1], translation.iloc[1, 0],
                                          translation.iloc[1, 1], translation.iloc[0, 2], translation.iloc[1, 2]])
         gdf = GeoDataFrame({'geometry': [polygon_spat]}, geometry='geometry')
-        sdata['region_of_interest'] = ShapesModel(gdf)
+        sdata['region_of_interest'] = ShapesModel.parse(gdf)
 
     sopa.make_image_patches(sdata, patch_width=8900, patch_overlap=178)
 
