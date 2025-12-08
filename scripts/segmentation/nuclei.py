@@ -33,8 +33,7 @@ def main(data_path, save_path):
     if "ABCAtlas" in data_path:
         coords = pd.read_csv(
             join("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/ABC_explorers/",
-                 f"{data_path.split('/')[-1]}_ROI.csv"), index_col=0,
-            skiprows=2
+                 f"{data_path.split('/')[-1]}_ROI.csv"), index_col=0
             )
         polygon = Polygon([
             (x, y) for x, y in coords.values
