@@ -31,12 +31,7 @@ for key, value in data.items():
 #SBATCH -J CP1_{key}_{args.staining}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/CP1_{key}_{args.staining}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/CP1_{key}_{args.staining}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
-
-cd ~/gitrepos/spatialdata
-git pull -q
-cd ~/gitrepos/cellseg-benchmark
-git pull -q
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/sopa.sqsh"
 
 mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_DAPI_{args.staining}
