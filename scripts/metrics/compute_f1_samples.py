@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import warnings
 from os import listdir
 from os.path import exists, join
@@ -27,9 +28,9 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s
 logger.addHandler(handler)
 
 parser = argparse.ArgumentParser(description="Compute F1 statistics based on Ficture.")
-parser.add_argument("method", help="method name.")
+parser.add_argument("method", help="Method name.")
 parser.add_argument("cohort", help="Cohort name.")
-parser.add_argument("data", choices=["area", "variance", "means"], help="Cohort name.")
+parser.add_argument("data", choices=["area", "variance", "means"], help="Data to use.")
 parser.add_argument(
     "--correct_celltypes",
     action="store_true",
@@ -39,16 +40,16 @@ parser.add_argument("--weighted", action="store_true", help="If data is weighted
 parser.add_argument(
     "--celltype_name",
     default="cell_type_mmc_raw_revised",
-    help="Compute F1 for correct cell type mapping.",
+    help="Celltype name to use for F1 computation. Default is cell_type_mmc_raw_revised.",
 )
 parser.add_argument(
     "--flavor",
     default="f1",
     choices=["f1", "macro", "micro", "all"],
-    help="Which flavor to compute F1 for.",
+    help="Which flavor to compute F1 for. Default is f1.",
 )
 parser.add_argument(
-    "subset", nargs=argparse.REMAINDER, help="List of celltypes to compute F1 for."
+    "--subset", nargs="+", help="(optional) List of celltypes to compute F1 for."
 )
 args = parser.parse_args()
 
@@ -56,6 +57,9 @@ base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/"
 data_path = join(base_path, "analysis", args.cohort, args.method)
 
 adata = read_h5ad(join(data_path, "adatas", "adata_integrated.h5ad.gz"))
+
+save_path = os.path.join(base_path, "metrics", args.cohort, "ficture")
+os.makedirs(save_path, exists_ok=True)
 
 
 def rename(colnames):
@@ -98,22 +102,27 @@ for key in general_stats_dic.keys():
         adata[adata.obs["sample"] == key].obs[args.celltype_name].values
     )
 
-f1 = compute_f1(
-    data,
-    general_stats=general_stats_dic,
-    flavor=args.flavor,
-    correct_celltypes=correct_celltypes,
-    subset=subset,
-    weighted=args.weighted,
-)
-f1.to_csv(
+# compute per-sample f1 scores
+results = {}
+for key in data.keys():
+    results[key] = compute_f1(
+        data[key],
+        general_stats=general_stats_dic[key],
+        flavor=args.flavor,
+        correct_celltypes=correct_celltypes,
+        weighted=args.weighted,
+    )
+results = pd.concat(results, names=["sample", "metric"])
+results.index = results.index.droplevel(1)
+
+results.to_csv(
     join(
-        base_path,
-        "metrics",
-        args.cohort,
+        save_path,
         f"{args.method}_f1{'_weighted' if args.weighted else ''}_{'celltypes' if args.correct_celltypes else 'matrix'}.csv",
     )
 )
+# compute mean f1 scores for plotting
+f1 = pd.DataFrame({"F1_statistics": results.mean(axis=0)}).T
 if args.correct_celltypes:
     sns.set_theme(rc={"figure.figsize": (20, 16)})
     sns.barplot(data=f1)
@@ -121,9 +130,7 @@ if args.correct_celltypes:
     plt.ylim(0, 1)
     plt.savefig(
         join(
-            base_path,
-            "metrics",
-            args.cohort,
+            save_path,
             f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_barplot.png",
         )
     )
@@ -137,9 +144,7 @@ else:
         sns.heatmap(data, cmap="YlOrRd", annot=True)
         plt.savefig(
             join(
-                base_path,
-                "metrics",
-                args.cohort,
+                save_path,
                 f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png",
             )
         )
@@ -148,10 +153,7 @@ else:
         sns.heatmap(data, fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
         plt.savefig(
             join(
-                base_path,
-                "metrics",
-                args.cohort,
-                "ficture",
+                save_path,
                 f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png",
             )
         )

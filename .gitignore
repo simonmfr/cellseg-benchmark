@@ -5,6 +5,7 @@ datasets/processed/
 data/
 cache/
 notebooks_local/
+notebooks/local
 *-notused.ipynb
 outdated-*
 **/temp/

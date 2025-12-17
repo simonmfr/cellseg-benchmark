@@ -45,23 +45,31 @@ def compute_f1(
     Returns:
         F1 score per factor and over all factors.
     """
-    if subset is None:
-        subset = set.intersection(
-            *[set(x.drop(columns=[celltype_name]).columns) for x in data.values()]
-        )
+    # validate inputs
     if flavor != "f1":
         assert correct_celltypes is not None, "correct_celltypes must be provided."
     if flavor in ["micro", "all"]:
         assert general_stats is not None, "general_stats must be provided."
+
     if isinstance(general_stats, pd.DataFrame):
         assert isinstance(data, pd.DataFrame), (
+            "data must be DataFrame, since general_stats is DataFrame."
+        )
+    if isinstance(data, pd.DataFrame):
+        assert isinstance(general_stats, pd.DataFrame), (
             "general_stats must be DataFrame, since data is DataFrame."
         )
-        data = {"tmp": data}
+
+    # ensure data and general_stats are dicts
+    if isinstance(general_stats, pd.DataFrame):
         general_stats = {"tmp": general_stats}
-    elif isinstance(general_stats, dict):
-        assert isinstance(data, dict), (
-            "general_stats must be a dict, since data is dict."
+    if isinstance(data, pd.DataFrame):
+        data = {"tmp": data}
+
+    # compute subset of factors if not provided
+    if subset is None:
+        subset = set.intersection(
+            *[set(x.drop(columns=[celltype_name]).columns) for x in data.values()]
         )
 
     if correct_celltypes is None:
