@@ -35,7 +35,7 @@ for key, value in data.items():
 #SBATCH -J Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/sopa_ABC.sqsh"
 
 cd ~/gitrepos/spatialdata
 git pull -q
@@ -44,7 +44,7 @@ git pull -q
 
 mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}
-python scripts/segmentation/proseg_3D.py {value["path"]} {key} vpt_{args.vpt_dim}_DAPI_{args.vpt_flavor} \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/proseg_3D.py {value["path"]} {key} vpt_{args.vpt_dim}_DAPI_{args.vpt_flavor} \
 --voxel-layers {args.voxel} --output-cell-polygon-layers cell-polygons-layers.geojson.gz
 """)
     f.close()

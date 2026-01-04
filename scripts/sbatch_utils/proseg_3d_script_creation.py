@@ -36,16 +36,11 @@ for key, value in data.items():
 #SBATCH -J Proseg_3D_{key}_CP1_{args.staining}_vxl_{args.voxel}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_3D_{key}_CP1_{args.staining}_vxl_{args.voxel}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_3D_{key}_CP1_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
-
-cd ~/gitrepos/spatialdata
-git pull -q
-cd ~/gitrepos/cellseg-benchmark
-git pull -q
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/sopa_ABC.sqsh"
 
 mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_Cellpose_1_{args.staining}_model
-python scripts/segmentation/proseg_3D.py {value["path"]} {key} Cellpose_1_{args.staining}_model \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/proseg_3D.py {value["path"]} {key} Cellpose_1_{args.staining}_model \
 --voxel-layers {args.voxel} --output-cell-polygon-layers cell-polygons-layers.geojson.gz
 """)
         f.close()
@@ -65,7 +60,7 @@ python scripts/segmentation/proseg_3D.py {value["path"]} {key} Cellpose_1_{args.
 #SBATCH -J Proseg_3D_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_3D_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_3D_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/sopa_ABC.sqsh"
 
 cd ~/gitrepos/spatialdata
 git pull -q
@@ -74,7 +69,7 @@ git pull -q
 
 mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_Cellpose_{args.CP_version}_DAPI_{args.staining}
-python scripts/segmentation/proseg_3D.py {value["path"]} {key} Cellpose_{args.CP_version}_DAPI_{args.staining} \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/proseg_3D.py {value["path"]} {key} Cellpose_{args.CP_version}_DAPI_{args.staining} \
 --voxel-layers {args.voxel} --output-cell-polygon-layers cell-polygons-layers.geojson.gz 
 """)
         f.close()
