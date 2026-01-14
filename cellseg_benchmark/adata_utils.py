@@ -38,7 +38,7 @@ def merge_adatas(
         seg_method (str): Segmentation method key.
         cell_type_col (str): Column name for cell type annotations. Defaults to "cell_type_revised".
         logger (logging.Logger, optional): Logger for messages. Defaults to None.
-        plot_qc_stats (bool, optional): If True, run `plot_qc` for QC visualization. Defaults to False.
+        plot_qc_stats (bool, optional): If True, run `plot_qc` for QC visualization. Defaults to False. Assumes that sample column exists.
         save_path (str, optional): Directory to save QC plots if enabled. Defaults to None.
 
     Returns:
@@ -654,7 +654,7 @@ def filter_genes(adata, save_path, logger=None):
 
 def normalize_counts(
     adata: AnnData,
-    save_path: str,
+    save_path: Path,
     seg_method: str,
     *,
     target_sum: int = 250,
@@ -674,7 +674,7 @@ def normalize_counts(
     Args:
         adata (AnnData): AnnData with raw integer counts in ``adata.X`` and a
             volume estimate in ``adata.obs`` (``volume_col``)
-        save_path (str): Directory for diagnostic plots.
+        save_path (Path): Directory for diagnostic plots.
         seg_method (str): Name of segmentation method for processing logic.
         target_sum (int, optional): Target sum per cell after rescaling.
             Defaults to 250 as in Allen et al., Cell 2023
