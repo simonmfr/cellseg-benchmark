@@ -129,7 +129,7 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     transcripts_key = list(sdata.points.keys())[0]
 
     sdata['transcripts'] = sdata[transcripts_key]
-    sdata['boundaries_cellpose'] = sdata[boundaries_key]
+    sdata['cellpose_boundaries'] = sdata[boundaries_key]
     sdata['image'] = sdata[image_key]
 
     del sdata[image_key], sdata[boundaries_key], sdata[transcripts_key]
@@ -149,7 +149,7 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     sdata = read_zarr(save_path / f"Proseg_3D_{base_segmentation}" / "sdata_tmp.zarr")
 
     sopa.make_transcript_patches(
-        sdata, patch_width=None, prior_shapes_key="boundaries_cellpose"
+        sdata, patch_width=None, prior_shapes_key="cellpose_boundaries"
     )
 
     sopa.settings.parallelization_backend = "dask"
