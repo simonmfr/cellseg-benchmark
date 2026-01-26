@@ -1,3 +1,5 @@
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/"
+
 cell_cycle_genes = {
     "G1": ["Ccne1", "Pttg1"],
     "G1_S": ["Slbp", "Cdca7", "Ung", "Cdc6", "Pcna", "Mcm5", "Orc1", "Dtl"],
@@ -1807,15 +1809,15 @@ method_colors = {
 }
 
 brain_regions_colors = {
-    "BS": 'FF7080',
+    "BS": "FF7080",
     "CA3sp": "66A83D",
     "CTX": "B0FFB8",
-    "DG-sg": '66A83D',
+    "DG-sg": "66A83D",
     "HIP": "7ED04B",
     "STR": "98D6F9",
     "VS": "AAAAAA",
     "fiber tracts": "CCCCCC",
     "BS/STR": "CCA3BC",
     "STR/CTX": "A4EAD8",
-    "Meninges": "480091"
+    "Meninges": "480091",
 }
