@@ -46,5 +46,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    compute_metric_for_all_methods(compute_clustering_scores, **vars(args))
+    results_name = (
+        f"cell_type_metrics/clustering_score_{args.adata_name}_{args.celltype_name}.csv"
+    )
+    compute_metric_for_all_methods(
+        compute_clustering_scores, results_name=results_name, **vars(args)
+    )
     plot_clustering_scores(args.cohort, f"{args.adata_name}_{args.celltype_name}")

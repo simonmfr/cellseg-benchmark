@@ -32,5 +32,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    compute_metric_for_all_methods(compute_cell_type_distribution, **vars(args))
+    results_name = f"cell_type_metrics/cell_type_distribution_{args.adata_name}_{args.celltype_name}.csv"
+    compute_metric_for_all_methods(
+        compute_cell_type_distribution, results_name=results_name, **vars(args)
+    )
     plot_cell_type_distribution(args.cohort, f"{args.adata_name}_{args.celltype_name}")
