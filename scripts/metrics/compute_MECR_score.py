@@ -25,7 +25,7 @@ if __name__ == "__main__":
     suffix = "all"
     if args.subset_vascular_celltypes:
         suffix = "vascular_celltypes"
-    results_name = f"marker_gene_metrics/MECR_score_{suffix}"
+    results_name = f"marker_gene_metrics/MECR_score_{suffix}.csv"
     compute_metric_for_all_methods(
         compute_MECR_score, results_name=results_name, **vars(args)
     )

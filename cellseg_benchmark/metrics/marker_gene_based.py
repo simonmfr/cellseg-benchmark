@@ -1,8 +1,13 @@
 import os
+from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import seaborn as sns
 
 from cellseg_benchmark import BASE_PATH
+from cellseg_benchmark._constants import method_colors
 
 
 def load_marker_gene_dict(subset_genes=None, subset_celltypes=None):
@@ -107,3 +112,59 @@ def compute_MECR_score(
 
     results = _MECR_score(adata, gene_pairs, layer=layer)
     return results
+
+
+def plot_MECR_score(cohort, results_suffix, percentile=97, show=False):
+    """Plot violin plot of MECR scores."""
+    results_file = (
+        Path(BASE_PATH)
+        / "metrics"
+        / cohort
+        / "marker_gene_metrics"
+        / f"MECR_score_{results_suffix}.csv"
+    )
+    plot_path = results_file.parent / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
+    results_df = pd.read_csv(results_file, index_col=0)
+
+    # Remove outliers per method and prepare for plotting
+    filtered = []
+    for method, df in results_df.groupby("method"):
+        threshold = np.percentile(df["MECR"], percentile)
+        filtered.append(df[df["MECR"] <= threshold])
+    results_df_filtered = pd.concat(filtered)
+
+    # Order datasets by median MECR value
+    method_order = (
+        results_df_filtered.groupby("method")["MECR"].median().sort_values().index
+    )
+
+    # Create custom palette matching the dataset order
+    custom_palette = {method: method_colors[method] for method in method_order}
+
+    fig = plt.figure(figsize=(3.5, 8), dpi=300)
+    plt.grid(True, alpha=0.3, zorder=0)
+
+    # Create violin plot with quartile lines and custom colors
+    sns.violinplot(
+        y="method",
+        x="MECR",
+        data=results_df_filtered,
+        order=method_order,
+        inner="quartile",
+        linewidth=0.7,
+        zorder=2,
+        palette=custom_palette,  # Use the custom palette instead of hue
+        legend=False,
+    )
+    plt.xlim(right=0.41)
+    plt.yticks(rotation=0, va="center")
+    plt.ylabel("")
+    plt.xlabel("MECR Score")
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+    fig.savefig(plot_path / f"MECR_score_{results_suffix}.png", bbox_inches="tight")
+    plt.show()

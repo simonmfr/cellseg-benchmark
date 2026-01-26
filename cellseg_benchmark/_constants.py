@@ -1799,6 +1799,15 @@ method_colors = {
     "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
     "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
     "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
+    # Proseg 3D variants (yellow palette)
+    "Proseg_3D_Cellpose_1_DAPI_PolyT": "#f5f0df",
+    "Proseg_3D_Cellpose_1_DAPI_Transcripts": "#f3e4bf",
+    "Proseg_3D_Cellpose_1_nuclei_model": "#f1d9a1",
+    "Proseg_3D_Cellpose_2_DAPI_PolyT": "#efce82",
+    "Proseg_3D_Cellpose_2_DAPI_Transcripts": "#eec364",
+    "Proseg_3D_vpt3D_nuclei": "#edb846",
+    "Proseg_3D_vpt3D_PolyT": "#eaad28",
+    "Proseg_3D_vpt3D_PolyT_nuclei": "#e8a20a",
     # Negative controls (grey palette)
     "Negative_Control_Rastered_5": "#252525",
     "Negative_Control_Rastered_10": "#525252",
