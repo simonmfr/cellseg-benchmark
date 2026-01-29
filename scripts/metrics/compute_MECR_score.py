@@ -1,6 +1,10 @@
 import argparse
 
-from cellseg_benchmark.metrics import compute_MECR_score, compute_metric_for_all_methods
+from cellseg_benchmark.metrics import (
+    compute_MECR_score,
+    compute_metric_for_all_methods,
+    plot_MECR_score,
+)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -29,3 +33,4 @@ if __name__ == "__main__":
     compute_metric_for_all_methods(
         compute_MECR_score, results_name=results_name, **vars(args)
     )
+    plot_MECR_score(args.cohort, suffix, show=False)
