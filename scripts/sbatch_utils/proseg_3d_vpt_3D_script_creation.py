@@ -39,7 +39,7 @@ for key, value in data.items():
 
 mamba activate sopa_2
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/proseg_3D.py {value["path"]} {key} vpt_{args.vpt_dim}_DAPI_{args.vpt_flavor} \
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/proseg_3D_vpt_3D.py {value["path"]} {key} vpt_{args.vpt_dim}_DAPI_{args.vpt_flavor} \
 --voxel-layers {args.voxel} --output-cell-polygon-layers cell-polygons-layers.geojson.gz
 """)
     f.close()
