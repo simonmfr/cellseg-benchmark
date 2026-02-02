@@ -144,9 +144,9 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     )
 
     sdata.write(
-        save_path / f"Proseg_3D_{base_segmentation}" / "sdata_tmp.zarr", overwrite=True
+        save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata_tmp.zarr", overwrite=True
     )
-    sdata = read_zarr(save_path / f"Proseg_3D_{base_segmentation}" / "sdata_tmp.zarr")
+    sdata = read_zarr(save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata_tmp.zarr")
 
     sopa.make_transcript_patches(
         sdata, patch_width=None, prior_shapes_key="cellpose_boundaries"
@@ -172,17 +172,17 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
     sdata.write(
-        save_path / f"Proseg_3D_{base_segmentation}" / "sdata.zarr", overwrite=True
+        save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata.zarr", overwrite=True
     )
     run(
         [
             "cp",
             "-r",
             cache_dir,
-            str(save_path / f"Proseg_3D_{base_segmentation}" / "sdata.zarr" / str(cache_dir).split("/")[-1]),
+            str(save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata.zarr" / str(cache_dir).split("/")[-1]),
         ]
     )
-    run(["rm", "-r", join(str(save_path), f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr")])
+    run(["rm", "-r", join(str(save_path), f"Proseg_3D_vpt3D_{base_segmentation}", "sdata_tmp.zarr")])
 
 
 if __name__ == "__main__":
