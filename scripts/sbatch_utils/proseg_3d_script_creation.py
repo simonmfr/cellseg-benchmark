@@ -43,6 +43,7 @@ git pull -q
 cd ~/gitrepos/cellseg-benchmark
 git pull -q
 
+
 mamba activate sopa
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_Cellpose_1_{args.staining}_model
 python scripts/segmentation/proseg_3D.py {value["path"]} {key} Cellpose_1_{args.staining}_model \
