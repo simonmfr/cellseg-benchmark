@@ -31,14 +31,11 @@ for key, value in data.items():
 #SBATCH -J ovrlpy_stats_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/ovrlpy_stats_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/ovrlpy_stats_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
-cd ~/gitrepos/spatialdata
-git pull -q
-cd ~/gitrepos/cellseg-benchmark
-git pull -q
-
-mamba activate cellseg-benchmark
-python scripts/segmentation/ovrlpy_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
+mamba activate seg_postprocessing
+"$CONDA_PREFIX/bin/time" -v \
+  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/ovrlpy_stats_{key}_$(date +%Y%m%d_%H%M%S).time" \
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/ovrlpy_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
 """)
     f.close()

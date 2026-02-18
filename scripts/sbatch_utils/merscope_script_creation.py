@@ -24,16 +24,18 @@ for key, value in data.items():
 #SBATCH -J merscope_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merscope_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/merscope_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 cd ~/gitrepos/spatialdata
 git pull -q
 cd ~/gitrepos/cellseg-benchmark
 git pull -q
 
-mamba activate sopa
+mamba activate segmentation
 mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_Merlin
-python scripts/segmentation/merscope_sdata.py {value["path"]} \
+"$CONDA_PREFIX/bin/time" -v \
+  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merscope_{key}_$(date +%Y%m%d_%H%M%S).time" \
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/merscope_sdata.py {value["path"]} \
  /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_Merlin
 """)
     f.close()
