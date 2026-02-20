@@ -4,11 +4,144 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scanpy as sc
 import seaborn as sns
 from scipy import sparse
 
 from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark._constants import cell_type_colors, method_colors
+from cellseg_benchmark.metrics.utils import read_ABCAtlas, read_adata
+
+# --- Functions to compute marker genes ---
+
+
+def compute_negative_markers_from_reference(
+    adata, celltypes, genes, celltype_name="cell_type_dea"
+):
+    """Compute negative markers for single-cell reference data.
+
+    Adapted from: https://github.com/Moldia/Xenium_benchmarking/blob/1908b7f1f7ccbb69b8bd4eea007eb3db2e0c06b5/notebooks/5_segmentation_benchmark/metrics.py#L109
+
+    Args:
+        adata: single cell anndata to compute markers from
+        celltypes: list of celltypes to compute markers for
+        genes: list of genes to compute markers for
+        celltype_name: name of obs column to use for celltypes
+
+    Returns:
+        pd.DataFrames neg_marker_mask and ratio_celltype with shape celltypes x genes,
+        containing negative markers and ratio of cells expressing each gene within a celltype
+    """
+    # Set threshold parameters
+    min_number_cells = 10  # minimum number of cells belonging to a cluster to consider it in the analysis
+    max_ratio_cells = 0.005  # maximum ratio of cells expressing a marker to call it a negative marker gene-ct pair
+
+    # Subset adata to genes of interest (measured in spatial data)
+    adata = adata[:, genes]
+    # Get cell types that we find in both modalities
+    shared_celltypes = list(
+        set(celltypes).intersection(adata.obs[celltype_name].unique())
+    )
+
+    # Filter cell types by minimum number of cells
+    celltype_count = adata.obs[celltype_name].value_counts().loc[shared_celltypes]
+    ct_filter = celltype_count >= min_number_cells
+    celltypes = celltype_count.loc[ct_filter].index.tolist()
+
+    # Filter cells to eligible cell types
+    adata = adata[adata.obs[celltype_name].isin(celltypes)]
+
+    # get ratio of positive cells per cell type
+    count_per_ct = sc.get.aggregate(adata, celltype_name, "count_nonzero")
+    count_per_ct.obs["count"] = adata.obs[celltype_name].value_counts()
+    ratio_celltype = (
+        count_per_ct.layers["count_nonzero"]
+        / np.array(count_per_ct.obs["count"])[:, np.newaxis]
+    )
+
+    # Get gene-cell type pairs with negative marker expression
+    neg_marker_mask = np.array(ratio_celltype < max_ratio_cells)
+    print(
+        "Number of negative markers: ",
+        {
+            key: int(value)
+            for key, value in zip(
+                count_per_ct.obs[celltype_name], neg_marker_mask.sum(axis=1)
+            )
+        },
+    )
+
+    neg_marker_mask_df = pd.DataFrame(
+        data=neg_marker_mask,
+        index=count_per_ct.obs[celltype_name],
+        columns=count_per_ct.var_names,
+    )
+    ratio_celltype_df = pd.DataFrame(
+        data=ratio_celltype,
+        index=count_per_ct.obs[celltype_name],
+        columns=count_per_ct.var_names,
+    )
+
+    return neg_marker_mask_df, ratio_celltype_df
+
+
+def get_negative_markers(
+    cohort, vascular_subset=False, overwrite=False, base_path=BASE_PATH
+):
+    """Get or compute negative markers.
+
+    Reads/writes negative markers to misc/scRNAseq_ref_ABCAtlas_Yao2023Nature/negative_markers.
+
+    Args:
+        cohort: cohort to get markers for
+        vascular_subset: get markers for vascular subset
+        overwrite: recompute markers and save them again
+        base_path: base path to the data
+    Returns:
+        pd.DataFrames neg_marker_mask and ratio_celltype with shape celltypes x genes,
+        containing negative markers and ratio of cells expressing each gene within a celltype
+    """
+    data_path = (
+        Path(base_path)
+        / "misc"
+        / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
+        / "negative_markers"
+    )
+    data_path.mkdir(parents=True, exist_ok=True)
+    marker_fname = (
+        data_path
+        / f"negative_markers_{cohort}_{'vascular_subset' if vascular_subset else 'all'}.csv"
+    )
+    ratio_fname = (
+        data_path
+        / f"expr_ratio_{cohort}_{'vascular_subset' if vascular_subset else 'all'}.csv"
+    )
+    if overwrite or not (marker_fname.exists() and ratio_fname.exists()):
+        # need to recompute markers
+        print("Markers not found or overwrite set to True: computing negative markers")
+        adata_sc = read_ABCAtlas(vascular_subset=vascular_subset, base_path=base_path)
+        adata_sp = read_adata(
+            cohort,
+            method=None,
+            adata_name=f"adata_{'vascular_subset' if vascular_subset else 'integrated'}",
+            base_path=base_path,
+        )
+        genes = adata_sp.var_names
+        celltypes = adata_sp.obs["cell_type_revised"].unique()
+        neg_marker_mask, ratio_celltype = compute_negative_markers_from_reference(
+            adata_sc, celltypes, genes, celltype_name="cell_type_dea"
+        )
+
+        # save results
+        neg_marker_mask.to_csv(marker_fname)
+        ratio_celltype.to_csv(ratio_fname)
+    else:
+        neg_marker_mask = pd.read_csv(marker_fname, index_col=0)
+        ratio_celltype = pd.read_csv(ratio_fname, index_col=0)
+    return neg_marker_mask, ratio_celltype
+
+
+# --- Functions to read previously saved marker genes ---
 
 
 def load_marker_gene_dict(subset_genes=None, subset_celltypes=None):
@@ -51,6 +184,9 @@ def load_marker_gene_dict(subset_genes=None, subset_celltypes=None):
             genes = [gene for gene in genes if gene in subset_genes]
         cell_type_dict[cell_type] = genes
     return cell_type_dict
+
+
+# --- Compute & plotting functions for MECR, F1 and negative marker purity
 
 
 def _MECR_score(adata, gene_pairs, layer=None):
@@ -325,3 +461,77 @@ def plot_marker_F1_score(cohort, results_suffix, show=False):
         plot_path / f"marker_f1_score_{results_suffix}.png", bbox_inches="tight"
     )
     plt.show()
+
+
+def compute_negative_marker_purity(
+    adata,
+    neg_marker_mask_sc,
+    ratio_celltype_sc,
+    celltype_name="cell_type_revised",
+    **kwargs,
+):
+    """Negative marker purity aims to measure read leakeage between cells in spatial datasets.
+
+    For this, we calculate the increase in positive cells assigned in spatial datasets to pairs of genes-celltyes with
+    no/very low expression in scRNAseq.
+
+    Adapted from: https://github.com/Moldia/Xenium_benchmarking/blob/1908b7f1f7ccbb69b8bd4eea007eb3db2e0c06b5/notebooks/5_segmentation_benchmark/metrics.py#L109
+
+    Args:
+    adata : AnnData
+        Annotated ``AnnData`` object with counts from spatial data
+    neg_marker_mask_sc: pandas dataframe containing negative markers from single cell reference (from get_negative_markers)
+    ratio_celltype_sc: pandata dataframe containing ratio of cells expressing each gene within a celltype (from get_negative_markers)
+    celltype_name: name of obs column to use for celltypes
+    kwargs: unused, just here to catch arguments passed automatically when using this fn with `compute_metric_for_all_methods`
+
+    Returns:
+    negative marker purity:
+        Increase in proportion of positive cells assigned in spatial data to pairs of genes-celltyes with no/very low expression in scRNAseq
+    """
+    # Set threshold parameters - same as used in get_negative_markers
+    min_number_cells = 10  # minimum number of cells belonging to a cluster to consider it in the analysis
+
+    shared_celltypes = list(neg_marker_mask_sc.index)
+    # Filter cell types by minimum number of cells
+    celltype_count = adata.obs[celltype_name].value_counts().loc[shared_celltypes]
+    ct_filter = celltype_count >= min_number_cells
+    celltypes = celltype_count.loc[ct_filter].index.tolist()
+
+    # Filter cells to eligible cell types
+    adata = adata[adata.obs[celltype_name].isin(celltypes)]
+
+    # get ratio of positive cells per cell type
+    count_per_ct = sc.get.aggregate(
+        adata, celltype_name, "count_nonzero", layer="counts"
+    )
+    count_per_ct.obs["count"] = adata.obs[celltype_name].value_counts()
+    ratio_celltype_sp = (
+        count_per_ct.layers["count_nonzero"]
+        / np.array(count_per_ct.obs["count"])[:, np.newaxis]
+    )
+    ratio_celltype_sp = pd.DataFrame(
+        data=ratio_celltype_sp,
+        index=count_per_ct.obs[celltype_name],
+        columns=count_per_ct.var_names,
+    )
+
+    # ensure consistent celltypes
+    neg_marker_mask_sc = neg_marker_mask_sc.loc[ratio_celltype_sp.index]
+    ratio_celltype_sc = ratio_celltype_sc.loc[ratio_celltype_sp.index]
+
+    # Get pos cell ratios in negative marker-cell type pairs
+    lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
+    lowvals_sc = ratio_celltype_sc.values[neg_marker_mask_sc]
+    lowvals_sp = ratio_celltype_sp.values[neg_marker_mask_sc]
+
+    # Take the mean over the normalized expressions of the genes' negative cell types
+    mean_sc_low_ratio = np.nanmean(lowvals_sc)
+    mean_sp_low_ratio = np.nanmean(lowvals_sp)
+
+    # Calculate summary metric
+    negative_marker_purity = 1
+    if mean_sp_low_ratio > mean_sc_low_ratio:
+        negative_marker_purity -= mean_sp_low_ratio - mean_sc_low_ratio
+
+    return pd.DataFrame({"negative_marker_purity": [negative_marker_purity]})
