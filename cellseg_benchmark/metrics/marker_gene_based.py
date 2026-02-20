@@ -141,6 +141,136 @@ def get_negative_markers(
     return neg_marker_mask, ratio_celltype
 
 
+def compute_positive_markers_from_reference(adata, celltype_name="cell_type_dea"):
+    """Compute positive markers.
+
+    Implementation according to https://elifesciences.org/reviewed-preprints/96949v1#s6:
+    > Cell type markers are identified for 7 broad cell types using the Linnarsson scRNA-seq reference dataset
+    > with a Wilcoxon test implemented by Presto. Cell type markers are then filtered based on two criteria:
+    > they must exhibit more than 25% non-zero expression in the marker population,
+    > and less than 1% non-zero expression in all other cells. Any gene that was identified as a marker for
+    > multiple cell types was removed. From this final marker set, we generated a list of ‘mutually exclusive’ gene pairs
+
+    NOTE: Wilcoxon rank-sum DE test is not strictly necessary, as genes expressed in >25% of cell type cells and
+    not expressed in remainder of cells are almost certainly also significant in the test.
+    In addition p-values from the rank-sum test are overinflated.
+    Keeping this behaviour here though, to be consistent with the original implementation.
+
+    Args:
+        adata: single cell anndata to compute markers from
+        celltype_name: name of obs column to use for celltypes
+    """
+    if "rank_genes_groups" not in adata.uns.keys():
+        # compute DE genes from sc reference
+        print("computing rank_genes_groups")
+        sc.pp.log1p(adata)
+        sc.tl.rank_genes_groups(adata, "cell_type_dea", method="wilcoxon")
+    print("computing positive markers")
+    # compute cell type markers as genes expressed in > 25% of cells within celltype and < 1% of remaining cells
+    adata_agg = sc.get.aggregate(adata, by="cell_type_dea", func="count_nonzero")
+
+    count_nonzero = pd.DataFrame(
+        adata_agg.layers["count_nonzero"],
+        index=adata_agg.obs_names,
+        columns=adata_agg.var_names,
+    )
+    count = adata.obs["cell_type_dea"].value_counts()[adata_agg.obs.index]
+
+    markers = {}
+    for ct in count.index:
+        fraction_expressed_ct = count_nonzero.loc[ct] / count.loc[ct]
+        other_cts = count.index != ct
+        fraction_expressed_rest = count_nonzero.loc[other_cts].sum(axis=0) / count.loc[
+            other_cts
+        ].sum(axis=0)
+
+        # fraction of cell expressing in gene in CT
+        mask = (fraction_expressed_ct > 0.25) & (fraction_expressed_rest < 0.01)
+        markers[ct] = list(fraction_expressed_ct[mask].index)
+
+    # filter markers to those significant from DE test
+    pval = 0.05
+    logfc = 1
+
+    for ct in markers.keys():
+        scores = adata.uns["rank_genes_groups"]["scores"][ct]
+        genes = adata.uns["rank_genes_groups"]["names"][ct]
+        pvals = adata.uns["rank_genes_groups"]["pvals_adj"][ct]
+        logfc = adata.uns["rank_genes_groups"]["logfoldchanges"][ct]
+        df = pd.DataFrame(
+            {"scores": scores, "genes": genes, "pvals": pvals, "logfc": logfc}
+        )
+        df = df.set_index("genes")
+
+        filt = df.loc[markers[ct]]
+        mask = (np.abs(filt["logfc"]) > logfc) & (filt["pvals"] < pval)
+
+        if not mask.all():
+            print(f"filtering out genes for ct {ct} based on rank_genes_groups")
+
+        # write filtered markers back to markers dict
+        markers[ct] = np.array(markers[ct])[list(mask)]
+
+    # filter markers to those specific to only one celltype
+    all_markers = []
+    for ct, genes in markers.items():
+        all_markers.extend(list(genes))
+
+    genes, counts = np.unique(np.array(all_markers), return_counts=True)
+    duplicate_genes = genes[counts > 1]
+    print(f"removing {len(duplicate_genes)} from markers: {duplicate_genes}")
+    # remove all ocurrences of duplicate genes
+    for ct, genes in markers.items():
+        markers[ct] = [g for g in genes if g not in duplicate_genes]
+
+    return markers
+
+
+def get_positive_markers(vascular_subset=False, overwrite=False, base_path=BASE_PATH):
+    """Get or compute positive markers.
+
+    Reads/writes positive markers to misc/scRNAseq_ref_ABCAtlas_Yao2023Nature/positive_markers.
+
+    NOTE: markers still need to be filtered to genes present in given spatial experiment.
+
+    Args:
+        vascular_subset: get markers for vascular subset
+        overwrite: recompute markers and save them again
+        base_path: base path to the data
+    Returns:
+        marker dictionary containing positive markers and ratio of cells expressing each gene within a celltype
+    """
+    data_path = (
+        Path(base_path)
+        / "misc"
+        / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
+        / "positive_markers"
+    )
+    data_path.mkdir(parents=True, exist_ok=True)
+    marker_fname = (
+        data_path
+        / f"positive_markers_{'vascular_subset' if vascular_subset else 'all'}.csv"
+    )
+    if overwrite or not marker_fname.exists():
+        # need to recompute markers
+        print("Markers not found or overwrite set to True: computing positive markers")
+        adata = read_ABCAtlas(vascular_subset=vascular_subset, base_path=base_path)
+
+        markers = compute_positive_markers_from_reference(
+            adata, celltype_name="cell_type_dea"
+        )
+
+        # save results
+        df = pd.DataFrame(
+            dict([(key, pd.Series(value)) for key, value in markers.items()])
+        )
+        df.to_csv(marker_fname)
+    else:
+        df = pd.read_csv(marker_fname, index_col=0)
+        markers = {ct: list(df[ct].dropna()) for ct in df.columns}
+    return markers
+
+
 # --- Functions to read previously saved marker genes ---
 
 
@@ -492,7 +622,11 @@ def compute_negative_marker_purity(
     # Set threshold parameters - same as used in get_negative_markers
     min_number_cells = 10  # minimum number of cells belonging to a cluster to consider it in the analysis
 
-    shared_celltypes = list(neg_marker_mask_sc.index)
+    shared_celltypes = list(
+        set(list(neg_marker_mask_sc.index)).intersection(
+            adata.obs[celltype_name].unique()
+        )
+    )
     # Filter cell types by minimum number of cells
     celltype_count = adata.obs[celltype_name].value_counts().loc[shared_celltypes]
     ct_filter = celltype_count >= min_number_cells

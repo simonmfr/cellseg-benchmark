@@ -6,6 +6,7 @@ from .marker_gene_based import (
     compute_MECR_score,
     compute_negative_marker_purity,
     get_negative_markers,
+    get_positive_markers,
     plot_marker_F1_score,
     plot_MECR_score,
 )
@@ -32,4 +33,5 @@ __all__ = [
     "read_adata",
     "get_negative_markers",
     "compute_negative_marker_purity",
+    "get_positive_markers",
 ]
