@@ -135,7 +135,7 @@ if compute_ficture:
 
     for key in tqdm(sdata.shapes.keys()):
         logger.info("Working on {}".format("_".join(split("_", key)[1:])))
-        boundary = transform(sdata[key], to_coordinate_system="micron")
+        boundary = transform(sdata[key], to_coordinate_system="micron") #TODO: Necessary?
         covered = aggregate_channels(
             sdata, image_key="ficture_image_1", shapes_key=key, mode="sum"
         )

@@ -23,7 +23,7 @@ for sample, meta in data.items():
 
     argv = [
         "python",
-        "scripts/seg_postprocessing/master_sdata.py",
+        "~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/master_sdata.py",
         sample,
         meta["path"],
         "z3",
@@ -52,16 +52,13 @@ for sample, meta in data.items():
 #SBATCH --mem=200G
 #SBATCH -J master_sdata_{sample}
 #SBATCH -o {BASE}/misc/logs/merged/%x.log
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/cellseg_benchmark_2.sqsh"
-
-#cd ~/gitrepos/spatialdata
-#git pull -q
-cd ~/gitrepos/cellseg-benchmark
-git pull -q
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 set -eu
 
-mamba activate cellseg_benchmark
+mamba activate seg_postprocessing
+"$CONDA_PREFIX/bin/time" -v \
+  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/master_sdata_{sample}_$(date +%Y%m%d_%H%M%S).time" \
 {cli}
 """
     (Path(OUT) / f"{sample}.sbatch").write_text(sbatch)
