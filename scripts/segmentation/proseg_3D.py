@@ -51,7 +51,7 @@ def _get_proseg_command(
     ].iloc[0]
     use_zarr = _use_zarr_output(proseg_executable)
     feature_key = get_feature_key(sdata[points_key], raise_error=True)
-    return f"proseg transcripts.csv -x x -y y -z global_z --gene-column {feature_key} --cell-id-column {prior_shapes_key} --cell-id-unassigned 0 {'--exclude-spatialdata-transcripts' if use_zarr else ''} {command_line_suffix}"
+    return f"proseg transcripts.csv -x x -y y -z z --gene-column {feature_key} --cell-id-column {prior_shapes_key} --cell-id-unassigned 0 {'--exclude-spatialdata-transcripts' if use_zarr else ''} {command_line_suffix}"
 
 
 def proseg(
