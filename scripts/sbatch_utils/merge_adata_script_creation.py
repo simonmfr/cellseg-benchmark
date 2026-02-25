@@ -13,7 +13,7 @@ args = parser.parse_args()
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
-container_image = f"{base_path}/misc/enroot_images/cellseg_benchmark_2.sqsh"
+container_image = f"{base_path}/misc/enroot_images/benchmark.sqsh"
 log_path = f"{base_path}/misc/logs/merged"
 
 methods = [
@@ -88,11 +88,8 @@ export NUMEXPR_NUM_THREADS=1
 
 set -eu
 
-#cd ~/gitrepos/spatialdata
-#git pull -q
-cd ~/gitrepos/cellseg-benchmark
-git pull -q
-
-mamba activate cellseg_benchmark
-python scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
+mamba activate seg_postprocessing
+"$CONDA_PREFIX/bin/time" -v \
+  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merge_adata_{args.cohort}_{method}_$(date +%Y%m%d_%H%M%S).time" \
+python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
 """)
