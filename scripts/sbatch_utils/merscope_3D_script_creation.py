@@ -39,8 +39,6 @@ for key, value in data.items():
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 mamba activate segmentation
-"$CONDA_PREFIX/bin/time" -v \
-  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt_3D_{key}_DAPI_{args.staining}{adapt}_$(date +%Y%m%d_%H%M%S).time" \
 python ~/gitrepos/cellseg-benchmark/scripts/segmentation/merscope_3D_sdata.py {value["path"]} \
  /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/vpt_3D_DAPI_{args.staining}{adapt}
 """)
