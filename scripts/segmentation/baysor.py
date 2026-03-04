@@ -14,10 +14,11 @@ parser.add_argument(
 )
 parser.add_argument("confidence", type=float, help="confidence of prior segmentation.")
 parser.add_argument("sample", help="sample name.")
+parser.add_argument("--keep_cache", action="store_true")
 args = parser.parse_args()
 
 
-def main(data_path, base_segmentation, confidence, sample):
+def main(data_path, base_segmentation, confidence, sample, keep_cache):
     """Baysor algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)
     path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
@@ -56,7 +57,7 @@ def main(data_path, base_segmentation, confidence, sample):
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence
-    sopa.segmentation.baysor(sdata, config=config, delete_cache=True, force=True)
+    sopa.segmentation.baysor(sdata, config=config, delete_cache=not keep_cache, force=True)
 
     sopa.aggregate(
         sdata,
@@ -91,4 +92,4 @@ def main(data_path, base_segmentation, confidence, sample):
 
 
 if __name__ == "__main__":
-    main(args.data_path, args.base_segmentation, args.confidence, args.sample)
+    main(args.data_path, args.base_segmentation, args.confidence, args.sample, args.keep_cache)
