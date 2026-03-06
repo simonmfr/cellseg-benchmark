@@ -1817,6 +1817,34 @@ method_colors = {
     "ComSeg": "#d7f035",
 }
 
+clean_method_names = {
+    "Negative_Control_": "",
+    "Rastered": "Raster",
+    "Voronoi": "Random_Voronoi",
+    "Baysor_2D": "Baysor",
+    "DAPI_PolyT": "P",
+    "DAPI_Transcripts": "T",
+    "vpt_3D_DAPI_nuclei": "Cellpose_1n_3D_VPT",
+    "vpt_3D_P_nuclei": "Cellpose_1nP_3D_VPT",
+    "vpt_2D_DAPI_nuclei": "Cellpose_1n_2D_VPT",
+    "vpt_2D_P_nuclei": "Cellpose_1nP_2D_VPT",
+    "vpt_3D_P": "Cellpose_1P_3D_VPT",
+    "vpt_2D_P": "Cellpose_1P_2D_VPT",
+    "1_Merlin": "1_Merscope",
+}
+
+clean_method_names_format = {
+    "_Cellpose": "_CP",
+    "_1_T": "_1T",
+    "_1_P": "_1P",
+    "_2_T": "_2T",
+    "_2_P": "_2P",
+    "_1_nuclei_model": "_1n",
+    "CP_": "CP",
+}
+
+clean_method_names = {**clean_method_names, **clean_method_names_format}
+
 brain_regions_colors = {
     "BS": "FF7080",
     "CA3sp": "66A83D",

@@ -84,6 +84,7 @@ def compute_metric_for_all_methods(
     methods=None,
     adata_name="adata_integrated",
     overwrite=False,
+    pass_method=False,
     **kwargs,
 ):
     """Generic function to iterate over all methods to compute metric.
@@ -98,6 +99,7 @@ def compute_metric_for_all_methods(
         methods: list of methods to iterate over. If None, will iterate over all methods
         adata_name: name of adata file to read (either adata_integrated or adata_vascular_subset)
         overwrite: whether to overwrite already existing results
+        pass_method: whether to pass `method` and `base_path` to metric_func (default false)
         kwargs: further keyword arguments passed to metric_func
     """
     if methods is None:
@@ -113,6 +115,7 @@ def compute_metric_for_all_methods(
             adata_name=adata_name,
             overwrite=overwrite,
             base_path=base_path,
+            pass_method=pass_method,
             **kwargs,
         )
 
@@ -125,6 +128,7 @@ def compute_metric(
     adata_name="adata_integrated",
     overwrite=False,
     base_path=BASE_PATH,
+    pass_method=False,
     **kwargs,
 ):
     """General function to compute metric and save results as csv.
@@ -143,6 +147,7 @@ def compute_metric(
         adata_name: name of adata file to read (either adata_integrated or adata_vascular_subset)
         overwrite: whether to overwrite already existing results
         base_path: base path to the data
+        pass_method: whether to pass method and base_path to metric_func (default false)
         **kwargs: kwargs for metric_fn
 
     Returns:
@@ -177,7 +182,10 @@ def compute_metric(
         return
 
     # compute metric
-    results = metric_func(adata, **kwargs)
+    if pass_method:
+        results = metric_func(adata, method=method, base_path=base_path, **kwargs)
+    else:
+        results = metric_func(adata, **kwargs)
     if results is None:
         # some error ocurred during metric_fn, return
         return

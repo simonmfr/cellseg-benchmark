@@ -1,58 +1,27 @@
 import argparse
-import logging
-import os
 
-# TODO: ADD TO CONTAINER
-import subprocess
-import warnings
-from pathlib import Path
-
-import pandas as pd
-from spatialdata import read_zarr
-
-from cellseg_benchmark.metrics.boundary_based import (
-    count_assigned_transcripts,
+from cellseg_benchmark.metrics import (
+    compute_metric_for_all_methods,
+    compute_assigned_transcripts,
+    plot_assigned_transcripts,
 )
 
-subprocess.run(
-    ["conda", "install", "-n", "cellseg_benchmark", "-c", "conda-forge", "rtree", "-y"]
-)
-
-warnings.filterwarnings("ignore")
-
-# Logger setup
-logger = logging.getLogger("compute_assigned_transcripts")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
-logger.addHandler(handler)
-
-# CLI args
-parser = argparse.ArgumentParser(
-    description="Compute fraction of cell-assigned transcripts for all segmentation methods from a master-sdata."
-)
-parser.add_argument("sample", help="Sample, e.g., 'foxf2_s2_r1'")
-args = parser.parse_args()
-
-# Paths
-base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-sample_path = base_path / "samples" / args.sample
-save_path = base_path / "samples" / args.sample / "misc"
-save_path.mkdir(parents=True, exist_ok=True)
-
-# Load sdata
-logger.info("Loading sdata...")
-sdata = read_zarr(sample_path / "sdata_z3.zarr")
-
-logger.info("Computing assigned transcripts...")
-assigned_transcripts_results = count_assigned_transcripts(
-    sdata, sdata_transcripts_key=next(iter(sdata.points.keys()))
-)
-
-# Flatten to df and save
-df = pd.DataFrame.from_dict(assigned_transcripts_results, orient="index")
-df.reset_index(inplace=True)
-df = df.rename(columns={"index": "seg_method"})
-logger.info("Saving results...")
-df.to_csv(os.path.join(save_path, "assigned_transcripts_results.csv"), index=False)
-logger.info("Done.")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Compute assigned transcripts for all methods in cohort, splitting data per sample."
+    )
+    parser.add_argument("cohort", help="Cohort name.")
+    parser.add_argument(
+        "--methods",
+        nargs="+",
+        help="Methods to compute score for. If not specified, use all methods.",
+    )
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing results"
+    )
+    args = parser.parse_args()
+    results_name = "assigned_transcripts/assigned_transcript_counts.csv.csv"
+    compute_metric_for_all_methods(
+        compute_assigned_transcripts, results_name=results_name, pass_method=True, **vars(args)
+    )
+    plot_assigned_transcripts(args.cohort)

@@ -262,49 +262,6 @@ def mean_transcript_densities(sdata, area_col="area"):
 
     return transcript_densities
 
-
-def pct_assigned_transcripts(sdata: SpatialData, genes: bool = False):
-    """Compute the percentage assigned transcripts.
-
-    Args:
-        sdata: spatial data for analysis
-        genes: if True, compute percentage assigned transcripts per gene
-
-    Returns:
-        pd.DataFrame: The percentage assigned transcripts per gene.
-    """
-    pct_assigned_transcripts = {}
-    transcripts = sdata["points"][["gene", "transcript_id"]].compute()
-    if genes:
-        transcripts = transcripts.groupby("gene").count()
-    for table_name in sdata.tables.keys():
-        adata = sdata[table_name]
-
-        if genes:
-            if isinstance(adata.X, np.ndarray):
-                adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
-            sums = adata.X.sum(axis=0)
-            sums = pd.DataFrame(
-                sums, index=adata.var_names, columns=["transcript_counts"]
-            )
-            merged = transcripts.merge(
-                sums, how="left", left_index=True, right_index=True
-            )
-            merged.fillna(
-                0, inplace=True
-            )  # ensure that all available genes are accounted for
-            merged["percentage"] = merged["transcript_counts"] / merged["transcript_id"]
-            pct_assigned_transcripts[table_name] = merged["percentage"]
-
-        else:
-            if isinstance(adata.X, np.ndarray):
-                adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
-            sums = adata.X.sum()
-            pct_assigned_transcripts[table_name] = sums / len(transcripts)
-
-    return pct_assigned_transcripts
-
-
 @delayed
 def _process_cluster_dask(cluster, subset, radii):
     pts = subset[["x", "y", "global_z"]].to_numpy()
