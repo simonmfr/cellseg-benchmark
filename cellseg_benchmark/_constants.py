@@ -1,3 +1,5 @@
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/"
+
 cell_cycle_genes = {
     "G1": ["Ccne1", "Pttg1"],
     "G1_S": ["Slbp", "Cdca7", "Ung", "Cdc6", "Pcna", "Mcm5", "Orc1", "Dtl"],
@@ -1797,6 +1799,15 @@ method_colors = {
     "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
     "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
     "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
+    # Proseg 3D variants (yellow palette)
+    "Proseg_3D_Cellpose_1_DAPI_PolyT": "#f5f0df",
+    "Proseg_3D_Cellpose_1_DAPI_Transcripts": "#f3e4bf",
+    "Proseg_3D_Cellpose_1_nuclei_model": "#f1d9a1",
+    "Proseg_3D_Cellpose_2_DAPI_PolyT": "#efce82",
+    "Proseg_3D_Cellpose_2_DAPI_Transcripts": "#eec364",
+    "Proseg_3D_vpt3D_nuclei": "#edb846",
+    "Proseg_3D_vpt3D_PolyT": "#eaad28",
+    "Proseg_3D_vpt3D_PolyT_nuclei": "#e8a20a",
     # Negative controls (grey palette)
     "Negative_Control_Rastered_5": "#252525",
     "Negative_Control_Rastered_10": "#525252",
@@ -1806,16 +1817,44 @@ method_colors = {
     "ComSeg": "#d7f035",
 }
 
+clean_method_names = {
+    "Negative_Control_": "",
+    "Rastered": "Raster",
+    "Voronoi": "Random_Voronoi",
+    "Baysor_2D": "Baysor",
+    "DAPI_PolyT": "P",
+    "DAPI_Transcripts": "T",
+    "vpt_3D_DAPI_nuclei": "Cellpose_1n_3D_VPT",
+    "vpt_3D_P_nuclei": "Cellpose_1nP_3D_VPT",
+    "vpt_2D_DAPI_nuclei": "Cellpose_1n_2D_VPT",
+    "vpt_2D_P_nuclei": "Cellpose_1nP_2D_VPT",
+    "vpt_3D_P": "Cellpose_1P_3D_VPT",
+    "vpt_2D_P": "Cellpose_1P_2D_VPT",
+    "1_Merlin": "1_Merscope",
+}
+
+clean_method_names_format = {
+    "_Cellpose": "_CP",
+    "_1_T": "_1T",
+    "_1_P": "_1P",
+    "_2_T": "_2T",
+    "_2_P": "_2P",
+    "_1_nuclei_model": "_1n",
+    "CP_": "CP",
+}
+
+clean_method_names = {**clean_method_names, **clean_method_names_format}
+
 brain_regions_colors = {
-    "BS": 'FF7080',
+    "BS": "FF7080",
     "CA3sp": "66A83D",
     "CTX": "B0FFB8",
-    "DG-sg": '66A83D',
+    "DG-sg": "66A83D",
     "HIP": "7ED04B",
     "STR": "98D6F9",
     "VS": "AAAAAA",
     "fiber tracts": "CCCCCC",
     "BS/STR": "CCA3BC",
     "STR/CTX": "A4EAD8",
-    "Meninges": "480091"
+    "Meninges": "480091",
 }
