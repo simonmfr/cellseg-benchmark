@@ -160,13 +160,15 @@ def compute_positive_markers_from_reference(adata, celltype_name="cell_type_dea"
         adata: single cell anndata to compute markers from
         celltype_name: name of obs column to use for celltypes
     """
-    if "rank_genes_groups" not in adata.uns.keys():
-        # compute DE genes from sc reference
-        print("computing rank_genes_groups")
-        sc.pp.log1p(adata)
-        sc.tl.rank_genes_groups(adata, "cell_type_dea", method="wilcoxon")
+    # if "rank_genes_groups" not in adata.uns.keys():
+    #    # compute DE genes from sc reference
+    #    print("computing rank_genes_groups")
+    #    sc.pp.log1p(adata)
+    #    sc.tl.rank_genes_groups(adata, "cell_type_dea", method="wilcoxon")
     print("computing positive markers")
     # compute cell type markers as genes expressed in > 25% of cells within celltype and < 1% of remaining cells
+    # filter all nan values from cell_type_dea, otherwise aggregate fails
+    adata = adata[~adata.obs["cell_type_dea"].isna()]
     adata_agg = sc.get.aggregate(adata, by="cell_type_dea", func="count_nonzero")
 
     count_nonzero = pd.DataFrame(
@@ -189,27 +191,27 @@ def compute_positive_markers_from_reference(adata, celltype_name="cell_type_dea"
         markers[ct] = list(fraction_expressed_ct[mask].index)
 
     # filter markers to those significant from DE test
-    pval = 0.05
-    logfc = 1
+    # pval = 0.05
+    # logfc = 1
 
-    for ct in markers.keys():
-        scores = adata.uns["rank_genes_groups"]["scores"][ct]
-        genes = adata.uns["rank_genes_groups"]["names"][ct]
-        pvals = adata.uns["rank_genes_groups"]["pvals_adj"][ct]
-        logfc = adata.uns["rank_genes_groups"]["logfoldchanges"][ct]
-        df = pd.DataFrame(
-            {"scores": scores, "genes": genes, "pvals": pvals, "logfc": logfc}
-        )
-        df = df.set_index("genes")
+    # for ct in markers.keys():
+    #    scores = adata.uns["rank_genes_groups"]["scores"][ct]
+    #    genes = adata.uns["rank_genes_groups"]["names"][ct]
+    #    pvals = adata.uns["rank_genes_groups"]["pvals_adj"][ct]
+    #    logfc = adata.uns["rank_genes_groups"]["logfoldchanges"][ct]
+    #    df = pd.DataFrame(
+    #        {"scores": scores, "genes": genes, "pvals": pvals, "logfc": logfc}
+    #    )
+    #    df = df.set_index("genes")
 
-        filt = df.loc[markers[ct]]
-        mask = (np.abs(filt["logfc"]) > logfc) & (filt["pvals"] < pval)
+    #    filt = df.loc[markers[ct]]
+    #    mask = (np.abs(filt["logfc"]) > logfc) & (filt["pvals"] < pval)
 
-        if not mask.all():
-            print(f"filtering out genes for ct {ct} based on rank_genes_groups")
+    #    if not mask.all():
+    #        print(f"filtering out genes for ct {ct} based on rank_genes_groups")
 
-        # write filtered markers back to markers dict
-        markers[ct] = np.array(markers[ct])[list(mask)]
+    #    # write filtered markers back to markers dict
+    #    markers[ct] = np.array(markers[ct])[list(mask)]
 
     # filter markers to those specific to only one celltype
     all_markers = []
@@ -255,6 +257,10 @@ def get_positive_markers(vascular_subset=False, overwrite=False, base_path=BASE_
         # need to recompute markers
         print("Markers not found or overwrite set to True: computing positive markers")
         adata = read_ABCAtlas(vascular_subset=vascular_subset, base_path=base_path)
+        # subsample if read entire adata
+        if not vascular_subset:
+            print("Subsampling ABCAtlas to 10% of cells")
+            sc.pp.sample(adata, fraction=0.1)
 
         markers = compute_positive_markers_from_reference(
             adata, celltype_name="cell_type_dea"

@@ -1,6 +1,7 @@
 from .cell_type import compute_cell_type_distribution, plot_cell_type_distribution
 from .clustering import compute_clustering_scores, plot_clustering_scores
 from .f1_score import compute_f1
+from .general import extract_general_stats, plot_general_stats
 from .marker_gene_based import (
     compute_marker_F1_score,
     compute_MECR_score,
@@ -34,4 +35,6 @@ __all__ = [
     "get_negative_markers",
     "compute_negative_marker_purity",
     "get_positive_markers",
+    "extract_general_stats",
+    "plot_general_stats",
 ]
