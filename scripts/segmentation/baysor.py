@@ -77,19 +77,12 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
         pixel_size=0.108,
     )
 
+    cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(
-        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"),
-        overwrite=True,
-    )
-    run(
-        [
-            "rm",
-            "-r",
-            join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"),
-        ]
-    )
-
+    sdata.write(join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"), overwrite=True)
+    if keep_cache:
+        run(["cp", "-r", str(cache_dir), join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr", str(cache_dir).split("/")[-1])])
+    run(["rm", "-r", join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr")])
 
 if __name__ == "__main__":
     main(args.data_path, args.base_segmentation, args.confidence, args.sample, args.keep_cache)
