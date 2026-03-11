@@ -9,7 +9,7 @@ from spatialdata import read_zarr
 from spatialdata_io import merscope
 
 parser = argparse.ArgumentParser(
-    description="Compute default segmentation from merscope."
+    description="Transform default segmentation from merscope into sdata."
 )
 parser.add_argument("data_path", help="Path to data folder.")
 parser.add_argument("save_path", help="Path to output folder.")

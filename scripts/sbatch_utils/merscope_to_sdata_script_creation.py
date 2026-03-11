@@ -12,7 +12,7 @@ Path(
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merscope/{key}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merscope_to_sdata/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -21,8 +21,8 @@ for key, value in data.items():
 #SBATCH -t 12:00:00
 #SBATCH --mem=300G
 #SBATCH -J merscope_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merscope_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/merscope_{key}.err
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merscope_to_sdata_{key}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/merscope_to_sdata_{key}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
@@ -72,7 +72,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 
 mamba activate segmentation
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/merscope_sdata.py \\
+python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata.py \\
   "${{INPUT_PATH}}" \\
   "${{RESULT_DIR}}"
 """)

@@ -10,7 +10,7 @@ from spatialdata import read_zarr
 from spatialdata_io import merscope
 
 parser = argparse.ArgumentParser(
-    description="Compute segmentation based on vpt 2D pipeline."
+    description="Transform vpt 2D pipeline output to sdata."
 )
 parser.add_argument("data_path", help="Path to data folder.")
 parser.add_argument("save_path", help="Path to output folder.")
