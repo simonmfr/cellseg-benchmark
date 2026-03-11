@@ -15,7 +15,7 @@ logger.addHandler(handler)
 parser = argparse.ArgumentParser(
     description="Compute segmentation based on vpt 3D pipeline."
 )
-parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("save_path", help="Path to output folder.")
 args = parser.parse_args()
 

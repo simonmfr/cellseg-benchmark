@@ -16,7 +16,7 @@ from tifffile import imread
 parser = argparse.ArgumentParser(
     description="Compute Voronoi segmentation based on Negative Control 10um."
 )
-parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("save_path", help="Path to output folder.")
 parser.add_argument(
     "--explorer", type=bool, default=False, help="Compute explorer files."

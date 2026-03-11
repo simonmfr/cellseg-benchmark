@@ -8,7 +8,7 @@ from sopa.io import merscope
 parser = argparse.ArgumentParser(
     description="Compute segmentation based on rasterization."
 )
-parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("save_path", help="Path to output folder.")
 parser.add_argument("width", type=int, help="width of patches.")
 parser.add_argument("overlap", type=int, help="patch overlap.")

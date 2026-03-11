@@ -6,9 +6,9 @@ from pathlib import Path
 import yaml
 
 parser = argparse.ArgumentParser(
-    description="Prepare scripts for vpt pipeline. Only cell-boundary staining."
+    description="Prepare scripts for vpt pipeline. Only cell staining."
 )
-parser.add_argument("staining", help="Name of cell-boundary staining.")
+parser.add_argument("staining", help="Name of cell staining.")
 args = parser.parse_args()
 
 with open(
@@ -16,7 +16,7 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-experiment_json_path = str(Path(__file__).parents[1] / "configs" / f"{args.staining}.json")
+experiment_json_path = str(Path(__file__).parents[2] / "configs" / f"{args.staining}.json")
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple"
