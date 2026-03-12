@@ -2,7 +2,6 @@ import argparse
 from os import listdir
 from os.path import join
 from pathlib import Path
-from cellseg_benchmark._constants import BASE_PATH
 
 import yaml
 
