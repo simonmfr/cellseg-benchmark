@@ -12,7 +12,7 @@ from spatialdata_io import merscope
 parser = argparse.ArgumentParser(
     description="Compute ProSeg segmentation without any prior segmentation."
 )
-parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("sample", help="Sample name.")
 parser.add_argument(
     "base_segmentation", help="prior segmentation to use for initialisaton."

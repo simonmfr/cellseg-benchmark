@@ -8,7 +8,7 @@ from pandas import read_csv
 from spatialdata import read_zarr
 
 parser = argparse.ArgumentParser(description="Compute Cellpose nuclei segmentation.")
-parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("save_path", help="Path to output folder.")
 args = parser.parse_args()
 

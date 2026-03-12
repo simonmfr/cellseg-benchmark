@@ -1,6 +1,7 @@
 import argparse
 import os
 from os.path import join
+from pathlib import Path
 from subprocess import run
 
 import sopa
@@ -8,7 +9,7 @@ import toml
 from spatialdata import read_zarr
 
 parser = argparse.ArgumentParser(description="Compute Baysor segmentation.")
-parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument(
     "base_segmentation", help="prior segmentation to use for initialisaton."
 )
@@ -53,7 +54,7 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
 
-    path_toml = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/baysor_2D_config.toml"
+    path_toml = Path(__file__).parents[2] / "configs" / "baysor_2D_config.toml"
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence
