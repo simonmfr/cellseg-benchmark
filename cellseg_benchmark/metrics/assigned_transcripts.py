@@ -1,19 +1,19 @@
-from pathlib import Path
+import pathlib
+import functools
 import numpy as np
 import pandas as pd
-from spatialdata import read_zarr
+import spatialdata as sd
 import matplotlib.pyplot as plt
-from matplotlib import gridspec
-
-from cellseg_benchmark import BASE_PATH
-from cellseg_benchmark._constants import clean_method_names
-
+import matplotlib.gridspec as gridspec
+import matplotlib.patches as mpatches
+import cellseg_benchmark as cb
+import cellseg_benchmark._constants as _constants
 
 def compute_assigned_transcripts(
     adata,
     *,
     method: str,
-    base_path: str | Path,
+    base_path: str | pathlib.Path,
 ) -> pd.DataFrame:
     """
     Compute per-gene assigned transcript statistics by combining assigned counts from adata with total detected transcripts from transcript table.
@@ -52,7 +52,7 @@ def compute_assigned_transcripts(
 
 def _total_transcripts(
     adata,
-    base_path: str | Path,
+    base_path: str | pathlib.Path,
 ) -> pd.DataFrame:
     """
     Count total detected transcripts per gene per sample from the raw
@@ -61,7 +61,7 @@ def _total_transcripts(
     Returns:
         DataFrame with columns ["sample", "gene", "total_count"].
     """
-    base_path = Path(base_path)
+    base_path = pathlib.Path(base_path)
     samples = sorted(pd.unique(adata.obs["sample"]))
     rows = []
 
@@ -94,7 +94,7 @@ def _total_transcripts(
 def _assigned_transcripts(
     adata,
     method: str,
-    base_path: Path,
+    base_path: pathlib.Path,
     sample_col: str = "sample",
     layer: str = "counts",
     raw_table_key: str = "table",
@@ -122,7 +122,7 @@ def _assigned_transcripts(
         zarr_path = base_path / "samples" / str(sample) / "results" / method / "sdata.zarr"
         raw_counts = None
         if zarr_path.exists():
-            adata_raw = read_zarr(zarr_path)[raw_table_key]
+            adata_raw = sd.read_zarr(zarr_path)[raw_table_key]
             raw_sum = adata_raw.X.sum(axis=0)
             raw_sum = raw_sum.A1 if hasattr(raw_sum, "A1") else np.asarray(raw_sum).ravel()
 
@@ -151,9 +151,17 @@ def _assigned_transcripts(
     
     return df
 
-def plot_assigned_transcripts(cohort: str, show: bool = True):
+def plot_assigned_transcripts(cohort: str, boxplot: bool = False, show: bool = True):
+    """
+    Plot assigned transcript percentages per segmentation method.
+
+    Args:
+        cohort: Cohort name used to locate the results CSV.
+        boxplot: If True, draw boxplots; otherwise draw bars.
+        show: If True, display the figure.
+    """
     results_file = (
-        Path(BASE_PATH)
+        pathlib.Path(cb.BASE_PATH)
         / "metrics"
         / cohort
         / "assigned_transcripts"
@@ -172,7 +180,7 @@ def plot_assigned_transcripts(cohort: str, show: bool = True):
     df["pct_assigned_raw"] = df["assigned_count_raw"] / df["total_count"]
     df["pct_assigned_qced"] = df["assigned_count_qced"] / df["total_count"]
 
-    for old, new in clean_method_names.items():
+    for old, new in _constants.clean_method_names.items():
         df["method"] = df["method"].str.replace(old, new, regex=False)
 
     # bars: ratio of sums per method
@@ -193,32 +201,32 @@ def plot_assigned_transcripts(cohort: str, show: bool = True):
 
     plt.figure(figsize=(6 + 0.2 * len(order), 4))
 
-    b_raw = plt.bar(
-        x - w / 2,
-        pct_raw[order] * 100,
-        width=w,
-        color="steelblue",
-        label="All cells (pooled)",
-        zorder=1,
-    )
-    b_qc = plt.bar(
-        x[order.get_indexer(qc_avail)] + w / 2,
-        pct_qc[qc_avail] * 100,
-        width=w,
-        color="lightsteelblue",
-        label="QCed cells (pooled)",
-        zorder=1,
-    )
+    if boxplot:
+        raw_data = [df[df["method"] == m]["pct_assigned_raw"].values * 100 for m in order]
+        qc_data  = [df[df["method"] == m]["pct_assigned_qced"].values * 100 for m in order]
+        bp_kw = dict(widths=w, patch_artist=True, manage_ticks=False,
+                     medianprops=dict(color="black"), showfliers=False)
+        plt.boxplot(raw_data, positions=x - w / 2,
+                    boxprops=dict(facecolor="steelblue"), **bp_kw)
+        plt.boxplot(qc_data,  positions=x + w / 2,
+                    boxprops=dict(facecolor="lightsteelblue"), **bp_kw)
+        h_raw = mpatches.Patch(color="steelblue",      label="All cells (per sample)")
+        h_qc  = mpatches.Patch(color="lightsteelblue", label="QCed cells (per sample)")
+        plt.xlim(-0.5, len(order) - 0.5)
+    else:
+        h_raw = plt.bar(x - w / 2, pct_raw[order] * 100, width=w,
+                        color="steelblue", label="All cells (pooled)", zorder=1)
+        h_qc  = plt.bar(x[order.get_indexer(qc_avail)] + w / 2, pct_qc[qc_avail] * 100,
+                        width=w, color="lightsteelblue", label="QCed cells (pooled)", zorder=1)
 
-    # scatter: per-sample percentages
     idx = pd.Series(x, index=order)
 
     plt.scatter(
         df["method"].map(idx) - w / 2,
         df["pct_assigned_raw"] * 100,
-        s=7,
+        s=4,
         color="k",
-        alpha=0.3,
+        alpha=0.2,
         zorder=3,
     )
     plt.scatter(
@@ -243,38 +251,40 @@ def plot_assigned_transcripts(cohort: str, show: bool = True):
     plt.ylabel("Assigned Transcripts (%)")
     plt.margins(x=0.02)
     plt.tight_layout()
-    plt.legend(
-        [b_raw, b_qc, sample_h],
-        ["All cells (pooled)", "QCed cells (pooled)", "Sample"],
-    )
+    plt.legend([h_raw, h_qc, sample_h],
+               [h_raw.get_label(), h_qc.get_label(), "Sample"])
 
     out_file = plot_path / "assigned_transcripts_plot.png"
     plt.savefig(out_file, dpi=300)
     if show:
         plt.show()
 
-def plot_assigned_transcripts_heatmap(cohort: str,
-                                      method,
-                                      use_qc: bool = True,
-                                      topn: int = 5,
-                                      show: bool = True,
-                                      save: bool = True):
+def plot_assigned_transcripts_heatmap(
+    cohort: str,
+    method,
+    use_qc: bool = True,
+    topn: int = 5,
+    show: bool = True,
+    save: bool = True,
+):
     """
     Plot heatmap of per-gene assigned transcript percentages.
-    
+
+    When selecting multiple methods, genes are ranked by their mean value across all selected methods.
+
     Args:
         cohort: Cohort.
-        method: Segmentation method(s) to plot.
+        method: Segmentation method(s) to plot. Uses original method names (before cleaning).
         use_qc: If True, use QCed percentages; otherwise raw.
         topn: Number of top and bottom genes to include.
         show: If True, display the figure.
         save: If True, save the figure as a PNG in plots directory.
-    
+
     Returns:
         Path to the saved PNG if save is True, otherwise None.
     """
     results_file = (
-        Path(BASE_PATH)
+        pathlib.Path(cb.BASE_PATH)
         / "metrics"
         / cohort
         / "assigned_transcripts"
@@ -292,36 +302,38 @@ def plot_assigned_transcripts_heatmap(cohort: str,
     agg["pct_raw"] = agg["assigned_count_raw"] / agg["total_count"]
     agg["pct_qc"]  = agg["assigned_count_qced"] / agg["total_count"]
 
-    for old, new in clean_method_names.items():
-        agg["method"] = agg["method"].str.replace(old, new, regex=False)
-
     methods = [method] if isinstance(method, str) else list(method)
     colname = "pct_qc" if use_qc else "pct_raw"
 
-    vals_list, genes_list = [], []
+    # build lookup using original method names
+    lookup = {}
     display_methods = []
-
     for m in methods:
-        m_display = clean_method_names.get(m, m)
-        mdf = agg[agg["method"] == m_display].copy()
+        mdf = agg[agg["method"] == m].copy()
         if mdf.empty:
-            raise ValueError(f"No rows for method {m_display!r}")
-        mdf = mdf.sort_values(colname)
-        sel = pd.concat([mdf.head(topn), mdf.tail(topn)]).sort_values(
-            colname, ascending=False
-        )
-        genes_list.append(sel["gene"].to_numpy())
-        vals_list.append(sel[colname].to_numpy() * 100)
-        display_methods.append(m_display)
+            raise ValueError(f"No rows for method {m!r}")
+        lookup[m] = mdf.set_index("gene")[colname]
+        display_methods.append(m)
 
+    # rank genes by mean across selected methods, take exactly top/bottom N
+    gene_means = pd.Series({
+        g: np.nanmean([lookup[m].get(g, np.nan) for m in display_methods])
+        for g in agg["gene"].unique()
+    }).sort_values()
+    candidate_genes = set(gene_means.head(topn).index) | set(gene_means.tail(topn).index)
+
+    # order descending by mean
+    ordered_genes = sorted(candidate_genes, key=lambda g: gene_means[g], reverse=True)
+
+    # build matrix
     n_methods = len(display_methods)
-    max_genes = max(len(g) for g in genes_list)
+    img = np.full((len(ordered_genes), n_methods), np.nan)
+    for j, m in enumerate(display_methods):
+        for i, g in enumerate(ordered_genes):
+            v = lookup[m].get(g, np.nan)
+            img[i, j] = np.nan if np.isnan(v) else v * 100
 
-    img = np.full((max_genes, n_methods), np.nan)
-    for j, vals in enumerate(vals_list):
-        img[: len(vals), j] = vals
-
-    fig_height = 0.2 * max_genes + 0.5
+    fig_height = 0.2 * len(ordered_genes) + 0.5
     fig_width  = 0.4 * n_methods + 0.2
     fig = plt.figure(figsize=(fig_width, fig_height))
     gs = gridspec.GridSpec(1, 2, width_ratios=[5, 0.6], wspace=0.1)
@@ -332,28 +344,29 @@ def plot_assigned_transcripts_heatmap(cohort: str,
     norm = plt.Normalize(0, 100)
     im = ax.imshow(img, cmap=cmap, norm=norm, aspect="auto")
 
-    ax.set_yticks(np.arange(len(genes_list[0])))
-    ax.set_yticklabels(genes_list[0], fontsize=7)
+    ax.set_yticks(np.arange(len(ordered_genes)))
+    ax.set_yticklabels(ordered_genes, fontsize=7)
     ax.set_xticks(np.arange(n_methods))
-    ax.set_xticklabels(display_methods, fontsize=7, rotation=-45,
-                       ha="left", va="top", rotation_mode="anchor")
+    ax.set_xticklabels(
+        [functools.reduce(lambda n, kv: n.replace(*kv), _constants.clean_method_names.items(), m)
+         for m in display_methods],
+        fontsize=7, rotation=-45, ha="left", va="top", rotation_mode="anchor",
+    )
 
-    for j, vals in enumerate(vals_list):
-        for i, v in enumerate(vals):
-            ax.text(
-                j, i, f"{int(round(v))}",
-                ha="center", va="center",
-                fontsize=8,
-                color="black" if v < 60 else "white",
-            )
+    for j, m in enumerate(display_methods):
+        for i, g in enumerate(ordered_genes):
+            v = img[i, j]
+            if not np.isnan(v):
+                ax.text(j, i, f"{int(round(v))}", ha="center", va="center",
+                        fontsize=8, color="black" if v < 60 else "white")
 
     for spine in ("top", "right", "bottom", "left"):
         ax.spines[spine].set_visible(False)
 
-    cb = fig.colorbar(im, cax=cax)
-    cb.outline.set_visible(False)
-    cb.ax.set_ylabel("Assigned transcripts (%)", fontsize=7)
-    cb.ax.tick_params(labelsize=7)
+    colorbar = fig.colorbar(im, cax=cax)
+    colorbar.outline.set_visible(False)
+    colorbar.ax.set_ylabel("Assigned transcripts (%)", fontsize=7)
+    colorbar.ax.tick_params(labelsize=7)
 
     pos = cax.get_position()
     scale = 0.6
@@ -365,18 +378,13 @@ def plot_assigned_transcripts_heatmap(cohort: str,
     ])
 
     metric = "qc" if use_qc else "raw"
-    if len(display_methods) == 1:
-        mtag = display_methods[0]
-    else:
-        mtag = f"{len(display_methods)}methods"
+    mtag = (
+        functools.reduce(lambda n, kv: n.replace(*kv), _constants.clean_method_names.items(), display_methods[0])
+        if len(display_methods) == 1 else f"{n_methods}methods"
+    )
     out_file = plot_path / f"gene_pct_assigned_heatmap_{mtag}_{metric}.png"
     if save:
-        fig.savefig(
-            out_file,
-            dpi=300,
-            bbox_inches="tight",
-            pad_inches=0.05,
-        )
+        fig.savefig(out_file, dpi=300, bbox_inches="tight", pad_inches=0.05)
     if show:
         plt.show()
     plt.close(fig)
