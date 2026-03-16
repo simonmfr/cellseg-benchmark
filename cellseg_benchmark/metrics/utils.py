@@ -1,4 +1,7 @@
+import math
 import os
+import re
+import subprocess
 from pathlib import Path
 
 import pandas as pd
@@ -198,3 +201,131 @@ def compute_metric(
         results_df = pd.concat([results_df, results], ignore_index=True)
     # save results
     results_df.to_csv(results_name)
+
+
+def chunked(lst, n=200):
+    for i in range(0, len(lst), n):
+        yield lst[i:i+n]
+
+def normalize_jobname(jobname: str) -> str:
+    if not isinstance(jobname, str):
+        return ""
+    # fix historic typo: vtp -> vpt
+    return re.sub(r"^vtp", "vpt", jobname)
+
+def parse_slurm_mem_to_gb(x: str) -> float:
+    # sacct MaxRSS often: 1234K / 512M / 10G / 1T / 0 / ''
+    if x is None:
+        return math.nan
+    s = str(x).strip()
+    if s in ("", "Unknown", "None", "NA", "nan"):
+        return math.nan
+    if s == "0":
+        return 0.0
+    m = re.match(r"^([0-9]*\.?[0-9]+)([KMGTP]?)$", s)
+    if not m:
+        return math.nan
+    val = float(m.group(1))
+    unit = m.group(2)
+    mult = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3, "T": 1024**4, "P": 1024**5}[unit]
+    return (val * mult) / (1024**3)
+
+def run_sacct(jobids):
+    # Include ExitCode to filter success
+    fmt = "JobIDRaw,State,ExitCode,ElapsedRaw,AllocCPUS,MaxRSS,JobName"
+    cmd = ["sacct", "-X", "-P", "-n", "-j", ",".join(jobids), "--format", fmt]
+    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if res.returncode != 0:
+        raise RuntimeError(f"sacct failed:\nSTDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}")
+
+    rows = []
+    cols = fmt.split(",")
+    for line in res.stdout.splitlines():
+        if not line.strip():
+            continue
+        parts = line.split("|")
+        if len(parts) != len(cols):
+            continue
+        rows.append(dict(zip(cols, parts)))
+    return pd.DataFrame(rows)
+
+def method_with_flavor_from_row(jobname: str, key: str) -> str:
+    """
+    Create a single canonical string like:
+      Baysor_CP1_DAPI_PolyT_0.8
+      vpt2D_DAPI_PolyT
+      Proseg_3D_vpt2_XYZ_vxl_3
+      Proseg_3D_CP2_DAPI_PolyT_vxl_3
+    """
+    j = normalize_jobname(jobname)
+    k = str(key)
+
+    # --- Baysor_{key}_CP{cp}_{stain}_{conf} -> Baysor_CP{cp}_DAPI_{stain}_{conf}
+    prefix = f"Baysor_{k}_"
+    if j.startswith(prefix):
+        rest = j[len(prefix):]  # CP1_PolyT_0.8
+        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)_(?P<conf>.+)$", rest)
+        if m:
+            return f"Baysor_CP{m.group('cp')}_DAPI_{m.group('stain')}_{m.group('conf')}"
+        return f"Baysor_{rest}"
+
+    # --- vpt2D / vpt3D: vpt2D_{key}_{stain...} -> vpt2D_{stain...}
+    for dim in ("2D", "3D"):
+        prefix = f"vpt{dim}_{k}_"
+        if j.startswith(prefix):
+            rest = j[len(prefix):]  # DAPI_PolyT  OR  PolyT
+            return f"vpt{dim}_{rest}"
+        # sometimes only vpt2D_{key} (rare)
+        if j == f"vpt{dim}_{k}":
+            return f"vpt{dim}"
+
+    # --- Proseg_3D vpt: Proseg_3D_{key}_vpt{dim}_{flavor}_vxl_{voxel}
+    prefix = f"Proseg_3D_{k}_"
+    if j.startswith(prefix) and "_vpt" in j:
+        rest = j[len(prefix):]  # vpt2_flavor_vxl_...
+        return f"Proseg_3D_{rest}"
+
+    # --- Proseg_3D CP: Proseg_3D_{key}_CP{cp}_{stain}_vxl_{voxel} -> Proseg_3D_CP{cp}_DAPI_{stain}_vxl_{voxel}
+    if j.startswith(prefix) and "_CP" in j:
+        rest = j[len(prefix):]  # CP2_PolyT_vxl_3
+        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)_vxl_(?P<voxel>.+)$", rest)
+        if m:
+            return f"Proseg_3D_CP{m.group('cp')}_DAPI_{m.group('stain')}_vxl_{m.group('voxel')}"
+        return f"Proseg_3D_{rest}"
+
+    # --- Proseg (2D) CP: Proseg_{key}_CP{cp}_{stain}_vxl_{voxel}
+    prefix = f"Proseg_{k}_"
+    if j.startswith(prefix) and "_CP" in j:
+        rest = j[len(prefix):]  # CP2_PolyT_vxl_3
+        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)_vxl_(?P<voxel>.+)$", rest)
+        if m:
+            return f"Proseg_CP{m.group('cp')}_DAPI_{m.group('stain')}_vxl_{m.group('voxel')}"
+        return f"Proseg_{rest}"
+
+    # --- Cellpose jobs: CP1_{key}_{stain} / CP2_{key}_{stain}
+    prefix = f"CP1_{k}_"
+    if j.startswith(prefix):
+        stain = j[len(prefix):]
+        return f"Cellpose_1_DAPI_{stain}"
+    prefix = f"CP2_{k}_"
+    if j.startswith(prefix):
+        stain = j[len(prefix):]
+        return f"Cellpose_2_DAPI_{stain}"
+
+    # --- Simple methods (no extra flavor in jobname beyond key)
+    simple = {
+        f"voronoi_{k}": "voronoi",
+        f"nuclei_{k}": "nuclei",
+        f"merscope_{k}": "merscope_sdata",
+        f"transcript_tif_{k}": "transcript_tif",
+    }
+    if j in simple:
+        return simple[j]
+
+    # --- rastered{width}_{key} -> rastered{width}
+    m = re.match(rf"^rastered(?P<width>\d+)_({re.escape(k)})$", j)
+    if m:
+        return f"rastered{m.group('width')}"
+
+    # fallback: keep normalized jobname (still useful)
+    return j
