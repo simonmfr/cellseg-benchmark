@@ -5,6 +5,7 @@ from os.path import join
 from pathlib import Path
 
 from geopandas import read_parquet
+from sopa.aggregation import aggregate_channels
 from spatialdata.models import ShapesModel
 from spatialdata_io import merscope
 
@@ -31,7 +32,7 @@ logger.info("Loading data..")
 sdata = merscope(
     args.data_path,
     transcripts=False,
-    mosaic_images=False,
+    mosaic_images=True,
     cells_boundaries=False,
     vpt_outputs={
         "cell_by_gene": Path(
@@ -43,8 +44,7 @@ sdata = merscope(
         "cell_boundaries": Path(
             join(args.save_path, "analysis_outputs", "cellpose2_micron_space.parquet")
         ),
-    },
-    z_layers=[0, 1, 2, 3, 4, 5, 6],
+    }
 )
 sdata["table"].obs.rename(columns={"EntityID": "cell_id"}, inplace=True)
 boundaries = read_parquet(
@@ -54,7 +54,11 @@ boundaries = read_parquet(
 boundaries.rename_geometry("geometry", inplace=True)
 boundaries.rename(columns={"EntityID": "cell_id"}, inplace=True)
 boundaries.index = boundaries["cell_id"]
+boundaries_2 = boundaries.copy()
+boundaries_2 = boundaries_2[["cell_id", "Geometry"]]
+boundaries_2.dissolve(by="cell_id", inplace=True)
 sdata["boundaries_vpt_3D"] = ShapesModel.parse(boundaries)
+sdata["boundaries_vpt_2D"] = ShapesModel.parse(boundaries_2)
 sdata["table"].uns["spatialdata_attrs"]["instance_key"] = "cell_id"
 sdata["table"].uns["spatialdata_attrs"]["region"] = "boundaries_vpt_3D"
 sdata["table"].obs[sdata["table"].uns["spatialdata_attrs"]["region_key"]] = (
@@ -65,6 +69,10 @@ sdata["table"].obs[sdata["table"].uns["spatialdata_attrs"]["region_key"]] = (
     .obs[sdata["table"].uns["spatialdata_attrs"]["region_key"]]
     .astype("category")
 )
+
+sdata["table"].obsm['intensities'] = aggregate_channels(sdata, shapes_key="boundaries_vpt_2D")
+
+del sdata["images"][list(sdata.shapes.keys())]
 
 logger.info("Saving data...")
 sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)
