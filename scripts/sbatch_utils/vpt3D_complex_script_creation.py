@@ -15,7 +15,7 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-experiment_json_path = str(Path(__file__).parents[2] / "configs" / f"{args.staining1}_{args.staining2}_3D.json")
+experiment_json_path = str(Path(__file__).parents[2] / "configs" / f"vpt_3D_{args.staining1}_{args.staining2}.json")
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_3D_complex"
@@ -37,7 +37,7 @@ for key, value in data.items():
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=40
-#SBATCH -J vtp3D_{key}_{args.staining1}_{args.staining2}
+#SBATCH -J vpt3D_{key}_{args.staining1}_{args.staining2}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt3D_{key}_{args.staining1}_{args.staining2}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt3D_{key}_{args.staining1}_{args.staining2}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/vpt.sqsh"

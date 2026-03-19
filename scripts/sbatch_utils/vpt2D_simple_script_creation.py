@@ -16,7 +16,7 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-experiment_json_path = str(Path(__file__).parents[2] / "configs" / f"{args.staining}.json")
+experiment_json_path = str(Path(__file__).parents[2] / "configs" / f"vpt_2D_{args.staining}.json")
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_2D_simple"
@@ -32,12 +32,12 @@ for key, value in data.items():
     )
     f.write(f"""#!/bin/bash
 #SBATCH -p lrz-hgx-a100-80x4
-#SBATCH -t 12:00:00
+#SBATCH -t 1-12:00:00
 #SBATCH --mem=600G
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=40
-#SBATCH -J vtp2D_{key}_{args.staining}
+#SBATCH -J vpt2D_{key}_{args.staining}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt2D_{key}_{args.staining}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt2D_{key}_{args.staining}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/vpt.sqsh"
