@@ -4,8 +4,10 @@ from os import listdir
 from os.path import join
 from pathlib import Path
 
+import pandas as pd
 from geopandas import read_parquet
 from sopa.aggregation import aggregate_channels
+from sopa.utils import validated_channel_names, get_spatial_image
 from spatialdata.models import ShapesModel
 from spatialdata_io import merscope
 
@@ -53,10 +55,14 @@ boundaries = read_parquet(
 )
 boundaries.rename_geometry("geometry", inplace=True)
 boundaries.rename(columns={"EntityID": "cell_id"}, inplace=True)
-boundaries.index = boundaries["cell_id"]
+boundaries.set_index("cell_id", drop=False, inplace=True)
+boundaries.index = boundaries.index.rename(None)
+
 boundaries_2 = boundaries.copy()
 boundaries_2 = boundaries_2[["cell_id", "Geometry"]]
 boundaries_2.dissolve(by="cell_id", inplace=True)
+boundaries_2.index = boundaries_2.index.rename(None)
+
 sdata["boundaries_vpt_3D"] = ShapesModel.parse(boundaries)
 sdata["boundaries_vpt_2D"] = ShapesModel.parse(boundaries_2)
 sdata["table"].uns["spatialdata_attrs"]["instance_key"] = "cell_id"
@@ -70,9 +76,17 @@ sdata["table"].obs[sdata["table"].uns["spatialdata_attrs"]["region_key"]] = (
     .astype("category")
 )
 
-sdata["table"].obsm['intensities'] = aggregate_channels(sdata, shapes_key="boundaries_vpt_2D")
+sdata["table"].obsm['intensities'] = pd.DataFrame(
+    aggregate_channels(sdata, shapes_key="boundaries_vpt_2D"),
+    columns=validated_channel_names(
+        get_spatial_image(sdata, list(sdata.images.keys())[0], return_key=True)[1]
+    ),
+    index=sdata["boundaries_vpt_2D"].index
+)
 
-del sdata["images"][list(sdata.shapes.keys())]
+for i in list(sdata.shapes.keys()):
+    del sdata[i]
+del sdata["boundaries_vpt_2D"]
 
 logger.info("Saving data...")
 sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)

@@ -4,9 +4,11 @@ from os.path import join
 from pathlib import Path
 from subprocess import run
 
+import pandas as pd
 from pandas import read_csv
 from sopa.aggregation import aggregate_channels
 from sopa.io.explorer import write
+from sopa.utils import validated_channel_names, get_spatial_image
 from spatialdata import read_zarr
 from spatialdata_io import merscope
 
@@ -49,19 +51,17 @@ translation = read_csv(
 )
 boundaries = sdata[shapes_key]
 boundaries.rename(columns={"EntityID": "cell_id"}, inplace=True)
-boundaries.index = boundaries["cell_id"]
+boundaries.set_index("cell_id", drop=False, inplace=True)
+boundaries.index = boundaries.index.rename(None)
 
 sdata["table"].uns["spatialdata_attrs"]["instance_key"] = "cell_id"
-
-table_ids = sdata["table"].obs["cell_id"].astype(str)
-boundary_ids = boundaries.index.astype(str)
-assert len(table_ids) == len(boundary_ids), "Number of table and boundary ids do not match."
-
-if not (table_ids.values == boundary_ids.values).all():
-    boundaries = boundaries.loc[table_ids]
-    sdata[shapes_key] = boundaries
-
-sdata["table"].obsm['intensities'] = aggregate_channels(sdata, shapes_key=shapes_key)
+sdata["table"].obsm['intensities'] = pd.DataFrame(
+    aggregate_channels(sdata, shapes_key=shapes_key),
+    columns=validated_channel_names(
+        get_spatial_image(sdata, list(sdata.images.keys())[0], return_key=True)[1]
+    ),
+    index=sdata[shapes_key].index
+)
 
 sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)
 sdata = read_zarr(join(args.save_path, "sdata.zarr"))
