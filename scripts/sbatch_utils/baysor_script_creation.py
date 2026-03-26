@@ -28,9 +28,7 @@ for key, value in data.items():
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 1-00:00:00
-#SBATCH --mem=300G
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=25
+#SBATCH --mem=75G
 #SBATCH -J Baysor_{key}_CP1_{args.staining}_{args.confidence}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP1_{args.staining}_{args.confidence}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP1_{args.staining}_{args.confidence}.err
@@ -101,9 +99,7 @@ python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 1-00:00:00
-#SBATCH --mem=300G
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=25
+#SBATCH --mem=75G
 #SBATCH -J Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.err
