@@ -157,9 +157,6 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_no_overlap.py \
-  "${{INPUT_PATH}}" \
-  "${{ZARR_DIR}}" \
-  "${{RESULT_DIR}}"
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_no_overlap.py "${{INPUT_PATH}}" "${{ZARR_DIR}}" "${{RESULT_DIR}}"
 """)
         f.close()
