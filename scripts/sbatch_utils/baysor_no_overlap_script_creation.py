@@ -86,7 +86,7 @@ mamba activate segmentation
 mkdir -p "${{RESULT_DIR}}"
 python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_no_overlap.py \
   "${{INPUT_PATH}}" \
-  "${{ZARR_DIR}} \
+  "${{ZARR_DIR}}" \
   "${{RESULT_DIR}}"
 """)
         f.close()
