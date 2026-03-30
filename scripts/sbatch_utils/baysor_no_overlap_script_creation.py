@@ -29,8 +29,6 @@ for key, value in data.items():
 #SBATCH --qos=cpu
 #SBATCH -t 1-00:00:00
 #SBATCH --mem=300G
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=25
 #SBATCH -J Baysor_no_overlap_{key}_CP1_{args.staining}_{args.confidence}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_no_overlap_{key}_CP1_{args.staining}_{args.confidence}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_no_overlap_{key}_CP1_{args.staining}_{args.confidence}.err
