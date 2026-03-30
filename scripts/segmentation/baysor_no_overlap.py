@@ -27,6 +27,7 @@ def main(data_path, zarr_path, save_path):
     sdata.attrs["transcripts_dataframe"] = sdata_tmp.attrs["transcripts_dataframe"]
     del sdata_tmp
 
+    del sdata['table'] #otherwise transcript counts are not counted again
     boundaries = sdata['baysor_boundaries'].copy()
     boundaries = sopa.shapes.remove_overlap(boundaries) #Very slow
 
@@ -48,16 +49,15 @@ def main(data_path, zarr_path, save_path):
             sep=" ",
             header=None,
         )
-    if args.explorer:
-        sopa.explorer.write(
-            Path(save_path) / "sdata.explorer",
-            sdata,
-            gene_column="gene",
-            ram_threshold_gb=4,
-            pixel_size=1 / translation.iloc[0, 0],
-        )
-    run(["rm", "-r", join(args.save_path, "sdata.zarr", "images")])
-    run(["rm", "-r", join(args.save_path, "sdata.zarr", "points")])
+    sopa.explorer.write(
+        Path(save_path) / "sdata.explorer",
+        sdata,
+        gene_column="gene",
+        ram_threshold_gb=4,
+        pixel_size=1 / translation.iloc[0, 0],
+    )
+    run(["rm", "-r", join(save_path, "sdata.zarr", "images")])
+    run(["rm", "-r", join(save_path, "sdata.zarr", "points")])
 
 if __name__ == "__main__":
     main(args.data_path, args.zarr_path, args.save_path)
