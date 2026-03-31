@@ -7,6 +7,13 @@ import seaborn as sns
 
 from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark._constants import method_colors
+from cellseg_benchmark.metrics.utils import (
+    chunked,
+    normalize_jobname,
+    parse_slurm_mem_to_gb,
+    run_sacct,
+    method_with_flavor_from_row
+)
 
 
 def _extract_stats(df, columns, celltype_name="cell_type_revised"):
@@ -126,3 +133,67 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
         plot_path / f"general_stats_{metric}_{celltype}.png", bbox_inches="tight"
     )
     plt.close(fig)
+
+
+def extract_mem_and_time(adata, ref_file_path, method):
+    df = pd.read_csv(ref_file_path, sep="\t")
+    df["jobid"] = df["jobid"].astype(str)
+    df["jobname"] = df["jobname"].astype(str)
+    df["jobname_norm"] = df["jobname"].apply(normalize_jobname)
+    df["sample"] = df["key"].astype(str)
+
+    df["method_with_flavor"] = df.apply(
+        lambda r: method_with_flavor_from_row(r["jobname_norm"], r["sample"]),
+        axis=1
+    )
+    df = df[df["method_with_flavor"] == method].copy()
+    if df.empty:
+        raise LookupError(f"Method {method} not found in job file or not yet recorded.")
+
+    # method_with_flavor column
+    df["method_with_flavor"] = df.apply(lambda r: method_with_flavor_from_row(r["jobname_norm"], r["sample"]), axis=1)
+
+    # ---------- sacct enrichment ----------
+    jobids = sorted(df["jobid"].dropna().unique().tolist())
+    sacct_frames = []
+    for ch in chunked(jobids, 200):
+        sacct_frames.append(run_sacct(ch))
+    sacct = pd.concat(sacct_frames, ignore_index=True)
+
+    # normalize jobid base (strip steps: 12345.batch -> 12345)
+    sacct["jobid_base"] = sacct["JobIDRaw"].astype(str).str.split(".").str[0]
+
+    # parse metrics
+    sacct["Elapsed_s"] = pd.to_numeric(sacct["ElapsedRaw"], errors="coerce")
+    sacct["AllocCPUS_n"] = pd.to_numeric(sacct["AllocCPUS"], errors="coerce")
+    sacct["MaxRSS_GB"] = sacct["MaxRSS"].apply(parse_slurm_mem_to_gb)
+
+    # prefer MaxRSS from .batch if available, but keep elapsed/cpus from max over steps
+    is_batch = sacct["JobIDRaw"].astype(str).str.endswith(".batch")
+
+    agg_all = sacct.groupby("jobid_base", as_index=False).agg(
+        sacct_state=("State", "first"),
+        sacct_exitcode=("ExitCode", "first"),
+        elapsed_s=("Elapsed_s", "max"),
+        alloccpus=("AllocCPUS_n", "max"),
+    )
+
+    agg_batch = sacct[is_batch].groupby("jobid_base", as_index=False).agg(
+        maxrss_gb=("MaxRSS_GB", "max"),
+    )
+
+    agg = agg_all.merge(agg_batch, on="jobid_base", how="left")
+
+    df = df.merge(agg, left_on="jobid", right_on="jobid_base", how="left").drop(columns=["jobid_base"])
+
+    # ---------- keep only successful segmentations ----------
+    # success: sacct says COMPLETED + ExitCode 0:0 (and optionally your script rc == 0 if present)
+    ok = (df["sacct_state"] == "COMPLETED") & (df["sacct_exitcode"] == "0:0")
+    if "rc" in df.columns:
+        ok = ok & (pd.to_numeric(df["rc"], errors="coerce") == 0)
+
+    df_ok = df.loc[ok].copy()
+    df_ok["elapsed_h"] = df_ok["elapsed_s"] / 3600.0
+    out = df_ok[["sample", "method_with_flavor", "maxrss_gb", "elapsed_h", "alloccpus"]].copy()
+    out = out.reset_index().set_index(["sample"])
+    return out

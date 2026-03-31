@@ -236,8 +236,8 @@ for s in adata.obs["sample"].unique():
         library_id="spatial",
         figsize=(7, 7),
         wspace=0.25,
-        save=f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/misc/banksy_tests/{args.cohort}/banksy_align_{s}_1.png",
+        save=f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/banksy_tests/{args.cohort}/banksy_align_{s}_1.png",
     )
 adata.write(
-    f"/dss/dsshome1/00/ra87rib/cellseg-benchmark/analysis/{args.cohort}/{args.seg_method}/adatas/spatial_reg_adata.h5ad"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/analysis/{args.cohort}/{args.seg_method}/adatas/spatial_reg_adata.h5ad"
 )

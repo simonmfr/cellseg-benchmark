@@ -1,6 +1,7 @@
 import argparse
 import os
 from os.path import join
+from pathlib import Path
 from subprocess import run
 
 import sopa
@@ -8,16 +9,17 @@ import toml
 from spatialdata import read_zarr
 
 parser = argparse.ArgumentParser(description="Compute Baysor segmentation.")
-parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument(
     "base_segmentation", help="prior segmentation to use for initialisaton."
 )
 parser.add_argument("confidence", type=float, help="confidence of prior segmentation.")
 parser.add_argument("sample", help="sample name.")
+parser.add_argument("--keep_cache", action="store_true")
 args = parser.parse_args()
 
 
-def main(data_path, base_segmentation, confidence, sample):
+def main(data_path, base_segmentation, confidence, sample, keep_cache):
     """Baysor algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)
     path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
@@ -52,11 +54,11 @@ def main(data_path, base_segmentation, confidence, sample):
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
 
-    path_toml = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/baysor_2D_config.toml"
+    path_toml = Path(__file__).parents[2] / "configs" / "baysor_2D_config.toml"
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence
-    sopa.segmentation.baysor(sdata, config=config, delete_cache=True, force=True)
+    sopa.segmentation.baysor(sdata, config=config, delete_cache=not keep_cache, force=True)
 
     sopa.aggregate(
         sdata,
@@ -76,19 +78,12 @@ def main(data_path, base_segmentation, confidence, sample):
         pixel_size=0.108,
     )
 
+    cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(
-        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"),
-        overwrite=True,
-    )
-    run(
-        [
-            "rm",
-            "-r",
-            join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"),
-        ]
-    )
-
+    sdata.write(join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"), overwrite=True)
+    if keep_cache:
+        run(["cp", "-r", str(cache_dir), join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr", str(cache_dir).split("/")[-1])])
+    run(["rm", "-r", join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr")])
 
 if __name__ == "__main__":
-    main(args.data_path, args.base_segmentation, args.confidence, args.sample)
+    main(args.data_path, args.base_segmentation, args.confidence, args.sample, args.keep_cache)

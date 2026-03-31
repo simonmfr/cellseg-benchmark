@@ -17,7 +17,7 @@ import spatialdata as sd
 import spatialdata_io
 from joblib import Parallel, delayed
 from scipy.spatial import ConvexHull
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, Point
 from shapely.ops import unary_union
 from spatialdata.models import ShapesModel
 from spatialdata.transformations import (
@@ -1267,3 +1267,49 @@ def _compute_3d_metrics(
     except Exception as e:
         warnings.warn(f"Failed to compute 3D metrics: {str(e)}")
         return {}
+
+def add_visium_boundaries(
+    sdata,
+    out_name: str,
+    points_key: str,
+    x_col: str = "x",
+    y_col: str = "y",
+    ccd_um: float = 100.0,
+    diameter_um: float = 55.0,
+    circle_resolution: int = 16,
+):
+    pts = sdata.points[points_key]
+
+    xy = pts[[x_col, y_col]]
+    if hasattr(xy, "compute"):
+        xy = xy.compute()
+
+    xmin = float(xy[x_col].min())
+    xmax = float(xy[x_col].max())
+    ymin = float(xy[y_col].min())
+    ymax = float(xy[y_col].max())
+
+    r = diameter_um / 2.0
+    xmin, ymin, xmax, ymax = (
+        xmin - r,
+        ymin - r,
+        xmax + r,
+        ymax + r,
+    )
+
+    dx = ccd_um
+    dy = ccd_um * np.sqrt(3) / 2.0
+    ys = np.arange(ymin, ymax + dy, dy)
+
+    geoms, ids = [], []
+    for i, yy in enumerate(ys):
+        x0 = xmin + (dx / 2.0 if i % 2 else 0.0)
+        xs = np.arange(x0, xmax + dx, dx)
+        geoms.extend(Point(xx, yy).buffer(r, resolution=circle_resolution) for xx in xs)
+        ids.extend(f"visium_{i}_{j}" for j in range(xs.size))
+
+    gdf = gpd.GeoDataFrame({"spot_id": ids}, geometry=geoms).set_index("spot_id")
+
+    transforms = {cs: get_transformation(pts, cs) for cs in sdata.coordinate_systems}
+    sdata.shapes[out_name] = ShapesModel.parse(gdf, transformations=transforms)
+    return sdata

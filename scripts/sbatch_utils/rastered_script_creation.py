@@ -4,11 +4,14 @@ from pathlib import Path
 import yaml
 
 parser = argparse.ArgumentParser(
-    description="Prepare scripts for ProSeg with prior segmentation."
+    description="Prepare scripts for square segmentations."
 )
-parser.add_argument("vpt_flavor", choices=["nuclei", "PolyT", "PolyT_nuclei"], help="vpt flavor.")
-parser.add_argument("vpt_dim", choices=["2D", "3D"], help="vpt dimension.")
-parser.add_argument("--voxel", default=1, type=int, help="number of z-layers.")
+parser.add_argument("width", type=int, help="patch width.")
+parser.add_argument("unit", choices=["pixel", "microns"], help="unit of measure.")
+parser.add_argument("overlap", type=int, help="patch overlap.")
+parser.add_argument(
+    "-ir", "--intens_rat", default=0.1, type=float, help="intensity ratio."
+)
 args = parser.parse_args()
 
 with open(
@@ -17,23 +20,21 @@ with open(
     data = yaml.safe_load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_rastered_{args.width}{args.unit}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}/{key}_{args.voxel}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_rastered_{args.width}{args.unit}/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 18:00:00
-#SBATCH --mem=300G
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=30
-#SBATCH -J Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}.err
+#SBATCH -t 08:00:00
+#SBATCH --mem=128G
+#SBATCH -J rastered{args.width}_{key}
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/rastered{args.width}_{key}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/rastered{args.width}_{key}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
@@ -53,16 +54,16 @@ START_ISO="$(date -Is)"
 START_EPOCH="$(date +%s)"
 
 KEY="{key}"
-VPT_DIM="{args.vpt_dim}"
-VPT_FLAVOR="{args.vpt_flavor}"
-VOXEL="{args.voxel}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}"
+WIDTH="{args.width}"
+OVERLAP="{args.overlap}"
+UNIT="{args.unit}"
+INTENS_RAT="{args.intens_rat}"
 
-MODEL_NAME="vpt_${{VPT_DIM}}_DAPI_${{VPT_FLAVOR}}"
+RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Rastered_{args.width}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D_vpt_3D.py \\"${{INPUT_PATH}}\\" ${{KEY}} ${{MODEL_NAME}} --voxel-layers ${{VOXEL}} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
+CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/rastered_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\" ${{WIDTH}} ${{OVERLAP}} ${{UNIT}} ${{INTENS_RAT}}"
 
 write_log() {{
   local rc="$1"
@@ -74,7 +75,7 @@ write_log() {{
     if [ ! -f "${{RUN_LOG}}" ]; then
       printf "start_iso\tend_iso\telapsed_s\trc\tjobid\tjobname\tkey\tcp_version\tstaining\tconfidence\tinput_path\tresult_dir\thost\tnodelist\tsubmit_dir\tcmd\n" >> "${{RUN_LOG}}"
     fi
-    # not a Cellpose run -> cp_version/staining/confidence as NA; model info is in cmd/result_dir
+    # not a Cellpose/Proseg confidence-style run -> NA
     printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
       "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \
       "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "NA" "NA" "NA" \
@@ -86,12 +87,11 @@ write_log() {{
 trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_epoch-START_EPOCH)); write_log "$rc" "$end_iso" "$elapsed_s"' EXIT
 
 mamba activate segmentation
+
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D_vpt_3D.py \\
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/rastered_segmentation.py \\
   "${{INPUT_PATH}}" \\
-  "${{KEY}}" \\
-  "${{MODEL_NAME}}" \\
-  --voxel-layers "${{VOXEL}}" \\
-  --output-cell-polygon-layers cell-polygons-layers.geojson.gz
+  "${{RESULT_DIR}}" \\
+  "${{WIDTH}}" "${{OVERLAP}}" "${{UNIT}}" "${{INTENS_RAT}}"
 """)
     f.close()

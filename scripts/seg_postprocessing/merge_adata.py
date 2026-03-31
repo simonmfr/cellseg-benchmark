@@ -73,9 +73,10 @@ if (
     args.cohort == "htra1"
 ):  # add 6/18m WT samples from aging cohort as additional controls
     yaml_samples += [
-        "aging_s1_r0",
+        "aging_s1_r1",
         "aging_s5_r1",
         "aging_s6_r0",
+        "aging_s7_r1",
         "aging_s7_r2",
         "aging_s8_r2",
         "aging_s11_r0",

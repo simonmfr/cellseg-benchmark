@@ -1,28 +1,26 @@
 from pathlib import Path
-
 import yaml
 
-with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
-) as f:
+YAML = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+SBATCH_DIR = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_visium"
+OUT_DIR = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{k}/results/Negative_Control_Visium"
+
+with open(YAML) as f:
     data = yaml.safe_load(f)
 
-Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_voronoi"
-).mkdir(parents=False, exist_ok=True)
-for key, value in data.items():
-    f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_voronoi/{key}.sbatch",
-        "w",
-    )
-    f.write(f"""#!/bin/bash
+Path(SBATCH_DIR).mkdir(exist_ok=True)
+
+for k, v in data.items():
+    out = OUT_DIR.format(k=k)
+
+    text = f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 10:00:00
 #SBATCH --mem=128G
-#SBATCH -J voronoi_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/voronoi_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/voronoi_{key}.err
+#SBATCH -J voronoi_{k}
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/voronoi_{k}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/voronoi_{k}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
@@ -41,10 +39,9 @@ HOST="$(hostname -f 2>/dev/null || hostname)"
 START_ISO="$(date -Is)"
 START_EPOCH="$(date +%s)"
 
-KEY="{key}"
-INPUT_PATH="{value["path"]}"
-
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Voronoi"
+KEY="{k}"
+INPUT_PATH="{v["path"]}"
+RESULT_DIR="{out}"
 
 CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\""
 
@@ -58,6 +55,7 @@ write_log() {{
     if [ ! -f "${{RUN_LOG}}" ]; then
       printf "start_iso\tend_iso\telapsed_s\trc\tjobid\tjobname\tkey\tcp_version\tstaining\tconfidence\tinput_path\tresult_dir\thost\tnodelist\tsubmit_dir\tcmd\n" >> "${{RUN_LOG}}"
     fi
+    # not a Cellpose/Proseg confidence-style run -> NA
     printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
       "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \
       "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "NA" "NA" "NA" \
@@ -74,5 +72,6 @@ mkdir -p "${{RESULT_DIR}}"
 python ~/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\
   "${{INPUT_PATH}}" \\
   "${{RESULT_DIR}}"
-""")
-    f.close()
+"""
+
+    Path(SBATCH_DIR, f"{k}.sbatch").write_text(text)

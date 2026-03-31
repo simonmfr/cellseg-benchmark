@@ -143,21 +143,6 @@ def create_factor_level_image(
         )
     filtered_data = pd.concat(filtered_data, axis=0)
 
-    #    K2_ind = data["K2"] == factor
-    #    K2 = data[K2_ind]
-    #    K2["probability"] = K2["P2"].copy()
-
-    #    K3_ind = data["K3"] == factor
-    #    K3 = data[K3_ind]
-    #    K3["probability"] = K3["P3"].copy()
-
-    #    filtered_data = pd.concat([K1, K2, K3], axis=0)[
-    #        ["Y_pixel", "X_pixel", "probability"]
-    #    ]
-    #    del K1, K2, K3
-    #    filtered_data = K1[["Y_pixel", "X_pixel", "probability"]]
-    #    del K1
-
     bins_y = np.linspace(0, DAPI_shape[1], num=DAPI_shape[1] + 1)
     bins_x = np.linspace(0, DAPI_shape[0], num=DAPI_shape[0] + 1)
     image, _, _ = np.histogram2d(
