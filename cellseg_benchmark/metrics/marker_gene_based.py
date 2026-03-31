@@ -9,7 +9,11 @@ import seaborn as sns
 from scipy import sparse
 
 from cellseg_benchmark import BASE_PATH
-from cellseg_benchmark._constants import cell_type_colors, method_colors
+from cellseg_benchmark._constants import (
+    cell_type_colors,
+    merged_celltypes,
+    method_colors,
+)
 from cellseg_benchmark.metrics.utils import read_ABCAtlas, read_adata
 
 # --- Functions to compute marker genes ---
@@ -141,7 +145,9 @@ def get_negative_markers(
     return neg_marker_mask, ratio_celltype
 
 
-def compute_positive_markers_from_reference(adata, celltype_name="cell_type_dea"):
+def compute_positive_markers_from_reference(
+    adata, celltype_name="cell_type_dea", expr_ct=0.25, expr_rest=0.02
+):
     """Compute positive markers.
 
     Implementation according to https://elifesciences.org/reviewed-preprints/96949v1#s6:
@@ -156,9 +162,16 @@ def compute_positive_markers_from_reference(adata, celltype_name="cell_type_dea"
     In addition p-values from the rank-sum test are overinflated.
     Keeping this behaviour here though, to be consistent with the original implementation.
 
+    NOTE: Initially considered to also compute markers for vascular subset only,
+    but this lead to very few markers for the vascular cells selected,
+    as the are relatively similar, meaning that there are fewer cells not expressing a candidate marker.
+    Decided to only compute markers for entire ABCAtlas, and filter celltypes afterwards if necessary.
+
     Args:
         adata: single cell anndata to compute markers from
         celltype_name: name of obs column to use for celltypes
+        expr_ct: minimum fraction of cells in celltype expressing candidate marker gene
+        expr_rest: maximum fraction of remaining cells (outside of celltype) expressing candidate marker gene
     """
     # if "rank_genes_groups" not in adata.uns.keys():
     #    # compute DE genes from sc reference
@@ -166,17 +179,38 @@ def compute_positive_markers_from_reference(adata, celltype_name="cell_type_dea"
     #    sc.pp.log1p(adata)
     #    sc.tl.rank_genes_groups(adata, "cell_type_dea", method="wilcoxon")
     print("computing positive markers")
-    # compute cell type markers as genes expressed in > 25% of cells within celltype and < 1% of remaining cells
+    # filter celltypes
+    ct_exclude = [
+        "Astroependymal",
+        "Bergmann",
+        "Choroid-Plexus",
+        "Immune-Other",
+        "OECs",
+        "Neurons-Other",
+        "Neurons-Granule-Immature",
+    ]
+    adata = adata[~adata.obs[celltype_name].isin(ct_exclude)]
     # filter all nan values from cell_type_dea, otherwise aggregate fails
-    adata = adata[~adata.obs["cell_type_dea"].isna()]
-    adata_agg = sc.get.aggregate(adata, by="cell_type_dea", func="count_nonzero")
+    adata = adata[~adata.obs[celltype_name].isna()]
+    # merge celltypes
+    adata.obs["merged_celltypes"] = (
+        adata.obs[celltype_name]
+        .astype("str")
+        .map(lambda x: merged_celltypes.get(x, x))
+        .astype("category")
+    )
+    # continue with merged_celltypes
+    celltype_name = "merged_celltypes"
+
+    # compute cell type markers as genes expressed in > 25% of cells within celltype and < 1% of remaining cells
+    adata_agg = sc.get.aggregate(adata, by=celltype_name, func="count_nonzero")
 
     count_nonzero = pd.DataFrame(
         adata_agg.layers["count_nonzero"],
         index=adata_agg.obs_names,
         columns=adata_agg.var_names,
     )
-    count = adata.obs["cell_type_dea"].value_counts()[adata_agg.obs.index]
+    count = adata.obs[celltype_name].value_counts()[adata_agg.obs.index]
 
     markers = {}
     for ct in count.index:
@@ -187,7 +221,7 @@ def compute_positive_markers_from_reference(adata, celltype_name="cell_type_dea"
         ].sum(axis=0)
 
         # fraction of cell expressing in gene in CT
-        mask = (fraction_expressed_ct > 0.25) & (fraction_expressed_rest < 0.01)
+        mask = (fraction_expressed_ct > expr_ct) & (fraction_expressed_rest < expr_rest)
         markers[ct] = list(fraction_expressed_ct[mask].index)
 
     # filter markers to those significant from DE test
@@ -228,7 +262,9 @@ def compute_positive_markers_from_reference(adata, celltype_name="cell_type_dea"
     return markers
 
 
-def get_positive_markers(vascular_subset=False, overwrite=False, base_path=BASE_PATH):
+def get_positive_markers(
+    overwrite=False, base_path=BASE_PATH, subset_genes=None, subset_celltypes=None
+):
     """Get or compute positive markers.
 
     Reads/writes positive markers to misc/scRNAseq_ref_ABCAtlas_Yao2023Nature/positive_markers.
@@ -236,9 +272,10 @@ def get_positive_markers(vascular_subset=False, overwrite=False, base_path=BASE_
     NOTE: markers still need to be filtered to genes present in given spatial experiment.
 
     Args:
-        vascular_subset: get markers for vascular subset
         overwrite: recompute markers and save them again
         base_path: base path to the data
+        subset_genes: list of genes to subset gene dict to
+        subset_celltypes: list of celltypes to subset gene dict to
     Returns:
         marker dictionary containing positive markers and ratio of cells expressing each gene within a celltype
     """
@@ -249,18 +286,14 @@ def get_positive_markers(vascular_subset=False, overwrite=False, base_path=BASE_
         / "positive_markers"
     )
     data_path.mkdir(parents=True, exist_ok=True)
-    marker_fname = (
-        data_path
-        / f"positive_markers_{'vascular_subset' if vascular_subset else 'all'}.csv"
-    )
+    marker_fname = data_path / "positive_markers_all.csv"
     if overwrite or not marker_fname.exists():
         # need to recompute markers
         print("Markers not found or overwrite set to True: computing positive markers")
-        adata = read_ABCAtlas(vascular_subset=vascular_subset, base_path=base_path)
+        adata = read_ABCAtlas(vascular_subset=False, base_path=base_path)
         # subsample if read entire adata
-        if not vascular_subset:
-            print("Subsampling ABCAtlas to 10% of cells")
-            sc.pp.sample(adata, fraction=0.1)
+        print("Subsampling ABCAtlas to 10% of cells")
+        sc.pp.sample(adata, fraction=0.1)
 
         markers = compute_positive_markers_from_reference(
             adata, celltype_name="cell_type_dea"
@@ -274,7 +307,16 @@ def get_positive_markers(vascular_subset=False, overwrite=False, base_path=BASE_
     else:
         df = pd.read_csv(marker_fname, index_col=0)
         markers = {ct: list(df[ct].dropna()) for ct in df.columns}
-    return markers
+
+    # filter dict by celltypes and genes
+    markers_filtered = {}
+    for ct in markers.keys():
+        if (subset_celltypes is None) or (ct in subset_celltypes):
+            if subset_genes is None:
+                markers_filtered[ct] = markers[ct]
+            else:
+                markers_filtered[ct] = [g for g in markers[ct] if g in subset_genes]
+    return markers_filtered
 
 
 # --- Functions to read previously saved marker genes ---
@@ -285,6 +327,8 @@ def load_marker_gene_dict(subset_genes=None, subset_celltypes=None):
 
     From Allen mouse brain scRNA-seq atlas (Yao 2023 Nature, 4M cells)
     Computed using edgeR of pseudobulks, using author-derived cell annotations (see separate script)
+
+    NOTE: not used anymore in MECR score and marker_f1_score. Instead, get_positive_markers is used.
 
     Args:
         subset_genes: list of genes to subset gene dict to
@@ -369,7 +413,7 @@ def compute_MECR_score(
     subset_celltypes = None
     if subset_vascular_celltypes:
         subset_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
-    marker_gene_dict = load_marker_gene_dict(
+    marker_gene_dict = get_positive_markers(
         subset_genes=adata.var_names, subset_celltypes=subset_celltypes
     )
     # process marker gene dict to gene-pair list
@@ -457,9 +501,18 @@ def compute_marker_F1_score(
     Returns:
         pd.DataFrame with F1 scores and related metrics
     """
-    marker_dict = load_marker_gene_dict(
+    marker_dict = get_positive_markers(
         subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique()
     )
+    # create merged celltypes obs to continue with
+    adata.obs["merged_celltypes"] = (
+        adata.obs[celltype_name]
+        .astype("str")
+        .map(lambda x: merged_celltypes.get(x, x))
+        .astype("category")
+    )
+    # continue with merged_celltypes
+    celltype_name = "merged_celltypes"
 
     # Use the specified layer or adata.X
     X = adata.layers[layer] if layer else adata.X

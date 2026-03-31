@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from cellseg_benchmark._constants import BASE_PATH, cell_type_colors
+from cellseg_benchmark._constants import BASE_PATH, cell_type_colors, clean_method_names
 
 
 def compute_cell_type_distribution(adata, celltype_name):
@@ -54,6 +54,9 @@ def plot_cell_type_distribution(cohort, results_suffix, show=False):
         / f"cell_type_distribution_{results_suffix}.csv"
     )
     results_df = pd.read_csv(results_file, index_col=0)
+    # clean method names for plotting
+    for old, new in clean_method_names.items():
+        results_df["method"] = results_df["method"].str.replace(old, new, regex=False)
     results_df = (
         results_df[results_df["sample"] == "all"]
         .drop(columns=["sample"])

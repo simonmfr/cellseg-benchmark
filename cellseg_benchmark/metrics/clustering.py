@@ -8,6 +8,7 @@ import seaborn as sns
 from sklearn.metrics import calinski_harabasz_score, silhouette_score
 
 from cellseg_benchmark import BASE_PATH
+from cellseg_benchmark._constants import clean_method_names
 
 
 def compute_clustering_scores(
@@ -89,6 +90,9 @@ def plot_clustering_scores(cohort, results_suffix, show=False):
     plot_path.mkdir(parents=True, exist_ok=True)
 
     scores_df = pd.read_csv(results_file, index_col=0)
+    # clean method names for plotting
+    for old, new in clean_method_names.items():
+        scores_df["method"] = scores_df["method"].str.replace(old, new, regex=False)
     # remove sample all from scores
     scores_df = scores_df[scores_df["sample"] != "all"]
 

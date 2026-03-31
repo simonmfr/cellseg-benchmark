@@ -1858,3 +1858,12 @@ brain_regions_colors = {
     "STR/CTX": "A4EAD8",
     "Meninges": "480091",
 }
+
+# merges neurons for marker-gene-based metrics
+merged_celltypes = {
+    "Neurons-Dopa": "Neurons",
+    "Neurons-Dopa-Gaba": "Neurons",
+    "Neurons-Gaba": "Neurons",
+    "Neurons-Glut": "Neurons",
+    "Neurons-Glyc-Gaba": "Neurons",
+}
