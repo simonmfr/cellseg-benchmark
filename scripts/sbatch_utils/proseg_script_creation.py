@@ -26,7 +26,6 @@ for key, value in data.items():
             "w",
         )
         f.write(f"""#!/bin/bash
-
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 18:00:00
@@ -36,18 +35,64 @@ for key, value in data.items():
 #SBATCH -J Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
-cd ~/gitrepos/spatialdata
-git pull -q
-cd ~/gitrepos/cellseg-benchmark
-git pull -q
+set -euo pipefail
 
-mamba activate sopa
-mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_Cellpose_1_{args.staining}_model
-python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/proseg.py {value["path"]} {key} \
-Cellpose_1_{args.staining}_model --voxel-layers {args.voxel}
-            """)
+# ---------- central run log (shared across all scripts) ----------
+RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+LOCK_FILE="${{RUN_LOG}}.lock"
+mkdir -p "$(dirname "${{RUN_LOG}}")"
+
+JOBID="${{SLURM_JOB_ID:-NA}}"
+JOBNAME="${{SLURM_JOB_NAME:-NA}}"
+NODELIST="${{SLURM_JOB_NODELIST:-NA}}"
+SUBMIT_DIR="${{SLURM_SUBMIT_DIR:-$PWD}}"
+HOST="$(hostname -f 2>/dev/null || hostname)"
+
+START_ISO="$(date -Is)"
+START_EPOCH="$(date +%s)"
+
+KEY="{key}"
+CP_VERSION="1"
+STAINING="{args.staining}"
+VOXEL="{args.voxel}"
+INPUT_PATH="{value["path"]}"
+
+RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_Cellpose_1_{args.staining}_model"
+
+CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg.py \\"${{INPUT_PATH}}\\" ${{KEY}} Cellpose_1_${{STAINING}}_model --voxel-layers ${{VOXEL}}"
+
+write_log() {{
+  local rc="$1"
+  local end_iso="$2"
+  local elapsed_s="$3"
+
+  (
+    flock -x 200
+    if [ ! -f "${{RUN_LOG}}" ]; then
+      printf "start_iso\tend_iso\telapsed_s\trc\tjobid\tjobname\tkey\tcp_version\tstaining\tconfidence\tinput_path\tresult_dir\thost\tnodelist\tsubmit_dir\tcmd\n" >> "${{RUN_LOG}}"
+    fi
+    # no "confidence" parameter here -> NA
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+      "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \
+      "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "${{CP_VERSION}}" "${{STAINING}}" "NA" \
+      "${{INPUT_PATH}}" "${{RESULT_DIR}}" "${{HOST}}" "${{NODELIST}}" "${{SUBMIT_DIR}}" "${{CMD}}" \
+      >> "${{RUN_LOG}}"
+  ) 200>>"${{LOCK_FILE}}"
+}}
+
+trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_epoch-START_EPOCH)); write_log "$rc" "$end_iso" "$elapsed_s"' EXIT
+
+mamba activate segmentation
+
+mkdir -p "${{RESULT_DIR}}"
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg.py \\
+  "${{INPUT_PATH}}" \\
+  "${{KEY}}" \\
+  "Cellpose_1_${{STAINING}}_model" \\
+  --voxel-layers "${{VOXEL}}"
+""")
         f.close()
     else:
         f = open(
@@ -55,7 +100,6 @@ Cellpose_1_{args.staining}_model --voxel-layers {args.voxel}
             "w",
         )
         f.write(f"""#!/bin/bash
-
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 18:00:00
@@ -65,16 +109,63 @@ Cellpose_1_{args.staining}_model --voxel-layers {args.voxel}
 #SBATCH -J Proseg_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_py3_12.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
-cd ~/gitrepos/spatialdata
-git pull -q
-cd ~/gitrepos/cellseg-benchmark
-git pull -q
+set -euo pipefail
 
-mamba activate sopa
-mkdir -p /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_Cellpose_{args.CP_version}_DAPI_{args.staining}
-python scripts/segmentation/proseg.py {value["path"]} {key} \
-Cellpose_{args.CP_version}_DAPI_{args.staining} --voxel-layers {args.voxel} --output-cell-polygon-layers cell-polygons.geojson.gz 
+# ---------- central run log (shared across all scripts) ----------
+RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+LOCK_FILE="${{RUN_LOG}}.lock"
+mkdir -p "$(dirname "${{RUN_LOG}}")"
+
+JOBID="${{SLURM_JOB_ID:-NA}}"
+JOBNAME="${{SLURM_JOB_NAME:-NA}}"
+NODELIST="${{SLURM_JOB_NODELIST:-NA}}"
+SUBMIT_DIR="${{SLURM_SUBMIT_DIR:-$PWD}}"
+HOST="$(hostname -f 2>/dev/null || hostname)"
+
+START_ISO="$(date -Is)"
+START_EPOCH="$(date +%s)"
+
+KEY="{key}"
+CP_VERSION="{args.CP_version}"
+STAINING="{args.staining}"
+VOXEL="{args.voxel}"
+INPUT_PATH="{value["path"]}"
+
+RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_Cellpose_{args.CP_version}_DAPI_{args.staining}"
+
+CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg.py \\"${{INPUT_PATH}}\\" ${{KEY}} Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}} --voxel-layers ${{VOXEL}} --output-cell-polygon-layers cell-polygons.geojson.gz"
+
+write_log() {{
+  local rc="$1"
+  local end_iso="$2"
+  local elapsed_s="$3"
+
+  (
+    flock -x 200
+    if [ ! -f "${{RUN_LOG}}" ]; then
+      printf "start_iso\tend_iso\telapsed_s\trc\tjobid\tjobname\tkey\tcp_version\tstaining\tconfidence\tinput_path\tresult_dir\thost\tnodelist\tsubmit_dir\tcmd\n" >> "${{RUN_LOG}}"
+    fi
+    # no "confidence" parameter here -> NA
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+      "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \
+      "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "${{CP_VERSION}}" "${{STAINING}}" "NA" \
+      "${{INPUT_PATH}}" "${{RESULT_DIR}}" "${{HOST}}" "${{NODELIST}}" "${{SUBMIT_DIR}}" "${{CMD}}" \
+      >> "${{RUN_LOG}}"
+  ) 200>>"${{LOCK_FILE}}"
+}}
+
+trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_epoch-START_EPOCH)); write_log "$rc" "$end_iso" "$elapsed_s"' EXIT
+
+mamba activate segmentation
+
+mkdir -p "${{RESULT_DIR}}"
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg.py \\
+  "${{INPUT_PATH}}" \\
+  "${{KEY}}" \\
+  "Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}}" \\
+  --voxel-layers "${{VOXEL}}" \\
+  --output-cell-polygon-layers cell-polygons.geojson.gz
 """)
         f.close()

@@ -1,4 +1,4 @@
-BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/"
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
 cell_cycle_genes = {
     "G1": ["Ccne1", "Pttg1"],

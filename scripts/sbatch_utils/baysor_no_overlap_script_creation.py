@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 
-parser = argparse.ArgumentParser(description="scripts for Baysor segmentation.")
+parser = argparse.ArgumentParser(description="scripts for Baysor segmentation without overlaps.")
 parser.add_argument("staining", help="Staining of prior cellpose segmentation.")
 parser.add_argument("CP_version", help="Cellpose version of prior  segmentation.")
 parser.add_argument("confidence", help="Confidence of prior cellpose segmentation.")
@@ -15,12 +15,12 @@ with open(
     data = yaml.safe_load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_no_overlap_CP{args.CP_version}_{args.staining}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     if args.staining == "nuclei":
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}/{key}_{args.confidence}.sbatch",
+            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_no_overlap_CP{args.CP_version}_{args.staining}/{key}_{args.confidence}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash
@@ -28,10 +28,10 @@ for key, value in data.items():
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 1-00:00:00
-#SBATCH --mem=75G
-#SBATCH -J Baysor_{key}_CP1_{args.staining}_{args.confidence}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP1_{args.staining}_{args.confidence}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP1_{args.staining}_{args.confidence}.err
+#SBATCH --mem=300G
+#SBATCH -J Baysor_no_overlap_{key}_CP1_{args.staining}_{args.confidence}
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_no_overlap_{key}_CP1_{args.staining}_{args.confidence}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_no_overlap_{key}_CP1_{args.staining}_{args.confidence}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
@@ -56,9 +56,10 @@ STAINING="{args.staining}"
 CONFIDENCE="{args.confidence}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_1_{args.staining}_model_{args.confidence}"
+ZARR_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_1_{args.staining}_model_{args.confidence}"
+RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_no_overlap_Cellpose_1_{args.staining}_model_{args.confidence}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \\"${{INPUT_PATH}}\\" Cellpose_1_${{STAINING}}_model ${{CONFIDENCE}} ${{KEY}}"
+CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_no_overlap.py \\"${{INPUT_PATH}}\\" ${{ZARR_DIR}} ${{RESULT_DIR}}"
 
 write_log() {{
   local rc="$1"
@@ -83,26 +84,27 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_no_overlap.py \
   "${{INPUT_PATH}}" \
-  "Cellpose_1_${{STAINING}}"_model \
-  "${{CONFIDENCE}}" \
-  "${{KEY}}"
+  "${{ZARR_DIR}}" \
+  "${{RESULT_DIR}}"
 """)
         f.close()
     else:
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}/{key}_{args.confidence}.sbatch",
+            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_no_overlap_CP{args.CP_version}_{args.staining}/{key}_{args.confidence}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 1-00:00:00
-#SBATCH --mem=75G
-#SBATCH -J Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.err
+#SBATCH --mem=300G
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-node=25
+#SBATCH -J Baysor_no_overlap_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_no_overlap_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_no_overlap_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
@@ -127,9 +129,10 @@ STAINING="{args.staining}"
 CONFIDENCE="{args.confidence}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_{args.CP_version}_DAPI_{args.staining}_{args.confidence}"
+ZARR_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_1_{args.staining}_model_{args.confidence}"
+RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_no_overlap_Cellpose_{args.CP_version}_DAPI_{args.staining}_{args.confidence}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \\"${{INPUT_PATH}}\\" Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}} ${{CONFIDENCE}} ${{KEY}}"
+CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_no_overlap.py \\"${{INPUT_PATH}}\\" ${{ZARR_DIR}} ${{RESULT_DIR}}"
 
 write_log() {{
   local rc="$1"
@@ -154,10 +157,6 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
-  "${{INPUT_PATH}}" \
-  "Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}}" \
-  "${{CONFIDENCE}}" \
-  "${{KEY}}"
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_no_overlap.py "${{INPUT_PATH}}" "${{ZARR_DIR}}" "${{RESULT_DIR}}"
 """)
         f.close()

@@ -1,11 +1,6 @@
-import argparse
 from pathlib import Path
 
 import yaml
-
-parser = argparse.ArgumentParser(description="scripts for Cellpose 2 segmentation.")
-parser.add_argument("staining", help="Staining of prior cellpose segmentation.")
-args = parser.parse_args()
 
 with open(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
@@ -13,23 +8,21 @@ with open(
     data = yaml.safe_load(f)
 
 Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Cellpose_2"
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merscope"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Cellpose_2/{key}_{args.staining}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merscope_to_sdata/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 1-00:00:00
+#SBATCH -t 12:00:00
 #SBATCH --mem=300G
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=20
-#SBATCH -J CP2_{key}_{args.staining}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/CP2_{key}_{args.staining}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/CP2_{key}_{args.staining}.err
+#SBATCH -J merscope_{key}
+#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merscope_to_sdata_{key}.out
+#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/merscope_to_sdata_{key}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
@@ -49,12 +42,12 @@ START_ISO="$(date -Is)"
 START_EPOCH="$(date +%s)"
 
 KEY="{key}"
-STAINING="{args.staining}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_2_DAPI_{args.staining}"
+RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_Merlin"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/cellpose_2.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\" ${{STAINING}}"
+# If you want the exact command logged:
+CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/merscope_sdata.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\""
 
 write_log() {{
   local rc="$1"
@@ -66,10 +59,10 @@ write_log() {{
     if [ ! -f "${{RUN_LOG}}" ]; then
       printf "start_iso\\tend_iso\\telapsed_s\\trc\\tjobid\\tjobname\\tkey\\tcp_version\\tstaining\\tconfidence\\tinput_path\\tresult_dir\\thost\\tnodelist\\tsubmit_dir\\tcmd\\n" >> "${{RUN_LOG}}"
     fi
-    # cp_version/confidence not applicable here -> cp_version=2, confidence=NA
+    # not a Cellpose DAPI run -> cp_version/staining/confidence not applicable
     printf "%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n" \\
       "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \\
-      "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "2" "${{STAINING}}" "NA" \\
+      "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "NA" "NA" "NA" \\
       "${{INPUT_PATH}}" "${{RESULT_DIR}}" "${{HOST}}" "${{NODELIST}}" "${{SUBMIT_DIR}}" "${{CMD}}" \\
       >> "${{RUN_LOG}}"
   ) 200>>"${{LOCK_FILE}}"
@@ -77,12 +70,10 @@ write_log() {{
 
 trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_epoch-START_EPOCH)); write_log "$rc" "$end_iso" "$elapsed_s"' EXIT
 
-
 mamba activate segmentation
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/cellpose_2.py \\
+python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata.py \\
   "${{INPUT_PATH}}" \\
-  "${{RESULT_DIR}}" \\
-  "${{STAINING}}"
+  "${{RESULT_DIR}}"
 """)
     f.close()

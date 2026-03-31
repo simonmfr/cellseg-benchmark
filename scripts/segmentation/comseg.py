@@ -8,7 +8,7 @@ from pandas import read_csv
 from spatialdata import read_zarr
 
 parser = argparse.ArgumentParser(description="Run ComSeg segmentation.")
-parser.add_argument("data_path", help="Path to data folder.")
+parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("sample", help="Sample name.")
 parser.add_argument(
     "base_segmentation", help="Name of prior segmentation to use for initializaton."
