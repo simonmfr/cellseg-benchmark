@@ -185,10 +185,7 @@ def compute_metric(
         return
 
     # compute metric
-    if pass_method:
-        results = metric_func(adata, method=method, base_path=base_path, **kwargs)
-    else:
-        results = metric_func(adata, **kwargs)
+    results = metric_func(adata, method=method, base_path=base_path, **kwargs)
     if results is None:
         # some error ocurred during metric_fn, return
         return

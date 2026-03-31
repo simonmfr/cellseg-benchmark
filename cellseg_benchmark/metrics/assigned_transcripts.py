@@ -14,6 +14,7 @@ def compute_assigned_transcripts(
     *,
     method: str,
     base_path: str | pathlib.Path,
+    **kwargs
 ) -> pd.DataFrame:
     """
     Compute per-gene assigned transcript statistics by combining assigned counts from adata with total detected transcripts from transcript table.

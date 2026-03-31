@@ -54,7 +54,7 @@ def _extract_stats(df, columns, celltype_name="cell_type_revised"):
 
 
 def extract_general_stats(
-    adata, obs_columns=None, obsm_columns=None, celltype_name="cell_type_revised"
+    adata, obs_columns=None, obsm_columns=None, celltype_name="cell_type_revised", **kwargs
 ):
     """Extract and save per-sample and per-celltype mean stats from adata.obs and obsm.
 

@@ -30,6 +30,7 @@ def compute_f1(
     correct_celltypes: Dict[str, List[str]] = None,
     weighted: bool = False,
     subset: List[str] = None,
+    **kwargs
 ) -> pd.DataFrame:
     """Computes the F1 score given area information.
 
