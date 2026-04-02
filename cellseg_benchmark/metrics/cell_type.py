@@ -6,7 +6,7 @@ import pandas as pd
 from cellseg_benchmark._constants import BASE_PATH, cell_type_colors, clean_method_names
 
 
-def compute_cell_type_distribution(adata, celltype_name):
+def compute_cell_type_distribution(adata, celltype_name, **kwargs):
     """Compute distribution of celltypes per sample.
 
     Args:

@@ -20,7 +20,7 @@ from cellseg_benchmark.metrics.utils import read_ABCAtlas, read_adata
 
 
 def compute_negative_markers_from_reference(
-    adata, celltypes, genes, celltype_name="cell_type_dea"
+    adata, celltypes, genes, celltype_name="cell_type_dea", **kwargs
 ):
     """Compute negative markers for single-cell reference data.
 
@@ -146,7 +146,7 @@ def get_negative_markers(
 
 
 def compute_positive_markers_from_reference(
-    adata, celltype_name="cell_type_dea", expr_ct=0.25, expr_rest=0.02
+    adata, celltype_name="cell_type_dea", expr_ct=0.25, expr_rest=0.02, **kwargs
 ):
     """Compute positive markers.
 
@@ -405,7 +405,7 @@ def _MECR_score(adata, gene_pairs, layer=None):
 
 
 def compute_MECR_score(
-    adata, subset_vascular_celltypes=False, layer="volume_log1p_norm"
+    adata, subset_vascular_celltypes=False, layer="volume_log1p_norm", **kwargs
 ):
     """Compute MECR Score on specific gene pairs.
 

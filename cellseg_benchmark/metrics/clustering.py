@@ -12,7 +12,7 @@ from cellseg_benchmark._constants import clean_method_names
 
 
 def compute_clustering_scores(
-    adata, celltype_name, sample_size=1000, n_pcs=30, leiden_resolution=1
+    adata, celltype_name, sample_size=1000, n_pcs=30, leiden_resolution=1, **kwargs
 ):
     """Compute CH / SH clustering scores per sample.
 
