@@ -1755,6 +1755,7 @@ cell_type_colors = {
     # "Neurons-Immature": "#FF50E5",
     "Neurons-Granule-Immature": "#FF50E5",
     "Neurons-Other": "#FCA0FF",
+    "Neurons": "#B449F8",  # for marker f1 score where Neurons are merged in one celltype
     "OECs": "#9EDAE5",
     "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
     "Undefined": "#D9D9D9",  # = below QC threshold

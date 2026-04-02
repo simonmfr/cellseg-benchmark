@@ -186,6 +186,8 @@ def compute_positive_markers_from_reference(
         "Choroid-Plexus",
         "Immune-Other",
         "OECs",
+        "Tanycytes",
+        "ABCs",
         "Neurons-Other",
         "Neurons-Granule-Immature",
     ]
@@ -383,16 +385,22 @@ def _MECR_score(adata, gene_pairs, layer=None):
     - results DataFrame
     """
     results = []
-    gene_expression = adata.to_df(layer=layer)
-    for gene1, gene2 in gene_pairs:
-        expr_gene1 = gene_expression[gene1] > 0
-        expr_gene2 = gene_expression[gene2] > 0
-        both_expressed = (expr_gene1 & expr_gene2).mean()
-        at_least_one_expressed = (expr_gene1 | expr_gene2).mean()
-        mecr = (
-            both_expressed / at_least_one_expressed if at_least_one_expressed > 0 else 0
-        )
-        results.append({"gene1": gene1, "gene2": gene2, "MECR": mecr})
+    for sample in adata.obs["sample"].unique():
+        cur_adata = adata[adata.obs["sample"] == sample]
+        gene_expression = cur_adata.to_df(layer=layer)
+        for gene1, gene2 in gene_pairs:
+            expr_gene1 = gene_expression[gene1] > 0
+            expr_gene2 = gene_expression[gene2] > 0
+            both_expressed = (expr_gene1 & expr_gene2).mean()
+            at_least_one_expressed = (expr_gene1 | expr_gene2).mean()
+            mecr = (
+                both_expressed / at_least_one_expressed
+                if at_least_one_expressed > 0
+                else 0
+            )
+            results.append(
+                {"sample": sample, "gene1": gene1, "gene2": gene2, "MECR": mecr}
+            )
     return pd.DataFrame(results)
 
 
@@ -501,9 +509,6 @@ def compute_marker_F1_score(
     Returns:
         pd.DataFrame with F1 scores and related metrics
     """
-    marker_dict = get_positive_markers(
-        subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique()
-    )
     # create merged celltypes obs to continue with
     adata.obs["merged_celltypes"] = (
         adata.obs[celltype_name]
@@ -514,67 +519,74 @@ def compute_marker_F1_score(
     # continue with merged_celltypes
     celltype_name = "merged_celltypes"
 
-    # Use the specified layer or adata.X
-    X = adata.layers[layer] if layer else adata.X
-    if not sparse.issparse(X):
-        X = sparse.csr_matrix(X)
-
-    obs_cell_types = adata.obs[celltype_name].astype(str).values
-    present_cell_types = set(obs_cell_types)
-    marker_cell_types = set(marker_dict)
-
-    unmatched = present_cell_types - marker_cell_types
-    if unmatched:
-        print(
-            f" Note: {len(unmatched)} cell type(s) from adata not in marker_dict: {sorted(unmatched)}"
-        )
+    marker_dict = get_positive_markers(
+        subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique()
+    )
 
     results = []
+    for sample in adata.obs["sample"].unique():
+        cur_adata = adata[adata.obs["sample"] == sample]
 
-    for cell_type, markers in marker_dict.items():
-        if cell_type not in present_cell_types:
-            continue  # skip if cell type not in adata
+        # Use the specified layer or adata.X
+        X = cur_adata.layers[layer] if layer else cur_adata.X
+        if not sparse.issparse(X):
+            X = sparse.csr_matrix(X)
 
-        target_mask = obs_cell_types == cell_type
-        other_mask = ~target_mask
+        obs_cell_types = cur_adata.obs[celltype_name].astype(str).values
+        present_cell_types = set(obs_cell_types)
+        marker_cell_types = set(marker_dict)
 
-        for gene in markers:
-            if gene not in adata.var_names:
-                continue
-
-            gene_idx = adata.var_names.get_loc(gene)
-            expr = X[:, gene_idx].toarray().ravel()
-            expressed = expr > threshold
-
-            tp = np.sum(target_mask & expressed)
-            fp = np.sum(other_mask & expressed)
-            fn = np.sum(target_mask & ~expressed)
-
-            precision = tp / (tp + fp) if (tp + fp) else 0
-            recall = tp / (tp + fn) if (tp + fn) else 0
-            f1 = (
-                2 * precision * recall / (precision + recall)
-                if (precision + recall)
-                else 0
+        unmatched = present_cell_types - marker_cell_types
+        if unmatched:
+            print(
+                f" Note: {len(unmatched)} cell type(s) from adata not in marker_dict: {sorted(unmatched)}"
             )
 
-            results.append(
-                {
-                    "cell_type": cell_type,
-                    "marker_gene": gene,
-                    "f1_score": f1,
-                    "precision": precision,
-                    "recall": recall,
-                    "tp": tp,
-                    "fp": fp,
-                    "fn": fn,
-                }
-            )
+        for cell_type, markers in marker_dict.items():
+            if cell_type not in present_cell_types:
+                continue  # skip if cell type not in adata
+
+            target_mask = obs_cell_types == cell_type
+            other_mask = ~target_mask
+
+            for gene in markers:
+                if gene not in adata.var_names:
+                    continue
+
+                gene_idx = cur_adata.var_names.get_loc(gene)
+                expr = X[:, gene_idx].toarray().ravel()
+                expressed = expr > threshold
+
+                tp = np.sum(target_mask & expressed)
+                fp = np.sum(other_mask & expressed)
+                fn = np.sum(target_mask & ~expressed)
+
+                precision = tp / (tp + fp) if (tp + fp) else 0
+                recall = tp / (tp + fn) if (tp + fn) else 0
+                f1 = (
+                    2 * precision * recall / (precision + recall)
+                    if (precision + recall)
+                    else 0
+                )
+
+                results.append(
+                    {
+                        "sample": sample,
+                        "cell_type": cell_type,
+                        "marker_gene": gene,
+                        "f1_score": f1,
+                        "precision": precision,
+                        "recall": recall,
+                        "tp": tp,
+                        "fp": fp,
+                        "fn": fn,
+                    }
+                )
 
     return pd.DataFrame(results)
 
 
-def plot_marker_F1_score(cohort, results_suffix, show=False):
+def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=False):
     """Plot marker F1 scores.
 
     Plots one plot per method showing cell-type specific F1 scores, and one plot summarising scores for each method
@@ -591,38 +603,48 @@ def plot_marker_F1_score(cohort, results_suffix, show=False):
 
     results_df = pd.read_csv(results_file, index_col=0)
 
-    # plot boxplot per method show per-celltype F1 results
-    for method, results in results_df.groupby("method"):
-        order = results.groupby("cell_type")["f1_score"].mean().sort_values().index
-        pal = {ct: cell_type_colors[ct] for ct in order}
-        fig = plt.figure(figsize=(10, 5))
-        sns.boxplot(
-            data=results,
-            x="cell_type",
-            y="f1_score",
-            hue="cell_type",
-            palette=pal,
-            legend=True,
-        )
-        plt.xticks(rotation=45, ha="right")
-        plt.ylabel("F1 Score")
-        plt.ylim(0, 1)
-        plt.title(f"F1 Score Distribution per Cell Type for {method}")
-        plt.tight_layout()
+    # plot boxplot per method show per-sample and per-celltype F1 results
+    if celltype_plots:
+        for method, results in results_df.groupby("method"):
+            mean_results = (
+                results_df.groupby(["sample", "cell_type"])
+                .mean("f1_score")
+                .reset_index()
+            )
+            order = (
+                mean_results.groupby("cell_type")["f1_score"].mean().sort_values().index
+            )
+            pal = {ct: cell_type_colors[ct] for ct in order}
+            fig = plt.figure(figsize=(10, 5))
+            sns.boxplot(
+                data=mean_results,
+                x="cell_type",
+                y="f1_score",
+                hue="cell_type",
+                palette=pal,
+                legend=True,
+            )
+            plt.xticks(rotation=45, ha="right")
+            plt.ylabel("F1 Score")
+            plt.ylim(0, 1)
+            plt.title(f"F1 Score Distribution per Cell Type for {method}")
+            plt.tight_layout()
 
-        if show:
+            if show:
+                plt.show()
+            fig.savefig(
+                plot_path / f"marker_f1_score_{method}_{results_suffix}.png",
+                bbox_inches="tight",
+            )
             plt.show()
-        fig.savefig(
-            plot_path / f"marker_f1_score_{method}_{results_suffix}.png",
-            bbox_inches="tight",
-        )
-        plt.show()
 
     # plot summary boxplot showing per-method results
     # compute mean f1 score by computing mean f1 per method and cell type
     # and then mean of cell-type f1 scores to get one score per method
     mean_results = (
-        results_df.groupby(["method", "cell_type"]).mean("f1_score").reset_index()
+        results_df.groupby(["method", "sample", "cell_type"])
+        .mean("f1_score")
+        .reset_index()
     )
     order = (
         mean_results.groupby("method").mean("f1_score").sort_values("f1_score").index
@@ -636,7 +658,8 @@ def plot_marker_F1_score(cohort, results_suffix, show=False):
         y="f1_score",
         hue="method",
         palette=pal,
-        legend=True,
+        legend=False,
+        order=order,
     )
     plt.xticks(rotation=45, ha="right")
     plt.ylabel("F1 Score")
