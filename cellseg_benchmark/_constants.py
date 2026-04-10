@@ -1818,7 +1818,7 @@ method_colors = {
     "ComSeg": "#d7f035",
 }
 
-clean_method_names = {
+clean_method_names_raw = {
     "Negative_Control_": "",
     "Rastered": "Raster",
     "Voronoi": "Random_Voronoi",
@@ -1844,7 +1844,7 @@ clean_method_names_format = {
     "CP_": "CP",
 }
 
-clean_method_names = {**clean_method_names, **clean_method_names_format}
+clean_method_names = {**clean_method_names_raw, **clean_method_names_format}
 
 brain_regions_colors = {
     "BS": "FF7080",
