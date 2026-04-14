@@ -23,6 +23,7 @@ def compute_ovrl(
     sample_dir: str,
     data_dir: str,
     logger: logging.Logger = None,
+    **kwargs
 ) -> None:
     """Compute ovrlpy output.
 
@@ -93,7 +94,7 @@ def run_ovrlpy(
 
 
 def compute_mean_vsi_per_polygon(
-    integrity_map: np.ndarray, boundaries: GeoDataFrame, transform_matrix: np.ndarray
+    integrity_map: np.ndarray, boundaries: GeoDataFrame, transform_matrix: np.ndarray, **kwargs
 ) -> pd.DataFrame:
     """Compute mean vsi per polygon.
 

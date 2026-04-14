@@ -7,7 +7,6 @@ import os
 import warnings
 from os import listdir
 from os.path import join
-from re import split
 from typing import Dict, List, Optional, Union
 
 import geopandas as gpd
@@ -17,7 +16,8 @@ import spatialdata as sd
 import spatialdata_io
 from joblib import Parallel, delayed
 from scipy.spatial import ConvexHull
-from shapely.geometry import Polygon, Point
+from shapely import points
+from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
 from spatialdata.models import ShapesModel
 from spatialdata.transformations import (
@@ -30,7 +30,11 @@ from tifffile import imread
 from tqdm import tqdm
 
 from ._constants import image_based, methods_3D
-from .ficture_utils import create_factor_level_image, parse_metadata
+from .ficture_utils import (
+    _find_ficture_output,
+    create_factor_level_image,
+    parse_metadata,
+)
 
 PI = math.pi
 
@@ -878,6 +882,8 @@ def pixel_to_microns(
 def prepare_ficture(
     data_path: str,
     results_path: str,
+    sample: str,
+    base_path: str,
     top_n_factors: int = 3,
     n_ficture: int = 21,
     logger: logging.Logger = None,
@@ -888,13 +894,15 @@ def prepare_ficture(
     Args:
         data_path: Path to merscope data
         results_path: path to Segmentation folder
+        sample: Sample name
+        base_path: Path to base folder
         top_n_factors: only consider top n factors for ficture picture
         n_ficture: number of factors of ficture run
         logger: logger instance
         factors: if provided, only these ficture images will be generated.
 
     Returns:
-        ficture images and factors of the images
+        ficture images and factors of the images.
     """
     if logger is not None:
         logger.info(f"Generating ficture images for {data_path}")
@@ -907,23 +915,7 @@ def prepare_ficture(
 
     if "Ficture" not in listdir(results_path):
         return {}
-    ficture_path = join(results_path, "Ficture", "output")
-    for file in listdir(ficture_path):
-        if n_ficture == int(split(r"\.|F", file)[1]):
-            ficture_path = join(ficture_path, file)
-
-    ficture_full_path = ""
-    for file in listdir(ficture_path):
-        if file.endswith(".pixel.sorted.tsv.gz"):
-            ficture_full_path = join(ficture_path, file)
-    if ficture_full_path == "": #Previous computations have flatter hierarchies. Now the ouput is saved in Ficture/output/nF21.../analysis/nF21.../FILE
-        ficture_path = join(ficture_path, "analysis")
-        for file in listdir(ficture_path):
-            if n_ficture == int(split(r"\.|F", file)[1]):
-                ficture_path = join(ficture_path, file)
-            for file in listdir(ficture_path):
-                if file.endswith(".pixel.sorted.tsv.gz"):
-                    ficture_full_path = join(ficture_path, file)
+    ficture_full_path = _find_ficture_output(sample, base_path, n_ficture)
     assert ficture_full_path != "", "Ficture output not correctly computed."
 
     fic_header = ["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
@@ -1268,6 +1260,7 @@ def _compute_3d_metrics(
         warnings.warn(f"Failed to compute 3D metrics: {str(e)}")
         return {}
 
+
 def add_visium_boundaries(
     sdata,
     out_name: str,
@@ -1313,3 +1306,81 @@ def add_visium_boundaries(
     transforms = {cs: get_transformation(pts, cs) for cs in sdata.coordinate_systems}
     sdata.shapes[out_name] = ShapesModel.parse(gdf, transformations=transforms)
     return sdata
+
+
+def _assign_points_to_polygons(
+    coords_df: pd.DataFrame,
+    polygons_gdf: gpd.GeoDataFrame,
+    x_col: str = "x",
+    y_col: str = "y",
+    polygon_id_col: str = "poly_id",
+    output_col: str = "assigned_polygon",
+    chunk_size: int = 1_000_000,
+    predicate: str = "within",
+    default_value="unassigned",
+) -> pd.DataFrame:
+    """Assign each point in coords_df to a polygon in polygons_gdf.
+
+    Parameters
+    ----------
+    coords_df
+        DataFrame with x/y coordinates.
+    polygons_gdf
+        GeoDataFrame with polygon geometries.
+    x_col, y_col
+        Coordinate column names in coords_df.
+    polygon_id_col
+        Column in polygons_gdf whose values should be assigned to points.
+    output_col
+        Name of the output column written to coords_df.
+    chunk_size
+        Number of points processed per chunk.
+    predicate
+        Spatial predicate, e.g. "within" or "intersects".
+    default_value
+        Value assigned when a point does not match any polygon.
+
+    Returns:
+    -------
+    pd.DataFrame
+        Copy of coords_df with an added output column.
+    """
+    if polygon_id_col not in polygons_gdf.columns:
+        raise ValueError(f"'{polygon_id_col}' not found in polygons_gdf")
+
+    polygons_gdf = polygons_gdf.loc[~polygons_gdf.geometry.is_empty].copy()
+    poly_lookup = polygons_gdf[[polygon_id_col, "geometry"]].copy()
+    _ = poly_lookup.sindex
+    result = coords_df.copy()
+    result[output_col] = default_value
+    out_col_idx = result.columns.get_loc(output_col)
+
+    n = len(result)
+    for start in range(0, n, chunk_size):
+        stop = min(start + chunk_size, n)
+        chunk = result.iloc[start:stop].copy()
+        chunk = chunk.drop(columns=[polygon_id_col], errors="ignore")
+        chunk["_rowid"] = np.arange(stop - start)
+        geom = points(chunk[x_col].to_numpy(), chunk[y_col].to_numpy())
+
+        points_gdf = gpd.GeoDataFrame(
+            chunk,
+            geometry=geom,
+            crs=polygons_gdf.crs,
+        )
+        joined = gpd.sjoin(
+            points_gdf,
+            poly_lookup,
+            how="left",
+            predicate=predicate,
+        )
+        assigned = (
+            joined.groupby("_rowid", sort=False)[polygon_id_col]
+            .first()
+            .reindex(np.arange(stop - start))
+            .fillna(default_value)
+            .infer_objects(copy=False)
+            .to_numpy()
+        )
+        result.iloc[start:stop, out_col_idx] = assigned
+    return result
