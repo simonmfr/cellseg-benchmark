@@ -27,16 +27,17 @@ proseg_flags = " ".join(args.proseg_flags)
 
 def main(data_path, sample, proseg_flags, base_segmentation):
     """Proseg 3D with vpt 3D segmentation."""
-    save_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples") / sample / "results" / base_segmentation
+    vpt_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples") / sample / "results" / base_segmentation
+    save_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples") / sample / "results"
     sdata = merscope(
         data_path,
         transcripts=True,
         mosaic_images=True,
         cells_boundaries=True,
         vpt_outputs={
-            "cell_by_gene": save_path / "analysis_outputs" / "cell_by_gene.csv",
-            "cell_metadata": save_path / "analysis_outputs" / "cell_metadata.csv",
-            "cell_boundaries": save_path / "analysis_outputs" / "cellpose2_micron_space.parquet",
+            "cell_by_gene": vpt_path / "analysis_outputs" / "cell_by_gene.csv",
+            "cell_metadata": vpt_path / "analysis_outputs" / "cell_metadata.csv",
+            "cell_boundaries": vpt_path / "analysis_outputs" / "cellpose2_micron_space.parquet",
         },
     )
 
@@ -60,9 +61,9 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     )
 
     sdata.write(
-        save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata_tmp.zarr", overwrite=True
+        save_path / f"Proseg_3D_{base_segmentation}" / "sdata_tmp.zarr", overwrite=True
     )
-    sdata = read_zarr(save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata_tmp.zarr")
+    sdata = read_zarr(save_path / f"Proseg_3D_{base_segmentation}" / "sdata_tmp.zarr")
 
     sopa.make_transcript_patches(
         sdata, patch_width=None, prior_shapes_key="cellpose_boundaries"
@@ -80,7 +81,7 @@ def main(data_path, sample, proseg_flags, base_segmentation):
         sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10
     )
     sopa.io.explorer.write(
-        save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata.explorer",
+        save_path / f"Proseg_3D_{base_segmentation}" / "sdata.explorer",
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
@@ -90,17 +91,17 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
     sdata.write(
-        save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata.zarr", overwrite=True
+        save_path / f"Proseg_3D_{base_segmentation}" / "sdata.zarr", overwrite=True
     )
     run(
         [
             "cp",
             "-r",
             cache_dir,
-            str(save_path / f"Proseg_3D_vpt3D_{base_segmentation}" / "sdata.zarr" / str(cache_dir).split("/")[-1]),
+            str(save_path / f"Proseg_3D_{base_segmentation}" / "sdata.zarr" / str(cache_dir).split("/")[-1]),
         ]
     )
-    run(["rm", "-r", join(str(save_path), f"Proseg_3D_vpt3D_{base_segmentation}", "sdata_tmp.zarr")])
+    run(["rm", "-r", join(str(save_path), f"Proseg_3D_{base_segmentation}", "sdata_tmp.zarr")])
 
 
 if __name__ == "__main__":
