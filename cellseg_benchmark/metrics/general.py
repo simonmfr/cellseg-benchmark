@@ -8,11 +8,9 @@ import seaborn as sns
 from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark._constants import method_colors
 from cellseg_benchmark.metrics.utils import (
-    chunked,
+    find_latest_job_data_tsv,
+    method_with_flavor_from_row,
     normalize_jobname,
-    parse_slurm_mem_to_gb,
-    run_sacct,
-    method_with_flavor_from_row
 )
 
 
@@ -54,7 +52,11 @@ def _extract_stats(df, columns, celltype_name="cell_type_revised"):
 
 
 def extract_general_stats(
-    adata, obs_columns=None, obsm_columns=None, celltype_name="cell_type_revised", **kwargs
+    adata,
+    obs_columns=None,
+    obsm_columns=None,
+    celltype_name="cell_type_revised",
+    **kwargs,
 ):
     """Extract and save per-sample and per-celltype mean stats from adata.obs and obsm.
 
@@ -65,9 +67,10 @@ def extract_general_stats(
         obs_columns: names of obs columns to extract data from
         obsm_columns: dict with obsm names as keys and obsm column names as values.
         celltype_name: name of celltype column in adata.obs.
+        kwargs: additional keyword arguments to pass.
 
     Returns:
-        results DataFrame or None
+        results DataFrame or None.
     """
     # set default values
     if obs_columns is None:
@@ -135,65 +138,114 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
     plt.close(fig)
 
 
-def extract_mem_and_time(adata, ref_file_path, method):
-    df = pd.read_csv(ref_file_path, sep="\t")
-    df["jobid"] = df["jobid"].astype(str)
-    df["jobname"] = df["jobname"].astype(str)
-    df["jobname_norm"] = df["jobname"].apply(normalize_jobname)
-    df["sample"] = df["key"].astype(str)
+def extract_mem_and_time(
+    ref_file_path, method, metrics_dir, adata=None, base_path=None
+):
+    """Read job metadata from ref_file_path and enrich it from the newest
+    exported sacct TSV in metrics_dir.
 
-    df["method_with_flavor"] = df.apply(
-        lambda r: method_with_flavor_from_row(r["jobname_norm"], r["sample"]),
-        axis=1
-    )
-    df = df[df["method_with_flavor"] == method].copy()
-    if df.empty:
-        raise LookupError(f"Method {method} not found in job file or not yet recorded.")
+    Notes:
+    -----
+    - Does NOT call sacct.
+    - Keeps only successful runs:
+        sacct_state == COMPLETED
+        sacct_exitcode == 0:0
+        and rc == 0 if rc exists in the ref file
+    - If the ref file contains repeated runs for the same sample+method,
+      keeps the last successful one because the ref file is appended.
+    - 'adata' is unused and only kept for API compatibility.
+    """
+    ref = pd.read_csv(ref_file_path, sep="\t")
+    ref["_ref_order"] = range(len(ref))
 
-    # method_with_flavor column
-    df["method_with_flavor"] = df.apply(lambda r: method_with_flavor_from_row(r["jobname_norm"], r["sample"]), axis=1)
+    ref["jobid"] = ref["jobid"].astype(str)
+    ref["jobname"] = ref["jobname"].astype(str)
+    ref["sample"] = ref["key"].astype(str)
+    ref["jobname_norm"] = ref["jobname"].apply(normalize_jobname)
 
-    # ---------- sacct enrichment ----------
-    jobids = sorted(df["jobid"].dropna().unique().tolist())
-    sacct_frames = []
-    for ch in chunked(jobids, 200):
-        sacct_frames.append(run_sacct(ch))
-    sacct = pd.concat(sacct_frames, ignore_index=True)
-
-    # normalize jobid base (strip steps: 12345.batch -> 12345)
-    sacct["jobid_base"] = sacct["JobIDRaw"].astype(str).str.split(".").str[0]
-
-    # parse metrics
-    sacct["Elapsed_s"] = pd.to_numeric(sacct["ElapsedRaw"], errors="coerce")
-    sacct["AllocCPUS_n"] = pd.to_numeric(sacct["AllocCPUS"], errors="coerce")
-    sacct["MaxRSS_GB"] = sacct["MaxRSS"].apply(parse_slurm_mem_to_gb)
-
-    # prefer MaxRSS from .batch if available, but keep elapsed/cpus from max over steps
-    is_batch = sacct["JobIDRaw"].astype(str).str.endswith(".batch")
-
-    agg_all = sacct.groupby("jobid_base", as_index=False).agg(
-        sacct_state=("State", "first"),
-        sacct_exitcode=("ExitCode", "first"),
-        elapsed_s=("Elapsed_s", "max"),
-        alloccpus=("AllocCPUS_n", "max"),
+    ref["method_with_flavor"] = ref.apply(
+        lambda r: method_with_flavor_from_row(r["jobname"], r["sample"]),
+        axis=1,
     )
 
-    agg_batch = sacct[is_batch].groupby("jobid_base", as_index=False).agg(
-        maxrss_gb=("MaxRSS_GB", "max"),
+    ref = ref[ref["method_with_flavor"] == method].copy()
+    if ref.empty:
+        raise LookupError(
+            f"Method {method!r} not found in job file or not yet recorded."
+        )
+
+    latest_metrics_file = find_latest_job_data_tsv(metrics_dir)
+
+    sacct = pd.read_csv(latest_metrics_file, sep="\t")
+    if sacct.empty:
+        raise ValueError(f"Latest metrics file is empty: {latest_metrics_file}")
+
+    required_cols = {
+        "jobid",
+        "sacct_state",
+        "sacct_exitcode",
+        "elapsed_s",
+        "alloccpus",
+        "maxrss_gb",
+    }
+    missing = required_cols.difference(sacct.columns)
+    if missing:
+        raise ValueError(
+            f"Metrics file {latest_metrics_file} is missing columns: {sorted(missing)}"
+        )
+
+    sacct["jobid"] = sacct["jobid"].astype(str)
+
+    # avoid collisions with columns from ref file
+    sacct = sacct[
+        [
+            "jobid",
+            "sacct_state",
+            "sacct_exitcode",
+            "elapsed_s",
+            "alloccpus",
+            "maxrss_gb",
+        ]
+    ].rename(
+        columns={
+            "elapsed_s": "elapsed_s_sacct",
+            "alloccpus": "alloccpus_sacct",
+            "maxrss_gb": "maxrss_gb_sacct",
+        }
     )
 
-    agg = agg_all.merge(agg_batch, on="jobid_base", how="left")
+    df = ref.merge(sacct, on="jobid", how="left")
 
-    df = df.merge(agg, left_on="jobid", right_on="jobid_base", how="left").drop(columns=["jobid_base"])
-
-    # ---------- keep only successful segmentations ----------
-    # success: sacct says COMPLETED + ExitCode 0:0 (and optionally your script rc == 0 if present)
     ok = (df["sacct_state"] == "COMPLETED") & (df["sacct_exitcode"] == "0:0")
     if "rc" in df.columns:
         ok = ok & (pd.to_numeric(df["rc"], errors="coerce") == 0)
 
     df_ok = df.loc[ok].copy()
-    df_ok["elapsed_h"] = df_ok["elapsed_s"] / 3600.0
-    out = df_ok[["sample", "method_with_flavor", "maxrss_gb", "elapsed_h", "alloccpus"]].copy()
-    out = out.reset_index().set_index(["sample"])
+    if df_ok.empty:
+        raise LookupError(
+            f"No successful runs found for method {method!r} "
+            f"in latest metrics file: {latest_metrics_file.name}"
+        )
+
+    # ref file is appended -> keep the last successful run per sample+method
+    df_ok = (
+        df_ok.sort_values("_ref_order")
+        .drop_duplicates(subset=["sample", "method_with_flavor"], keep="last")
+        .copy()
+    )
+
+    df_ok["elapsed_h"] = (
+        pd.to_numeric(df_ok["elapsed_s_sacct"], errors="coerce") / 3600.0
+    )
+
+    out = df_ok[["sample", "maxrss_gb_sacct", "elapsed_h", "alloccpus_sacct"]].copy()
+
+    out = out.rename(
+        columns={
+            "maxrss_gb_sacct": "maxrss_gb",
+            "alloccpus_sacct": "alloccpus",
+        }
+    )
+
+    out = out.reset_index(drop=True)
     return out

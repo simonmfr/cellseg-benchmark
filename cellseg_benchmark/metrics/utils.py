@@ -2,6 +2,8 @@ import math
 import os
 import re
 import subprocess
+from datetime import datetime
+from io import StringIO
 from pathlib import Path
 
 import pandas as pd
@@ -201,115 +203,121 @@ def compute_metric(
 
 
 def chunked(lst, n=200):
+    """Helper function to chunk list into n chunks."""
     for i in range(0, len(lst), n):
-        yield lst[i:i+n]
+        yield lst[i : i + n]
+
 
 def normalize_jobname(jobname: str) -> str:
+    """Helper function to fix typo in jobname of vpt."""
     if not isinstance(jobname, str):
         return ""
     # fix historic typo: vtp -> vpt
     return re.sub(r"^vtp", "vpt", jobname)
 
+
 def parse_slurm_mem_to_gb(x: str) -> float:
-    # sacct MaxRSS often: 1234K / 512M / 10G / 1T / 0 / ''
+    """Helper function to parse slurm memory usage in GB."""
     if x is None:
         return math.nan
+
     s = str(x).strip()
     if s in ("", "Unknown", "None", "NA", "nan"):
         return math.nan
     if s == "0":
         return 0.0
+
     m = re.match(r"^([0-9]*\.?[0-9]+)([KMGTP]?)$", s)
     if not m:
         return math.nan
+
     val = float(m.group(1))
     unit = m.group(2)
-    mult = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3, "T": 1024**4, "P": 1024**5}[unit]
+    mult = {
+        "": 1,
+        "K": 1024,
+        "M": 1024**2,
+        "G": 1024**3,
+        "T": 1024**4,
+        "P": 1024**5,
+    }[unit]
     return (val * mult) / (1024**3)
 
-def run_sacct(jobids):
-    # Include ExitCode to filter success
-    fmt = "JobIDRaw,State,ExitCode,ElapsedRaw,AllocCPUS,MaxRSS,JobName"
-    cmd = ["sacct", "-X", "-P", "-n", "-j", ",".join(jobids), "--format", fmt]
-    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    if res.returncode != 0:
-        raise RuntimeError(f"sacct failed:\nSTDOUT:\n{res.stdout}\nSTDERR:\n{res.stderr}")
-
-    rows = []
-    cols = fmt.split(",")
-    for line in res.stdout.splitlines():
-        if not line.strip():
-            continue
-        parts = line.split("|")
-        if len(parts) != len(cols):
-            continue
-        rows.append(dict(zip(cols, parts)))
-    return pd.DataFrame(rows)
 
 def method_with_flavor_from_row(jobname: str, key: str) -> str:
-    """
-    Create a single canonical string like:
+    """Create a canonical method string.
+      E.g.:
       Baysor_CP1_DAPI_PolyT_0.8
+      Baysor_no_overlap_CP1_DAPI_nuclei_1.0
       vpt2D_DAPI_PolyT
-      Proseg_3D_vpt2_XYZ_vxl_3
-      Proseg_3D_CP2_DAPI_PolyT_vxl_3
+      Proseg_3D_vpt2D_PolyT
+      Proseg_3D_CP2_DAPI_PolyT
+      Proseg_CP2_DAPI_PolyT
+
+    Note:
+    -----
+    For Proseg methods, voxel size suffixes like '_vxl_3' are intentionally ignored.
     """
     j = normalize_jobname(jobname)
     k = str(key)
 
-    # --- Baysor_{key}_CP{cp}_{stain}_{conf} -> Baysor_CP{cp}_DAPI_{stain}_{conf}
-    prefix = f"Baysor_{k}_"
-    if j.startswith(prefix):
-        rest = j[len(prefix):]  # CP1_PolyT_0.8
-        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)_(?P<conf>.+)$", rest)
-        if m:
-            return f"Baysor_CP{m.group('cp')}_DAPI_{m.group('stain')}_{m.group('conf')}"
-        return f"Baysor_{rest}"
+    # --- Baysor with optional qualifier before key
+    m = re.match(
+        rf"^Baysor_(?:(?P<qualifier>.+?)_)?{re.escape(k)}_CP(?P<cp>\d+)_(?P<stain>[^_]+)_(?P<conf>.+)$",
+        j,
+    )
+    if m:
+        qualifier = m.group("qualifier")
+        prefix = "Baysor"
+        if qualifier:
+            prefix += f"_{qualifier}"
+        return f"{prefix}_CP{m.group('cp')}_DAPI_{m.group('stain')}_{m.group('conf')}"
 
-    # --- vpt2D / vpt3D: vpt2D_{key}_{stain...} -> vpt2D_{stain...}
+    # --- vpt2D / vpt3D: vpt2D_<key>_<stain...> -> vpt2D_<stain...>
     for dim in ("2D", "3D"):
         prefix = f"vpt{dim}_{k}_"
         if j.startswith(prefix):
-            rest = j[len(prefix):]  # DAPI_PolyT  OR  PolyT
+            rest = j[len(prefix) :]
             return f"vpt{dim}_{rest}"
-        # sometimes only vpt2D_{key} (rare)
         if j == f"vpt{dim}_{k}":
             return f"vpt{dim}"
 
-    # --- Proseg_3D vpt: Proseg_3D_{key}_vpt{dim}_{flavor}_vxl_{voxel}
+    # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
     prefix = f"Proseg_3D_{k}_"
     if j.startswith(prefix) and "_vpt" in j:
-        rest = j[len(prefix):]  # vpt2_flavor_vxl_...
+        rest = j[len(prefix) :]
+        rest = re.sub(r"_vxl_.+$", "", rest)  # remove voxel suffix
         return f"Proseg_3D_{rest}"
 
-    # --- Proseg_3D CP: Proseg_3D_{key}_CP{cp}_{stain}_vxl_{voxel} -> Proseg_3D_CP{cp}_DAPI_{stain}_vxl_{voxel}
+    # --- Proseg_3D CP: Proseg_3D_<key>_CP2_PolyT_vxl_7
     if j.startswith(prefix) and "_CP" in j:
-        rest = j[len(prefix):]  # CP2_PolyT_vxl_3
-        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)_vxl_(?P<voxel>.+)$", rest)
+        rest = j[len(prefix) :]
+        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)(?:_vxl_.+)?$", rest)
         if m:
-            return f"Proseg_3D_CP{m.group('cp')}_DAPI_{m.group('stain')}_vxl_{m.group('voxel')}"
-        return f"Proseg_3D_{rest}"
+            return f"Proseg_3D_CP{m.group('cp')}_DAPI_{m.group('stain')}"
+        return f"Proseg_3D_{re.sub(r'_vxl_.+$', '', rest)}"
 
-    # --- Proseg (2D) CP: Proseg_{key}_CP{cp}_{stain}_vxl_{voxel}
+    # --- Proseg (2D) CP: Proseg_<key>_CP2_PolyT_vxl_7
     prefix = f"Proseg_{k}_"
     if j.startswith(prefix) and "_CP" in j:
-        rest = j[len(prefix):]  # CP2_PolyT_vxl_3
-        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)_vxl_(?P<voxel>.+)$", rest)
+        rest = j[len(prefix) :]
+        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)(?:_vxl_.+)?$", rest)
         if m:
-            return f"Proseg_CP{m.group('cp')}_DAPI_{m.group('stain')}_vxl_{m.group('voxel')}"
-        return f"Proseg_{rest}"
+            return f"Proseg_CP{m.group('cp')}_DAPI_{m.group('stain')}"
+        return f"Proseg_{re.sub(r'_vxl_.+$', '', rest)}"
 
-    # --- Cellpose jobs: CP1_{key}_{stain} / CP2_{key}_{stain}
+    # --- Cellpose jobs: CP1_<key>_<stain> / CP2_<key>_<stain>
     prefix = f"CP1_{k}_"
     if j.startswith(prefix):
-        stain = j[len(prefix):]
+        stain = j[len(prefix) :]
         return f"Cellpose_1_DAPI_{stain}"
+
     prefix = f"CP2_{k}_"
     if j.startswith(prefix):
-        stain = j[len(prefix):]
+        stain = j[len(prefix) :]
         return f"Cellpose_2_DAPI_{stain}"
 
-    # --- Simple methods (no extra flavor in jobname beyond key)
+    # --- Simple methods
     simple = {
         f"voronoi_{k}": "voronoi",
         f"nuclei_{k}": "nuclei",
@@ -320,9 +328,146 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         return simple[j]
 
     # --- rastered{width}_{key} -> rastered{width}
-    m = re.match(rf"^rastered(?P<width>\d+)_({re.escape(k)})$", j)
+    m = re.match(rf"^rastered(?P<width>\d+)_{re.escape(k)}$", j)
     if m:
         return f"rastered{m.group('width')}"
 
-    # fallback: keep normalized jobname (still useful)
+    # fallback
     return j
+
+
+def find_latest_job_data_tsv(metrics_dir):
+    """Return the newest exported job-data TSV in metrics_dir.
+    Uses file modification time and only considers '*_job_data.tsv'.
+    """
+    metrics_dir = Path(metrics_dir)
+    candidates = [p for p in metrics_dir.glob("*_job_data.tsv") if p.is_file()]
+    if not candidates:
+        raise FileNotFoundError(f"No '*_job_data.tsv' files found in: {metrics_dir}")
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
+
+def export_job_metrics_tsv(
+    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
+    out_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
+):
+    """Export aggregated Slurm job metrics for all jobids in ref_file_path to:
+    <out_dir>/YYYYMMDD_job_data.tsv.
+    """
+    df = pd.read_csv(ref_file_path, sep="\t")
+    df["jobid"] = df["jobid"].astype(str)
+
+    jobids = sorted(df["jobid"].dropna().unique().tolist())
+    if not jobids:
+        raise ValueError("No jobids found in reference file.")
+
+    sacct_frames = []
+    for ch in chunked(jobids, 200):
+        sacct_frames.append(run_sacct(ch))
+
+    if not sacct_frames:
+        raise ValueError("No sacct data returned for the provided jobids.")
+
+    sacct = pd.concat(sacct_frames, ignore_index=True)
+    if sacct.empty:
+        raise ValueError("sacct returned an empty table.")
+
+    sacct["JobIDRaw"] = sacct["JobIDRaw"].astype(str)
+    sacct["jobid_base"] = sacct["JobIDRaw"].str.split(".").str[0]
+    sacct["Elapsed_s"] = pd.to_numeric(sacct["ElapsedRaw"], errors="coerce")
+    sacct["AllocCPUS_n"] = pd.to_numeric(sacct["AllocCPUS"], errors="coerce")
+    sacct["MaxRSS_GB"] = sacct["MaxRSS"].apply(parse_slurm_mem_to_gb)
+
+    is_batch = sacct["JobIDRaw"].str.endswith(".batch")
+
+    agg_all = sacct.groupby("jobid_base", as_index=False).agg(
+        sacct_state=("State", "first"),
+        sacct_exitcode=("ExitCode", "first"),
+        elapsed_s=("Elapsed_s", "max"),
+        alloccpus=("AllocCPUS_n", "max"),
+    )
+
+    agg_batch = (
+        sacct[is_batch]
+        .groupby("jobid_base", as_index=False)
+        .agg(
+            maxrss_gb_batch=("MaxRSS_GB", "max"),
+        )
+    )
+
+    agg_any = sacct.groupby("jobid_base", as_index=False).agg(
+        maxrss_gb_any=("MaxRSS_GB", "max"),
+    )
+
+    agg = agg_all.merge(agg_batch, on="jobid_base", how="left")
+    agg = agg.merge(agg_any, on="jobid_base", how="left")
+    agg["maxrss_gb"] = agg["maxrss_gb_batch"].combine_first(agg["maxrss_gb_any"])
+    agg = agg.drop(columns=["maxrss_gb_batch", "maxrss_gb_any"])
+
+    agg = agg.rename(columns={"jobid_base": "jobid"})
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    out_path = out_dir / f"{datetime.now().strftime('%Y%m%d')}_job_data.tsv"
+    agg.to_csv(out_path, sep="\t", index=False)
+    return out_path
+
+
+def run_sacct(jobids):
+    """Execute sacct to get job statistics."""
+    if not jobids:
+        return pd.DataFrame(
+            columns=[
+                "JobIDRaw",
+                "State",
+                "ExitCode",
+                "ElapsedRaw",
+                "AllocCPUS",
+                "MaxRSS",
+            ]
+        )
+
+    cmd = [
+        "sacct",
+        "--jobs",
+        ",".join(map(str, jobids)),
+        "--format=JobIDRaw,State,ExitCode,ElapsedRaw,AllocCPUS,MaxRSS",
+        "--parsable2",
+        "--noheader",
+    ]
+
+    res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+    if not res.stdout.strip():
+        return pd.DataFrame(
+            columns=[
+                "JobIDRaw",
+                "State",
+                "ExitCode",
+                "ElapsedRaw",
+                "AllocCPUS",
+                "MaxRSS",
+            ]
+        )
+
+    return pd.read_csv(
+        StringIO(res.stdout),
+        sep="|",
+        header=None,
+        names=["JobIDRaw", "State", "ExitCode", "ElapsedRaw", "AllocCPUS", "MaxRSS"],
+        dtype=str,
+    )
+
+
+def _prepare_label_maps(factor_to_celltype, true_cluster):
+    """Prepare label maps."""
+    correct_celltypes = {
+        factor_to_celltype[i]: true_cluster[factor_to_celltype[i]]
+        for i in factor_to_celltype.keys()
+    }
+
+    factor_map = factor_to_celltype.copy()
+    factor_map["-1"] = "unassigned"
+
+    return factor_map, correct_celltypes

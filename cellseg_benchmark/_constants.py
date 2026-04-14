@@ -1633,7 +1633,7 @@ factor_to_celltype = {
     "7": "Neurons-Gaba",
     "8": "Neurons-Glut",
     "9": "Neurons-Glyc-Gaba",
-    "10": "Neurons-Immature",
+    "10": "Neurons-Granule-Immature",
     "11": "Neurons-Other",
     "12": "OECs",
     "13": "OPCs",
@@ -1696,6 +1696,32 @@ column_order = [
 ]
 
 true_cluster = {
+    "Astrocytes": "Astrocytes",
+    "Astroependymal": "Astrocytes",
+    "BAMs": "BAMs",
+    "Choroid-Plexus": "Ependymal",
+    "ECs": "ECs",
+    "Ependymal": "Ependymal",
+    "Immune-Other": "Immune-Other",
+    "Microglia": "Microglia",
+    "Neurons-Dopa-Gaba": "Neurons-Dopa",
+    "Neurons-Gaba": "Neurons-Gaba",
+    "Neurons-Glut": "Neurons-Glut",
+    "Neurons-Glyc-Gaba": "Neurons-Glyc-Gaba",
+    "Neurons-Granule-Immature": "Neurons-Granule-Immature",
+    "Neurons-Other": "Neurons-Other",
+    "OECs": "OECs",
+    "OPCs": "OPCs",
+    "Oligodendrocytes": "Oligodendrocytes",
+    "Pericytes": "Pericytes",
+    "SMCs": "SMCs",
+    "VLMCs": "VLMCs",
+    "ABCs": "ABCs",
+    "Bergmann": "Bergmann",
+    "Neurons-Dopa": "Neurons-Dopa",
+}
+
+true_cluster_old = {
     "Astrocytes": ["Astrocytes", "Astroependymal"],
     "BAMs": ["BAMs"],
     "ECs": ["ECs"],
