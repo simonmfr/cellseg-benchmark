@@ -143,7 +143,9 @@ def extract_mem_and_time(
     method,
     ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
     metrics_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
-    base_path=None
+    base_path=None,
+    ignore_missing=False,
+    **kwargs,
 ):
     """Read job metadata from ref_file_path and enrich it from the newest
     exported sacct TSV in metrics_dir.
@@ -159,6 +161,21 @@ def extract_mem_and_time(
       keeps the last successful one because the ref file is appended.
     - 'adata' is unused and only kept for API compatibility.
     """
+
+    def _missing_result(samples=None):
+        if samples is None:
+            samples = pd.Series(dtype="object")
+        else:
+            samples = pd.Series(samples, dtype="object")
+        return pd.DataFrame(
+            {
+                "sample": samples,
+                "maxrss_gb": pd.Series([pd.NA] * len(samples), dtype="object"),
+                "elapsed_h": pd.Series([pd.NA] * len(samples), dtype="object"),
+                "alloccpus": pd.Series([pd.NA] * len(samples), dtype="object"),
+            }
+        ).reset_index(drop=True)
+
     ref = pd.read_csv(ref_file_path, sep="\t")
     ref["_ref_order"] = range(len(ref))
 
@@ -174,6 +191,8 @@ def extract_mem_and_time(
 
     ref = ref[ref["method_with_flavor"] == method].copy()
     if ref.empty:
+        if ignore_missing:
+            return _missing_result()
         raise LookupError(
             f"Method {method!r} not found in job file or not yet recorded."
         )
@@ -226,6 +245,13 @@ def extract_mem_and_time(
 
     df_ok = df.loc[ok].copy()
     if df_ok.empty:
+        if ignore_missing:
+            samples = (
+                ref.sort_values("_ref_order")["sample"]
+                .drop_duplicates()
+                .tolist()
+            )
+            return _missing_result(samples)
         raise LookupError(
             f"No successful runs found for method {method!r} "
             f"in latest metrics file: {latest_metrics_file.name}"
@@ -253,3 +279,52 @@ def extract_mem_and_time(
 
     out = out.reset_index(drop=True)
     return out
+
+def plot_mem_and_time(cohort, metric, show: bool = False):
+    if metric not in ["memory", "cpus", "duration"]:
+        raise ValueError(f"Metric {metric!r} is not supported. Chose one of memory, cpus or duration.")
+
+    column_mapping = {
+        "memory": "maxrss_gb",
+        "cpus": "alloccpus",
+        "duration": "elapsed_h",
+    }
+    col_name = column_mapping[metric]
+    results_file = (
+            Path(BASE_PATH) / "metrics" / cohort / "Mem_and_time" / "mem_and_time.csv"
+    )
+    plot_path = results_file.parent / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
+    results_df = pd.read_csv(results_file, index_col=0)
+
+    # Remove nan
+    results_df = results_df[~results_df[col_name].isna()]
+
+    # Remove outliers
+    threshold = np.percentile(results_df[col_name], 99)
+    results_df = results_df[results_df[col_name] <= threshold]
+
+    dataset_order = results_df.groupby("method")[col_name].median().sort_values().index
+
+    fig = plt.figure(figsize=(6, 6), dpi=300)
+    plt.grid(True, alpha=0.3, zorder=0)
+    sns.violinplot(
+        results_df,
+        y="method",
+        x=col_name,
+        hue="method",
+        order=dataset_order,
+        palette=method_colors,
+        inner="quartile",
+        linewidth=0.7,
+        zorder=2,
+        legend=False,
+    )
+    plt.tight_layout()
+    if show:
+        plt.show()
+    fig.savefig(
+        plot_path / f"{metric}.png", bbox_inches="tight"
+    )
+    plt.close(fig)
