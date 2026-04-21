@@ -284,8 +284,8 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         if j.startswith(prefix):
             rest = j[len(prefix) :]
             return f"vpt{dim}_DAPI_{rest}"
-        if j == f"vpt{dim}_{k}":
-            return f"vpt{dim}"
+        if j == f"vpt_{dim}_{k}":
+            return f"vpt_{dim}"
 
     # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
     prefix_3d = f"Proseg_3D_{k}_"
@@ -345,9 +345,9 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
     if j == f"nuclei_{k}":
         return "Negative_Control_Nuclei"
     if j == f"merscope_{k}":
-        return "Negative_Control_MERSCOPE"
+        return "MERSCOPE"
     if j == f"transcript_tif_{k}":
-        return "Negative_Control_Transcript_TIF"
+        return "Transcript_TIF"
     m = re.match(rf"^rastered(?P<width>\d+)_{re.escape(k)}$", j)
     if m:
         return f"Negative_Control_Rastered_{m.group('width')}"
