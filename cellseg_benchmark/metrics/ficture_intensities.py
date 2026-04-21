@@ -22,6 +22,7 @@ def ficture_intensities(
     n_factors: int,
     unique_factors: list,
     var: bool = True,
+    **kwargs
 ) -> Union[pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]:
     """Compute the mean and optionally the variance of the ficture intensities per cell.
 

@@ -1,4 +1,7 @@
 import gzip
+from os import listdir
+from pathlib import Path
+from re import split
 from typing import Dict
 
 import dask.dataframe as dd
@@ -160,3 +163,55 @@ def create_factor_level_image(
     ).astype(np.uint16)  # makes smaller file
     image = image[np.newaxis, :]
     return image
+
+
+def _find_ficture_output(sample, base_path, n_ficture):
+    """Compute the ficture path dynamically."""
+    ficture_path = (
+        Path(base_path) / "samples" / sample / "results" / "Ficture" / "output"
+    )
+
+    for file in listdir(ficture_path):
+        if n_ficture == int(split(r"\.|F", file)[1]):
+            ficture_path = ficture_path / file
+            break
+
+    ficture_full_path = ""
+    for file in listdir(ficture_path):
+        if file.endswith(".pixel.sorted.tsv.gz"):
+            ficture_full_path = str(ficture_path / file)
+            break
+
+    if ficture_full_path == "":
+        # Previous computations have flatter hierarchies.
+        # Newer output may be in:
+        # Ficture/output/nF21.../analysis/nF21.../FILE
+        ficture_path = ficture_path / "analysis"
+        for file in listdir(ficture_path):
+            if n_ficture == int(split(r"\.|F", file)[1]):
+                ficture_path = ficture_path / file
+                break
+
+        for file in listdir(ficture_path):
+            if file.endswith(".pixel.sorted.tsv.gz"):
+                ficture_full_path = str(ficture_path / file)
+                break
+
+    if ficture_full_path == "":
+        raise FileNotFoundError(
+            f"Ficture output not correctly computed for sample '{sample}'."
+        )
+
+    return ficture_full_path
+
+
+def _read_ficture_pixels(
+    path, header=["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
+):
+    """Read the ficture pixel data."""
+    return pd.read_csv(
+        path,
+        sep="\t",
+        names=header,
+        comment="#",
+    )

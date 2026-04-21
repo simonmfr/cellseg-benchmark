@@ -1,9 +1,24 @@
 from collections import defaultdict
-from statistics import mean
+from pathlib import Path
 from typing import Dict, List, Literal, Union
 
+import numpy as np
 import pandas as pd
+import spatialdata as sd
+from joblib import Parallel, delayed
 from numpy import ndarray
+from scipy.spatial import cKDTree
+from spatialdata import read_zarr
+
+from cellseg_benchmark._constants import factor_to_celltype, true_cluster
+from cellseg_benchmark.ficture_utils import (
+    _find_ficture_output,
+    _read_ficture_pixels,
+    parse_metadata,
+    process_coordinates,
+)
+from cellseg_benchmark.metrics.utils import _prepare_label_maps
+from cellseg_benchmark.sdata_utils import _assign_points_to_polygons
 
 
 def _f1_score(
@@ -22,150 +37,98 @@ def _f1_score(
     return (2 * tp) / (2 * tp + fp + fn)
 
 
-def compute_f1(
+def _compute_f1(
     data: pd.DataFrame | Dict[str, pd.DataFrame],
-    general_stats: pd.DataFrame | Dict[str, pd.DataFrame] = None,
     flavor: Literal["f1", "micro", "macro", "all"] = "f1",
-    celltype_name: str | None = "celltype",
-    correct_celltypes: Dict[str, List[str]] = None,
-    weighted: bool = False,
-    subset: List[str] = None,
+    celltype_col: str = "celltype",
+    factor_col: str = "Factor",
+    subset: List[str] | None = None,
+    return_confusion: bool = False,
 ) -> pd.DataFrame:
-    """Computes the F1 score given area information.
+    """Compute per-class F1 scores from a ground-truth celltype column and a
+    predicted/assigned Factor column.
 
-    Args:
-        data: Data with factors and celltype annotation.
-        general_stats: If provided, data must be total for FN computation. Otherwise, data is relative
-        flavor: "Micro" --> add micro f1, "Macro" --> add macro f1, "All" --> add micro and macro f1.
-        celltype_name: name of the celltype annotation column.
-        correct_celltypes: specify correct celltype per factor.
-        weighted: Data based on weighted or unweighted area.
-        subset: Subset of ficture factors to compute F1 score for.
+    Output is flipped:
+    - columns = labels
+    - rows = F1_score (and optionally TP, FP, FN, TN)
 
-    Returns:
-        F1 score per factor and over all factors.
+    Standard confusion matrix naming:
+    - TP: true label == current class, predicted label == current class
+    - FN: true label == current class, predicted label != current class
+    - FP: true label != current class, predicted label == current class
+    - TN: true label != current class, predicted label != current class.
     """
-    # validate inputs
-    if flavor != "f1":
-        assert correct_celltypes is not None, "correct_celltypes must be provided."
-    if flavor in ["micro", "all"]:
-        assert general_stats is not None, "general_stats must be provided."
-
-    if isinstance(general_stats, pd.DataFrame):
-        assert isinstance(data, pd.DataFrame), (
-            "data must be DataFrame, since general_stats is DataFrame."
-        )
-    if isinstance(data, pd.DataFrame):
-        assert isinstance(general_stats, pd.DataFrame), (
-            "general_stats must be DataFrame, since data is DataFrame."
-        )
-
-    # ensure data and general_stats are dicts
-    if isinstance(general_stats, pd.DataFrame):
-        general_stats = {"tmp": general_stats}
     if isinstance(data, pd.DataFrame):
         data = {"tmp": data}
+    elif not isinstance(data, dict):
+        raise TypeError("data must be a pandas DataFrame or a dict of DataFrames.")
 
-    # compute subset of factors if not provided
-    if subset is None:
-        subset = set.intersection(
-            *[set(x.drop(columns=[celltype_name]).columns) for x in data.values()]
-        )
-
-    if correct_celltypes is None:
-        cols = list(
-            set.intersection(
-                *[set(x.drop(columns=[celltype_name]).columns) for x in data.values()]
+    for key, df in data.items():
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError(f"data['{key}'] is not a DataFrame.")
+        missing = {celltype_col, factor_col} - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"data['{key}'] is missing required columns: {sorted(missing)}"
             )
-            & set(subset)
-        )
-        cols.sort()
-        celltypes_unique = set()
-        for val in data.values():
-            celltypes_unique.update(val[celltype_name].unique())
-        celltypes_unique = list(celltypes_unique)
-        try:
-            celltypes_unique.sort()
-        except TypeError:
-            print(celltypes_unique)
-            raise TypeError
-        f1_stats = pd.DataFrame(columns=cols, index=celltypes_unique)
 
-        for factor in cols:
-            for celltype in list(celltypes_unique):
-                TP, FP, FN = 0, 0, 0
-                for key, val in data.items():
-                    TP_n = val.loc[val[celltype_name] == celltype, factor].sum()
-                    FP_n = val.loc[val[celltype_name] != celltype, factor].sum()
-                    if general_stats is not None:
-                        FN += (
-                            general_stats[key].loc[
-                                "factor_area_weighted" if weighted else "factor_area",
-                                factor,
-                            ]
-                            - TP_n
-                            - FP_n
-                        )
-                    else:
-                        FN += 1 - TP_n - FP_n
-                    TP += TP_n
-                    FP += FP_n
-                f1_stats.loc[celltype, factor] = _f1_score(TP, FP, FN)
-        f1_stats.sort_index(inplace=True)
-        return f1_stats
+    if subset is None:
+        labels = set()
+        for df in data.values():
+            labels.update(df[celltype_col].dropna().unique())
+            labels.update(df[factor_col].dropna().unique())
+        labels = pd.Index(sorted(labels))
+    else:
+        labels = pd.Index(sorted(set(subset)))
 
-    rates = {}
-    cols = list(set(correct_celltypes.keys()) & set(subset))
-    cols.sort()
+    n = len(labels)
+    cm_total = np.zeros((n, n), dtype=np.int64)
 
-    for cluster in cols:
-        rates[cluster] = defaultdict(float)
-        for key, val in data.items():
-            TP_n = val.loc[
-                [x in correct_celltypes[cluster] for x in val[celltype_name]], cluster
-            ].sum()
-            FP_n = val.loc[
-                [x not in correct_celltypes[cluster] for x in val[celltype_name]],
-                cluster,
-            ].sum()
-            if flavor == "micro" or flavor == "all" or general_stats is not None:
-                assert general_stats is not None, (
-                    "general_stats must be provided. Important for micro F1 score."
-                )
-                rates[cluster]["FN"] = (
-                    general_stats[key].loc[
-                        "factor_area_weighted" if weighted else "factor_area", cluster
-                    ]
-                    - TP_n
-                    - FP_n
-                )
-            else:
-                rates[cluster]["FN"] = 1 - TP_n - FP_n
-            rates[cluster]["TP"] += TP_n
-            rates[cluster]["FP"] += FP_n
-        rates[cluster]["F1_score"] = _f1_score(
-            rates[cluster]["TP"], rates[cluster]["FP"], rates[cluster]["FN"]
-        )
+    for df in data.values():
+        true = pd.Categorical(df[celltype_col], categories=labels)
+        pred = pd.Categorical(df[factor_col], categories=labels)
+        true_codes = true.codes.astype(np.int64)
+        pred_codes = pred.codes.astype(np.int64)
 
-    stats_total = []
-    names = []
-    for cluster, stats in rates.items():
-        names.append(cluster)
-        stats_total.append(stats["F1_score"])
-    if flavor == "macro" or flavor == "all":
-        names.append("macro F1_score")
-        stats_total.append(mean(stats_total))
-    if flavor == "micro" or flavor == "all":
-        names.append("micro F1_score")
-        f1_stats = defaultdict(float)
-        for stats in rates.values():
-            f1_stats["TP"] += stats["TP"]
-            f1_stats["FP"] += stats["FP"]
-            f1_stats["FN"] += stats["FN"]
-        f1_stats["F1_score"] = _f1_score(f1_stats["TP"], f1_stats["FP"], f1_stats["FN"])
-        stats_total.append(f1_stats["F1_score"])
-    stats_total = pd.DataFrame(stats_total, index=names, columns=["F1_statistics"]).T
-    return stats_total
+        valid = (true_codes >= 0) & (pred_codes >= 0)
+        cm = np.bincount(
+            true_codes[valid] * n + pred_codes[valid],
+            minlength=n * n,
+        ).reshape(n, n)
+        cm_total += cm
+
+    tp = np.diag(cm_total)
+    fn = cm_total.sum(axis=1) - tp
+    fp = cm_total.sum(axis=0) - tp
+    f1 = _f1_score(tp, fp, fn)
+    out = pd.DataFrame([f1], index=["F1_score"], columns=labels)
+
+    if return_confusion:
+        total = cm_total.sum()
+        tn = total - tp - fp - fn
+
+        out.loc["TP"] = tp
+        out.loc["FP"] = fp
+        out.loc["FN"] = fn
+        out.loc["TN"] = tn
+        out = out.loc[["TP", "FP", "FN", "TN", "F1_score"]]
+
+    if flavor in {"macro", "all"}:
+        macro_f1 = float(np.mean(f1)) if len(f1) else 0.0
+        out["macro F1_score"] = np.nan
+        out.loc["F1_score", "macro F1_score"] = macro_f1
+
+    if flavor in {"micro", "all"}:
+        tp_total = int(tp.sum())
+        fp_total = int(fp.sum())
+        fn_total = int(fn.sum())
+        denom = 2 * tp_total + fp_total + fn_total
+        micro_f1 = 0.0 if denom == 0 else 2 * tp_total / denom
+
+        out["micro F1_score"] = np.nan
+        out.loc["F1_score", "micro F1_score"] = micro_f1
+
+    return out
 
 
 def f1_adapted(
@@ -244,3 +207,185 @@ def f1_adapted(
     stats_total.append(f1_stats["F1_score"])
     stats_total = pd.DataFrame(stats_total, index=names, columns=["F1_statistics"]).T
     return stats_total
+
+
+def _process_sample_ficture_f1(
+    sample,
+    obs_df,
+    method,
+    base_path,
+    n_ficture,
+    factor_to_celltype,
+    true_cluster,
+):
+    """Compute ficture stats on one sample."""
+    ficture_full_path = _find_ficture_output(sample, base_path, n_ficture)
+
+    sdata = read_zarr(
+        Path(base_path) / "samples" / sample / "sdata_z3.zarr",
+        selection=("points", "shapes"),
+    )
+
+    points_data = sdata[f"{sample}_transcripts"].compute()
+    boundaries = sd.transform(
+        sdata[f"boundaries_{method}"],
+        to_coordinate_system="micron",
+    )
+
+    del sdata
+    boundaries = boundaries.copy()
+    boundaries["p_id"] = boundaries.index
+
+    ficture_pixels = _read_ficture_pixels(ficture_full_path)
+
+    metadata = parse_metadata(ficture_full_path)
+    ficture_pixels = process_coordinates(ficture_pixels, metadata)
+
+    fic_microns = ficture_pixels[["x", "y"]].to_numpy()
+    points_coords = points_data[["x", "y"]].to_numpy()
+
+    tree = cKDTree(fic_microns)
+    distances, indices = tree.query(points_coords, k=1, distance_upper_bound=5)
+
+    result = points_data.copy()
+    valid = np.isfinite(distances)
+    result["assigned_factor"] = -1
+    result["nearest_distance"] = distances
+    result.loc[valid, "assigned_factor"] = ficture_pixels.iloc[indices[valid]][
+        "K1"
+    ].to_numpy()
+    del ficture_pixels
+
+    res = _assign_points_to_polygons(
+        result,
+        boundaries,
+        polygon_id_col="p_id",
+        output_col="assigned_polygon",
+    )
+
+    celltype = obs_df.loc[obs_df["sample"] == sample, "cell_type_revised"].copy()
+
+    res_cts = res.merge(
+        celltype,
+        how="left",
+        left_on="assigned_polygon",
+        right_index=True,
+    )
+
+    factor_map, correct_celltypes = _prepare_label_maps(
+        factor_to_celltype, true_cluster
+    )
+
+    res_cts["assigned_factor"] = res_cts["assigned_factor"].astype(str).map(factor_map)
+    res_cts["cell_type_revised"] = res_cts["cell_type_revised"].map(correct_celltypes)
+    eval_df = res_cts[["cell_type_revised", "assigned_factor"]].copy()
+
+    metric = _compute_f1(
+        eval_df,
+        celltype_col="cell_type_revised",
+        factor_col="assigned_factor",
+        flavor="all",
+        return_confusion=True,
+    )
+
+    sample_results = metric.T.reset_index().rename(
+        columns={
+            "index": "cell_type",
+            "F1_score": "f1_score",
+            "TP": "tp",
+            "FP": "fp",
+            "FN": "fn",
+        }
+    )
+    sample_results = sample_results[
+        ~sample_results["cell_type"].isin(["macro F1_score", "micro F1_score"])
+    ].copy()
+
+    sample_results["precision"] = sample_results["tp"] / (
+        sample_results["tp"] + sample_results["fp"]
+    )
+    sample_results["recall"] = sample_results["tp"] / (
+        sample_results["tp"] + sample_results["fn"]
+    )
+
+    sample_results["precision"] = sample_results["precision"].fillna(0)
+    sample_results["recall"] = sample_results["recall"].fillna(0)
+    sample_results.insert(0, "sample", sample)
+
+    return sample, sample_results, eval_df
+
+
+def ficture_f1_parallel(
+    adata,
+    method,
+    base_path,
+    n_ficture,
+    n_jobs=-1,
+    backend="loky",
+):
+    """Compute Ficture F1 score with parallelization."""
+    # Do not mutate adata.obs_names in parallel code
+    obs_df = adata.obs[["sample", "cell_type_revised"]].copy()
+    obs_df.index = [x[:10] for x in adata.obs_names]
+
+    samples = obs_df["sample"].unique().tolist()
+
+    worker_out = Parallel(n_jobs=n_jobs, backend=backend, verbose=10)(
+        delayed(_process_sample_ficture_f1)(
+            sample=sample,
+            obs_df=obs_df,
+            method=method,
+            base_path=base_path,
+            n_ficture=n_ficture,
+            factor_to_celltype=factor_to_celltype,
+            true_cluster=true_cluster,
+        )
+        for sample in samples
+    )
+
+    per_sample_tables = []
+    eval_frames = {}
+
+    for sample, sample_results, eval_df in worker_out:
+        per_sample_tables.append(sample_results)
+        eval_frames[sample] = eval_df
+
+    results = pd.concat(per_sample_tables, ignore_index=True)
+
+    # Global score across all samples
+    overall_metric = _compute_f1(
+        eval_frames,
+        celltype_col="cell_type_revised",
+        factor_col="assigned_factor",
+        flavor="all",
+        return_confusion=True,
+    )
+
+    overall_results = overall_metric.T.reset_index().rename(
+        columns={
+            "index": "cell_type",
+            "F1_score": "f1_score",
+            "TP": "tp",
+            "FP": "fp",
+            "FN": "fn",
+        }
+    )
+    overall_results = overall_results[
+        ~overall_results["cell_type"].isin(["macro F1_score", "micro F1_score"])
+    ].copy()
+
+    overall_results["precision"] = overall_results["tp"] / (
+        overall_results["tp"] + overall_results["fp"]
+    )
+    overall_results["recall"] = overall_results["tp"] / (
+        overall_results["tp"] + overall_results["fn"]
+    )
+
+    overall_results["precision"] = overall_results["precision"].fillna(0)
+    overall_results["recall"] = overall_results["recall"].fillna(0)
+    overall_results.insert(0, "sample", "all_samples")
+
+    results = pd.concat([results, overall_results], ignore_index=True)
+    results.drop(results[results["cell_type"] == "unassigned"].index, inplace=True)
+
+    return results

@@ -1633,7 +1633,7 @@ factor_to_celltype = {
     "7": "Neurons-Gaba",
     "8": "Neurons-Glut",
     "9": "Neurons-Glyc-Gaba",
-    "10": "Neurons-Immature",
+    "10": "Neurons-Granule-Immature",
     "11": "Neurons-Other",
     "12": "OECs",
     "13": "OPCs",
@@ -1696,6 +1696,32 @@ column_order = [
 ]
 
 true_cluster = {
+    "Astrocytes": "Astrocytes",
+    "Astroependymal": "Astrocytes",
+    "BAMs": "BAMs",
+    "Choroid-Plexus": "Ependymal",
+    "ECs": "ECs",
+    "Ependymal": "Ependymal",
+    "Immune-Other": "Immune-Other",
+    "Microglia": "Microglia",
+    "Neurons-Dopa-Gaba": "Neurons-Dopa",
+    "Neurons-Gaba": "Neurons-Gaba",
+    "Neurons-Glut": "Neurons-Glut",
+    "Neurons-Glyc-Gaba": "Neurons-Glyc-Gaba",
+    "Neurons-Granule-Immature": "Neurons-Granule-Immature",
+    "Neurons-Other": "Neurons-Other",
+    "OECs": "OECs",
+    "OPCs": "OPCs",
+    "Oligodendrocytes": "Oligodendrocytes",
+    "Pericytes": "Pericytes",
+    "SMCs": "SMCs",
+    "VLMCs": "VLMCs",
+    "ABCs": "ABCs",
+    "Bergmann": "Bergmann",
+    "Neurons-Dopa": "Neurons-Dopa",
+}
+
+true_cluster_old = {
     "Astrocytes": ["Astrocytes", "Astroependymal"],
     "BAMs": ["BAMs"],
     "ECs": ["ECs"],
@@ -1755,6 +1781,7 @@ cell_type_colors = {
     # "Neurons-Immature": "#FF50E5",
     "Neurons-Granule-Immature": "#FF50E5",
     "Neurons-Other": "#FCA0FF",
+    "Neurons": "#B449F8",  # for marker f1 score where Neurons are merged in one celltype
     "OECs": "#9EDAE5",
     "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
     "Undefined": "#D9D9D9",  # = below QC threshold
@@ -1799,6 +1826,15 @@ method_colors = {
     "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
     "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
     "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
+    # Proseg 3D variants (yellow palette)
+    "Proseg_3D_Cellpose_1_DAPI_PolyT": "#f5f0df",
+    "Proseg_3D_Cellpose_1_DAPI_Transcripts": "#f3e4bf",
+    "Proseg_3D_Cellpose_1_nuclei_model": "#f1d9a1",
+    "Proseg_3D_Cellpose_2_DAPI_PolyT": "#efce82",
+    "Proseg_3D_Cellpose_2_DAPI_Transcripts": "#eec364",
+    "Proseg_3D_vpt3D_nuclei": "#edb846",
+    "Proseg_3D_vpt3D_PolyT": "#eaad28",
+    "Proseg_3D_vpt3D_PolyT_nuclei": "#e8a20a",
     # Negative controls (grey palette)
     "Negative_Control_Rastered_5": "#252525",
     "Negative_Control_Rastered_10": "#525252",
@@ -1808,16 +1844,53 @@ method_colors = {
     "ComSeg": "#d7f035",
 }
 
+clean_method_names_raw = {
+    "Negative_Control_": "",
+    "Rastered": "Raster",
+    "Voronoi": "Random_Voronoi",
+    "Baysor_2D": "Baysor",
+    "DAPI_PolyT": "P",
+    "DAPI_Transcripts": "T",
+    "vpt_3D_DAPI_nuclei": "Cellpose_1n_3D_VPT",
+    "vpt_3D_P_nuclei": "Cellpose_1nP_3D_VPT",
+    "vpt_2D_DAPI_nuclei": "Cellpose_1n_2D_VPT",
+    "vpt_2D_P_nuclei": "Cellpose_1nP_2D_VPT",
+    "vpt_3D_P": "Cellpose_1P_3D_VPT",
+    "vpt_2D_P": "Cellpose_1P_2D_VPT",
+    "1_Merlin": "1_Merscope",
+}
+
+clean_method_names_format = {
+    "_Cellpose": "_CP",
+    "_1_T": "_1T",
+    "_1_P": "_1P",
+    "_2_T": "_2T",
+    "_2_P": "_2P",
+    "_1_nuclei_model": "_1n",
+    "CP_": "CP",
+}
+
+clean_method_names = {**clean_method_names_raw, **clean_method_names_format}
+
 brain_regions_colors = {
-    "BS": 'FF7080',
+    "BS": "FF7080",
     "CA3sp": "66A83D",
     "CTX": "B0FFB8",
-    "DG-sg": '66A83D',
+    "DG-sg": "66A83D",
     "HIP": "7ED04B",
     "STR": "98D6F9",
     "VS": "AAAAAA",
     "fiber tracts": "CCCCCC",
     "BS/STR": "CCA3BC",
     "STR/CTX": "A4EAD8",
-    "Meninges": "480091"
+    "Meninges": "480091",
+}
+
+# merges neurons for marker-gene-based metrics
+merged_celltypes = {
+    "Neurons-Dopa": "Neurons",
+    "Neurons-Dopa-Gaba": "Neurons",
+    "Neurons-Gaba": "Neurons",
+    "Neurons-Glut": "Neurons",
+    "Neurons-Glyc-Gaba": "Neurons",
 }
