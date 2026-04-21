@@ -190,6 +190,8 @@ def extract_mem_and_time(
 
     ref = ref[ref["method_with_flavor"] == method].copy()
     if ref.empty:
+        if ignore_missing:
+            return _missing_result()
         raise LookupError(
             f"Method {method!r} not found in job file or not yet recorded."
         )
