@@ -139,7 +139,11 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
 
 
 def extract_mem_and_time(
-    ref_file_path, method, metrics_dir, adata=None, base_path=None
+    adata,
+    method,
+    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
+    metrics_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
+    base_path=None
 ):
     """Read job metadata from ref_file_path and enrich it from the newest
     exported sacct TSV in metrics_dir.
