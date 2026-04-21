@@ -144,7 +144,7 @@ def extract_mem_and_time(
     ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
     metrics_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
     base_path=None,
-    ignore_missing=False
+    ignore_missing=False,
 ):
     """Read job metadata from ref_file_path and enrich it from the newest
     exported sacct TSV in metrics_dir.
@@ -279,7 +279,7 @@ def extract_mem_and_time(
     out = out.reset_index(drop=True)
     return out
 
-def plot_mem(cohort, metric, show: bool = False):
+def plot_mem_and_time(cohort, metric, show: bool = False):
     if metric not in ["memory", "cpus", "duration"]:
         raise ValueError(f"Metric {metric!r} is not supported. Chose one of memory, cpus or duration.")
 
