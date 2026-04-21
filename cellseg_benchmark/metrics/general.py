@@ -278,3 +278,52 @@ def extract_mem_and_time(
 
     out = out.reset_index(drop=True)
     return out
+
+def plot_mem(cohort, metric, show: bool = False):
+    if metric not in ["memory", "cpus", "duration"]:
+        raise ValueError(f"Metric {metric!r} is not supported. Chose one of memory, cpus or duration.")
+
+    column_mapping = {
+        "memory": "maxrss_gb",
+        "cpus": "alloccpus",
+        "duration": "elapsed_h",
+    }
+    col_name = column_mapping[metric]
+    results_file = (
+            Path(BASE_PATH) / "metrics" / cohort / "Mem_and_time" / "mem_and_time.csv"
+    )
+    plot_path = results_file.parent / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
+    results_df = pd.read_csv(results_file, index_col=0)
+
+    # Remove nan
+    results_df = results_df[~results_df[col_name].isna()]
+
+    # Remove outliers
+    threshold = np.percentile(results_df[col_name], 99)
+    results_df = results_df[results_df[col_name] <= threshold]
+
+    dataset_order = results_df.groupby("method")[col_name].median().sort_values().index
+
+    fig = plt.figure(figsize=(6, 6), dpi=300)
+    plt.grid(True, alpha=0.3, zorder=0)
+    sns.violinplot(
+        results_df,
+        y="method",
+        x=col_name,
+        hue="method",
+        order=dataset_order,
+        palette=method_colors,
+        inner="quartile",
+        linewidth=0.7,
+        zorder=2,
+        legend=False,
+    )
+    plt.tight_layout()
+    if show:
+        plt.show()
+    fig.savefig(
+        plot_path / f"{metric}.png", bbox_inches="tight"
+    )
+    plt.close(fig)
