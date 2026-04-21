@@ -283,8 +283,8 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         prefix = f"vpt{dim}_{k}_"
         if j.startswith(prefix):
             rest = j[len(prefix) :]
-            return f"vpt{dim}_DAPI_{rest}"
-        if j == f"vpt_{dim}_{k}":
+            return f"vpt_{dim}_DAPI_{rest}"
+        if j == f"vpt{dim}_{k}":
             return f"vpt_{dim}"
 
     # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
