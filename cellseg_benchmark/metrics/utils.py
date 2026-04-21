@@ -276,7 +276,7 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
             prefix += f"_{qualifier}"
         if stain == "nuclei":
             return f"{prefix}_2D_Cellpose_{cp}_nuclei_model_{conf}"
-        return f"{prefix}_Cellpose_{cp}_DAPI_{stain}_{conf}"
+        return f"{prefix}_2D_Cellpose_{cp}_DAPI_{stain}_{conf}"
 
     # --- vpt2D / vpt3D: vpt2D_<key>_<stain...> -> vpt2D_<stain...>
     for dim in ("2D", "3D"):
@@ -320,7 +320,7 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
             if stain == "nuclei":
                 return f"Proseg_2D_Cellpose_{cp}_nuclei_model"
             return f"Proseg_2D_Cellpose_{cp}_DAPI_{stain}"
-        return f"Proseg_2D_{re.sub(r'_vxl_.+$', '', rest)}"
+        return f"Proseg_{re.sub(r'_vxl_.+$', '', rest)}"
 
     # --- Cellpose jobs: CP1_<key>_<stain> / CP2_<key>_<stain>
     prefix = f"CP1_{k}_"
