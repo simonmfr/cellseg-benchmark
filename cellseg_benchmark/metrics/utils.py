@@ -268,71 +268,90 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
     )
     if m:
         qualifier = m.group("qualifier")
+        cp = m.group("cp")
+        stain = m.group("stain")
+        conf = m.group("conf")
         prefix = "Baysor"
         if qualifier:
             prefix += f"_{qualifier}"
-        return f"{prefix}_CP{m.group('cp')}_DAPI_{m.group('stain')}_{m.group('conf')}"
+        if stain == "nuclei":
+            return f"{prefix}_2D_Cellpose_{cp}_nuclei_model_{conf}"
+        return f"{prefix}_Cellpose_{cp}_DAPI_{stain}_{conf}"
 
     # --- vpt2D / vpt3D: vpt2D_<key>_<stain...> -> vpt2D_<stain...>
     for dim in ("2D", "3D"):
         prefix = f"vpt{dim}_{k}_"
         if j.startswith(prefix):
             rest = j[len(prefix) :]
-            return f"vpt{dim}_{rest}"
+            return f"vpt{dim}_DAPI_{rest}"
         if j == f"vpt{dim}_{k}":
             return f"vpt{dim}"
 
     # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
-    prefix = f"Proseg_3D_{k}_"
-    if j.startswith(prefix) and "_vpt" in j:
-        rest = j[len(prefix) :]
-        rest = re.sub(r"_vxl_.+$", "", rest)  # remove voxel suffix
+    prefix_3d = f"Proseg_3D_{k}_"
+    if j.startswith(prefix_3d) and "_vpt" in j:
+        rest = j[len(prefix_3d):]
+        rest = re.sub(r"_vxl_.+$", "", rest)  # ignore voxel size
+        m = re.match(r"^vpt(?P<dim>2D|3D)_(?P<flavor>.+)$", rest)
+        if m:
+            return f"Proseg_3D_vpt_{m.group('dim')}_DAPI_{m.group('flavor')}"
         return f"Proseg_3D_{rest}"
 
     # --- Proseg_3D CP: Proseg_3D_<key>_CP2_PolyT_vxl_7
-    if j.startswith(prefix) and "_CP" in j:
-        rest = j[len(prefix) :]
+    if j.startswith(prefix_3d) and "_CP" in j:
+        rest = j[len(prefix_3d):]
         m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)(?:_vxl_.+)?$", rest)
         if m:
-            return f"Proseg_3D_CP{m.group('cp')}_DAPI_{m.group('stain')}"
+            cp = m.group("cp")
+            stain = m.group("stain")
+            if stain == "nuclei":
+                return f"Proseg_3D_Cellpose_{cp}_nuclei_model"
+            return f"Proseg_3D_Cellpose_{cp}_DAPI_{stain}"
         return f"Proseg_3D_{re.sub(r'_vxl_.+$', '', rest)}"
 
     # --- Proseg (2D) CP: Proseg_<key>_CP2_PolyT_vxl_7
-    prefix = f"Proseg_{k}_"
-    if j.startswith(prefix) and "_CP" in j:
-        rest = j[len(prefix) :]
+    prefix_2d = f"Proseg_{k}_"
+    if j.startswith(prefix_2d) and "_CP" in j:
+        rest = j[len(prefix_2d):]
         m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)(?:_vxl_.+)?$", rest)
         if m:
-            return f"Proseg_CP{m.group('cp')}_DAPI_{m.group('stain')}"
-        return f"Proseg_{re.sub(r'_vxl_.+$', '', rest)}"
+            cp = m.group("cp")
+            stain = m.group("stain")
+            if stain == "nuclei":
+                return f"Proseg_2D_Cellpose_{cp}_nuclei_model"
+            return f"Proseg_2D_Cellpose_{cp}_DAPI_{stain}"
+        return f"Proseg_2D_{re.sub(r'_vxl_.+$', '', rest)}"
 
     # --- Cellpose jobs: CP1_<key>_<stain> / CP2_<key>_<stain>
     prefix = f"CP1_{k}_"
     if j.startswith(prefix):
-        stain = j[len(prefix) :]
+        stain = j[len(prefix):]
+        if stain == "nuclei":
+            return "Cellpose_1_nuclei_model"
+        if stain == "Merlin":
+            return "Cellpose_1_Merlin"
         return f"Cellpose_1_DAPI_{stain}"
 
     prefix = f"CP2_{k}_"
     if j.startswith(prefix):
-        stain = j[len(prefix) :]
+        stain = j[len(prefix):]
+        if stain == "nuclei":
+            return "Cellpose_2_nuclei_model"
         return f"Cellpose_2_DAPI_{stain}"
 
     # --- Simple methods
-    simple = {
-        f"voronoi_{k}": "voronoi",
-        f"nuclei_{k}": "nuclei",
-        f"merscope_{k}": "merscope_sdata",
-        f"transcript_tif_{k}": "transcript_tif",
-    }
-    if j in simple:
-        return simple[j]
-
-    # --- rastered{width}_{key} -> rastered{width}
+    if j == f"voronoi_{k}":
+        return "Negative_Control_Voronoi"
+    if j == f"nuclei_{k}":
+        return "Negative_Control_Nuclei"
+    if j == f"merscope_{k}":
+        return "Negative_Control_MERSCOPE"
+    if j == f"transcript_tif_{k}":
+        return "Negative_Control_Transcript_TIF"
     m = re.match(rf"^rastered(?P<width>\d+)_{re.escape(k)}$", j)
     if m:
-        return f"rastered{m.group('width')}"
+        return f"Negative_Control_Rastered_{m.group('width')}"
 
-    # fallback
     return j
 
 
