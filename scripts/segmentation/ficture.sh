@@ -1,3 +1,7 @@
+set -euo pipefail
+export PATH=~/perl5/bin:$PATH
+export PERL5LIB=~/perl5/lib/perl5:$PERL5LIB
+
 ################################################################################
 # 0. SCRIPT USAGE AND INPUT VALIDATION
 ################################################################################
