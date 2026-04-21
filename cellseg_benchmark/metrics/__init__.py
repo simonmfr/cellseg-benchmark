@@ -1,7 +1,7 @@
 from .assigned_transcripts import compute_assigned_transcripts, plot_assigned_transcripts, plot_assigned_transcripts_heatmap
 from .cell_type import compute_cell_type_distribution, plot_cell_type_distribution
 from .clustering import compute_clustering_scores, plot_clustering_scores
-from .f1_score import compute_f1
+from .f1_score import _compute_f1
 from .general import extract_general_stats, plot_general_stats
 from .marker_gene_based import (
     compute_marker_F1_score,
