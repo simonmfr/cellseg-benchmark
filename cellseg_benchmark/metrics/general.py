@@ -145,6 +145,7 @@ def extract_mem_and_time(
     metrics_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
     base_path=None,
     ignore_missing=False,
+    **kwargs,
 ):
     """Read job metadata from ref_file_path and enrich it from the newest
     exported sacct TSV in metrics_dir.
