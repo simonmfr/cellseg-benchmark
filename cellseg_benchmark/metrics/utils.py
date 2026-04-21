@@ -489,4 +489,76 @@ def _prepare_label_maps(factor_to_celltype, true_cluster):
     factor_map = factor_to_celltype.copy()
     factor_map["-1"] = "unassigned"
 
-    return factor_map, correct_celltypes
+    return factor_map, correct_celltypes#
+
+def show_all_method_names(ref_file_path, only_successful=False, metrics_dir=None, return_counts=False):
+    """
+    Show all possible canonical method names derived from the ref file.
+
+    Parameters
+    ----------
+    ref_file_path : str or Path
+        Path to the appended job_runs.tsv file.
+    only_successful : bool, default False
+        If True, only include methods with successful runs according to the
+        newest *_job_data.tsv file in metrics_dir.
+    metrics_dir : str or Path, optional
+        Required if only_successful=True.
+    return_counts : bool, default False
+        If True, return a DataFrame with counts instead of a plain list.
+
+    Returns
+    -------
+    list[str] or pd.DataFrame
+    """
+    df = pd.read_csv(ref_file_path, sep="\t")
+    df["_ref_order"] = range(len(df))
+
+    df["jobid"] = df["jobid"].astype(str)
+    df["jobname"] = df["jobname"].astype(str)
+    df["sample"] = df["key"].astype(str)
+    df["jobname_norm"] = df["jobname"].apply(normalize_jobname)
+
+    df["method_with_flavor"] = df.apply(
+        lambda r: method_with_flavor_from_row(r["jobname"], r["sample"]),
+        axis=1,
+    )
+
+    if only_successful:
+        if metrics_dir is None:
+            raise ValueError("metrics_dir must be provided when only_successful=True.")
+
+        latest_metrics_file = find_latest_job_data_tsv(metrics_dir)
+        sacct = pd.read_csv(latest_metrics_file, sep="\t")
+        sacct["jobid"] = sacct["jobid"].astype(str)
+
+        required_cols = {"jobid", "sacct_state", "sacct_exitcode"}
+        missing = required_cols.difference(sacct.columns)
+        if missing:
+            raise ValueError(
+                f"Metrics file {latest_metrics_file} is missing columns: {sorted(missing)}"
+            )
+
+        df = df.merge(
+            sacct[["jobid", "sacct_state", "sacct_exitcode"]],
+            on="jobid",
+            how="left",
+        )
+
+        ok = (df["sacct_state"] == "COMPLETED") & (df["sacct_exitcode"] == "0:0")
+        if "rc" in df.columns:
+            ok = ok & (pd.to_numeric(df["rc"], errors="coerce") == 0)
+
+        df = df.loc[ok].copy()
+
+    if return_counts:
+        out = (
+            df.groupby("method_with_flavor", dropna=False)
+            .size()
+            .reset_index(name="n_runs")
+            .sort_values(["n_runs", "method_with_flavor"], ascending=[False, True])
+            .reset_index(drop=True)
+        )
+        return out
+
+    return sorted(df["method_with_flavor"].dropna().unique().tolist())
