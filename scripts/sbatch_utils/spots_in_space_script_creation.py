@@ -34,7 +34,7 @@ for key, value in samples.items():
 #SBATCH -J SIS_{key}_{args.staining}
 #SBATCH -o {cb.BASE_PATH}/misc/logs/outputs/SIS_{key}_{args.staining}.out
 #SBATCH -e {cb.BASE_PATH}/misc/logs/errors/SIS_{key}_{args.staining}.err
-#SBATCH --container-image="{cb.BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{cb.BASE_PATH}/misc/enroot_images/benchmark_with_sis.sqsh"
 
 set -euo pipefail
 source ~/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
@@ -51,6 +51,7 @@ mamba activate segmentation
 mkdir -p "${{RESULT_DIR}}"
 
 # Patch sis + cellpose in the activated env (idempotent, safe to rerun)
+export DASK_DATAFRAME__QUERY_PLANNING=False
 ENV_LIB=$(python -c "import sis, os; print(os.path.dirname(os.path.dirname(sis.__file__)))")
 sed -i "s/'tile': False,//" "$ENV_LIB/sis/segmentation.py"
 sed -i 's/weights_only=True/weights_only=False/' "$ENV_LIB/cellpose/resnet_torch.py"

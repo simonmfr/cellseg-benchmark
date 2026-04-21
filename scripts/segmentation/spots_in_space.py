@@ -1,5 +1,7 @@
 import argparse
 from pathlib import Path
+import dask
+dask.config.set({"dataframe.query-planning": False})
 import sis
 
 parser = argparse.ArgumentParser(description="Run sis cellpose segmentation on a MERSCOPE slide.")
