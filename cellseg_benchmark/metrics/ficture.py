@@ -132,7 +132,7 @@ def _process_sample_ficture_f1(
     return sample, sample_results, eval_df
 
 
-def ficture_f1_parallel(
+def compute_ficture_f1_parallel(
         adata: AnnData,
         method: str,
         base_path: str | Path,

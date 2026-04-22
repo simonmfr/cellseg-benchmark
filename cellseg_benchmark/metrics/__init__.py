@@ -1,7 +1,7 @@
 from .assigned_transcripts import compute_assigned_transcripts, plot_assigned_transcripts, plot_assigned_transcripts_heatmap
 from .cell_type import compute_cell_type_distribution, plot_cell_type_distribution
 from .clustering import compute_clustering_scores, plot_clustering_scores
-from .f1_score import ficture_f1_parallel
+from .ficture import compute_ficture_f1_parallel
 from .general import extract_general_stats, plot_general_stats, extract_mem_and_time, plot_mem_and_time
 from .marker_gene_based import (
     compute_marker_F1_score,
@@ -27,7 +27,7 @@ __all__ = [
     "plot_cell_type_distribution",
     "compute_clustering_scores",
     "plot_clustering_scores",
-    "ficture_f1_parallel",
+    "compute_ficture_f1_parallel",
     "extract_general_stats",
     "plot_general_stats",
     "extract_mem_and_time",
