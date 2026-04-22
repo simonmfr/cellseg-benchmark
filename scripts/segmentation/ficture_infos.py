@@ -17,7 +17,7 @@ from spatialdata.models import Image2DModel
 from spatialdata.transformations import Affine, Identity, set_transformation
 
 from cellseg_benchmark._constants import image_based
-from cellseg_benchmark.metrics.ficture_intensities import aggregate_channels
+from cellseg_benchmark.metrics.ficture import aggregate_channels
 from cellseg_benchmark.sdata_utils import get_2D_boundaries, prepare_ficture
 
 warnings.filterwarnings("ignore")

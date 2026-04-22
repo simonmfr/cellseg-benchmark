@@ -15,7 +15,7 @@ from shapely import affinity
 from shapely.geometry.base import BaseGeometry
 from xarray import DataArray
 
-from .ficture_intensities import _aggregate_channels_aligned
+from .ficture import _aggregate_channels_aligned
 
 
 def compute_ovrl(

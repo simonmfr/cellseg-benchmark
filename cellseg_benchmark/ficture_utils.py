@@ -165,7 +165,7 @@ def create_factor_level_image(
     return image
 
 
-def _find_ficture_output(sample, base_path, n_ficture):
+def find_ficture_output(sample, base_path, n_ficture):
     """Compute the ficture path dynamically."""
     ficture_path = (
         Path(base_path) / "samples" / sample / "results" / "Ficture" / "output"
@@ -205,7 +205,7 @@ def _find_ficture_output(sample, base_path, n_ficture):
     return ficture_full_path
 
 
-def _read_ficture_pixels(
+def read_ficture_pixels(
     path, header=["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
 ):
     """Read the ficture pixel data."""

@@ -31,7 +31,8 @@ from tqdm import tqdm
 
 from ._constants import image_based, methods_3D
 from .ficture_utils import (
-    _find_ficture_output,
+    find_ficture_output,
+    read_ficture_pixels,
     create_factor_level_image,
     parse_metadata,
 )
@@ -915,13 +916,10 @@ def prepare_ficture(
 
     if "Ficture" not in listdir(results_path):
         return {}
-    ficture_full_path = _find_ficture_output(sample, base_path, n_ficture)
+    ficture_full_path = find_ficture_output(sample, base_path, n_ficture)
     assert ficture_full_path != "", "Ficture output not correctly computed."
 
-    fic_header = ["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
-    ficture_pixels = pd.read_csv(
-        ficture_full_path, sep="\t", names=fic_header, comment="#"
-    )
+    ficture_pixels = read_ficture_pixels(ficture_full_path)
 
     metadata = parse_metadata(ficture_full_path)
     scale = float(metadata["SCALE"])
@@ -1321,28 +1319,18 @@ def _assign_points_to_polygons(
 ) -> pd.DataFrame:
     """Assign each point in coords_df to a polygon in polygons_gdf.
 
-    Parameters
-    ----------
-    coords_df
-        DataFrame with x/y coordinates.
-    polygons_gdf
-        GeoDataFrame with polygon geometries.
-    x_col, y_col
-        Coordinate column names in coords_df.
-    polygon_id_col
-        Column in polygons_gdf whose values should be assigned to points.
-    output_col
-        Name of the output column written to coords_df.
-    chunk_size
-        Number of points processed per chunk.
-    predicate
-        Spatial predicate, e.g. "within" or "intersects".
-    default_value
-        Value assigned when a point does not match any polygon.
+    Args:
+        coords_df (pd.DataFrame): DataFrame with x/y coordinates.
+        polygons_gdf (gpd.GeoDataFrame): GeoDataFrame with polygon geometries.
+        x_col (str): x column of coords_df. Defaults to "x".
+        y_col (str): y column of coords_df. Defaults to "y".
+        polygon_id_col (str): Column in polygons_gdf whose values should be assigned to points. Defaults to "poly_id".
+        output_col (str): Name of the output column written to coords_df. Defaults to "assigned_polygon".
+        chunk_size (int): Number of points processed per chunk. Defaults to 1_000_000.
+        predicate (str): Spatial predicate, either "within" or "intersects". Defaults to "within".
+        default_value: Value assigned when a point does not match any polygon. Defaults to "unassigned".
 
     Returns:
-    -------
-    pd.DataFrame
         Copy of coords_df with an added output column.
     """
     if polygon_id_col not in polygons_gdf.columns:

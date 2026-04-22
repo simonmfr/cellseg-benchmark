@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+import cellseg_benchmark
 from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark._constants import method_colors
 from cellseg_benchmark.metrics.utils import (
@@ -140,29 +141,38 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
 
 def extract_mem_and_time(
     adata,
-    method,
-    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
-    metrics_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
+    method: str,
+    ref_file_path: str | Path=Path(BASE_PATH) / "misc/logs/job_runs.tsv",
+    metrics_dir: str | Path=Path(BASE_PATH) / "misc/extracted_job_stats",
     base_path=None,
-    ignore_missing=False,
+    ignore_missing: bool=False,
     **kwargs,
-):
-    """Read job metadata from ref_file_path and enrich it from the newest
-    exported sacct TSV in metrics_dir.
+) -> pd.DataFrame:
+    """Read job metadata from ref_file_path and enrich it from the newest exported sacct TSV in metrics_dir.
+
+    Args:
+        adata: API compatibility.
+        method (str): method name.
+        ref_file_path (str or Path): path to reference TSV file with job information.
+        metrics_dir (str or Path): path to metrics directory containing sacct read-outs.
+        base_path: API compatibility.
+        ignore_missing (bool): ignore methods without successful recorded segmentation.
+
+    Returns:
+        DataFrame with columns ["sample", "maxrss_gb", "elapsed_h", "alloccpus"]
 
     Notes:
-    -----
-    - Does NOT call sacct.
-    - Keeps only successful runs:
-        sacct_state == COMPLETED
-        sacct_exitcode == 0:0
-        and rc == 0 if rc exists in the ref file
-    - If the ref file contains repeated runs for the same sample+method,
-      keeps the last successful one because the ref file is appended.
-    - 'adata' is unused and only kept for API compatibility.
+        - Keeps only successful runs:
+            sacct_state == COMPLETED
+            sacct_exitcode == 0:0
+            and rc == 0 if rc exists in the ref file
+        - If the ref file contains repeated runs for the same sample+method,
+          keeps the last successful one because the ref file is appended.
+        - 'adata' and 'base_path' are unused and only kept for API compatibility.
     """
 
     def _missing_result(samples=None):
+        """Build NaN dataframe for not successfully run or missing segmentations."""
         if samples is None:
             samples = pd.Series(dtype="object")
         else:
@@ -281,6 +291,7 @@ def extract_mem_and_time(
     return out
 
 def plot_mem_and_time(cohort, metric, show: bool = False):
+    """Violin plots of chosen metrics. Metrics can be "memory", "cpus", "duration"."""
     if metric not in ["memory", "cpus", "duration"]:
         raise ValueError(f"Metric {metric!r} is not supported. Chose one of memory, cpus or duration.")
 

@@ -5,6 +5,7 @@ import subprocess
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
+from typing import Union, Optional
 
 import pandas as pd
 import scanpy as sc
@@ -202,12 +203,6 @@ def compute_metric(
     results_df.to_csv(results_name)
 
 
-def chunked(lst, n=200):
-    """Helper function to chunk list into n chunks."""
-    for i in range(0, len(lst), n):
-        yield lst[i : i + n]
-
-
 def normalize_jobname(jobname: str) -> str:
     """Helper function to fix typo in jobname of vpt."""
     if not isinstance(jobname, str):
@@ -245,19 +240,7 @@ def parse_slurm_mem_to_gb(x: str) -> float:
 
 
 def method_with_flavor_from_row(jobname: str, key: str) -> str:
-    """Create a canonical method string.
-      E.g.:
-      Baysor_CP1_DAPI_PolyT_0.8
-      Baysor_no_overlap_CP1_DAPI_nuclei_1.0
-      vpt2D_DAPI_PolyT
-      Proseg_3D_vpt2D_PolyT
-      Proseg_3D_CP2_DAPI_PolyT
-      Proseg_CP2_DAPI_PolyT
-
-    Note:
-    -----
-    For Proseg methods, voxel size suffixes like '_vxl_3' are intentionally ignored.
-    """
+    """Create a canonical method string."""
     j = normalize_jobname(jobname)
     k = str(key)
 
@@ -380,9 +363,7 @@ def export_job_metrics_tsv(
     if not jobids:
         raise ValueError("No jobids found in reference file.")
 
-    sacct_frames = []
-    for ch in chunked(jobids, 200):
-        sacct_frames.append(run_sacct(ch))
+    sacct_frames = [run_sacct(jobids[i:i+200]) for i in range(0, len(jobids), 200)]
 
     if not sacct_frames:
         raise ValueError("No sacct data returned for the provided jobids.")
@@ -489,28 +470,31 @@ def _prepare_label_maps(factor_to_celltype, true_cluster):
     factor_map = factor_to_celltype.copy()
     factor_map["-1"] = "unassigned"
 
-    return factor_map, correct_celltypes#
+    return factor_map, correct_celltypes
 
-def show_all_method_names(ref_file_path, only_successful=False, metrics_dir=None, return_counts=False):
+def show_all_method_names(
+        ref_file_path: Union[str, Path],
+        only_successful: bool=False,
+        metrics_dir: Optional[Union[str, Path]]=None,
+        return_counts: bool=False
+):
     """
     Show all possible canonical method names derived from the ref file.
 
-    Parameters
-    ----------
-    ref_file_path : str or Path
-        Path to the appended job_runs.tsv file.
-    only_successful : bool, default False
-        If True, only include methods with successful runs according to the
-        newest *_job_data.tsv file in metrics_dir.
-    metrics_dir : str or Path, optional
-        Required if only_successful=True.
-    return_counts : bool, default False
-        If True, return a DataFrame with counts instead of a plain list.
+    Args:
+        ref_file_path (str | Path): Path to the appended job_runs.tsv file.
+        only_successful (bool): If True, only include methods with successful runs according to the
+            newest *_job_data.tsv file in metrics_dir. Defaults to False.
+        metrics_dir (str | Path, optional): Required if only_successful=True. Path to the metrics directory of sacct.
+        return_counts (bool): If True, return a DataFrame with counts instead of a plain list. Defaults to False.
 
-    Returns
-    -------
-    list[str] or pd.DataFrame
+    Returns:
+        list[str] or pd.DataFrame: List of all method names in the job_data.tsv file.
+
+    Note:
+        If only_successful=True requires prior run of export_job_metrics_tsv() with access to sacct-command.
     """
+
     df = pd.read_csv(ref_file_path, sep="\t")
     df["_ref_order"] = range(len(df))
 
