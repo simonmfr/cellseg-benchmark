@@ -36,7 +36,15 @@ def _process_sample_ficture_f1(
     true_cluster,
 ):
     """Compute ficture stats on one sample."""
-    ficture_full_path = find_ficture_output(sample, base_path, n_ficture)
+    try:
+        ficture_full_path = find_ficture_output(sample, base_path, n_ficture)
+    except FileNotFoundError:
+        print(
+            f"[{sample}] Skipping: ficture output not found "
+            f"(base_path={base_path!r}, n_ficture={n_ficture}). "
+            "Cannot compute F1 score for this sample."
+        )
+        return sample, pd.DataFrame(), pd.DataFrame()
 
     sdata = sd.read_zarr(
         Path(base_path) / "samples" / sample / "sdata_z3.zarr",
@@ -181,8 +189,13 @@ def compute_ficture_f1_parallel(
     eval_frames = {}
 
     for sample, sample_results, eval_df in worker_out:
+        if sample_results.empty:
+            continue
         per_sample_tables.append(sample_results)
         eval_frames[sample] = eval_df
+
+    if not per_sample_tables:
+        return pd.DataFrame()
 
     results = pd.concat(per_sample_tables, ignore_index=True)
 
