@@ -32,8 +32,8 @@ def _process_sample_ficture_f1(
     method,
     base_path,
     n_ficture,
-    factor_to_celltype,
-    true_cluster,
+    factor_to_celltype=factor_to_celltype,
+    true_cluster=true_cluster,
 ):
     """Compute ficture stats on one sample."""
     try:
@@ -60,6 +60,8 @@ def _process_sample_ficture_f1(
     del sdata
     boundaries = boundaries.copy()
     boundaries["p_id"] = boundaries.index
+    if method.startswith("vpt"):
+        boundaries["p_id"] = boundaries["p_id"].astype(str)
 
     ficture_pixels = read_ficture_pixels(ficture_full_path)
 
@@ -168,7 +170,10 @@ def compute_ficture_f1_parallel(
     """
 
     obs_df = adata.obs[[sample_col, celltype_col]].copy()
-    obs_df.index = [x[:10] for x in adata.obs_names]
+    if method.startswith("vpt"):
+        obs_df.index = obs_df.index.astype(str)
+    else:
+        obs_df.index = [x[:10] for x in adata.obs_names]
 
     samples = obs_df[sample_col].unique().tolist()
 
@@ -178,9 +183,7 @@ def compute_ficture_f1_parallel(
             obs_df=obs_df,
             method=method,
             base_path=base_path,
-            n_ficture=n_ficture,
-            factor_to_celltype=factor_to_celltype,
-            true_cluster=true_cluster,
+            n_ficture=n_ficture
         )
         for sample in samples
     )

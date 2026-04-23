@@ -28,6 +28,7 @@ from spatialdata.transformations import (
 )
 from tifffile import imread
 from tqdm import tqdm
+from xarray import DataTree, DataArray
 
 from ._constants import image_based, methods_3D
 from .ficture_utils import (
@@ -1307,7 +1308,7 @@ def add_visium_boundaries(
 
 
 def _assign_points_to_polygons(
-    coords_df: pd.DataFrame,
+    coords_df: pd.DataFrame | DataArray | DataTree,
     polygons_gdf: gpd.GeoDataFrame,
     x_col: str = "x",
     y_col: str = "y",
@@ -1320,7 +1321,7 @@ def _assign_points_to_polygons(
     """Assign each point in coords_df to a polygon in polygons_gdf.
 
     Args:
-        coords_df (pd.DataFrame): DataFrame with x/y coordinates.
+        coords_df (pd.DataFrame, DataArray or DataTree): DataFrame with x/y coordinates.
         polygons_gdf (gpd.GeoDataFrame): GeoDataFrame with polygon geometries.
         x_col (str): x column of coords_df. Defaults to "x".
         y_col (str): y column of coords_df. Defaults to "y".
