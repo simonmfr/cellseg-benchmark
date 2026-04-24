@@ -25,7 +25,7 @@ for key, value in samples.items():
     if not key.startswith(args.cohort):
         continue
     count += 1
-    result_dir = f"{cb.BASE_PATH}/samples/{key}/results/SIS_DAPI_{args.staining}"
+    result_dir = f"{cb.BASE_PATH}/samples/{key}/results/SIS_DAPI_{args.staining}/sis_out"
     (SBATCH_DIR / f"{key}_{args.staining}.sbatch").write_text(f"""#!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8,lrz-dgx-1-v100x8,lrz-dgx-1-p100x8,lrz-v100x2
 #SBATCH --gres=gpu:1

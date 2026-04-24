@@ -26,8 +26,8 @@ def main(data_path, save_path, model_path, staining):
     )
     
     # test on subset
-    subrgn = ((12000, 12200), (2500, 2700)) # px units
-    st = st.get_subregion(xlim=subrgn[0], ylim=subrgn[1])
+    #subrgn = ((12000, 12200), (2500, 2700))
+    #st = st.get_subregion(xlim=subrgn[0], ylim=subrgn[1])
     
     seg_opts = {
         "cellpose_model": str(model_path),
@@ -42,10 +42,8 @@ def main(data_path, save_path, model_path, staining):
         "cellpose_options": {"batch_size": 8, "min_size": 5000},
     }
     
-    # sis.segmentation.CellposeSegmentationMethod.run() does not include tiling        
-    # one-job-per-slide approach would need for loop using tiling and merging tiles - jacob shared code:
     seg_custom_3d = sis.segmentation.CellposeSegmentationMethod(seg_opts)
-    tiles = st.grid_tiles(max_tile_size=125, overlap=30, min_transcripts=1000) 
+    tiles = st.grid_tiles(max_tile_size=350, overlap=30, min_transcripts=1000) # default used by Allen Institute
     for i, tile in enumerate(tqdm(tiles)):
         result = seg_custom_3d.run(tile)
         np.save(save_path / f'cell_ids_{i}.npy', result.cell_ids)
@@ -84,18 +82,11 @@ def main(data_path, save_path, model_path, staining):
     seg_st.generate_cell_labels(prefix=None, suffix=None)
     cell_by_gene = seg_st.cell_by_gene_anndata(x_format='sparse')
     seg_st.save_anndata(save_path / "cell_by_gene.h5ad", cell_by_gene)
-    # previous code (works but does not use tiles)
-    #seg = sis.segmentation.CellposeSegmentationMethod(seg_opts)
-    #result = seg.run(st)
-    #seg_st = result.spot_table()
-    #seg_st.calculate_cell_polygons()
-    #seg_st.save_cell_polygons(save_path / "cell_polygons.geojson")
-    #seg_st.generate_cell_labels()
-    #seg_st.save_anndata(save_path / "cell_by_gene.h5ad", x_format="sparse")
     
-    print("Done.")
     cache_file.unlink(missing_ok=True)
-
-
+    for f in save_path.glob("cell_ids_*.npy"):
+        f.unlink()
+    print("Done.")
+    
 if __name__ == "__main__":
     main(args.data_path, args.save_path, args.model_path, args.staining)
