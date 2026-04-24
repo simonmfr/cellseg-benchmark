@@ -277,13 +277,13 @@ def integrate_segmentation_data(
                         logger=logger,
                     )
                 if os.path.exists(
-                    join(sdata_path, "results", seg_method, "Ficture_stats")
+                    join(sdata_path, "results", seg_method, "Ovrlpy_stats")
                 ):
-                    logger.info("Adding Ficture stats to {}...".format(seg_method))
+                    logger.info("Adding Ovrlpy stats to {}...".format(seg_method))
                     add_statistical_data(sdata_main, seg_method, sdata_path)
                 else:
                     logger.warning(
-                        "No Ficture_stats files found for {}. Skipping.".format(
+                        "No Ovrlpy_stats files found for {}. Skipping.".format(
                             seg_method
                         )
                     )
@@ -472,15 +472,8 @@ def add_cell_type_annotation(
 def add_statistical_data(
     sdata_main: sd.SpatialData, seg_method: str, sdata_path: str
 ) -> sd.SpatialData:
-    """Add ficture and ovrlpy information to sdata_main."""
+    """Add ovrlpy information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
-    for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
-        name = file.split(".")[0]
-        ficture_stats = pd.read_csv(
-            join(sdata_path, "results", seg_method, "Ficture_stats", file), index_col=0
-        )
-        ficture_stats.index = ficture_stats.index.astype(str)
-        adata.obsm[f"ficture_{name}"] = ficture_stats
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ovrlpy_stats")):
         if file.endswith(".csv"):
             name = file.split(".")[0]
@@ -873,111 +866,6 @@ def pixel_to_microns(
             # Add to spatialdata
             sdata.shapes[output_name] = transformed_boundaries
             transform_count += 1
-
-
-def prepare_ficture(
-    data_path: str,
-    results_path: str,
-    top_n_factors: int = 3,
-    n_ficture: int = 21,
-    logger: logging.Logger = None,
-    factors: Optional[List[int]] = None,
-) -> Dict[str, Union[np.ndarray, List[int]]]:
-    """Generate ficture images stack and other ficture information.
-
-    Args:
-        data_path: Path to merscope data
-        results_path: path to Segmentation folder
-        top_n_factors: only consider top n factors for ficture picture
-        n_ficture: number of factors of ficture run
-        logger: logger instance
-        factors: if provided, only these ficture images will be generated.
-
-    Returns:
-        ficture images and factors of the images
-    """
-    if logger is not None:
-        logger.info(f"Generating ficture images for {data_path}")
-    DAPI_shape = imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
-    transform = pd.read_csv(
-        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
-        sep=" ",
-        header=None,
-    )
-
-    if "Ficture" not in listdir(results_path):
-        return {}
-    ficture_path = join(results_path, "Ficture", "output")
-    for file in listdir(ficture_path):
-        if n_ficture == int(split(r"\.|F", file)[1]):
-            ficture_path = join(ficture_path, file)
-
-    ficture_full_path = ""
-    for file in listdir(ficture_path):
-        if file.endswith(".pixel.sorted.tsv.gz"):
-            ficture_full_path = join(ficture_path, file)
-    if ficture_full_path == "": #Previous computations have flatter hierarchies. Now the ouput is saved in Ficture/output/nF21.../analysis/nF21.../FILE
-        ficture_path = join(ficture_path, "analysis")
-        for file in listdir(ficture_path):
-            if n_ficture == int(split(r"\.|F", file)[1]):
-                ficture_path = join(ficture_path, file)
-            for file in listdir(ficture_path):
-                if file.endswith(".pixel.sorted.tsv.gz"):
-                    ficture_full_path = join(ficture_path, file)
-    assert ficture_full_path != "", "Ficture output not correctly computed."
-
-    fic_header = ["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
-    ficture_pixels = pd.read_csv(
-        ficture_full_path, sep="\t", names=fic_header, comment="#"
-    )
-
-    metadata = parse_metadata(ficture_full_path)
-    scale = float(metadata["SCALE"])
-    offset_x = float(metadata["OFFSET_X"])
-    offset_y = float(metadata["OFFSET_Y"])
-    # assume, that transform[0,1], transform[1,0] = 0
-    ficture_pixels["X_pixel"] = (
-        ficture_pixels["X"] / scale * transform.iloc[0, 0]
-        + offset_x * transform.iloc[0, 0]
-        + transform.iloc[0, 2]
-    )
-    ficture_pixels["Y_pixel"] = (
-        ficture_pixels["Y"] / scale * transform.iloc[1, 1]
-        + offset_y * transform.iloc[1, 1]
-        + transform.iloc[1, 2]
-    )
-    del transform, metadata
-
-    unique_factors = set()
-    for i in range(1, top_n_factors + 1):
-        unique_factors = unique_factors.union(set(np.unique(ficture_pixels[f"K{i}"])))
-    unique_factors = list(unique_factors)
-
-    if factors is not None:
-        assert all([x in unique_factors for x in factors])
-        unique_factors = list(set(factors))
-
-    for factor in tqdm(unique_factors):
-        if logger is not None:
-            logger.info(f"Building ficture image for {factor}")
-        try:
-            image_stack
-        except NameError:
-            image_stack = create_factor_level_image(
-                ficture_pixels, factor, DAPI_shape, top_n_factors
-            )
-        else:
-            image_stack = np.concatenate(
-                (
-                    image_stack,
-                    create_factor_level_image(
-                        ficture_pixels, factor, DAPI_shape, top_n_factors
-                    ),
-                ),
-                axis=0,
-                dtype=np.uint16,
-            )
-    return {"images": image_stack, "factors": unique_factors}
 
 
 def compute_cell_morphology(
