@@ -58,7 +58,7 @@ VPT_FLAVOR="{args.vpt_flavor}"
 VOXEL="{args.voxel}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}"
+RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_vpt{args.vpt_dim}_DAPI_{args.vpt_flavor}"
 
 MODEL_NAME="vpt_${{VPT_DIM}}_DAPI_${{VPT_FLAVOR}}"
 
