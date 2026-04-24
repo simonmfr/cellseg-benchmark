@@ -34,8 +34,6 @@ for key, value in data.items():
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
 
 mamba activate seg_postprocessing
-"$CONDA_PREFIX/bin/time" -v \
-  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/ovrlpy_stats_{key}_$(date +%Y%m%d_%H%M%S).time" \
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/ovrlpy_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
+python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/ovrlpy_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}
 """)
     f.close()
