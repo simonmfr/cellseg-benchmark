@@ -59,7 +59,10 @@ def _process_sample_ficture_f1(
 
     del sdata
     boundaries = boundaries.copy()
-    boundaries["p_id"] = boundaries.index
+    if method.startswith("Proseg"):
+        boundaries["p_id"] = boundaries['cell_id']
+    else:
+        boundaries["p_id"] = boundaries.index
     if method.startswith("vpt"):
         boundaries["p_id"] = boundaries["p_id"].astype(str)
 
