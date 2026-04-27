@@ -10,11 +10,18 @@ import spatialdata.models as sd_models
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("sis_to_sdata")
 
-def main(args):
-    """Convert SIS output to a SpatialData zarr store.
-
-    Matches cells via SpotTable_cell_id -> cell_label. Boundaries are 3D (multiple z-plane polygons per cell). Raises error if >5% of cells lack a boundary polygon.
-    """
+def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Convert SIS output to sdata. "
+            "Matches cells via SpotTable_cell_id -> cell_label. "
+            "Boundaries are 3D (multiple z-plane polygons per cell). "
+            "Raises error if >5% of cells lack a boundary polygon."
+        )
+    )
+    parser.add_argument("data_path", type=str, help="Path to sis_out.")
+    args = parser.parse_args()
+    
     sis_out = pathlib.Path(args.data_path, "sis_out")
     assert (sis_out / "cell_by_gene.h5ad").exists(), "cell_by_gene.h5ad not found"
     assert (sis_out / "cell_polygons.geojson").exists(), "cell_polygons.geojson not found"
@@ -55,7 +62,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("data_path", type=str, help="Path to data directory containing sis_out/")
-    args = parser.parse_args()
-    main(args)
+    main()

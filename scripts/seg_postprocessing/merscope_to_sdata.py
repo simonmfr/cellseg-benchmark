@@ -7,8 +7,13 @@ import spatialdata_io
 import sopa.aggregation
 import sopa.io.explorer
 
-def main(args):
-    """Convert default Merscope segmentation output to sdata."""
+def main():
+    parser = argparse.ArgumentParser(description="Convert default Merscope segmentation output to sdata.")
+    parser.add_argument("data_path", help="Path to merscope folder.")
+    parser.add_argument("save_path", help="Path to output folder.")
+    parser.add_argument("--explorer", action="store_true", help="Whether to compute 10X Xenium explorer file.")
+    args = parser.parse_args()
+
     data_path = pathlib.Path(args.data_path)
     save_path = pathlib.Path(args.save_path)
 
@@ -51,15 +56,5 @@ def main(args):
     subprocess.run(["rm", "-r", str(save_path / "sdata.zarr" / "images")])
     subprocess.run(["rm", "-r", str(save_path / "sdata.zarr" / "points")])
 
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Convert default Merscope segmentation output to sdata."
-    )
-    parser.add_argument("data_path", help="Path to data folder.")
-    parser.add_argument("save_path", help="Path to output folder.")
-    parser.add_argument(
-        "--explorer", action="store_true", help="if to compute 10X Xenium explorer files"
-    )
-    args = parser.parse_args()
-    main(args)
+    main()
