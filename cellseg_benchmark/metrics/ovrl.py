@@ -36,9 +36,10 @@ def compute_ovrl(
         None
     """
     if not exists(join(sample_dir, "vertical_doublets_ovrlpy_output.npz")):
-        coords_df = pd.read_csv(
+        coords_df = (pd.read_csv(
             join(data_dir, "detected_transcripts.csv"), index_col=0
-        )[["gene", "x", "y", "global_z"]].rename(columns={"global_z": "z"})
+        )[["gene", "global_x", "global_y", "global_z"]]
+                     .rename(columns={"global_x": "x", "global_y": "y", "global_z": "z"}))
         run_ovrlpy(sample, coords_df, sample_dir)
     else:
         if logger:
