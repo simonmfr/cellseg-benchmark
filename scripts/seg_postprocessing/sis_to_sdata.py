@@ -8,6 +8,7 @@ import spatialdata as sd
 import spatialdata.models as sd_models
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
+logger = logging.getLogger("sis_to_sdata")
 
 def main(args):
     """Convert SIS output to a SpatialData zarr store.

@@ -6,7 +6,7 @@ import pathlib
 from cellseg_benchmark import BASE_PATH
 
 BASE = pathlib.Path(BASE_PATH)
-SCRIPT = "~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/SIS_to_sdata.py"
+SCRIPT = "~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/sis_to_sdata.py"
 
 samples = sorted([
     p.parent
@@ -20,12 +20,12 @@ if not samples:
 
 print(f"Found {len(samples)} samples.")
 
-paths = " ".join(f'"{s.parent}"' for s in samples)
+paths = " ".join(f'"{s}"' for s in samples)
 sbatch = f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 00:10:00
-#SBATCH --mem=16G
+#SBATCH -t 02:00:00
+#SBATCH --mem=64G
 #SBATCH -J SIS_to_sdata
 #SBATCH --array=0-{len(samples)-1}
 #SBATCH -o {BASE}/misc/logs/outputs/SIS_to_sdata_%a.out
@@ -37,6 +37,7 @@ mamba activate segmentation
 python {SCRIPT} ${{PATHS[$SLURM_ARRAY_TASK_ID]}}
 """
 
-sbatch_file = BASE / "misc/sbatches/SIS_to_sdata_array.sbatch"
+sbatch_file = BASE / "misc/sbatches/sbatch_SIS_to_sdata/SIS_to_sdata_array.sbatch"
+sbatch_file.parent.mkdir(parents=True, exist_ok=True)
 sbatch_file.write_text(sbatch)
-subprocess.run(["sbatch", str(sbatch_file)], check=True)
+print(f"To call: sbatch {sbatch_file}")
