@@ -63,7 +63,7 @@ def _process_sample_ficture_f1(
         boundaries["p_id"] = boundaries['cell_id']
     else:
         boundaries["p_id"] = boundaries.index
-    if method.startswith("vpt"):
+    if method.startswith("vpt") or method == "Cellpose_1_Merlin":
         boundaries["p_id"] = boundaries["p_id"].astype(str)
 
     ficture_pixels = read_ficture_pixels(ficture_full_path)
