@@ -60,6 +60,5 @@ def main():
     sdata.write(out_path, overwrite=True)
     logger.info("Done.")
 
-
 if __name__ == "__main__":
     main()
