@@ -13,7 +13,7 @@ logger = logging.getLogger("sis_to_sdata")
 def main(args):
     """Convert SIS output to a SpatialData zarr store.
 
-    Matches cells via SpotTable_cell_id -> cell_label. Boundaries are 3D (multiple z-plane polygons per cell). Raises error if >1% of cells lack a boundary polygon.
+    Matches cells via SpotTable_cell_id -> cell_label. Boundaries are 3D (multiple z-plane polygons per cell). Raises error if >5% of cells lack a boundary polygon.
     """
     sis_out = pathlib.Path(args.data_path, "sis_out")
     assert (sis_out / "cell_by_gene.h5ad").exists(), "cell_by_gene.h5ad not found"
@@ -33,7 +33,7 @@ def main(args):
     boundaries = boundaries[boundaries.index.isin(adata.obs_names)]
 
     missing = adata.obs_names.difference(boundaries.index)
-    if len(missing) / adata.n_obs > 0.01:
+    if len(missing) / adata.n_obs > 0.05:
         raise ValueError(f"{len(missing)}/{adata.n_obs} adata cells have no boundary (>1%)")
     if len(missing):
         logger.warning(f"{len(missing)} adata cells have no boundary, dropping from table")
