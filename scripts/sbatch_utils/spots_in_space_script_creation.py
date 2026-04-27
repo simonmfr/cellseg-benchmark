@@ -29,7 +29,7 @@ for key, value in samples.items():
     (SBATCH_DIR / f"{key}_{args.staining}.sbatch").write_text(f"""#!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8,lrz-dgx-1-v100x8,lrz-dgx-1-p100x8,lrz-v100x2
 #SBATCH --gres=gpu:1
-#SBATCH -t 1-00:00:00
+#SBATCH -t 1-12:00:00
 #SBATCH --mem=300G
 #SBATCH -J SIS_{key}_{args.staining}
 #SBATCH -o {cb.BASE_PATH}/misc/logs/outputs/SIS_{key}_{args.staining}.out
