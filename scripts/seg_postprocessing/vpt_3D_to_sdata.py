@@ -84,7 +84,7 @@ sdata["table"].obsm['intensities'] = pd.DataFrame(
     index=sdata["boundaries_vpt_2D"].index.astype(str)
 )
 
-for i in list(sdata.shapes.keys()):
+for i in list(sdata.images.keys()):
     del sdata[i]
 del sdata["boundaries_vpt_2D"]
 
