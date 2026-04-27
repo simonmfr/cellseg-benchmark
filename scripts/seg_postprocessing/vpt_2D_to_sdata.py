@@ -60,7 +60,7 @@ sdata["table"].obsm['intensities'] = pd.DataFrame(
     columns=validated_channel_names(
         get_spatial_image(sdata, list(sdata.images.keys())[0], return_key=True)[1]
     ),
-    index=sdata[shapes_key].index
+    index=sdata[shapes_key].index.astype(str)
 )
 
 sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)

@@ -59,8 +59,8 @@ boundaries.set_index("cell_id", drop=False, inplace=True)
 boundaries.index = boundaries.index.rename(None)
 
 boundaries_2 = boundaries.copy()
-boundaries_2 = boundaries_2[["cell_id", "Geometry"]]
-boundaries_2.dissolve(by="cell_id", inplace=True)
+boundaries_2 = boundaries_2[["cell_id", "geometry"]]
+boundaries_2 = boundaries_2.dissolve(by="cell_id")
 boundaries_2.index = boundaries_2.index.rename(None)
 
 sdata["boundaries_vpt_3D"] = ShapesModel.parse(boundaries)
@@ -81,7 +81,7 @@ sdata["table"].obsm['intensities'] = pd.DataFrame(
     columns=validated_channel_names(
         get_spatial_image(sdata, list(sdata.images.keys())[0], return_key=True)[1]
     ),
-    index=sdata["boundaries_vpt_2D"].index
+    index=sdata["boundaries_vpt_2D"].index.astype(str)
 )
 
 for i in list(sdata.shapes.keys()):
