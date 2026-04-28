@@ -1,30 +1,19 @@
-from pathlib import Path
+import pathlib
 
+import anndata as ad
+import cellseg_benchmark as cb
 import dask
 import geopandas as gpd
+import joblib
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import shapely
+import scipy.spatial as ss
+import shapely.geometry
+import sopa.segmentation.shapes
 import spatialdata as sd
-from anndata import AnnData
-from dask.diagnostics import ProgressBar
-from joblib import delayed, Parallel
-from scipy.spatial import cKDTree
-from shapely.geometry import Polygon, box
-from sopa.segmentation.shapes import pixel_outer_bounds, rasterize
-from xarray import DataArray
-
-from cellseg_benchmark._constants import true_cluster, factor_to_celltype
-from cellseg_benchmark.ficture_utils import (
-    process_coordinates,
-    parse_metadata,
-    read_ficture_pixels,
-    find_ficture_output
-)
-from cellseg_benchmark.metrics.f1_score import compute_f1
-from cellseg_benchmark.metrics.utils import _prepare_label_maps
-from cellseg_benchmark.sdata_utils import _assign_points_to_polygons
+import xarray
 
 def _process_sample_ficture_f1(
     sample,
@@ -32,12 +21,12 @@ def _process_sample_ficture_f1(
     method,
     base_path,
     n_ficture,
-    factor_to_celltype=factor_to_celltype,
-    true_cluster=true_cluster,
+    factor_to_celltype=cb._constants.factor_to_celltype,
+    true_cluster=cb._constants.true_cluster,
 ):
     """Compute ficture stats on one sample."""
     try:
-        ficture_full_path = find_ficture_output(sample, base_path, n_ficture)
+        ficture_full_path = cb.ficture_utils.find_ficture_output(sample, base_path, n_ficture)
     except FileNotFoundError:
         print(
             f"[{sample}] Skipping: ficture output not found "
@@ -47,7 +36,7 @@ def _process_sample_ficture_f1(
         return sample, pd.DataFrame(), pd.DataFrame()
 
     sdata = sd.read_zarr(
-        Path(base_path) / "samples" / sample / "sdata_z3.zarr",
+        pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr",
         selection=("points", "shapes"),
     )
 
@@ -66,27 +55,14 @@ def _process_sample_ficture_f1(
     if method.startswith("vpt") or method == "Cellpose_1_Merlin":
         boundaries["p_id"] = boundaries["p_id"].astype(str)
 
-    ficture_pixels = read_ficture_pixels(ficture_full_path)
+    ficture_pixels = cb.ficture_utils.read_ficture_pixels(ficture_full_path)
 
-    metadata = parse_metadata(ficture_full_path)
-    ficture_pixels = process_coordinates(ficture_pixels, metadata)
-
-    fic_microns = ficture_pixels[["x", "y"]].to_numpy()
-    points_coords = points_data[["x", "y"]].to_numpy()
-
-    tree = cKDTree(fic_microns)
-    distances, indices = tree.query(points_coords, k=1, distance_upper_bound=5)
-
-    result = points_data.copy()
-    valid = np.isfinite(distances)
-    result["assigned_factor"] = -1
-    result["nearest_distance"] = distances
-    result.loc[valid, "assigned_factor"] = ficture_pixels.iloc[indices[valid]][
-        "K1"
-    ].to_numpy()
+    metadata = cb.ficture_utils.parse_metadata(ficture_full_path)
+    ficture_pixels = cb.ficture_utils.process_coordinates(ficture_pixels, metadata)
+    result = cb.ficture_utils.assign_points_to_ficture(points_data, ficture_pixels)
     del ficture_pixels
 
-    res = _assign_points_to_polygons(
+    res = cb.sdata_utils.assign_points_to_polygons(
         result,
         boundaries,
         polygon_id_col="p_id",
@@ -102,7 +78,7 @@ def _process_sample_ficture_f1(
         right_index=True,
     )
 
-    factor_map, correct_celltypes = _prepare_label_maps(
+    factor_map, correct_celltypes = cb.metrics.utils.prepare_label_maps(
         factor_to_celltype, true_cluster
     )
 
@@ -110,7 +86,7 @@ def _process_sample_ficture_f1(
     res_cts["cell_type_revised"] = res_cts["cell_type_revised"].map(correct_celltypes)
     eval_df = res_cts[["cell_type_revised", "assigned_factor"]].copy()
 
-    metric = compute_f1(
+    metric = cb.metrics.f1_score.compute_f1(
         eval_df,
         celltype_col="cell_type_revised",
         factor_col="assigned_factor",
@@ -146,9 +122,9 @@ def _process_sample_ficture_f1(
 
 
 def compute_ficture_f1_parallel(
-        adata: AnnData,
+        adata: ad.AnnData,
         method: str,
-        base_path: str | Path,
+        base_path: str | pathlib.Path,
         n_ficture: int,
         n_jobs: int = -1,
         backend: str = "loky",
@@ -180,8 +156,8 @@ def compute_ficture_f1_parallel(
 
     samples = obs_df[sample_col].unique().tolist()
 
-    worker_out = Parallel(n_jobs=n_jobs, backend=backend, verbose=10)(
-        delayed(_process_sample_ficture_f1)(
+    worker_out = joblib.Parallel(n_jobs=n_jobs, backend=backend, verbose=10)(
+        joblib.delayed(_process_sample_ficture_f1)(
             sample=sample,
             obs_df=obs_df,
             method=method,
@@ -206,7 +182,7 @@ def compute_ficture_f1_parallel(
     results = pd.concat(per_sample_tables, ignore_index=True)
 
     # Global score across all samples
-    overall_metric = compute_f1(
+    overall_metric = cb.metrics.f1_score.compute_f1(
         eval_frames,
         celltype_col=celltype_col,
         factor_col="assigned_factor",
@@ -246,9 +222,9 @@ def compute_ficture_f1_parallel(
 # from sopa.aggregation.channels.py
 AVAILABLE_MODES = ["average", "min", "max", "variance", "sum"]
 
-def _aggregate_channels_aligned(
-    image: DataArray,
-    geo_df: gpd.GeoDataFrame | list[Polygon],
+def aggregate_channels_aligned(
+    image: xarray.DataArray,
+    geo_df: gpd.GeoDataFrame | list[shapely.geometry.Polygon],
     mode: str,
     means: np.ndarray | None = None,
 ) -> np.ndarray:
@@ -287,12 +263,12 @@ def _aggregate_channels_aligned(
         ymin, ymax = offsets_y[iy], offsets_y[iy + 1]
         xmin, xmax = offsets_x[ix], offsets_x[ix + 1]
 
-        patch = box(xmin, ymin, xmax, ymax)
+        patch = shapely.geometry.box(xmin, ymin, xmax, ymax)
         intersections = tree.query(patch, predicate="intersects")
 
         for index in intersections:
             cell = cells[index]
-            bounds = pixel_outer_bounds(cell.bounds)
+            bounds = sopa.segmentation.shapes.pixel_outer_bounds(cell.bounds)
 
             sub_image = chunk[
                 :,
@@ -303,7 +279,7 @@ def _aggregate_channels_aligned(
             if sub_image.shape[1] == 0 or sub_image.shape[2] == 0:
                 continue
 
-            mask = rasterize(cell, sub_image.shape[1:], bounds)
+            mask = sopa.segmentation.shapes.rasterize(cell, sub_image.shape[1:], bounds)
 
             areas[index] += np.sum(mask)
 
@@ -338,7 +314,7 @@ def _aggregate_channels_aligned(
                     case "sum":
                         aggregation[index] += values
 
-    with ProgressBar():
+    with dask.diagnostics.ProgressBar():
         tasks = [
             dask.delayed(_average_chunk_inside_cells)(chunk, iy, ix)
             for iy, row in enumerate(image.chunk({"c": -1}).data.to_delayed()[0])

@@ -2,12 +2,11 @@ from typing import Dict, List, Literal, Union
 
 import numpy as np
 import pandas as pd
-from numpy import ndarray
 
 
 def _f1_score(
-    tp: Union[float, ndarray], fp: Union[float, ndarray], fn: Union[float, ndarray]
-) -> Union[float, ndarray]:
+    tp: Union[float, np.ndarray], fp: Union[float, np.ndarray], fn: Union[float, np.ndarray]
+) -> Union[float, np.ndarray]:
     """Compute F1 score.
 
     Args:
