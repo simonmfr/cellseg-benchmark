@@ -8,7 +8,7 @@ import dask.array as da
 import geopandas as gpd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import mpl_toolkits
+import mpl_toolkits.axes_grid1
 import polars
 import shapely
 import xarray
