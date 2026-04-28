@@ -8,6 +8,7 @@ BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 parser = argparse.ArgumentParser(description="Create a SLURM array sbatch for a given cohort to convert Merscope outputs to sdata.")
 parser.add_argument("cohort", help="Cohort name (e.g. aging).")
 parser.add_argument("--segmentation", choices=["cellpose", "watershed", "both"], default="both")
+parser.add_argument("--sample", help="Process only this sample (e.g. aging_s11_r1). If not defined, adds all samples from cohort.")
 parser.add_argument("--explorer", action="store_true", help="Write 10X Xenium explorer files (cellpose only).")
 args = parser.parse_args()
 
@@ -25,21 +26,24 @@ jobs = []
 for key, val in metadata.items():
     if key.split("_")[0] != args.cohort:
         continue
+    if args.sample and key != args.sample:
+        continue
     for seg, path_key, result_dir in seg_configs:
         if path_key not in val:
             continue
         data_path = pathlib.Path(val[path_key])
         if (data_path / "cell_by_gene.csv").exists():
             save_path = BASE_PATH / "samples" / key / "results" / result_dir
-            jobs.append((str(data_path), str(save_path), seg))
+            jobs.append((str(data_path), str(save_path), seg, key))
 
 if not jobs:
     print(f"No valid samples found for cohort '{args.cohort}'.")
     exit(0)
 
-data_paths = " ".join(f'"{dp}"' for dp, _, __ in jobs)
-save_paths = " ".join(f'"{sp}"' for _, sp, __ in jobs)
-seg_flags  = " ".join(f'"{sf}"' for _, __, sf in jobs)
+data_paths = " ".join(f'"{dp}"' for dp, sp, sf, sn in jobs)
+save_paths = " ".join(f'"{sp}"' for dp, sp, sf, sn in jobs)
+seg_flags  = " ".join(f'"{sf}"' for dp, sp, sf, sn in jobs)
+sample_names = " ".join(f'"{sn}"' for dp, sp, sf, sn in jobs)
 
 sbatch = f"""#!/bin/bash
 #SBATCH -p lrz-cpu
@@ -55,9 +59,11 @@ sbatch = f"""#!/bin/bash
 DATA_PATHS=({data_paths})
 SAVE_PATHS=({save_paths})
 SEG_FLAGS=({seg_flags})
+SAMPLE_NAMES=({sample_names})
 
 mamba activate segmentation
 mkdir -p "${{SAVE_PATHS[$SLURM_ARRAY_TASK_ID]}}"
+echo "Processing sample: ${{SAMPLE_NAMES[$SLURM_ARRAY_TASK_ID]}}"
 
 EXPLORER_FLAG=""
 if [ "${{SEG_FLAGS[$SLURM_ARRAY_TASK_ID]}}" = "cellpose" ] && [ "{str(args.explorer).lower()}" = "true" ]; then
@@ -73,6 +79,7 @@ python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata
 
 sbatch_dir = BASE_PATH / "misc/sbatches/sbatch_merscope_to_sdata"
 sbatch_dir.mkdir(parents=True, exist_ok=True)
-sbatch_file = sbatch_dir / f"{args.cohort}_{args.segmentation}.sbatch"
+sample_suffix = f"_{args.sample}" if args.sample else ""
+sbatch_file = sbatch_dir / f"{args.cohort}_{args.segmentation}{sample_suffix}.sbatch"
 sbatch_file.write_text(sbatch)
 print(f"[{args.cohort}] {len(jobs)} jobs. Call: sbatch {sbatch_file}")
