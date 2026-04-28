@@ -63,7 +63,7 @@ if [ "${{SEG_FLAGS[$SLURM_ARRAY_TASK_ID]}}" = "cellpose" ] && [ "{str(args.explo
     EXPLORER_FLAG="--explorer"
 fi
 
-python "~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata.py" \\
+python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata.py \\
   "${{DATA_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
   "${{SAVE_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
   --segmentation "${{SEG_FLAGS[$SLURM_ARRAY_TASK_ID]}}" \\
@@ -72,6 +72,6 @@ python "~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdat
 
 sbatch_dir = pathlib.Path(cb.BASE_PATH) / "misc/sbatches/sbatch_merscope_to_sdata"
 sbatch_dir.mkdir(parents=True, exist_ok=True)
-sbatch_file = sbatch_dir / f"merscope_to_sdata_{args.cohort}.sbatch"
+sbatch_file = sbatch_dir / f"{args.cohort}_{args.segmentation}.sbatch"
 sbatch_file.write_text(sbatch)
 print(f"[{args.cohort}] {len(jobs)} jobs. Call: sbatch {sbatch_file}")
