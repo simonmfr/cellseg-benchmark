@@ -66,6 +66,13 @@ def main():
         boundaries.index = boundaries.index.rename(None)
 
         boundaries["geometry"] = boundaries["geometry"].make_valid()
+        n_collections = (boundaries["geometry"].geom_type == "GeometryCollection").sum()
+        if n_collections > 0:
+            print(f"Warning: {n_collections} cells had invalid geometries after make_valid(), polygon parts will be extracted.")
+        boundaries["geometry"] = boundaries["geometry"].apply(
+            lambda g: MultiPolygon([p for p in g.geoms if p.geom_type in ("Polygon", "MultiPolygon")])
+            if g.geom_type == "GeometryCollection" else g
+        )
         boundaries_2d = boundaries[["cell_id", "geometry"]].dissolve(by="cell_id")
         boundaries_2d.index = boundaries_2d.index.rename(None)
 
