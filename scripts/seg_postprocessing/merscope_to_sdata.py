@@ -65,6 +65,7 @@ def main():
         boundaries.set_index("cell_id", drop=False, inplace=True)
         boundaries.index = boundaries.index.rename(None)
 
+        boundaries["geometry"] = boundaries["geometry"].make_valid()
         boundaries_2d = boundaries[["cell_id", "geometry"]].dissolve(by="cell_id")
         boundaries_2d.index = boundaries_2d.index.rename(None)
 
