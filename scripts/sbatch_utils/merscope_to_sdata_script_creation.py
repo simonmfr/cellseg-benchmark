@@ -79,7 +79,7 @@ python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata
 
 sbatch_dir = BASE_PATH / "misc/sbatches/sbatch_merscope_to_sdata"
 sbatch_dir.mkdir(parents=True, exist_ok=True)
-sample_suffix = f"_{args.sample}" if args.sample else ""
-sbatch_file = sbatch_dir / f"{args.cohort}_{args.segmentation}{sample_suffix}.sbatch"
+sample_suffix = f"_{args.sample.removeprefix(args.cohort + '_')}" if args.sample else ""
+sbatch_file = sbatch_dir / f"{args.cohort}_{args.segmentation}{sample_suffix}_array.sbatch"
 sbatch_file.write_text(sbatch)
 print(f"[{args.cohort}] {len(jobs)} jobs. Call: sbatch {sbatch_file}")
