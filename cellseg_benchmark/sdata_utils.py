@@ -636,7 +636,7 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
     )
 
     if any([seg_method.startswith(method) for method in image_based]):
-        if seg_method in ("Cellpose_1_Merlin", "Watershed_Merlin"):
+        if seg_method == "Cellpose_1_Merlin":
             set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], Identity(), "micron"
             )
@@ -645,15 +645,15 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
             )
         else:
             set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel.inverse(), "micron",
+                sdata_main[f"boundaries_{seg_method}"],
+                transformation_to_pixel.inverse(),
+                "micron",
             )
             set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], Identity(), "pixel"
             )
     else:
-        set_transformation(
-            sdata_main[f"boundaries_{seg_method}"], Identity(), "micron"
-        )
+        set_transformation(sdata_main[f"boundaries_{seg_method}"], Identity(), "micron")
         set_transformation(
             sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
         )
