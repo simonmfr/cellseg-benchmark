@@ -2,9 +2,6 @@ set -euo pipefail
 export PATH=~/perl5/bin:$PATH
 export PERL5LIB=~/perl5/lib/perl5:$PERL5LIB
 
-################################################################################
-# 0. SCRIPT USAGE AND INPUT VALIDATION
-################################################################################
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 <SAMPLE_ID> /path/to/your/detected_transcripts.csv"
     echo "Example: $0 foxf2_s2_r1 /path/to/foxf2_s2_r1/detected_transcripts.csv"
@@ -19,9 +16,7 @@ if [ ! -f "${DETECTED_TRANSCRIPTS_INPUT_FILE_ARG}" ]; then
     exit 1
 fi
 
-################################################################################
 # 1. ENVIRONMENT SETUP
-################################################################################
 echo "Starting script at $(date)"
 echo "Job ID: $SLURM_JOB_ID"
 echo "Hostname: $(hostname)"
@@ -54,9 +49,7 @@ echo "Conda environment activated: $CONDA_DEFAULT_ENV"
 echo "Python path: $(which python)"
 echo "Ficture path: $(which ficture)"
 
-################################################################################
 # 2. PATH AND PARAMETER DEFINITIONS
-################################################################################
 echo "Defining paths and parameters..."
 
 # --- Shared Resources Paths (Fixed) ---
@@ -75,7 +68,6 @@ MODEL_ID_PREFIX="nF${nFactor}.d_${train_width}" # e.g., nF21.d_6
 OUTPUT_DIR_SUFFIX="-bulkRNAseq-noMBP" # Your specified suffix
 FINAL_OUTPUT_DIR_NAME="${MODEL_ID_PREFIX}${OUTPUT_DIR_SUFFIX}" # e.g., nF21.d_6-bulkRNAseq-noMBP
 
-# This is the root directory for all outputs of this specific run
 RUN_SPECIFIC_OUTPUT_ROOT="${BASE_PROJECT_OUTPUT_DIR}/${SAMPLE_ID_ARG}/results/Ficture/output/${FINAL_OUTPUT_DIR_NAME}"
 mkdir -p "${RUN_SPECIFIC_OUTPUT_ROOT}"
 echo "Run-specific output root: ${RUN_SPECIFIC_OUTPUT_ROOT}"
@@ -98,9 +90,7 @@ echo "Analysis output path: ${path_analysis_outputs}"
 iden="${SAMPLE_ID_ARG}_width${train_width}_factor${nFactor}" # Changed to use SAMPLE_ID_ARG
 echo "Run identifier (iden) for filenames: ${iden}"
 
-################################################################################
 # 3. FICTURE PIPELINE STEPS
-################################################################################
 
 # --- Step 1: Filtering detected_transcripts.csv ---
 echo "Step 1: Filtering ${DETECTED_TRANSCRIPTS_INPUT_FILE_ARG}..."
@@ -340,7 +330,4 @@ else
     echo "WARNING: Input for pixel plotting not found: ${input_plot_pixel}"
 fi
 
-################################################################################
-# End of Script
-################################################################################
 echo "Script finished at $(date)"
