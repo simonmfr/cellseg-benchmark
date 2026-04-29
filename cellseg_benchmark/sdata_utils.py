@@ -21,16 +21,12 @@ import spatialdata_io
 import joblib
 import scipy.spatial as ss
 import shapely
+import shapely.ops
 import tifffile
 from tqdm import tqdm
 
-from ._constants import image_based, methods_3D
-from .ficture_utils import (
-    find_ficture_output,
-    read_ficture_pixels,
-    create_factor_level_image,
-    parse_metadata,
-)
+from . import _constants
+from . import ficture_utils as fu
 
 PI = math.pi
 
@@ -266,7 +262,7 @@ def integrate_segmentation_data(
                             f"No annotation files found for {seg_method}. Skipping annotation."
                         )
                 if "volume_final" not in sdata_main[f"adata_{seg_method}"].obs.columns:
-                    if any([seg_method.startswith(x) for x in methods_3D]):
+                    if any([seg_method.startswith(x) for x in _constants.methods_3D]):
                         n_planes_2d = None
                     else:
                         n_planes_2d = 7
@@ -505,7 +501,7 @@ def calculate_volume(
     boundaries = sd.transform(
         sdata_main[f"boundaries_{seg_method}"], to_coordinate_system="micron"
     )
-    if any([seg_method.startswith(x) for x in methods_3D]):
+    if any([seg_method.startswith(x) for x in _constants.methods_3D]):
         if seg_method.startswith("Proseg_3D"):
             z_level_name = "layer"
             cell_identifier = "cell_id"
@@ -642,7 +638,7 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
         sdata_main[list(sdata_main.points.keys())[0]], "global"
     )
 
-    if any([seg_method.startswith(method) for method in image_based]):
+    if any([seg_method.startswith(method) for method in _constants.image_based]):
         if seg_method == "Cellpose_1_Merlin":
             sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron"
@@ -686,7 +682,7 @@ def transform_adata(
     adata = sdata_main[f"adata_{seg_method}"]
     spatial = adata.obsm["spatial"]
 
-    if any([seg_method.startswith(method) for method in image_based]):
+    if any([seg_method.startswith(method) for method in _constants.image_based]):
         x = (
             spatial[:, 0] * (1 / transform.iloc[0, 0])
             - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
@@ -779,7 +775,7 @@ def get_2D_boundaries(
         )
     else:
         sdata[f"boundaries_{method}"] = sd.models.ShapesModel.parse(org_sdata[boundary_key])
-    if any([method.startswith(x) for x in image_based]):
+    if any([method.startswith(x) for x in _constants.image_based]):
         if method == "Cellpose_1_Merlin" or method == "Watershed_Merlin":
             sd.transformations.set_transformation(
                 sdata[f"boundaries_{method}"],
@@ -911,12 +907,12 @@ def prepare_ficture(
 
     if "Ficture" not in listdir(results_path):
         return {}
-    ficture_full_path = find_ficture_output(sample, base_path, n_ficture)
+    ficture_full_path = fu.find_ficture_output(sample, base_path, n_ficture)
     assert ficture_full_path != "", "Ficture output not correctly computed."
 
-    ficture_pixels = read_ficture_pixels(ficture_full_path)
+    ficture_pixels = fu.read_ficture_pixels(ficture_full_path)
 
-    metadata = parse_metadata(ficture_full_path)
+    metadata = fu.parse_metadata(ficture_full_path)
     scale = float(metadata["SCALE"])
     offset_x = float(metadata["OFFSET_X"])
     offset_y = float(metadata["OFFSET_Y"])
@@ -948,14 +944,14 @@ def prepare_ficture(
         try:
             image_stack
         except NameError:
-            image_stack = create_factor_level_image(
+            image_stack = fu.create_factor_level_image(
                 ficture_pixels, factor, DAPI_shape, top_n_factors
             )
         else:
             image_stack = np.concatenate(
                 (
                     image_stack,
-                    create_factor_level_image(
+                    fu.create_factor_level_image(
                         ficture_pixels, factor, DAPI_shape, top_n_factors
                     ),
                 ),

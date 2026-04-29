@@ -13,7 +13,7 @@ import polars
 import shapely
 import xarray
 
-from .ficture import aggregate_channels_aligned
+from . import ficture
 
 
 def compute_ovrl(
@@ -127,8 +127,8 @@ def compute_mean_vsi_per_polygon(
         micron_to_pixel_coords, args=(transform_matrix, (13, 13))
     )
 
-    result = aggregate_channels_aligned(pic, boundaries, "average")
-    var = aggregate_channels_aligned(pic, boundaries, "variance", means=result)
+    result = ficture.aggregate_channels_aligned(pic, boundaries, "average")
+    var = ficture.aggregate_channels_aligned(pic, boundaries, "variance", means=result)
     result = pd.DataFrame(result, index=boundaries.index, columns=["mean_integrity"])
     result["variance"] = var
     return result

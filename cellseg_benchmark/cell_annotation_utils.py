@@ -11,11 +11,9 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import seaborn as sns
-from matplotlib.pyplot import rc_context
 from scipy import stats
-from scipy.stats import median_abs_deviation
 
-from cellseg_benchmark.adata_utils import normalize_counts
+from . import adata_utils as au
 
 
 def assign_cell_types_to_clusters(
@@ -290,7 +288,7 @@ def mark_low_quality_mappings(metadata, target_column, mad_factor, level):
     # Calculate the low-quality mask
     low_quality_mask = metadata.groupby(level_key)[cor_key].transform(
         lambda x: x
-        < (x.median() - mad_factor * median_abs_deviation(x, nan_policy="omit"))
+        < (x.median() - mad_factor * stats.median_abs_deviation(x, nan_policy="omit"))
     )
 
     # Fill NaN values with False
@@ -320,11 +318,11 @@ def plot_mad_thresholds(
     """
     # Compute MAD within each cluster
     grouped_mad = Allen_MMC_metadata.groupby(group_column)[value_column].apply(
-        median_abs_deviation
+        stats.median_abs_deviation
     )
     unique_groups = Allen_MMC_metadata[group_column].unique()
 
-    with rc_context({"figure.figsize": figsize}):
+    with plt.rc_context({"figure.figsize": figsize}):
         plt.grid(True, zorder=0)
 
         # Create violin plot
@@ -397,7 +395,7 @@ def process_adata(adata, seg_method, logger):
             "No 'area' or 'volume' column found in adata.obs; cannot normalize counts."
         )
 
-    adata = normalize_counts(
+    adata = au.normalize_counts(
         adata,
         save_path=None,
         seg_method=seg_method,

@@ -1,7 +1,6 @@
 import pathlib
 
 import anndata as ad
-import cellseg_benchmark as cb
 import dask
 import geopandas as gpd
 import joblib
@@ -9,10 +8,15 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import shapely
-import shapely.geometry
 import sopa.segmentation.shapes
 import spatialdata as sd
 import xarray
+
+from . import f1_score
+from . import utils
+from .. import _constants
+from .. import ficture_utils as fu
+from .. import sdata_utils as su
 
 def _process_sample_ficture_f1(
     sample,
@@ -20,12 +24,12 @@ def _process_sample_ficture_f1(
     method,
     base_path,
     n_ficture,
-    factor_to_celltype=cb._constants.factor_to_celltype,
-    true_cluster=cb._constants.true_cluster,
+    factor_to_celltype=_constants.factor_to_celltype,
+    true_cluster=_constants.true_cluster,
 ):
     """Compute ficture stats on one sample."""
     try:
-        ficture_full_path = cb.ficture_utils.find_ficture_output(sample, base_path, n_ficture)
+        ficture_full_path = fu.find_ficture_output(sample, base_path, n_ficture)
     except FileNotFoundError:
         print(
             f"[{sample}] Skipping: ficture output not found "
@@ -54,14 +58,14 @@ def _process_sample_ficture_f1(
     if method.startswith("vpt") or method == "Cellpose_1_Merlin":
         boundaries["p_id"] = boundaries["p_id"].astype(str)
 
-    ficture_pixels = cb.ficture_utils.read_ficture_pixels(ficture_full_path)
+    ficture_pixels = fu.read_ficture_pixels(ficture_full_path)
 
-    metadata = cb.ficture_utils.parse_metadata(ficture_full_path)
-    ficture_pixels = cb.ficture_utils.process_coordinates(ficture_pixels, metadata)
-    result = cb.ficture_utils.assign_points_to_ficture(points_data, ficture_pixels)
+    metadata = fu.parse_metadata(ficture_full_path)
+    ficture_pixels = fu.process_coordinates(ficture_pixels, metadata)
+    result = fu.assign_points_to_ficture(points_data, ficture_pixels)
     del ficture_pixels
 
-    res = cb.sdata_utils.assign_points_to_polygons(
+    res = su.assign_points_to_polygons(
         result,
         boundaries,
         polygon_id_col="p_id",
@@ -77,7 +81,7 @@ def _process_sample_ficture_f1(
         right_index=True,
     )
 
-    factor_map, correct_celltypes = cb.metrics.utils.prepare_label_maps(
+    factor_map, correct_celltypes = utils.prepare_label_maps(
         factor_to_celltype, true_cluster
     )
 
@@ -85,7 +89,7 @@ def _process_sample_ficture_f1(
     res_cts["cell_type_revised"] = res_cts["cell_type_revised"].map(correct_celltypes)
     eval_df = res_cts[["cell_type_revised", "assigned_factor"]].copy()
 
-    metric = cb.metrics.f1_score.compute_f1(
+    metric = f1_score.compute_f1(
         eval_df,
         celltype_col="cell_type_revised",
         factor_col="assigned_factor",
@@ -181,7 +185,7 @@ def compute_ficture_f1_parallel(
     results = pd.concat(per_sample_tables, ignore_index=True)
 
     # Global score across all samples
-    overall_metric = cb.metrics.f1_score.compute_f1(
+    overall_metric = f1_score.compute_f1(
         eval_frames,
         celltype_col=celltype_col,
         factor_col="assigned_factor",

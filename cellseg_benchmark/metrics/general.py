@@ -1,11 +1,12 @@
 from pathlib import Path
 
-import cellseg_benchmark as cb
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from . import utils
+from .. import _constants
 
 def _extract_stats(df, columns, celltype_name="cell_type_revised"):
     """Extract and save per-sample and per-celltype mean stats from adata.obs.
@@ -90,7 +91,7 @@ def extract_general_stats(
 def plot_general_stats(cohort, metric, celltype="all", show=False):
     """Plot general stats."""
     results_file = (
-        Path(cb.BASE_PATH) / "metrics" / cohort / "general_stats" / "general_stats.csv"
+        Path(_constants.BASE_PATH) / "metrics" / cohort / "general_stats" / "general_stats.csv"
     )
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
@@ -116,7 +117,7 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
         x=metric,
         hue="method",
         order=dataset_order,
-        palette=cb._constants.method_colors,
+        palette=_constants.method_colors,
         inner="quartile",
         linewidth=0.7,
         zorder=2,
@@ -134,8 +135,8 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
 def extract_mem_and_time(
     adata,
     method: str,
-    ref_file_path: str | Path=Path(cb.BASE_PATH) / "misc/logs/job_runs.tsv",
-    metrics_dir: str | Path=Path(cb.BASE_PATH) / "misc/extracted_job_stats",
+    ref_file_path: str | Path=Path(_constants.BASE_PATH) / "misc/logs/job_runs.tsv",
+    metrics_dir: str | Path=Path(_constants.BASE_PATH) / "misc/extracted_job_stats",
     base_path=None,
     ignore_missing: bool=False,
     **kwargs,
@@ -184,10 +185,10 @@ def extract_mem_and_time(
     ref["jobid"] = ref["jobid"].astype(str)
     ref["jobname"] = ref["jobname"].astype(str)
     ref["sample"] = ref["key"].astype(str)
-    ref["jobname_norm"] = ref["jobname"].apply(cb.metrics.utils.normalize_jobname)
+    ref["jobname_norm"] = ref["jobname"].apply(utils.normalize_jobname)
 
     ref["method_with_flavor"] = ref.apply(
-        lambda r: cb.metrics.utils.method_with_flavor_from_row(r["jobname"], r["sample"]),
+        lambda r: utils.method_with_flavor_from_row(r["jobname"], r["sample"]),
         axis=1,
     )
 
@@ -199,7 +200,7 @@ def extract_mem_and_time(
             f"Method {method!r} not found in job file or not yet recorded."
         )
 
-    latest_metrics_file = cb.metrics.utils.find_latest_job_data_tsv(metrics_dir)
+    latest_metrics_file = utils.find_latest_job_data_tsv(metrics_dir)
 
     sacct = pd.read_csv(latest_metrics_file, sep="\t")
     if sacct.empty:
@@ -294,7 +295,7 @@ def plot_mem_and_time(cohort, metric, show: bool = False):
     }
     col_name = column_mapping[metric]
     results_file = (
-            Path(cb.BASE_PATH) / "metrics" / cohort / "Mem_and_time" / "mem_and_time.csv"
+            Path(_constants.BASE_PATH) / "metrics" / cohort / "Mem_and_time" / "mem_and_time.csv"
     )
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
@@ -318,7 +319,7 @@ def plot_mem_and_time(cohort, metric, show: bool = False):
         x=col_name,
         hue="method",
         order=dataset_order,
-        palette=cb._constants.method_colors,
+        palette=_constants.method_colors,
         inner="quartile",
         linewidth=0.7,
         zorder=2,

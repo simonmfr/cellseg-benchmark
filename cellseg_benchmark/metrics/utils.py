@@ -10,10 +10,10 @@ from typing import Union, Optional
 import pandas as pd
 import scanpy as sc
 
-import cellseg_benchmark as cb
+from .. import _constants
 
 
-def read_ABCAtlas(vascular_subset=False, base_path=cb.BASE_PATH):
+def read_ABCAtlas(vascular_subset=False, base_path=_constants.BASE_PATH):
     """Convenience function to read ABCAtlas adata.
 
     Args:
@@ -57,7 +57,7 @@ def read_ABCAtlas(vascular_subset=False, base_path=cb.BASE_PATH):
     return adata
 
 
-def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=cb.BASE_PATH):
+def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=_constants.BASE_PATH):
     """Read adata from disk.
 
     Args:
@@ -86,7 +86,7 @@ def compute_metric_for_all_methods(
     metric_func,
     cohort,
     results_name,
-    base_path=cb.BASE_PATH,
+    base_path=_constants.BASE_PATH,
     methods=None,
     adata_name="adata_integrated",
     overwrite=False,
@@ -133,7 +133,7 @@ def compute_metric(
     results_name,
     adata_name="adata_integrated",
     overwrite=False,
-    base_path=cb.BASE_PATH,
+    base_path=_constants.BASE_PATH,
     pass_method=False,
     **kwargs,
 ):
