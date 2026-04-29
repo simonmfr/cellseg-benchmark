@@ -58,7 +58,7 @@ def main():
         logger.info(f"Loading boundaries from source file")
         if args.method.startswith("vpt_3D"):
             if "boundaries_vpt_3D" in sdata.shapes.keys():
-                boundaries = sdata[args.boundary_key]
+                boundaries = sdata["boundaries_vpt_3D"]
             else:
                 assert args.boundary_path.endswith(".parquet"), "vpt_3D shape files end with .parquet"
                 boundaries = gpd.read_parquet(
@@ -76,7 +76,7 @@ def main():
             boundaries = boundaries.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
         elif args.method == "Watershed_Merlin":
             if "boundaries_vpt_3D" in sdata.shape.keys():
-                boundaries = sdata[args.boundary_key]
+                boundaries = sdata["boundaries_vpt_3D"]
             else:
                 boundaries = spatialdata_io.merscope(
                                 args.data_path,
