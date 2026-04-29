@@ -1,3 +1,7 @@
+# Prevents runtime error (seg_postprocessing)
+import dask
+dask.config.set({'dataframe.query-planning': False})
+
 import gzip
 import os
 import pathlib

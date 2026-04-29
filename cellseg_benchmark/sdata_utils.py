@@ -1,3 +1,7 @@
+# Fixes runtime error (seg_postprocessing)
+import dask
+dask.config.set({'dataframe.query-planning': False})
+
 import ast
 import gzip
 import io
