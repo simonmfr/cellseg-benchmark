@@ -54,9 +54,8 @@ def main():
     logger.info("Loading boundaries…")
     if args.boundary_key is not None:
         boundaries = sdata[args.boundary_key]
-    elif args.boundary_path is not None:
+    elif args.method is not None:
         logger.info(f"Loading boundaries from source file")
-        assert args.method is not None, "Please either provide keys to the sdata or a method name"
         if args.method.startswith("vpt_3D"):
             if "boundaries_vpt_3D" in sdata.shape.keys():
                 boundaries = sdata[args.boundary_key]
