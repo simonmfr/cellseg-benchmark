@@ -57,7 +57,7 @@ def main():
     elif args.method is not None:
         logger.info(f"Loading boundaries from source file")
         if args.method.startswith("vpt_3D"):
-            if "boundaries_vpt_3D" in sdata.shape.keys():
+            if "boundaries_vpt_3D" in sdata.shapes.keys():
                 boundaries = sdata[args.boundary_key]
             else:
                 assert args.boundary_path.endswith(".parquet"), "vpt_3D shape files end with .parquet"
