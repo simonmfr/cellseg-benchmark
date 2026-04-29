@@ -132,7 +132,7 @@ def main():
     sdata['table'].obsm['intensities'] = intensities_stacked
 
     logger.info("Write sdata with updated intensities.")
-    sdata.write(sdata_path)
+    sdata.write(sdata_path / "sdata_intens.zarr")
 
 if __name__ == "__main__":
     main()
