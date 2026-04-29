@@ -133,3 +133,6 @@ def main():
 
     logger.info("Write sdata with updated intensities.")
     sdata.write(sdata_path)
+
+if __name__ == "__main__":
+    main()
