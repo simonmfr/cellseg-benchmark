@@ -216,7 +216,7 @@ def read_ficture_pixels(
     )
 
 
-def assign_points_to_ficture(points_df, ficture_df):
+def assign_points_to_ficture(points_df, ficture_df) -> pd.DataFrame:
     """Assign points to ficture factors.
 
     Args:
