@@ -96,19 +96,19 @@ def main():
     sdata_working = sd.SpatialData()
     for key, value in tmp_sdata.images.items():
         sdata_working[key] = value
-    for idx in sdata['boundaries_vpt_3D']['ZIndex'].unique():
-        sdata_working[f'boundaries_vpt_3D_z{idx}'] = sd.models.ShapesModel.parse(
-            sdata['boundaries_vpt_3D'][sdata['boundaries_vpt_3D']['ZIndex'] == idx],
+    for idx in boundaries['ZIndex'].unique():
+        sdata_working[f'boundaries_z{idx}'] = sd.models.ShapesModel.parse(
+            boundaries[boundaries['ZIndex'] == idx],
         )
-        sd.transformations.set_transformation(sdata_working[f'boundaries_vpt_3D_z{idx}'], transform)
+        sd.transformations.set_transformation(sdata_working[f'boundaries_z{idx}'], transform)
     sdata_working['table'] = sdata['table'].copy()
 
     logger.info("Compute intensities…")
     intensities = {}
     for idx in [x.split("_")[-1] for x in sdata_working.shapes.keys()]:
-        sdata_working["table"].uns["spatialdata_attrs"]["region"] = f"boundaries_vpt_3D_{idx}"
+        sdata_working["table"].uns["spatialdata_attrs"]["region"] = f"boundaries_{idx}"
         sdata_working["table"].obs[sdata_working["table"].uns["spatialdata_attrs"]["region_key"]] = (
-            f"boundaries_vpt_3D_{idx}"
+            f"boundaries_{idx}"
         )
         sdata_working["table"].obs[sdata_working["table"].uns["spatialdata_attrs"]["region_key"]] = (
             sdata_working["table"]
@@ -118,13 +118,13 @@ def main():
 
         intensities[idx] = pd.DataFrame(
             sopa.aggregation.aggregate_channels(sdata_working,
-                                                shapes_key=f"boundaries_vpt_3D_{idx}",
+                                                shapes_key=f"boundaries_{idx}",
                                                 image_key=determine_image(sdata_working, idx)
                                                 ),
             columns=sopa.utils.validated_channel_names(
                 sopa.utils.get_spatial_image(sdata_working, determine_image(sdata_working, idx), return_key=True)[1]
             ),
-            index=sdata_working[f"boundaries_vpt_3D_{idx}"].index.astype(str)
+            index=sdata_working[f"boundaries_{idx}"].index.astype(str)
         )
     intensities_stacked = pd.concat(intensities.values(), keys=intensities.keys())
     intensities_stacked.groupby(level=1).mean()
