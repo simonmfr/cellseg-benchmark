@@ -9,7 +9,6 @@ import numpy as np
 import numpy.ma as ma
 import pandas as pd
 import shapely
-import scipy.spatial as ss
 import shapely.geometry
 import sopa.segmentation.shapes
 import spatialdata as sd

@@ -19,7 +19,6 @@ import scipy.spatial as ss
 import shapely
 import tifffile
 from tqdm import tqdm
-import xarray
 
 from ._constants import image_based, methods_3D
 from .ficture_utils import (
@@ -1299,7 +1298,7 @@ def add_visium_boundaries(
 
 
 def assign_points_to_polygons(
-    coords_df: pd.DataFrame | xarray.DataArray | xarray.DataTree,
+    coords_df: pd.DataFrame,
     polygons_gdf: gpd.GeoDataFrame,
     x_col: str = "x",
     y_col: str = "y",
@@ -1312,7 +1311,7 @@ def assign_points_to_polygons(
     """Assign each point in coords_df to a polygon in polygons_gdf.
 
     Args:
-        coords_df (pd.DataFrame, DataArray or DataTree): DataFrame with x/y coordinates.
+        coords_df (pd.DataFrame): DataFrame with x/y coordinates.
         polygons_gdf (gpd.GeoDataFrame): GeoDataFrame with polygon geometries.
         x_col (str): x column of coords_df. Defaults to "x".
         y_col (str): y column of coords_df. Defaults to "y".
