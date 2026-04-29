@@ -2,17 +2,18 @@ import math
 import os
 import re
 import subprocess
-from datetime import datetime
-from io import StringIO
-from pathlib import Path
+import datetime
+import io
+import pathlib
+from typing import Union, Optional
 
 import pandas as pd
 import scanpy as sc
 
-from cellseg_benchmark import BASE_PATH
+from .. import _constants
 
 
-def read_ABCAtlas(vascular_subset=False, base_path=BASE_PATH):
+def read_ABCAtlas(vascular_subset=False, base_path=_constants.BASE_PATH):
     """Convenience function to read ABCAtlas adata.
 
     Args:
@@ -25,7 +26,7 @@ def read_ABCAtlas(vascular_subset=False, base_path=BASE_PATH):
         adata_name = "20250129_merged_v3.h5ad.gz"
 
     fname = (
-        Path(base_path)
+        pathlib.Path(base_path)
         / "misc"
         / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
         / "anndata-objects"
@@ -38,7 +39,7 @@ def read_ABCAtlas(vascular_subset=False, base_path=BASE_PATH):
     if not vascular_subset:
         # read cell metadata
         cell_meta_fname = (
-            Path(base_path)
+            pathlib.Path(base_path)
             / "misc"
             / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
             / "20250411_meta_data_formatted.csv.gz"
@@ -56,7 +57,7 @@ def read_ABCAtlas(vascular_subset=False, base_path=BASE_PATH):
     return adata
 
 
-def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=BASE_PATH):
+def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=_constants.BASE_PATH):
     """Read adata from disk.
 
     Args:
@@ -69,10 +70,10 @@ def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=BAS
         adata or None if it does not exist
     """
     if method is None:
-        methods = os.listdir(Path(base_path) / "analysis" / cohort)
+        methods = os.listdir(pathlib.Path(base_path) / "analysis" / cohort)
         method = methods[0]
         print(f"Reading {adata_name} for method {method}")
-    data_path = Path(base_path) / "analysis" / cohort / method
+    data_path = pathlib.Path(base_path) / "analysis" / cohort / method
     adata_path = data_path / "adatas" / f"{adata_name}.h5ad.gz"
     if not adata_path.exists():
         print(f"No adata found for cohort {cohort}, method {method}, name {adata_name}")
@@ -85,7 +86,7 @@ def compute_metric_for_all_methods(
     metric_func,
     cohort,
     results_name,
-    base_path=BASE_PATH,
+    base_path=_constants.BASE_PATH,
     methods=None,
     adata_name="adata_integrated",
     overwrite=False,
@@ -108,7 +109,7 @@ def compute_metric_for_all_methods(
         kwargs: further keyword arguments passed to metric_func
     """
     if methods is None:
-        data_path = Path(base_path) / "analysis" / cohort
+        data_path = pathlib.Path(base_path) / "analysis" / cohort
         methods = os.listdir(data_path)
     for i, method in enumerate(methods):
         print(f"{i + 1}/{len(methods)} ", end="")
@@ -132,7 +133,7 @@ def compute_metric(
     results_name,
     adata_name="adata_integrated",
     overwrite=False,
-    base_path=BASE_PATH,
+    base_path=_constants.BASE_PATH,
     pass_method=False,
     **kwargs,
 ):
@@ -159,7 +160,7 @@ def compute_metric(
         Nothing, saves results csv in results folder
     """
     # set up paths
-    results_name = Path(base_path) / "metrics" / cohort / results_name
+    results_name = pathlib.Path(base_path) / "metrics" / cohort / results_name
     # ensure results folder exists
     results_name.parent.mkdir(parents=True, exist_ok=True)
 
@@ -202,12 +203,6 @@ def compute_metric(
     results_df.to_csv(results_name)
 
 
-def chunked(lst, n=200):
-    """Helper function to chunk list into n chunks."""
-    for i in range(0, len(lst), n):
-        yield lst[i : i + n]
-
-
 def normalize_jobname(jobname: str) -> str:
     """Helper function to fix typo in jobname of vpt."""
     if not isinstance(jobname, str):
@@ -245,19 +240,7 @@ def parse_slurm_mem_to_gb(x: str) -> float:
 
 
 def method_with_flavor_from_row(jobname: str, key: str) -> str:
-    """Create a canonical method string.
-      E.g.:
-      Baysor_CP1_DAPI_PolyT_0.8
-      Baysor_no_overlap_CP1_DAPI_nuclei_1.0
-      vpt2D_DAPI_PolyT
-      Proseg_3D_vpt2D_PolyT
-      Proseg_3D_CP2_DAPI_PolyT
-      Proseg_CP2_DAPI_PolyT
-
-    Note:
-    -----
-    For Proseg methods, voxel size suffixes like '_vxl_3' are intentionally ignored.
-    """
+    """Create a canonical method string."""
     j = normalize_jobname(jobname)
     k = str(key)
 
@@ -359,7 +342,7 @@ def find_latest_job_data_tsv(metrics_dir):
     """Return the newest exported job-data TSV in metrics_dir.
     Uses file modification time and only considers '*_job_data.tsv'.
     """
-    metrics_dir = Path(metrics_dir)
+    metrics_dir = pathlib.Path(metrics_dir)
     candidates = [p for p in metrics_dir.glob("*_job_data.tsv") if p.is_file()]
     if not candidates:
         raise FileNotFoundError(f"No '*_job_data.tsv' files found in: {metrics_dir}")
@@ -380,9 +363,7 @@ def export_job_metrics_tsv(
     if not jobids:
         raise ValueError("No jobids found in reference file.")
 
-    sacct_frames = []
-    for ch in chunked(jobids, 200):
-        sacct_frames.append(run_sacct(ch))
+    sacct_frames = [run_sacct(jobids[i:i+200]) for i in range(0, len(jobids), 200)]
 
     if not sacct_frames:
         raise ValueError("No sacct data returned for the provided jobids.")
@@ -425,10 +406,10 @@ def export_job_metrics_tsv(
 
     agg = agg.rename(columns={"jobid_base": "jobid"})
 
-    out_dir = Path(out_dir)
+    out_dir = pathlib.Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    out_path = out_dir / f"{datetime.now().strftime('%Y%m%d')}_job_data.tsv"
+    out_path = out_dir / f"{datetime.datetime.now().strftime('%Y%m%d')}_job_data.tsv"
     agg.to_csv(out_path, sep="\t", index=False)
     return out_path
 
@@ -471,7 +452,7 @@ def run_sacct(jobids):
         )
 
     return pd.read_csv(
-        StringIO(res.stdout),
+        io.StringIO(res.stdout),
         sep="|",
         header=None,
         names=["JobIDRaw", "State", "ExitCode", "ElapsedRaw", "AllocCPUS", "MaxRSS"],
@@ -479,7 +460,7 @@ def run_sacct(jobids):
     )
 
 
-def _prepare_label_maps(factor_to_celltype, true_cluster):
+def prepare_label_maps(factor_to_celltype, true_cluster):
     """Prepare label maps."""
     correct_celltypes = {
         factor_to_celltype[i]: true_cluster[factor_to_celltype[i]]
@@ -489,28 +470,31 @@ def _prepare_label_maps(factor_to_celltype, true_cluster):
     factor_map = factor_to_celltype.copy()
     factor_map["-1"] = "unassigned"
 
-    return factor_map, correct_celltypes#
+    return factor_map, correct_celltypes
 
-def show_all_method_names(ref_file_path, only_successful=False, metrics_dir=None, return_counts=False):
+def show_all_method_names(
+        ref_file_path: Union[str, pathlib.Path],
+        only_successful: bool=False,
+        metrics_dir: Optional[Union[str, pathlib.Path]]=None,
+        return_counts: bool=False
+):
     """
     Show all possible canonical method names derived from the ref file.
 
-    Parameters
-    ----------
-    ref_file_path : str or Path
-        Path to the appended job_runs.tsv file.
-    only_successful : bool, default False
-        If True, only include methods with successful runs according to the
-        newest *_job_data.tsv file in metrics_dir.
-    metrics_dir : str or Path, optional
-        Required if only_successful=True.
-    return_counts : bool, default False
-        If True, return a DataFrame with counts instead of a plain list.
+    Args:
+        ref_file_path (str | Path): Path to the appended job_runs.tsv file.
+        only_successful (bool): If True, only include methods with successful runs according to the
+            newest *_job_data.tsv file in metrics_dir. Defaults to False.
+        metrics_dir (str | Path, optional): Required if only_successful=True. Path to the metrics directory of sacct.
+        return_counts (bool): If True, return a DataFrame with counts instead of a plain list. Defaults to False.
 
-    Returns
-    -------
-    list[str] or pd.DataFrame
+    Returns:
+        list[str] or pd.DataFrame: List of all method names in the job_data.tsv file.
+
+    Note:
+        If only_successful=True requires prior run of export_job_metrics_tsv() with access to sacct-command.
     """
+
     df = pd.read_csv(ref_file_path, sep="\t")
     df["_ref_order"] = range(len(df))
 

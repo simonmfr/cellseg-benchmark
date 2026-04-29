@@ -1,21 +1,19 @@
 import logging
 import os
-from os.path import exists, join
 
 import numpy as np
 import ovrlpy
 import pandas as pd
-from dask.array import from_array
-from geopandas import GeoDataFrame
-from matplotlib import patches
-from matplotlib import pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from polars import DataFrame
-from shapely import affinity
-from shapely.geometry.base import BaseGeometry
-from xarray import DataArray
+import dask.array as da
+import geopandas as gpd
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import mpl_toolkits.axes_grid1
+import polars
+import shapely
+import xarray
 
-from .ficture_intensities import _aggregate_channels_aligned
+from . import ficture
 
 
 def compute_ovrl(
@@ -36,9 +34,9 @@ def compute_ovrl(
     Returns:
         None
     """
-    if not exists(join(sample_dir, "vertical_doublets_ovrlpy_output.npz")):
+    if not os.path.exists(os.path.join(sample_dir, "vertical_doublets_ovrlpy_output.npz")):
         coords_df = pd.read_csv(
-            join(data_dir, "detected_transcripts.csv"), index_col=0
+            os.path.join(data_dir, "detected_transcripts.csv"), index_col=0
         )[["gene", "x", "y", "global_z"]].rename(columns={"global_z": "z"})
         run_ovrlpy(sample, coords_df, sample_dir)
     else:
@@ -50,7 +48,7 @@ def compute_ovrl(
 
 def run_ovrlpy(
     sample_name: str,
-    coordinate_df: pd.DataFrame | DataFrame,
+    coordinate_df: pd.DataFrame | polars.DataFrame,
     data_dir: str,
     logger: logging.Logger = None,
 ) -> None:
@@ -94,7 +92,7 @@ def run_ovrlpy(
 
 
 def compute_mean_vsi_per_polygon(
-    integrity_map: np.ndarray, boundaries: GeoDataFrame, transform_matrix: np.ndarray, **kwargs
+    integrity_map: np.ndarray, boundaries: gpd.GeoDataFrame, transform_matrix: np.ndarray, **kwargs
 ) -> pd.DataFrame:
     """Compute mean vsi per polygon.
 
@@ -108,29 +106,29 @@ def compute_mean_vsi_per_polygon(
     """
 
     def micron_to_pixel_coords(
-        geom: BaseGeometry,
+        geom: shapely.geometry.base.BaseGeometry,
         transform_matrix: np.ndarray,
         pixel_offset=(13, 13),
-    ) -> BaseGeometry:
+    ) -> shapely.geometry.base.BaseGeometry:
         """Transform micron coordinates to ovrlpy coordinates."""
         sx, sy = transform_matrix[0, 0], transform_matrix[1, 1]
         ox, oy = transform_matrix[0, 2], transform_matrix[1, 2]
         omx, omy = ox / sx, oy / sy
 
-        geom = affinity.affine_transform(geom, [1, 0, 0, 1, omx, omy])
-        geom = affinity.translate(geom, xoff=-pixel_offset[0], yoff=-pixel_offset[1])
+        geom = shapely.affinity.affine_transform(geom, [1, 0, 0, 1, omx, omy])
+        geom = shapely.affinity.translate(geom, xoff=-pixel_offset[0], yoff=-pixel_offset[1])
         return geom
 
     pic = np.expand_dims(integrity_map, axis=0)
-    pic = from_array(pic)
-    pic = DataArray(pic, dims=["c", "y", "x"])
+    pic = da.from_array(pic)
+    pic = xarray.DataArray(pic, dims=["c", "y", "x"])
 
     boundaries["geometry"] = boundaries.geometry.apply(
         micron_to_pixel_coords, args=(transform_matrix, (13, 13))
     )
 
-    result = _aggregate_channels_aligned(pic, boundaries, "average")
-    var = _aggregate_channels_aligned(pic, boundaries, "variance", means=result)
+    result = ficture.aggregate_channels_aligned(pic, boundaries, "average")
+    var = ficture.aggregate_channels_aligned(pic, boundaries, "variance", means=result)
     result = pd.DataFrame(result, index=boundaries.index, columns=["mean_integrity"])
     result["variance"] = var
     return result
@@ -183,12 +181,12 @@ def plot_vsi_overview(
     axs[0, 0].set_title(sample_name)
 
     for x, y, w, h in boxes:
-        rect = patches.Rectangle(
+        rect = mpl.patches.Rectangle(
             (x, y), w, h, linewidth=1, edgecolor="red", facecolor="none", linestyle="--"
         )
         axs[0, 0].add_patch(rect)
 
-    cax = make_axes_locatable(axs[0, 0]).append_axes("right", size="4%", pad=0.05)
+    cax = mpl_toolkits.axes_grid1.make_axes_locatable(axs[0, 0]).append_axes("right", size="4%", pad=0.05)
     fig.colorbar(im, cax=cax).ax.set_title("VSI", fontsize=10)
 
     # histogram

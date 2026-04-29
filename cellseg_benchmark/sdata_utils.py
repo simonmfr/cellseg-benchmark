@@ -1,3 +1,7 @@
+# Fixes runtime error (seg_postprocessing)
+import dask
+dask.config.set({'dataframe.query-planning': False})
+
 import ast
 import gzip
 import io
@@ -14,27 +18,15 @@ import numpy as np
 import pandas as pd
 import spatialdata as sd
 import spatialdata_io
-from joblib import Parallel, delayed
-from scipy.spatial import ConvexHull
-from shapely import points
-from shapely.geometry import Point, Polygon
-from shapely.ops import unary_union
-from spatialdata.models import ShapesModel
-from spatialdata.transformations import (
-    Affine,
-    Identity,
-    get_transformation,
-    set_transformation,
-)
-from tifffile import imread
+import joblib
+import scipy.spatial as ss
+import shapely
+import shapely.ops
+import tifffile
 from tqdm import tqdm
 
-from ._constants import image_based, methods_3D
-from .ficture_utils import (
-    _find_ficture_output,
-    create_factor_level_image,
-    parse_metadata,
-)
+from . import _constants
+from . import ficture_utils as fu
 
 PI = math.pi
 
@@ -66,28 +58,28 @@ def process_merscope(
     sdata = sd.read_zarr(sdata_file)
 
     # set coordinates system
-    transformation_to_pixel = get_transformation(
+    transformation_to_pixel = sd.transformations.get_transformation(
         sdata[list(sdata.points.keys())[0]], "global"
     )
 
-    set_transformation(
-        sdata[list(sdata.points.keys())[0]], Identity(), "micron", write_to_sdata=sdata
+    sd.transformations.set_transformation(
+        sdata[list(sdata.points.keys())[0]], sd.transformations.Identity(), "micron", write_to_sdata=sdata
     )
-    set_transformation(
+    sd.transformations.set_transformation(
         sdata[list(sdata.points.keys())[0]],
         transformation_to_pixel,
         "pixel",
         write_to_sdata=sdata,
     )
 
-    set_transformation(
+    sd.transformations.set_transformation(
         sdata[list(sdata.images.keys())[0]],
         transformation_to_pixel.inverse(),
         "micron",
         write_to_sdata=sdata,
     )
-    set_transformation(
-        sdata[list(sdata.images.keys())[0]], Identity(), "pixel", write_to_sdata=sdata
+    sd.transformations.set_transformation(
+        sdata[list(sdata.images.keys())[0]], sd.transformations.Identity(), "pixel", write_to_sdata=sdata
     )
 
 
@@ -270,7 +262,7 @@ def integrate_segmentation_data(
                             f"No annotation files found for {seg_method}. Skipping annotation."
                         )
                 if "volume_final" not in sdata_main[f"adata_{seg_method}"].obs.columns:
-                    if any([seg_method.startswith(x) for x in methods_3D]):
+                    if any([seg_method.startswith(x) for x in _constants.methods_3D]):
                         n_planes_2d = None
                     else:
                         n_planes_2d = 7
@@ -387,7 +379,7 @@ def build_shapes(
             geojson_text = f.read()
         gdf = gpd.read_file(io.StringIO(geojson_text))
         gdf = gdf.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
-        obj = ShapesModel.parse(gdf)
+        obj = sd.models.ShapesModel.parse(gdf)
 
     elif boundary_key in sdata.shapes:
         obj = sdata[boundary_key]
@@ -509,7 +501,7 @@ def calculate_volume(
     boundaries = sd.transform(
         sdata_main[f"boundaries_{seg_method}"], to_coordinate_system="micron"
     )
-    if any([seg_method.startswith(x) for x in methods_3D]):
+    if any([seg_method.startswith(x) for x in _constants.methods_3D]):
         if seg_method.startswith("Proseg_3D"):
             z_level_name = "layer"
             cell_identifier = "cell_id"
@@ -535,8 +527,8 @@ def calculate_volume(
             (entity_id, group[[z_level_name, "geometry"]])
             for entity_id, group in grouped
         ]
-        morphology_rows = Parallel(n_jobs=-1, backend="loky")(
-            delayed(compute_polygon_stats_3D)(
+        morphology_rows = joblib.Parallel(n_jobs=-1, backend="loky")(
+            joblib.delayed(compute_polygon_stats_3D)(
                 eid, grp, z_spacing, z_level_name, global_z_min, global_z_max, logger
             )
             for eid, grp in items
@@ -550,8 +542,8 @@ def calculate_volume(
             logger.info(f"Calculate volume metrics {seg_method}")
         scale = z_spacing * n_planes_2d
         items = [(entity_id, group.geometry.iat[0]) for entity_id, group in grouped]
-        morphology_rows = Parallel(n_jobs=-1, backend="loky")(
-            delayed(compute_polygon_stats_2D)(item, scale, logger) for item in items
+        morphology_rows = joblib.Parallel(n_jobs=-1, backend="loky")(
+            joblib.delayed(compute_polygon_stats_2D)(item, scale, logger) for item in items
         )
         morphology_rows = [r for r in morphology_rows if r is not None]
 
@@ -642,30 +634,30 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
         sdata_main: master sdata
         seg_method: current segmentation method
     """
-    transformation_to_pixel = get_transformation(
+    transformation_to_pixel = sd.transformations.get_transformation(
         sdata_main[list(sdata_main.points.keys())[0]], "global"
     )
 
-    if any([seg_method.startswith(method) for method in image_based]):
+    if any([seg_method.startswith(method) for method in _constants.image_based]):
         if seg_method == "Cellpose_1_Merlin":
-            set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], Identity(), "micron"
+            sd.transformations.set_transformation(
+                sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron"
             )
-            set_transformation(
+            sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
             )
         else:
-            set_transformation(
+            sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"],
                 transformation_to_pixel.inverse(),
                 "micron",
             )
-            set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], Identity(), "pixel"
+            sd.transformations.set_transformation(
+                sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "pixel"
             )
     else:
-        set_transformation(sdata_main[f"boundaries_{seg_method}"], Identity(), "micron")
-        set_transformation(
+        sd.transformations.set_transformation(sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron")
+        sd.transformations.set_transformation(
             sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
         )
     return
@@ -690,7 +682,7 @@ def transform_adata(
     adata = sdata_main[f"adata_{seg_method}"]
     spatial = adata.obsm["spatial"]
 
-    if any([seg_method.startswith(method) for method in image_based]):
+    if any([seg_method.startswith(method) for method in _constants.image_based]):
         x = (
             spatial[:, 0] * (1 / transform.iloc[0, 0])
             - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
@@ -775,33 +767,33 @@ def get_2D_boundaries(
             new.index.rename(None, inplace=True)
             bound = new.dissolve(by="cell_id")
             del new
-        sdata[f"boundaries_{method}"] = ShapesModel.parse(bound)
-        set_transformation(
+        sdata[f"boundaries_{method}"] = sd.models.ShapesModel.parse(bound)
+        sd.transformations.set_transformation(
             sdata[f"boundaries_{method}"],
-            Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
+            sd.transformations.Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
             to_coordinate_system="global",
         )
     else:
-        sdata[f"boundaries_{method}"] = ShapesModel.parse(org_sdata[boundary_key])
-    if any([method.startswith(x) for x in image_based]):
+        sdata[f"boundaries_{method}"] = sd.models.ShapesModel.parse(org_sdata[boundary_key])
+    if any([method.startswith(x) for x in _constants.image_based]):
         if method == "Cellpose_1_Merlin" or method == "Watershed_Merlin":
-            set_transformation(
+            sd.transformations.set_transformation(
                 sdata[f"boundaries_{method}"],
-                Identity(),
+                sd.transformations.Identity(),
                 to_coordinate_system="micron",
             )
         else:
-            set_transformation(
+            sd.transformations.set_transformation(
                 sdata[f"boundaries_{method}"],
-                Affine(
+                sd.transformations.Affine(
                     transformation, input_axes=("x", "y"), output_axes=("x", "y")
                 ).inverse(),
                 to_coordinate_system="micron",
             )
     else:
-        set_transformation(
+        sd.transformations.set_transformation(
             sdata[f"boundaries_{method}"],
-            Identity(),
+            sd.transformations.Identity(),
             to_coordinate_system="micron",
         )
 
@@ -906,7 +898,7 @@ def prepare_ficture(
     """
     if logger is not None:
         logger.info(f"Generating ficture images for {data_path}")
-    DAPI_shape = imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
+    DAPI_shape = tifffile.imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
     transform = pd.read_csv(
         join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
@@ -915,15 +907,12 @@ def prepare_ficture(
 
     if "Ficture" not in listdir(results_path):
         return {}
-    ficture_full_path = _find_ficture_output(sample, base_path, n_ficture)
+    ficture_full_path = fu.find_ficture_output(sample, base_path, n_ficture)
     assert ficture_full_path != "", "Ficture output not correctly computed."
 
-    fic_header = ["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
-    ficture_pixels = pd.read_csv(
-        ficture_full_path, sep="\t", names=fic_header, comment="#"
-    )
+    ficture_pixels = fu.read_ficture_pixels(ficture_full_path)
 
-    metadata = parse_metadata(ficture_full_path)
+    metadata = fu.parse_metadata(ficture_full_path)
     scale = float(metadata["SCALE"])
     offset_x = float(metadata["OFFSET_X"])
     offset_y = float(metadata["OFFSET_Y"])
@@ -955,14 +944,14 @@ def prepare_ficture(
         try:
             image_stack
         except NameError:
-            image_stack = create_factor_level_image(
+            image_stack = fu.create_factor_level_image(
                 ficture_pixels, factor, DAPI_shape, top_n_factors
             )
         else:
             image_stack = np.concatenate(
                 (
                     image_stack,
-                    create_factor_level_image(
+                    fu.create_factor_level_image(
                         ficture_pixels, factor, DAPI_shape, top_n_factors
                     ),
                 ),
@@ -1010,7 +999,7 @@ def compute_cell_morphology(
         # Parse geometry from strings if needed
         boundaries = boundaries.copy()
         boundaries["geometry"] = boundaries["geometry"].apply(
-            lambda x: Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
+            lambda x: shapely.geometry.Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
         )
 
         if "EntityID" not in boundaries:
@@ -1071,7 +1060,7 @@ def compute_cell_morphology(
 def _compute_2d_metrics(geom, z_spacing: float):
     """Compute 2D morphology metrics with improved robustness."""
     if geom.geom_type == "MultiPolygon":
-        geom = unary_union(geom)
+        geom = shapely.ops.unary_union(geom)
     if geom.geom_type == "MultiPolygon":
         geom = max(geom.geoms, key=lambda p: p.area)
 
@@ -1224,7 +1213,7 @@ def _compute_3d_metrics(
         if not thin_stack:
             if all_points.shape[0] >= 4:
                 try:
-                    hull = ConvexHull(
+                    hull = ss.ConvexHull(
                         all_points, qhull_options="QJ"
                     )  # jitter coplanar cases
                     hv = hull.volume
@@ -1234,7 +1223,7 @@ def _compute_3d_metrics(
                     up = np.unique(all_points, axis=0)
                     if up.shape[0] >= 4:
                         try:
-                            hull = ConvexHull(up, qhull_options="QJ")
+                            hull = ss.ConvexHull(up, qhull_options="QJ")
                             hv = hull.volume
                             solidity = (volume_trapz / hv) if hv > 0 else np.nan
                         except Exception:
@@ -1298,17 +1287,17 @@ def add_visium_boundaries(
     for i, yy in enumerate(ys):
         x0 = xmin + (dx / 2.0 if i % 2 else 0.0)
         xs = np.arange(x0, xmax + dx, dx)
-        geoms.extend(Point(xx, yy).buffer(r, resolution=circle_resolution) for xx in xs)
+        geoms.extend(shapely.geometry.Point(xx, yy).buffer(r, resolution=circle_resolution) for xx in xs)
         ids.extend(f"visium_{i}_{j}" for j in range(xs.size))
 
     gdf = gpd.GeoDataFrame({"spot_id": ids}, geometry=geoms).set_index("spot_id")
 
-    transforms = {cs: get_transformation(pts, cs) for cs in sdata.coordinate_systems}
-    sdata.shapes[out_name] = ShapesModel.parse(gdf, transformations=transforms)
+    transforms = {cs: sd.transformations.get_transformation(pts, cs) for cs in sdata.coordinate_systems}
+    sdata.shapes[out_name] = sd.models.ShapesModel.parse(gdf, transformations=transforms)
     return sdata
 
 
-def _assign_points_to_polygons(
+def assign_points_to_polygons(
     coords_df: pd.DataFrame,
     polygons_gdf: gpd.GeoDataFrame,
     x_col: str = "x",
@@ -1321,28 +1310,18 @@ def _assign_points_to_polygons(
 ) -> pd.DataFrame:
     """Assign each point in coords_df to a polygon in polygons_gdf.
 
-    Parameters
-    ----------
-    coords_df
-        DataFrame with x/y coordinates.
-    polygons_gdf
-        GeoDataFrame with polygon geometries.
-    x_col, y_col
-        Coordinate column names in coords_df.
-    polygon_id_col
-        Column in polygons_gdf whose values should be assigned to points.
-    output_col
-        Name of the output column written to coords_df.
-    chunk_size
-        Number of points processed per chunk.
-    predicate
-        Spatial predicate, e.g. "within" or "intersects".
-    default_value
-        Value assigned when a point does not match any polygon.
+    Args:
+        coords_df (pd.DataFrame): DataFrame with x/y coordinates.
+        polygons_gdf (gpd.GeoDataFrame): GeoDataFrame with polygon geometries.
+        x_col (str): x column of coords_df. Defaults to "x".
+        y_col (str): y column of coords_df. Defaults to "y".
+        polygon_id_col (str): Column in polygons_gdf whose values should be assigned to points. Defaults to "poly_id".
+        output_col (str): Name of the output column written to coords_df. Defaults to "assigned_polygon".
+        chunk_size (int): Number of points processed per chunk. Defaults to 1_000_000.
+        predicate (str): Spatial predicate, either "within" or "intersects". Defaults to "within".
+        default_value: Value assigned when a point does not match any polygon. Defaults to "unassigned".
 
     Returns:
-    -------
-    pd.DataFrame
         Copy of coords_df with an added output column.
     """
     if polygon_id_col not in polygons_gdf.columns:
@@ -1361,7 +1340,7 @@ def _assign_points_to_polygons(
         chunk = result.iloc[start:stop].copy()
         chunk = chunk.drop(columns=[polygon_id_col], errors="ignore")
         chunk["_rowid"] = np.arange(stop - start)
-        geom = points(chunk[x_col].to_numpy(), chunk[y_col].to_numpy())
+        geom = shapely.points(chunk[x_col].to_numpy(), chunk[y_col].to_numpy())
 
         points_gdf = gpd.GeoDataFrame(
             chunk,

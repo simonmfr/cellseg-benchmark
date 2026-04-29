@@ -1721,30 +1721,6 @@ true_cluster = {
     "Neurons-Dopa": "Neurons-Dopa",
 }
 
-true_cluster_old = {
-    "Astrocytes": ["Astrocytes", "Astroependymal"],
-    "BAMs": ["BAMs"],
-    "ECs": ["ECs"],
-    "Ependymal": ["Ependymal", "Choroid-Plexus"],
-    "Immune-Other": ["Immune-Other"],
-    "Microglia": ["Microglia"],
-    "Neurons-Dopa-Gaba": ["Neurons-Dopa"],
-    "Neurons-Gaba": ["Neurons-Gaba"],
-    "Neurons-Glut": ["Neurons-Glut"],
-    "Neurons-Glyc-Gaba": ["Neurons-Glyc-Gaba"],
-    "Neurons-Immature": ["Neurons-Granule-Immature"],
-    "Neurons-Other": ["Neurons-Other"],
-    "OECs": [],
-    "OPCs": ["OPCs"],
-    "Oligodendrocytes": ["Oligodendrocytes"],
-    "Pericytes": ["Pericytes"],
-    "SMCs": ["SMCs"],
-    "VLMCs": ["VLMCs"],
-    "ABCs": ["VLMCs"],
-    "Bergmann": ["Astrocytes"],
-    "Neurons-Dopa": ["Neurons-Dopa"],
-}
-
 contamination_markers = {
     "Immune": ["Ptprc", "Ctss", "Tmem119", "Cd68", "Ncam1"],
     "Neuronal": ["Rbfox3", "Gad1", "Meg3", "Slc17a7", "Ncam1"],
