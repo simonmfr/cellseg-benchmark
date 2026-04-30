@@ -11,7 +11,7 @@ import spatialdata as sd
 import spatialdata_io
 
 logger = logging.getLogger("intensities_3D")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
@@ -45,21 +45,27 @@ def main():
         cells_boundaries=False,
         z_layers=[0, 1, 2, 3, 4, 5, 6]
     )
+    logger.debug(tmp_sdata)
 
     transform = sd.transformations.get_transformation(tmp_sdata[list(tmp_sdata.points.keys())[0]])
+    logger.debug(transform)
 
     logger.info("Loading sdata…")
     sdata = sd.read_zarr(sdata_path / "sdata.zarr")
+    logger.debug(sdata)
 
     logger.info("Loading boundaries…")
+    logger.debug(f"boundary_key: {args.boundary_key}, method: {args.method}, boundary_path: {args.boundary_path}")
     if args.boundary_key is not None:
         boundaries = sdata[args.boundary_key]
     elif args.method is not None:
         logger.info(f"Loading boundaries from source file")
         if args.method.startswith("vpt_3D"):
             if "boundaries_vpt_3D" in sdata.shapes.keys():
+                logger.debug("Loading boundaries_vpt_3D for vpt_3D by default key")
                 boundaries = sdata["boundaries_vpt_3D"]
             else:
+                logger.debug("Loading boundaries for vpt_3D by path")
                 assert args.boundary_path.endswith(".parquet"), "vpt_3D shape files end with .parquet"
                 boundaries = gpd.read_parquet(
                     args.boundary_path,
@@ -69,15 +75,18 @@ def main():
                 boundaries.set_index("cell_id", drop=False, inplace=True)
                 boundaries.index = boundaries.index.rename(None)
         elif args.method.startswith("Proseg_3D"):
+            logger.debug("Loading boundaries for Proseg_3D by path")
             assert args.boundary_path.endswith(".geojson.gz") or args.boundary_path.endswith(".geojson"), "This is not the Proseg 3D shapes file."
             with gzip.open(args.boundary_path, "rt", encoding="utf-8") as f:
                 geojson_text = f.read()
             boundaries = gpd.read_file(io.StringIO(geojson_text))
             boundaries = boundaries.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
         elif args.method == "Watershed_Merlin":
-            if "boundaries_vpt_3D" in sdata.shape.keys():
+            if "boundaries_vpt_3D" in sdata.shapes.keys():
+                logger.debug("Loading boundaries_vpt_3D for Watershed_Merlin by default key")
                 boundaries = sdata["boundaries_vpt_3D"]
             else:
+                logger.debug("Loading boundaries for Watershed_Merlin by path")
                 boundaries = spatialdata_io.merscope(
                                 args.data_path,
                                 transcripts=False,
@@ -102,6 +111,7 @@ def main():
         )
         sd.transformations.set_transformation(sdata_working[f'boundaries_z{idx}'], transform)
     sdata_working['table'] = sdata['table'].copy()
+    logger.debug(sdata_working)
 
     logger.info("Compute intensities…")
     intensities = {}
@@ -115,6 +125,10 @@ def main():
             .obs[sdata_working["table"].uns["spatialdata_attrs"]["region_key"]]
             .astype("category")
         )
+        logger.debug(sdata_working['table'].uns["spatialdata_attrs"])
+        logger.debug(sdata_working['table'].obs.head(5))
+        logger.debug(sd.transformations.get_transformation(sdata_working[f"boundaries_{idx}"]))
+        logger.debug(sd.transformations.get_transformation(sdata_working[determine_image(sdata_working, idx)]))
 
         intensities[idx] = pd.DataFrame(
             sopa.aggregation.aggregate_channels(sdata_working,
