@@ -142,6 +142,10 @@ def main():
         )
     intensities_stacked = pd.concat(intensities.values(), keys=intensities.keys())
     intensities_stacked.groupby(level=1).mean()
+    logger.debug("sdata index:")
+    logger.debug(sdata.obs_names)
+    logger.debug("intensities index")
+    logger.debug(intensities_stacked.index)
     sdata['table'].obsm['intensities'] = intensities_stacked
 
     logger.info("Write sdata with updated intensities.")
