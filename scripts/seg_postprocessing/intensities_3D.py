@@ -141,12 +141,12 @@ def main():
             index=sdata_working[f"boundaries_{idx}"].index.astype(str)
         )
     intensities_stacked = pd.concat(intensities.values(), keys=intensities.keys())
-    intensities_stacked.groupby(level=1).mean()
+
     logger.debug("sdata index:")
     logger.debug(sdata['table'].obs_names)
     logger.debug("intensities index")
-    logger.debug(intensities_stacked.index)
-    sdata['table'].obsm['intensities'] = intensities_stacked
+    logger.debug(intensities_stacked.groupby(level=1).mean().index)
+    sdata['table'].obsm['intensities'] = intensities_stacked.groupby(level=1).mean()
 
     logger.info("Write sdata with updated intensities.")
     sdata.write(sdata_path / "sdata_intens.zarr")
