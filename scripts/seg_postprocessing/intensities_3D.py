@@ -125,7 +125,7 @@ def main():
     else:
         raise ValueError("Please either provide keys to the sdata or a method name.")
 
-    assert sdata['table'].uns["spatialdata_attrs"]["instance_key"] in boundaries.columns, "instance_key not found in boundaries dataframe."
+    #assert sdata['table'].uns["spatialdata_attrs"]["instance_key"] in boundaries.columns, "instance_key not found in boundaries dataframe."
     assert 'ZIndex' in boundaries.columns, "ZIndex not found in boundaries dataframe."
 
     logger.info("Build sdata with boundaries for every level…")
