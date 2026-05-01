@@ -676,16 +676,22 @@ def transform_adata(
     spatial = adata.obsm["spatial"]
 
     if any([seg_method.startswith(method) for method in pixel_based]):
-        x = (
-            spatial[:, 0] * (1 / transform.iloc[0, 0])
-            - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
-        )
-        y = (
-            spatial[:, 1] * (1 / transform.iloc[1, 1])
-            - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
-        )
-        adata.obsm["spatial_microns"] = np.stack([x, y], axis=1)
-        adata.obsm["spatial_pixel"] = spatial
+        if seg_method in ("Cellpose_1_Merlin"):
+            adata.obsm["spatial_microns"] = spatial
+            x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
+            y = spatial[:, 1] * transform.iloc[1, 1] + transform.iloc[1, 2]
+            adata.obsm["spatial_pixel"] = np.stack([x, y], axis=1)
+        else:
+            x = (
+                spatial[:, 0] * (1 / transform.iloc[0, 0])
+                - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
+            )
+            y = (
+                spatial[:, 1] * (1 / transform.iloc[1, 1])
+                - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
+            )
+            adata.obsm["spatial_microns"] = np.stack([x, y], axis=1)
+            adata.obsm["spatial_pixel"] = spatial
     else:
         adata.obsm["spatial_microns"] = spatial
         x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
