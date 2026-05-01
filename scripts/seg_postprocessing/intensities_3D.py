@@ -118,9 +118,8 @@ def main():
                 with gzip.open(boundary_path, "rt", encoding="utf-8") as f:
                     geojson_text = f.read()
                 boundaries = gpd.read_file(io.StringIO(geojson_text))
-                boundaries.set_index("cell_label", drop=False, inplace=True)
+                boundaries.set_index("cell_label", drop=True, inplace=True)
             boundaries.rename(columns={"z_plane": "ZIndex"}, inplace=True)
-            boundaries.index = boundaries.index.rename(None)
         else:
             raise NotImplementedError("Please either provide keys to the 3D boundaries in the sdata or an implemented method name.")
     else:
