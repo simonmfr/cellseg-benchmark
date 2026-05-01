@@ -21,10 +21,8 @@ for key, value in data.items():
     f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 1-00:00:00
-#SBATCH --mem=300G
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks-per-node=20
+#SBATCH -t 06:00:00
+#SBATCH --mem=150G
 #SBATCH -J intensities_3D_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/intensities_3D_{key}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/intensities_3D_{key}.err
