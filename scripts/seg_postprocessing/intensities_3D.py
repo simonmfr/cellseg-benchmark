@@ -13,7 +13,7 @@ import spatialdata as sd
 import spatialdata_io
 
 logger = logging.getLogger("intensities_3D")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
@@ -55,7 +55,7 @@ def main():
     logger.debug(transform)
 
     logger.info("Loading sdata…")
-    sdata = sd.read_zarr(sdata_path / "sdata_intens.zarr") #TODO: Remove after testing
+    sdata = sd.read_zarr(sdata_path / "sdata.zarr")
     logger.debug(sdata)
 
     logger.info("Loading boundaries…")
@@ -161,13 +161,11 @@ def main():
     sdata['table'].obsm['intensities'] = intensities_stacked.groupby(level=1).mean()
 
     logger.info("Write sdata with updated intensities.")
-    sdata.write(sdata_path / "sdata_intens_2.zarr", overwrite=True)
-    logger.debug("Remove sdata_intens.zarr")
-    run(["rm", "-r", sdata_path / "sdata_intens.zarr"])
-    logger.debug("Move sdata_intens_2.zarr to sdata_intens.zarr")
-    run(["mv", sdata_path / "sdata_intens_2.zarr", sdata_path / "sdata_intens.zarr"])
-    #logger.debug("Remove sdata_intens_2.zarr")
-    #run(["rm", "-r", sdata_path / "sdata_intens_2.zarr"])
+    sdata.write(sdata_path / "sdata_intens.zarr", overwrite=True)
+    logger.debug("Remove sdata.zarr")
+    run(["rm", "-r", sdata_path / "sdata.zarr"])
+    logger.debug("Move sdata_intens.zarr to sdata.zarr")
+    run(["mv", sdata_path / "sdata_intens.zarr", sdata_path / "sdata.zarr"])
 
 if __name__ == "__main__":
     main()
