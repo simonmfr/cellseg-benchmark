@@ -120,12 +120,12 @@ def main():
                 boundaries = gpd.read_file(io.StringIO(geojson_text))
                 boundaries.set_index("cell_label", drop=True, inplace=True)
             boundaries.rename(columns={"z_plane": "ZIndex"}, inplace=True)
+            boundaries['ZIndex'] = boundaries['ZIndex'].astype(float).astype(int)
         else:
             raise NotImplementedError("Please either provide keys to the 3D boundaries in the sdata or an implemented method name.")
     else:
         raise ValueError("Please either provide keys to the sdata or a method name.")
 
-    #assert sdata['table'].uns["spatialdata_attrs"]["instance_key"] in boundaries.columns, "instance_key not found in boundaries dataframe."
     assert 'ZIndex' in boundaries.columns, "ZIndex not found in boundaries dataframe."
 
     logger.info("Build sdata with boundaries for every level…")
