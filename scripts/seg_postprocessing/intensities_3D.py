@@ -147,6 +147,7 @@ def main():
     logger.debug(sdata['table'].obs_names)
     logger.debug("intensities index")
     logger.debug(intensities_stacked.groupby(level=1).mean().index)
+    logger.debug(intensities_stacked.groupby(level=1).mean())
     sdata['table'].obsm['intensities'] = intensities_stacked.groupby(level=1).mean()
 
     logger.info("Write sdata with updated intensities.")
