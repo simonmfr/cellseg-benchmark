@@ -13,7 +13,7 @@ import spatialdata as sd
 import spatialdata_io
 
 logger = logging.getLogger("intensities_3D")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
@@ -175,11 +175,11 @@ def main():
     sdata['table'].obsm['intensities'] = intensities_stacked.groupby(level=1).mean()
 
     logger.info("Write sdata with updated intensities.")
-    sdata.write(sdata_path / "sdata_intens.zarr", overwrite=True)
+    #sdata.write(sdata_path / "sdata_intens.zarr", overwrite=True)
     logger.debug("Remove sdata.zarr")
-    run(["rm", "-r", sdata_path / "sdata.zarr"])
+    #run(["rm", "-r", sdata_path / "sdata.zarr"])
     logger.debug("Move sdata_intens.zarr to sdata.zarr")
-    run(["mv", sdata_path / "sdata_intens.zarr", sdata_path / "sdata.zarr"])
+    #run(["mv", sdata_path / "sdata_intens.zarr", sdata_path / "sdata.zarr"])
 
 if __name__ == "__main__":
     main()
