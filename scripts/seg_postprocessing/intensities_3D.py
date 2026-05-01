@@ -54,7 +54,7 @@ def main():
     logger.debug(transform)
 
     logger.info("Loading sdata…")
-    sdata = sd.read_zarr(sdata_path / "sdata.zarr")
+    sdata = sd.read_zarr(sdata_path / "sdata_intens.zarr") #TODO: Remove after testing
     logger.debug(sdata)
 
     logger.info("Loading boundaries…")
