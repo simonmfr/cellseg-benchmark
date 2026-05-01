@@ -47,7 +47,7 @@ def main():
 
     intensities_3D_script = pathlib.Path(__file__).parent / "intensities_3D.py"
     for method in methods:
-        cmd = [sys.executable, str(intensities_3D_script), str(sample_path), args.data_path, "--method", method]
+        cmd = [sys.executable, str(intensities_3D_script), str(sample_path / "results" / method), args.data_path, "--method", method]
 
         exit_code = subprocess.run(cmd, stdout=sys.stdout, stderr=sys.stderr)
         if exit_code.returncode != 0:
