@@ -4,6 +4,7 @@ import io
 import logging
 import os
 import pathlib
+import warnings
 from subprocess import run
 
 import geopandas as gpd
@@ -11,6 +12,8 @@ import pandas as pd
 import sopa
 import spatialdata as sd
 import spatialdata_io
+
+warnings.filterwarnings("ignore")
 
 logger = logging.getLogger("intensities_3D")
 logger.setLevel(logging.DEBUG)
@@ -105,7 +108,7 @@ def main():
                                 cells_boundaries=True
                             )
         elif args.method == "SIS":
-            if "boundaries_vpt_3D" in sdata.shapes.keys():
+            if "boundaries_3D" in sdata.shapes.keys():
                 logger.debug("Loading boundaries_vpt_3D for SIS by default key")
                 boundaries = sdata["boundaries_vpt_3D"]
             else:
