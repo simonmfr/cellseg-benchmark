@@ -160,7 +160,7 @@ def main():
     sdata['table'].obsm['intensities'] = intensities_stacked.groupby(level=1).mean()
 
     logger.info("Write sdata with updated intensities.")
-    sdata.write(sdata_path / "sdata_intens.zarr")
+    sdata.write(sdata_path / "sdata_intens.zarr", overwrite=True)
 
 if __name__ == "__main__":
     main()
