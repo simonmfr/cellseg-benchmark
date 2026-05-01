@@ -5,9 +5,7 @@ import logging
 import math
 import os
 import warnings
-from os import listdir
 from os.path import join
-from re import split
 from typing import Dict, List, Optional, Union
 
 import geopandas as gpd
@@ -26,11 +24,9 @@ from spatialdata.transformations import (
     get_transformation,
     set_transformation,
 )
-from tifffile import imread
 from tqdm import tqdm
 
-from ._constants import image_based, methods_3D
-from .ficture_utils import create_factor_level_image, parse_metadata
+from ._constants import pixel_based, methods_3D
 
 PI = math.pi
 
@@ -635,8 +631,8 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
         sdata_main[list(sdata_main.points.keys())[0]], "global"
     )
 
-    if any([seg_method.startswith(method) for method in image_based]):
-        if seg_method == "Cellpose_1_Merlin":
+    if any([seg_method.startswith(method) for method in pixel_based]):
+        if seg_method in ("Cellpose_1_Merlin"):
             set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], Identity(), "micron"
             )
@@ -645,15 +641,15 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
             )
         else:
             set_transformation(
-                sdata_main[f"boundaries_{seg_method}"],
-                transformation_to_pixel.inverse(),
-                "micron",
+                sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel.inverse(), "micron",
             )
             set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], Identity(), "pixel"
             )
     else:
-        set_transformation(sdata_main[f"boundaries_{seg_method}"], Identity(), "micron")
+        set_transformation(
+            sdata_main[f"boundaries_{seg_method}"], Identity(), "micron"
+        )
         set_transformation(
             sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
         )
@@ -679,17 +675,23 @@ def transform_adata(
     adata = sdata_main[f"adata_{seg_method}"]
     spatial = adata.obsm["spatial"]
 
-    if any([seg_method.startswith(method) for method in image_based]):
-        x = (
-            spatial[:, 0] * (1 / transform.iloc[0, 0])
-            - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
-        )
-        y = (
-            spatial[:, 1] * (1 / transform.iloc[1, 1])
-            - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
-        )
-        adata.obsm["spatial_microns"] = np.stack([x, y], axis=1)
-        adata.obsm["spatial_pixel"] = spatial
+    if any([seg_method.startswith(method) for method in pixel_based]):
+        if seg_method in ("Cellpose_1_Merlin"):
+            adata.obsm["spatial_microns"] = spatial
+            x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
+            y = spatial[:, 1] * transform.iloc[1, 1] + transform.iloc[1, 2]
+            adata.obsm["spatial_pixel"] = np.stack([x, y], axis=1)
+        else:
+            x = (
+                spatial[:, 0] * (1 / transform.iloc[0, 0])
+                - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
+            )
+            y = (
+                spatial[:, 1] * (1 / transform.iloc[1, 1])
+                - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
+            )
+            adata.obsm["spatial_microns"] = np.stack([x, y], axis=1)
+            adata.obsm["spatial_pixel"] = spatial
     else:
         adata.obsm["spatial_microns"] = spatial
         x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
@@ -772,8 +774,8 @@ def get_2D_boundaries(
         )
     else:
         sdata[f"boundaries_{method}"] = ShapesModel.parse(org_sdata[boundary_key])
-    if any([method.startswith(x) for x in image_based]):
-        if method == "Cellpose_1_Merlin" or method == "Watershed_Merlin":
+    if any([method.startswith(x) for x in pixel_based]):
+        if method == "Cellpose_1_Merlin":
             set_transformation(
                 sdata[f"boundaries_{method}"],
                 Identity(),
