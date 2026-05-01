@@ -109,8 +109,8 @@ def main():
                             )
         elif args.method == "SIS":
             if "boundaries_3D" in sdata.shapes.keys():
-                logger.debug("Loading boundaries_vpt_3D for SIS by default key")
-                boundaries = sdata["boundaries_vpt_3D"]
+                logger.debug("Loading boundaries_3D for SIS by default key")
+                boundaries = sdata["boundaries_3D"]
             else:
                 assert args.boundary_path.endswith(".geojson.gz") or args.boundary_path.endswith(
                     ".geojson"), "This is not the SIS shapes file."
