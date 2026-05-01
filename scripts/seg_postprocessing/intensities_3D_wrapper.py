@@ -5,8 +5,6 @@ import os
 import subprocess
 import sys
 
-from cellseg_benchmark._constants import methods_3D, BASE_PATH
-
 logger = logging.getLogger("intensities_3D_wrapper")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -25,6 +23,8 @@ def main():
     parser.add_argument("--method", nargs=argparse.REMAINDER, type=str, help="If --method_names then provide a list of methods with flavors, e.g. Proseg_3D_Cellpose_1_nuclei_model. Otherwise provide list of segmentation algorithms, e.g. Proseg_3D. If not provided all intensities of available 3D segmentation methods will be computed.")
     args = parser.parse_args()
 
+    BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+    methods_3D = ["Proseg_3D", "vpt_3D", "Watershed_Merlin", "SIS"]
     sample_path = pathlib.Path(BASE_PATH) / "samples" / args.sample
 
     methods = []
