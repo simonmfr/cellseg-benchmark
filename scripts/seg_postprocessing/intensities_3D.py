@@ -81,6 +81,7 @@ def main():
                 geojson_text = f.read()
             boundaries = gpd.read_file(io.StringIO(geojson_text))
             boundaries = boundaries.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
+            boundaries.rename(columns={"layer": "ZIndex"}, inplace=True)
         elif args.method == "Watershed_Merlin":
             if "boundaries_vpt_3D" in sdata.shapes.keys():
                 logger.debug("Loading boundaries_vpt_3D for Watershed_Merlin by default key")
