@@ -104,6 +104,20 @@ def main():
                                 mosaic_images=False,
                                 cells_boundaries=True
                             )
+        elif args.method == "SIS":
+            if "boundaries_vpt_3D" in sdata.shapes.keys():
+                logger.debug("Loading boundaries_vpt_3D for SIS by default key")
+                boundaries = sdata["boundaries_vpt_3D"]
+            else:
+                assert args.boundary_path.endswith(".geojson.gz") or args.boundary_path.endswith(
+                    ".geojson"), "This is not the SIS shapes file."
+                boundary_path = args.boundary_path
+                with gzip.open(boundary_path, "rt", encoding="utf-8") as f:
+                    geojson_text = f.read()
+                boundaries = gpd.read_file(io.StringIO(geojson_text))
+                boundaries.set_index("cell_label", drop=False, inplace=True)
+            boundaries.rename(columns={"z_plane": "ZIndex"}, inplace=True)
+            boundaries.index = boundaries.index.rename(None)
         else:
             raise NotImplementedError("Please either provide keys to the 3D boundaries in the sdata or an implemented method name.")
     else:
