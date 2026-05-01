@@ -2,6 +2,7 @@ import argparse
 import gzip
 import io
 import logging
+import os
 import pathlib
 
 import geopandas as gpd
@@ -31,7 +32,9 @@ def main():
     parser.add_argument("sdata_path", type=str, help="Path to sdata.")
     parser.add_argument("data_path", type=str, help="Path to sis_out.")
     parser.add_argument("--method", type=str, default=None, help="method name.")
-    parser.add_argument("--boundary_path", type=str, default=None, help="Path to boundaries file.")
+    parser.add_argument("--boundary_path", type=str, default=None,
+                        help="Path to boundaries file if 3D boundaries are not saved in default location."
+                        )
     parser.add_argument("--boundary_key", type=str, default=None, help="Key of 3D boundary in sdata.")
     args = parser.parse_args()
 
@@ -76,8 +79,12 @@ def main():
                 boundaries.index = boundaries.index.rename(None)
         elif args.method.startswith("Proseg_3D"):
             logger.debug("Loading boundaries for Proseg_3D by path")
-            assert args.boundary_path.endswith(".geojson.gz") or args.boundary_path.endswith(".geojson"), "This is not the Proseg 3D shapes file."
-            with gzip.open(args.boundary_path, "rt", encoding="utf-8") as f:
+            if os.path.exists(sdata_path / "sdata.zarr" / ".sopa_cache" / "transcript_patches" / "0" / "cell-polygons-layers.geojson.gz"):
+                boundary_path = sdata_path / "sdata.zarr" / ".sopa_cache" / "transcript_patches" / "0" / "cell-polygons-layers.geojson.gz"
+            else:
+                assert args.boundary_path.endswith(".geojson.gz") or args.boundary_path.endswith(".geojson"), "This is not the Proseg 3D shapes file."
+                boundary_path = args.boundary_path
+            with gzip.open(boundary_path, "rt", encoding="utf-8") as f:
                 geojson_text = f.read()
             boundaries = gpd.read_file(io.StringIO(geojson_text))
             boundaries = boundaries.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
@@ -99,7 +106,7 @@ def main():
         else:
             raise NotImplementedError("Please either provide keys to the 3D boundaries in the sdata or an implemented method name.")
     else:
-        raise ValueError("Please either provide keys to the sdata or a method name together with a path to the boundaries file.")
+        raise ValueError("Please either provide keys to the sdata or a method name.")
 
     assert sdata['table'].uns["spatialdata_attrs"]["instance_key"] in boundaries.columns, "instance_key not found in boundaries dataframe."
     assert 'ZIndex' in boundaries.columns, "ZIndex not found in boundaries dataframe."
