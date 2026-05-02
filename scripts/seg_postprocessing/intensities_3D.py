@@ -16,7 +16,7 @@ import spatialdata_io
 warnings.filterwarnings("ignore")
 
 logger = logging.getLogger("intensities_3D")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
@@ -40,7 +40,12 @@ def main():
                         help="Path to boundaries file if 3D boundaries are not saved in default location."
                         )
     parser.add_argument("--boundary_key", type=str, default=None, help="Key of 3D boundary in sdata.")
+    parser.add_argument("--debug", type=bool, default=False, help="Debug mode.")
     args = parser.parse_args()
+
+    if args.debug:
+        logger.info(f"Debug mode is on.")
+        logger.setLevel(logging.DEBUG)
 
     sdata_path = pathlib.Path(args.sdata_path)
 
@@ -174,7 +179,10 @@ def main():
     logger.debug("intensities index")
     logger.debug(intensities_stacked.groupby(level=1).mean().index)
     logger.debug(intensities_stacked.groupby(level=1).mean())
-    sdata['table'].obsm['intensities'] = intensities_stacked.groupby(level=1).mean()
+    logger.info("reorder intensities to fit index of adata.")
+    intensities_aggregated = intensities_stacked.groupby(level=1).mean()
+    intensities_aggregated = intensities_aggregated.loc[sdata['table'].obs_names]
+    sdata['table'].obsm['intensities'] = intensities_aggregated
 
     logger.info("Write sdata with updated intensities.")
     #sdata.write(sdata_path / "sdata_intens.zarr", overwrite=True)
