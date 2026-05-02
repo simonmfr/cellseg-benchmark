@@ -40,7 +40,7 @@ def main():
                         help="Path to boundaries file if 3D boundaries are not saved in default location."
                         )
     parser.add_argument("--boundary_key", type=str, default=None, help="Key of 3D boundary in sdata.")
-    parser.add_argument("--debug", type=bool, default=False, help="Debug mode.")
+    parser.add_argument("--debug", action="store_true", help="Debug mode.")
     args = parser.parse_args()
 
     if args.debug:
