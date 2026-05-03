@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from cellseg_benchmark._constants import BASE_PATH, cell_type_colors, clean_method_names
+from .. import _constants
 
 
 def compute_cell_type_distribution(adata, celltype_name, **kwargs):
@@ -47,7 +47,7 @@ def plot_cell_type_distribution(cohort, results_suffix, show=False):
     Uses celltype distribution of all samples together.
     """
     results_file = (
-        Path(BASE_PATH)
+        Path(_constants.BASE_PATH)
         / "metrics"
         / cohort
         / "cell_type_metrics"
@@ -55,7 +55,7 @@ def plot_cell_type_distribution(cohort, results_suffix, show=False):
     )
     results_df = pd.read_csv(results_file, index_col=0)
     # clean method names for plotting
-    for old, new in clean_method_names.items():
+    for old, new in _constants.clean_method_names.items():
         results_df["method"] = results_df["method"].str.replace(old, new, regex=False)
     results_df = (
         results_df[results_df["sample"] == "all"]
@@ -67,14 +67,14 @@ def plot_cell_type_distribution(cohort, results_suffix, show=False):
     plot_path.mkdir(parents=True, exist_ok=True)
 
     df_pct = results_df.T * 100
-    legend_order = list(cell_type_colors.keys())
+    legend_order = list(_constants.cell_type_colors.keys())
     df_pct = df_pct.reindex([ct for ct in legend_order if ct in df_pct.index])
     if "Undefined" in df_pct.index:
         cols_sorted = df_pct.loc["Undefined"].sort_values(ascending=False).index
         df_pct = df_pct[cols_sorted]
 
     df_pct = df_pct[::-1]
-    colors = [cell_type_colors[ct] for ct in df_pct.index]
+    colors = [_constants.cell_type_colors[ct] for ct in df_pct.index]
 
     fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
     df_pct.T.plot(kind="bar", stacked=True, ax=ax, color=colors, width=0.8)
@@ -87,7 +87,7 @@ def plot_cell_type_distribution(cohort, results_suffix, show=False):
     from matplotlib.patches import Patch
 
     legend_labels = df_pct[::-1].index.tolist()
-    legend_colors = [cell_type_colors[ct] for ct in legend_labels]
+    legend_colors = [_constants.cell_type_colors[ct] for ct in legend_labels]
     handles = [
         Patch(facecolor=color, label=label)
         for color, label in zip(legend_colors, legend_labels)

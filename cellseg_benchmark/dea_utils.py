@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import scipy.sparse as sp
-from scipy.sparse import issparse
 
 
 def pseudobulk_aggregate_and_filter(
@@ -98,7 +97,7 @@ def pseudobulk_aggregate_and_filter(
             adata_rep = adata_donor[rep_indices]
             X = (
                 adata_rep.X.toarray()
-                if issparse(adata_rep.X)
+                if sp.issparse(adata_rep.X)
                 else np.asarray(adata_rep.X)
             )
 

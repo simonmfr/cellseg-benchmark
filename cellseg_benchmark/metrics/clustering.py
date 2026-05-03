@@ -5,10 +5,9 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import seaborn as sns
-from sklearn.metrics import calinski_harabasz_score, silhouette_score
+import sklearn.metrics
 
-from cellseg_benchmark import BASE_PATH
-from cellseg_benchmark._constants import clean_method_names
+from .. import _constants
 
 
 def compute_clustering_scores(
@@ -58,17 +57,17 @@ def _clustering_score(
         )
     for sample in adata.obs["sample"].unique():
         cur_adata = adata[adata.obs["sample"] == sample]
-        ch = calinski_harabasz_score(
+        ch = sklearn.metrics.calinski_harabasz_score(
             cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name]
         )
-        sh = silhouette_score(cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name])
+        sh = sklearn.metrics.silhouette_score(cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name])
         results.loc[sample] = {
             "calinski_harabasz_score": float(ch),
             "silhouette_score": float(sh),
         }
     # compute for all samples together
-    ch = calinski_harabasz_score(adata.obsm["X_pca"], adata.obs[celltype_name])
-    sh = silhouette_score(adata.obsm["X_pca"], adata.obs[celltype_name])
+    ch = sklearn.metrics.calinski_harabasz_score(adata.obsm["X_pca"], adata.obs[celltype_name])
+    sh = sklearn.metrics.silhouette_score(adata.obsm["X_pca"], adata.obs[celltype_name])
     results.loc["all"] = {
         "calinski_harabasz_score": float(ch),
         "silhouette_score": float(sh),
@@ -80,7 +79,7 @@ def _clustering_score(
 def plot_clustering_scores(cohort, results_suffix, show=False):
     """Plot box plot of clustering scores and dot plot comparing SH and CH scores."""
     results_file = (
-        Path(BASE_PATH)
+        Path(_constants.BASE_PATH)
         / "metrics"
         / cohort
         / "cell_type_metrics"
@@ -91,7 +90,7 @@ def plot_clustering_scores(cohort, results_suffix, show=False):
 
     scores_df = pd.read_csv(results_file, index_col=0)
     # clean method names for plotting
-    for old, new in clean_method_names.items():
+    for old, new in _constants.clean_method_names.items():
         scores_df["method"] = scores_df["method"].str.replace(old, new, regex=False)
     # remove sample all from scores
     scores_df = scores_df[scores_df["sample"] != "all"]

@@ -8,13 +8,8 @@ import scanpy as sc
 import seaborn as sns
 from scipy import sparse
 
-from cellseg_benchmark import BASE_PATH
-from cellseg_benchmark._constants import (
-    cell_type_colors,
-    merged_celltypes,
-    method_colors,
-)
-from cellseg_benchmark.metrics.utils import read_ABCAtlas, read_adata
+from .. import _constants
+from . import utils
 
 # --- Functions to compute marker genes ---
 
@@ -90,7 +85,7 @@ def compute_negative_markers_from_reference(
 
 
 def get_negative_markers(
-    cohort, vascular_subset=False, overwrite=False, base_path=BASE_PATH
+    cohort, vascular_subset=False, overwrite=False, base_path=_constants.BASE_PATH
 ):
     """Get or compute negative markers.
 
@@ -123,8 +118,8 @@ def get_negative_markers(
     if overwrite or not (marker_fname.exists() and ratio_fname.exists()):
         # need to recompute markers
         print("Markers not found or overwrite set to True: computing negative markers")
-        adata_sc = read_ABCAtlas(vascular_subset=vascular_subset, base_path=base_path)
-        adata_sp = read_adata(
+        adata_sc = utils.read_ABCAtlas(vascular_subset=vascular_subset, base_path=base_path)
+        adata_sp = utils.read_adata(
             cohort,
             method=None,
             adata_name=f"adata_{'vascular_subset' if vascular_subset else 'integrated'}",
@@ -198,7 +193,7 @@ def compute_positive_markers_from_reference(
     adata.obs["merged_celltypes"] = (
         adata.obs[celltype_name]
         .astype("str")
-        .map(lambda x: merged_celltypes.get(x, x))
+        .map(lambda x: _constants.merged_celltypes.get(x, x))
         .astype("category")
     )
     # continue with merged_celltypes
@@ -265,7 +260,7 @@ def compute_positive_markers_from_reference(
 
 
 def get_positive_markers(
-    overwrite=False, base_path=BASE_PATH, subset_genes=None, subset_celltypes=None
+    overwrite=False, base_path=_constants.BASE_PATH, subset_genes=None, subset_celltypes=None
 ):
     """Get or compute positive markers.
 
@@ -292,7 +287,7 @@ def get_positive_markers(
     if overwrite or not marker_fname.exists():
         # need to recompute markers
         print("Markers not found or overwrite set to True: computing positive markers")
-        adata = read_ABCAtlas(vascular_subset=False, base_path=base_path)
+        adata = utils.read_ABCAtlas(vascular_subset=False, base_path=base_path)
         # subsample if read entire adata
         print("Subsampling ABCAtlas to 10% of cells")
         sc.pp.sample(adata, fraction=0.1)
@@ -341,7 +336,7 @@ def load_marker_gene_dict(subset_genes=None, subset_celltypes=None):
     """
     ABCAtlas_marker_df = pd.read_csv(
         os.path.join(
-            BASE_PATH,
+            _constants.BASE_PATH,
             "misc",
             "scRNAseq_ref_ABCAtlas_Yao2023Nature",
             "marker_genes_df",
@@ -442,7 +437,7 @@ def compute_MECR_score(
 def plot_MECR_score(cohort, results_suffix, percentile=97, show=False):
     """Plot violin plot of MECR scores."""
     results_file = (
-        Path(BASE_PATH)
+        Path(_constants.BASE_PATH)
         / "metrics"
         / cohort
         / "marker_gene_metrics"
@@ -466,7 +461,7 @@ def plot_MECR_score(cohort, results_suffix, percentile=97, show=False):
     )
 
     # Create custom palette matching the dataset order
-    custom_palette = {method: method_colors[method] for method in method_order}
+    custom_palette = {method: _constants.method_colors[method] for method in method_order}
 
     fig = plt.figure(figsize=(3.5, 8), dpi=300)
     plt.grid(True, alpha=0.3, zorder=0)
@@ -513,7 +508,7 @@ def compute_marker_F1_score(
     adata.obs["merged_celltypes"] = (
         adata.obs[celltype_name]
         .astype("str")
-        .map(lambda x: merged_celltypes.get(x, x))
+        .map(lambda x: _constants.merged_celltypes.get(x, x))
         .astype("category")
     )
     # continue with merged_celltypes
@@ -592,7 +587,7 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
     Plots one plot per method showing cell-type specific F1 scores, and one plot summarising scores for each method
     """
     results_file = (
-        Path(BASE_PATH)
+        Path(_constants.BASE_PATH)
         / "metrics"
         / cohort
         / "marker_gene_metrics"
@@ -614,7 +609,7 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
             order = (
                 mean_results.groupby("cell_type")["f1_score"].mean().sort_values().index
             )
-            pal = {ct: cell_type_colors[ct] for ct in order}
+            pal = {ct: _constants.cell_type_colors[ct] for ct in order}
             fig = plt.figure(figsize=(10, 5))
             sns.boxplot(
                 data=mean_results,
@@ -650,7 +645,7 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
         mean_results.groupby("method").mean("f1_score").sort_values("f1_score").index
     )
 
-    pal = {method: method_colors[method] for method in order}
+    pal = {method: _constants.method_colors[method] for method in order}
     fig = plt.figure(figsize=(10, 5))
     sns.boxplot(
         data=mean_results,

@@ -1,15 +1,18 @@
+# Prevents runtime error (seg_postprocessing)
+import dask
+dask.config.set({'dataframe.query-planning': False})
+
 import gzip
-from os import listdir
-from pathlib import Path
-from re import split
+import os
+import pathlib
+import re
 from typing import Dict
 
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-from dask.dataframe import DataFrame
-from scipy.spatial import KDTree
-from spatialdata.models import PointsModel
+import scipy.spatial as ss
+import spatialdata.models
 from tqdm import tqdm
 
 
@@ -84,7 +87,7 @@ def process_coordinates(df: pd.DataFrame, metadata: Dict[str, str]) -> pd.DataFr
     return df.rename(columns={"X_um": "x", "Y_um": "y", "X": "X_px", "Y": "Y_px"})
 
 
-def get_pixel_level_factors(pixel_level_factors_file: str) -> DataFrame:
+def get_pixel_level_factors(pixel_level_factors_file: str) -> dd.DataFrame:
     """Load and format FICTURE pixel-level file to micrometer scale and return a parsed SpatialData PointsModel.
 
     Args:
@@ -96,12 +99,12 @@ def get_pixel_level_factors(pixel_level_factors_file: str) -> DataFrame:
     metadata = parse_metadata(pixel_level_factors_file)
     df = load_pixel_tsv(pixel_level_factors_file, skiprows=3)
     dask_df = dd.from_pandas(process_coordinates(df, metadata), npartitions=96)
-    return PointsModel.parse(dask_df)
+    return spatialdata.models.PointsModel.parse(dask_df)
 
 
 def get_transcript_level_factors(
     transcripts: pd.DataFrame,
-    tree: KDTree,
+    tree: ss.KDTree,
     df: pd.DataFrame,
     metadata: pd.DataFrame,
     current_factor: int,
@@ -165,19 +168,19 @@ def create_factor_level_image(
     return image
 
 
-def _find_ficture_output(sample, base_path, n_ficture):
+def find_ficture_output(sample, base_path, n_ficture):
     """Compute the ficture path dynamically."""
     ficture_path = (
-        Path(base_path) / "samples" / sample / "results" / "Ficture" / "output"
+        pathlib.Path(base_path) / "samples" / sample / "results" / "Ficture" / "output"
     )
 
-    for file in listdir(ficture_path):
-        if n_ficture == int(split(r"\.|F", file)[1]):
+    for file in os.listdir(ficture_path):
+        if n_ficture == int(re.split(r"\.|F", file)[1]):
             ficture_path = ficture_path / file
             break
 
     ficture_full_path = ""
-    for file in listdir(ficture_path):
+    for file in os.listdir(ficture_path):
         if file.endswith(".pixel.sorted.tsv.gz"):
             ficture_full_path = str(ficture_path / file)
             break
@@ -187,12 +190,12 @@ def _find_ficture_output(sample, base_path, n_ficture):
         # Newer output may be in:
         # Ficture/output/nF21.../analysis/nF21.../FILE
         ficture_path = ficture_path / "analysis"
-        for file in listdir(ficture_path):
-            if n_ficture == int(split(r"\.|F", file)[1]):
+        for file in os.listdir(ficture_path):
+            if n_ficture == int(re.split(r"\.|F", file)[1]):
                 ficture_path = ficture_path / file
                 break
 
-        for file in listdir(ficture_path):
+        for file in os.listdir(ficture_path):
             if file.endswith(".pixel.sorted.tsv.gz"):
                 ficture_full_path = str(ficture_path / file)
                 break
@@ -205,7 +208,7 @@ def _find_ficture_output(sample, base_path, n_ficture):
     return ficture_full_path
 
 
-def _read_ficture_pixels(
+def read_ficture_pixels(
     path, header=["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
 ):
     """Read the ficture pixel data."""
@@ -215,3 +218,33 @@ def _read_ficture_pixels(
         names=header,
         comment="#",
     )
+
+
+def assign_points_to_ficture(points_df, ficture_df) -> pd.DataFrame:
+    """Assign points to ficture factors.
+
+    Args:
+        points_df: points dataframe with x, y coordinates.
+        ficture_df: dataframe with x, y coordinates with assigned ficture factor.
+
+    Returns:
+        points_df with additional column "assigned_factor". -1 is default value.
+
+    Note:
+        points_df and ficture_df must be in same coordinate system. Recommendation: use micron space.
+    """
+
+    fic_microns = ficture_df[["x", "y"]].to_numpy()
+    points_coords = points_df[["x", "y"]].to_numpy()
+
+    tree = ss.cKDTree(fic_microns)
+    distances, indices = tree.query(points_coords, k=1, distance_upper_bound=5)
+
+    result = points_df.copy()
+    valid = np.isfinite(distances)
+    result["assigned_factor"] = -1
+    result["nearest_distance"] = distances
+    result.loc[valid, "assigned_factor"] = ficture_df.iloc[indices[valid]][
+        "K1"
+    ].to_numpy()
+    return result

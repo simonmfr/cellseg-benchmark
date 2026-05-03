@@ -6,8 +6,8 @@ import spatialdata as sd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as mpatches
-import cellseg_benchmark as cb
-import cellseg_benchmark._constants as _constants
+
+from .. import _constants
 
 def compute_assigned_transcripts(
     adata,
@@ -162,7 +162,7 @@ def plot_assigned_transcripts(cohort: str, boxplot: bool = False, show: bool = T
         show: If True, display the figure.
     """
     results_file = (
-        pathlib.Path(cb.BASE_PATH)
+        pathlib.Path(_constants.BASE_PATH)
         / "metrics"
         / cohort
         / "assigned_transcripts"
@@ -285,7 +285,7 @@ def plot_assigned_transcripts_heatmap(
         Path to the saved PNG if save is True, otherwise None.
     """
     results_file = (
-        pathlib.Path(cb.BASE_PATH)
+        pathlib.Path(_constants.BASE_PATH)
         / "metrics"
         / cohort
         / "assigned_transcripts"
