@@ -71,7 +71,6 @@ def main():
     if args.boundary_key is not None:
         boundaries = sdata[args.boundary_key]
     elif args.method is not None:
-        logger.info(f"Loading boundaries from source file")
         if args.method.startswith("vpt_3D"):
             if "boundaries_vpt_3D" in sdata.shapes.keys():
                 logger.debug("Loading boundaries_vpt_3D for vpt_3D by default key")
@@ -117,6 +116,7 @@ def main():
                 logger.debug("Loading boundaries_3D for SIS by default key")
                 boundaries = sdata["boundaries_3D"]
             else:
+                logger.debug("Loading boundaries for SIS by path")
                 assert args.boundary_path.endswith(".geojson.gz") or args.boundary_path.endswith(
                     ".geojson"), "This is not the SIS shapes file."
                 boundary_path = args.boundary_path
