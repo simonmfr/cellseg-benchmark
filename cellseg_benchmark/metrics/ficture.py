@@ -1,3 +1,4 @@
+import logging
 import pathlib
 
 import anndata as ad
@@ -17,6 +18,12 @@ from . import utils
 from .. import _constants
 from .. import ficture_utils as fu
 from .. import sdata_utils as su
+
+logger = logging.getLogger("shape_mapping")
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
+logger.addHandler(handler)
 
 def _process_sample_ficture_f1(
     sample,
@@ -152,7 +159,7 @@ def compute_ficture_f1_parallel(
     """
 
     obs_df = adata.obs[[sample_col, celltype_col]].copy()
-    if method.startswith("vpt"):
+    if method.startswith("vpt") or method == "Cellpose_1_Merlin":
         obs_df.index = obs_df.index.astype(str)
     else:
         obs_df.index = [x[:10] for x in adata.obs_names]
