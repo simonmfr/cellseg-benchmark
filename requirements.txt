@@ -7,7 +7,7 @@ scipy
 seaborn
 numpy
 pandas
-shapely
+shapely>=2
 dask
 geopandas
 xarray

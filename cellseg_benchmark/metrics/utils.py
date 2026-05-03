@@ -473,10 +473,10 @@ def prepare_label_maps(factor_to_celltype, true_cluster):
     return factor_map, correct_celltypes
 
 def show_all_method_names(
-        ref_file_path: Union[str, pathlib.Path],
-        only_successful: bool=False,
-        metrics_dir: Optional[Union[str, pathlib.Path]]=None,
-        return_counts: bool=False
+    ref_file_path: Union[str, pathlib.Path],
+    only_successful: bool=False,
+    metrics_dir: Optional[Union[str, pathlib.Path]]=None,
+    return_counts: bool=False
 ):
     """
     Show all possible canonical method names derived from the ref file.

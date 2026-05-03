@@ -45,6 +45,14 @@ def _process_sample_ficture_f1(
         )
         return sample, pd.DataFrame(), pd.DataFrame()
 
+    if not ficture_full_path:
+        print(
+            f"[{sample}] Skipping: ficture output not found "
+            f"(base_path={base_path!r}, n_ficture={n_ficture}). "
+            "Cannot compute F1 score for this sample."
+        )
+        return sample, pd.DataFrame(), pd.DataFrame()
+
     sdata = sd.read_zarr(
         pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr",
         selection=("points", "shapes"),
@@ -140,6 +148,7 @@ def compute_ficture_f1_parallel(
         backend: str = "loky",
         sample_col: str = "sample",
         celltype_col: str = "cell_type_revised",
+        **kwargs,
 ) -> pd.DataFrame:
     """
     Compute Ficture F1 score with parallelization.
@@ -153,6 +162,7 @@ def compute_ficture_f1_parallel(
         backend (str): backend of parallelization.
         sample_col (str): column in adata.obs containing sample names.
         celltype_col (str): column in adata.obs containing cell type names.
+        **kwargs (dict): additional parameters will be ignored.
 
     Returns:
         DataFrame with columns [...] #TODO

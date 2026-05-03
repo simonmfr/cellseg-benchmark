@@ -1,5 +1,6 @@
 import logging
 import math
+import pathlib
 import re
 from os.path import isfile, join
 from typing import List, Optional, Sequence, Tuple
@@ -654,7 +655,7 @@ def filter_genes(adata, save_path, logger=None):
 
 def normalize_counts(
     adata: ad.AnnData,
-    save_path: matplotlib.path.Path,
+    save_path: pathlib.Path,
     seg_method: str,
     *,
     target_sum: int = 250,

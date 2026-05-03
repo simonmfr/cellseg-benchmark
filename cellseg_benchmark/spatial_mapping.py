@@ -937,7 +937,7 @@ def _build_slide_index(label_polys_for_slide: dict):
     tree        : STRtree over all polygons of this slide
     prepared    : list of prepared geometries (same order as tree input)
     meta        : list of tuples (label, poly_idx_within_label)
-    cand_fn     : function(Point)->iter(indices) (handles Shapely 1.8 vs 2.x)
+    cand_fn     : function(Point)->iter(indices) (integer geometry indices from Shapely >= 2 STRtree.query)
     """
     geoms, meta = [], []
     for lab, polys in label_polys_for_slide.items():
@@ -960,7 +960,8 @@ def _build_slide_index(label_polys_for_slide: dict):
 
     tree = shapely.strtree.STRtree(geoms)
     prepared = [shapely.prepared.prep(g) for g in geoms]
-    def cand_fn(geom):  # returns integer indices
+    def cand_fn(geom):
+        """integer geometry indices from Shapely >= 2 STRtree.query."""
         return tree.query(geom)
 
     return tree, prepared, meta, cand_fn
