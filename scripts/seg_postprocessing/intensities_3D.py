@@ -34,7 +34,7 @@ def main():
         )
     )
     parser.add_argument("sdata_path", type=str, help="Path to sdata.")
-    parser.add_argument("data_path", type=str, help="Path to sis_out.")
+    parser.add_argument("data_path", type=str, help="Path to merfish output folder.")
     parser.add_argument("--method", type=str, default=None, help="method name.")
     parser.add_argument("--boundary_path", type=str, default=None,
                         help="Path to boundaries file if 3D boundaries are not saved in default location."
@@ -112,7 +112,7 @@ def main():
                                 mosaic_images=False,
                                 cells_boundaries=True
                             )
-        elif args.method == "SIS":
+        elif args.method.startswith("SIS"):
             if "boundaries_3D" in sdata.shapes.keys():
                 logger.debug("Loading boundaries_3D for SIS by default key")
                 boundaries = sdata["boundaries_3D"]

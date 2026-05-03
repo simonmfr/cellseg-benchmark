@@ -19,7 +19,7 @@ def main():
     )
     parser.add_argument("sample", type=str, help="Sample name.")
     parser.add_argument("data_path", help="Path to merfish output folder.")
-    parser.add_argument("--method_names", type=bool, default=False, help="Method names.")
+    parser.add_argument("--method_names", action="store_true", help="Method names are provided.")
     parser.add_argument("--method", nargs=argparse.REMAINDER, type=str, help="If --method_names then provide a list of methods with flavors, e.g. Proseg_3D_Cellpose_1_nuclei_model. Otherwise provide list of segmentation algorithms, e.g. Proseg_3D. If not provided all intensities of available 3D segmentation methods will be computed.")
     args = parser.parse_args()
 
