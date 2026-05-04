@@ -1,6 +1,7 @@
 import argparse
 import logging
 import pathlib
+import numpy as np
 import anndata as ad
 import geopandas as gpd
 import pandas as pd
@@ -38,11 +39,18 @@ def main():
 
     adata.obs_names = adata.obs["cell_label"].astype(str)
     boundaries = boundaries[boundaries.index.isin(adata.obs_names)]
-
+    
     missing = adata.obs_names.difference(boundaries.index)
+    missing_reads = np.asarray(adata[missing].X.sum(axis=1)).flatten()
     sample_name = sis_out.parent.parent.parent.name
-    if len(missing) / adata.n_obs > 0.05:
-        raise ValueError(f"[{sample_name}] {len(missing)}/{adata.n_obs} adata cells have no boundary (>5%)")
+    MIN_READS = 10
+    concerning = (missing_reads >= MIN_READS).sum()
+    logger.info(f"[{sample_name}] {len(missing)} missing total, {concerning} with >= {MIN_READS} reads")
+    
+    if concerning / adata.n_obs > 0.05:
+        raise ValueError(
+            f"[{sample_name}] {concerning}/{adata.n_obs} adata cells with >= {MIN_READS} reads have no boundary (>5%)"
+        )
     if len(missing):
         logger.warning(f"[{sample_name}] {len(missing)} adata cells have no boundary, dropping from table")
         adata = adata[adata.obs_names.isin(boundaries.index)].copy()
