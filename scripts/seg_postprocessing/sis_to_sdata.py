@@ -40,10 +40,11 @@ def main():
     boundaries = boundaries[boundaries.index.isin(adata.obs_names)]
 
     missing = adata.obs_names.difference(boundaries.index)
+    sample_name = sis_out.parent.parent.parent.name
     if len(missing) / adata.n_obs > 0.05:
-        raise ValueError(f"{len(missing)}/{adata.n_obs} adata cells have no boundary (>1%)")
+        raise ValueError(f"[{sample_name}] {len(missing)}/{adata.n_obs} adata cells have no boundary (>5%)")
     if len(missing):
-        logger.warning(f"{len(missing)} adata cells have no boundary, dropping from table")
+        logger.warning(f"[{sample_name}] {len(missing)} adata cells have no boundary, dropping from table")
         adata = adata[adata.obs_names.isin(boundaries.index)].copy()
     else:
         adata = adata.copy()
