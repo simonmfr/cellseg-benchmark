@@ -183,7 +183,7 @@ def main():
     intensities_aggregated = intensities_stacked.groupby(level=1).mean()
     intensities_aggregated = intensities_aggregated.loc[sdata['table'].obs_names]
 
-    logger.info("Write sdata with updated intensities.")
+    logger.info(f"Write out csv with updated intensities to {sdata_path / "Intensities_3D"}.")
     (sdata_path / "Intensities_3D").mkdir(parents=False, exist_ok=True)
     intensities_aggregated.to_csv(sdata_path / "Intensities_3D" / "Intensities_3D.csv")
     logger.info("Done")
