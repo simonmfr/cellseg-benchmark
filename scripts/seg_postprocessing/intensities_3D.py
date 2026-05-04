@@ -182,14 +182,11 @@ def main():
     logger.info("reorder intensities to fit index of adata.")
     intensities_aggregated = intensities_stacked.groupby(level=1).mean()
     intensities_aggregated = intensities_aggregated.loc[sdata['table'].obs_names]
-    sdata['table'].obsm['intensities'] = intensities_aggregated
 
     logger.info("Write sdata with updated intensities.")
-    sdata.write(sdata_path / "sdata_intens.zarr", overwrite=True)
-    logger.debug("Remove sdata.zarr")
-    run(["rm", "-r", sdata_path / "sdata.zarr"])
-    logger.debug("Move sdata_intens.zarr to sdata.zarr")
-    run(["mv", sdata_path / "sdata_intens.zarr", sdata_path / "sdata.zarr"])
+    (sdata_path / "Intensities_3D").mkdir(parents=False, exist_ok=True)
+    intensities_aggregated.to_csv(sdata_path / "Intensities_3D" / "Intensities_3D.csv")
+    logger.info("Done")
 
 if __name__ == "__main__":
     main()
