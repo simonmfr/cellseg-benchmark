@@ -2,7 +2,8 @@
 import argparse
 import pathlib
 import yaml
-import cellseg_benchmark as cb
+
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 parser = argparse.ArgumentParser(description="Generate sbatch scripts for SIS segmentation.")
 parser.add_argument("cohort", help="Cohort name (filters samples by metadata key prefix).")
@@ -14,11 +15,11 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-SBATCH_DIR = pathlib.Path(f"{cb.BASE_PATH}/misc/sbatches/sbatch_SIS")
+SBATCH_DIR = pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_SIS")
 SBATCH_DIR.mkdir(parents=True, exist_ok=True)
-MODEL = f"{cb.BASE_PATH}/misc/cellpose_custom_models/CP_20240611_mousedev_Allen"
+MODEL = f"{BASE_PATH}/misc/cellpose_custom_models/CP_20240611_mousedev_Allen"
 
-with open(f"{cb.BASE_PATH}/misc/sample_metadata.yaml") as f:
+with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     samples = yaml.safe_load(f)
 
 count = 0
@@ -26,16 +27,16 @@ for key, value in samples.items():
     if not key.startswith(args.cohort):
         continue
     count += 1
-    result_dir = f"{cb.BASE_PATH}/samples/{key}/results/SIS_DAPI_{args.staining}/sis_out"
+    result_dir = f"{BASE_PATH}/samples/{key}/results/SIS_DAPI_{args.staining}/sis_out"
     (SBATCH_DIR / f"{key}_{args.staining}.sbatch").write_text(f"""#!/bin/bash
-#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8,lrz-dgx-1-v100x8,lrz-dgx-1-p100x8,lrz-v100x2
+#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
 #SBATCH -t 1-12:00:00
 #SBATCH --mem=300G
 #SBATCH -J SIS_{key}_{args.staining}
-#SBATCH -o {cb.BASE_PATH}/misc/logs/outputs/SIS_{key}_{args.staining}.out
-#SBATCH -e {cb.BASE_PATH}/misc/logs/errors/SIS_{key}_{args.staining}.err
-#SBATCH --container-image="{cb.BASE_PATH}/misc/enroot_images/benchmark_with_sis.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/SIS_{key}_{args.staining}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/SIS_{key}_{args.staining}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_with_sis.sqsh"
 
 set -euo pipefail
 source ~/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh

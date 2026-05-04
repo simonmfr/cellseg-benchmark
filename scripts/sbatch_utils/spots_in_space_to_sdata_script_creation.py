@@ -30,7 +30,7 @@ sbatch = f"""#!/bin/bash
 
 PATHS=({paths})
 mamba activate segmentation
-python "~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/sis_to_sdata.py" ${{PATHS[$SLURM_ARRAY_TASK_ID]}}
+python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/sis_to_sdata.py "${PATHS[$SLURM_ARRAY_TASK_ID]}"
 """
 
 sbatch_file = BASE_PATH / "misc/sbatches/sbatch_SIS_to_sdata/SIS_to_sdata_array.sbatch"
