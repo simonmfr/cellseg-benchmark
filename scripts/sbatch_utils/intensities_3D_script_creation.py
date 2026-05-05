@@ -1,4 +1,3 @@
-import argparse
 from pathlib import Path
 
 import yaml
@@ -10,18 +9,18 @@ with open(
     data = yaml.safe_load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Intensites_3D"
+    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Intensities_3D"
 ).mkdir(parents=False, exist_ok=True)
 
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Intensites_3D/{key}.sbatch",
+        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Intensities_3D/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 06:00:00
+#SBATCH -t 12:00:00
 #SBATCH --mem=150G
 #SBATCH -J intensities_3D_{key}
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/intensities_3D_{key}.out

@@ -19,7 +19,7 @@ def main():
     )
     parser.add_argument("sample", type=str, help="Sample name.")
     parser.add_argument("data_path", help="Path to merfish output folder.")
-    parser.add_argument("--method_names", action="store_true", help="Method names are provided.")
+    parser.add_argument("--method_names", action="store_true", help="Method names are provided instead of segmentation algorithms.")
     parser.add_argument("--method", nargs=argparse.REMAINDER, type=str, help="If --method_names then provide a list of methods with flavors, e.g. Proseg_3D_Cellpose_1_nuclei_model. Otherwise provide list of segmentation algorithms, e.g. Proseg_3D. If not provided all intensities of available 3D segmentation methods will be computed.")
     args = parser.parse_args()
 
@@ -30,16 +30,26 @@ def main():
     methods = []
     if args.method_names:
         logger.info("Check existence of provided methods")
+        assert args.method is not None, f"Method names are not provided."
         for method_name in args.method:
+            assert any(method_name.startswith(x) for x in methods_3D), (f"{method_name} doesn't seem to be a 3D method. "
+                                                                        "Check the spelling and methods_3D in this script")
             if not os.path.exists(sample_path / "results" / method_name / "sdata.zarr"):
                 logger.error(f"Method {method_name} does not exist or doesn't contain a sdata.zarr file.")
             else:
                 methods.append(method_name)
     else:
-        for method_name in os.listdir(sample_path / "results"):
-            if os.path.exists(sample_path / "results" / method_name / "sdata.zarr") and any([method_name.startswith(x) for x in methods_3D]):
-                logger.info(f"Method {method_name} identified for computation.")
-                methods.append(method_name)
+        if args.method is None:
+            for method_name in os.listdir(sample_path / "results"):
+                if os.path.exists(sample_path / "results" / method_name / "sdata.zarr") and any([method_name.startswith(x) for x in methods_3D]):
+                    logger.info(f"Method {method_name} identified for computation.")
+                    methods.append(method_name)
+        else:
+            assert set(args.method).issubset(methods_3D), "All Algorithms must be part of ['Proseg_3D', 'vpt_3D', 'Watershed_Merlin', 'SIS']"
+            for method_name in os.listdir(sample_path / "results"):
+                if os.path.exists(sample_path / "results" / method_name / "sdata.zarr") and any([method_name.startswith(x) for x in args.method]):
+                    logger.info(f"Method {method_name} identified for computation.")
+                    methods.append(method_name)
 
     if len(methods) == 0:
         logger.info("No methods were provided or identified.")

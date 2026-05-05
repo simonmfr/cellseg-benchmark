@@ -5,7 +5,6 @@ import logging
 import os
 import pathlib
 import warnings
-from subprocess import run
 
 import geopandas as gpd
 import pandas as pd
@@ -83,6 +82,7 @@ def main():
                     columns=("ID", "EntityID", "ZIndex", "ZLevel", "Geometry"),
                 )
                 boundaries.rename(columns={"EntityID": "cell_id"}, inplace=True)
+                boundaries.rename_geometry("geometry", inplace=True)
                 boundaries.set_index("cell_id", drop=False, inplace=True)
                 boundaries.index = boundaries.index.rename(None)
         elif args.method.startswith("Proseg_3D"):
@@ -104,13 +104,16 @@ def main():
                 logger.debug("Loading boundaries_vpt_3D for Watershed_Merlin by default key")
                 boundaries = sdata["boundaries_vpt_3D"]
             else:
-                logger.debug("Loading boundaries for Watershed_Merlin by path")
-                boundaries = spatialdata_io.merscope(
+                logger.debug("Loading boundaries for Watershed_Merlin by path. "
+                             "If multiple boundaries are available, always the first ones are used.")
+                sdata_tmp = spatialdata_io.merscope(
                                 args.data_path,
                                 transcripts=False,
                                 mosaic_images=False,
                                 cells_boundaries=True
                             )
+                boundaries = sdata_tmp[list(sdata_tmp.shapes.keys())[0]]
+                del sdata_tmp
         elif args.method.startswith("SIS"):
             if "boundaries_3D" in sdata.shapes.keys():
                 logger.debug("Loading boundaries_3D for SIS by default key")
@@ -183,7 +186,7 @@ def main():
     intensities_aggregated = intensities_stacked.groupby(level=1).mean()
     intensities_aggregated = intensities_aggregated.loc[sdata['table'].obs_names]
 
-    logger.info(f"Write out csv with updated intensities to {sdata_path / "Intensities_3D"}.")
+    logger.info(f"Write out csv with updated intensities to {sdata_path / 'Intensities_3D'}.")
     (sdata_path / "Intensities_3D").mkdir(parents=False, exist_ok=True)
     intensities_aggregated.to_csv(sdata_path / "Intensities_3D" / "Intensities_3D.csv")
     logger.info("Done")
