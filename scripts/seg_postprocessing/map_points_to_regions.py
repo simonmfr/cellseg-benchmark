@@ -14,10 +14,13 @@ from tqdm import tqdm
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 
+
 # ---------------------------------------------------------------------
 # Worker function for one segmentation method
 # ---------------------------------------------------------------------
-def process_method(method: str, cohort: str, anatom_annot: dict, data_path: Path) -> None:
+def process_method(
+    method: str, cohort: str, anatom_annot: dict, data_path: Path
+) -> None:
     """Process a single segmentation method: read, map, save CSV & plot."""
     method_dir = data_path / "analysis" / cohort / method
     adata_points = read_h5ad(method_dir / "adatas" / "adata_integrated.h5ad.gz")
@@ -53,13 +56,17 @@ def process_method(method: str, cohort: str, anatom_annot: dict, data_path: Path
         save_name="spatial_registration.png",
     )
 
-def _process_method_wrapper(method: str, cohort: str, anatom_annot: dict, data_path: Path) -> Tuple[str, str]:
+
+def _process_method_wrapper(
+    method: str, cohort: str, anatom_annot: dict, data_path: Path
+) -> Tuple[str, str]:
     """Small wrapper so we see failures per method instead of crashing everything."""
     try:
         process_method(method, cohort, anatom_annot, data_path)
         return method, "ok"
     except Exception as e:
         return method, f"error: {e}"
+
 
 # ---------------------------------------------------------------------
 # Logging
@@ -116,7 +123,8 @@ logger.info(
     f"Starting parallel processing of {len(seg_methods)} methods with n_jobs={n_jobs}"
 )
 results = Parallel(n_jobs=n_jobs)(
-    delayed(_process_method_wrapper)(m, args.cohort, anatom_annot, data_path) for m in tqdm(seg_methods, desc="spatial registration")
+    delayed(_process_method_wrapper)(m, args.cohort, anatom_annot, data_path)
+    for m in tqdm(seg_methods, desc="spatial registration")
 )
 for m, status in results:
     if status != "ok":

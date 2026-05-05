@@ -15,7 +15,11 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-experiment_json_path = str(Path(__file__).parents[2] / "configs" / f"vpt_3D_{args.staining1}_{args.staining2}.json")
+experiment_json_path = str(
+    Path(__file__).parents[2]
+    / "configs"
+    / f"vpt_3D_{args.staining1}_{args.staining2}.json"
+)
 
 Path(
     "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_3D_complex"

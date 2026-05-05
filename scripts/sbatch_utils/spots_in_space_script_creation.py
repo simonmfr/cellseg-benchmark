@@ -1,12 +1,17 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+
 import yaml
 
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
-parser = argparse.ArgumentParser(description="Generate sbatch scripts for SIS segmentation.")
-parser.add_argument("cohort", help="Cohort name (filters samples by metadata key prefix).")
+parser = argparse.ArgumentParser(
+    description="Generate sbatch scripts for SIS segmentation."
+)
+parser.add_argument(
+    "cohort", help="Cohort name (filters samples by metadata key prefix)."
+)
 parser.add_argument(
     "staining",
     nargs="?",

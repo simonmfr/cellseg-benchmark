@@ -1,17 +1,21 @@
 import argparse
 import pathlib
 import subprocess
-import pandas
+
 import geopandas
+import pandas
 import shapely
-import spatialdata
-import spatialdata_io
-import spatialdata.models
 import sopa.aggregation
 import sopa.io.explorer
+import spatialdata
+import spatialdata.models
+import spatialdata_io
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert Merscope segmentation output to sdata.")
+    parser = argparse.ArgumentParser(
+        description="Convert Merscope segmentation output to sdata."
+    )
     parser.add_argument("data_path", help="Path to merscope folder.")
     parser.add_argument("save_path", help="Path to output folder.")
     parser.add_argument(
@@ -25,7 +29,11 @@ def main():
         default=None,
         help="Path to boundaries parquet. Defaults to <data_path>/cell_boundaries.parquet.",
     )
-    parser.add_argument("--explorer", action="store_true", help="Whether to compute 10X Xenium explorer file (cellpose only).")
+    parser.add_argument(
+        "--explorer",
+        action="store_true",
+        help="Whether to compute 10X Xenium explorer file (cellpose only).",
+    )
     args = parser.parse_args()
 
     if args.explorer and args.segmentation != "cellpose":
@@ -33,7 +41,11 @@ def main():
 
     data_path = pathlib.Path(args.data_path)
     save_path = pathlib.Path(args.save_path)
-    boundaries_path = pathlib.Path(args.boundaries_parquet) if args.boundaries_parquet else data_path / "cell_boundaries.parquet"
+    boundaries_path = (
+        pathlib.Path(args.boundaries_parquet)
+        if args.boundaries_parquet
+        else data_path / "cell_boundaries.parquet"
+    )
 
     sdata = spatialdata_io.merscope(
         data_path,
@@ -69,10 +81,17 @@ def main():
         boundaries["geometry"] = boundaries["geometry"].make_valid()
         n_collections = (boundaries["geometry"].geom_type == "GeometryCollection").sum()
         if n_collections > 0:
-            print(f"Warning: {n_collections} cells had invalid geometries after make_valid(), polygon parts will be extracted.")
+            print(
+                f"Warning: {n_collections} cells had invalid geometries after make_valid(), polygon parts will be extracted."
+            )
         boundaries["geometry"] = boundaries["geometry"].apply(
-            lambda g: shapely.geometry.MultiPolygon([p for p in g.geoms if p.geom_type == "Polygon"])
-            if g.geom_type == "GeometryCollection" else g
+            lambda g: (
+                shapely.geometry.MultiPolygon(
+                    [p for p in g.geoms if p.geom_type == "Polygon"]
+                )
+                if g.geom_type == "GeometryCollection"
+                else g
+            )
         )
         boundaries_2d = boundaries[["cell_id", "geometry"]].dissolve(by="cell_id")
         boundaries_2d.index = boundaries_2d.index.rename(None)
@@ -83,7 +102,9 @@ def main():
         sdata["table"].uns["spatialdata_attrs"]["region"] = "boundaries_vpt_3D"
         region_key = sdata["table"].uns["spatialdata_attrs"]["region_key"]
         sdata["table"].obs[region_key] = "boundaries_vpt_3D"
-        sdata["table"].obs[region_key] = sdata["table"].obs[region_key].astype("category")
+        sdata["table"].obs[region_key] = (
+            sdata["table"].obs[region_key].astype("category")
+        )
 
         agg_key = "boundaries_vpt_2D"
 
@@ -93,7 +114,9 @@ def main():
         header=None,
     )
 
-    sdata["table"].obsm["intensities"] = sopa.aggregation.aggregate_channels(sdata, shapes_key=agg_key)
+    sdata["table"].obsm["intensities"] = sopa.aggregation.aggregate_channels(
+        sdata, shapes_key=agg_key
+    )
 
     if args.segmentation == "watershed":
         del sdata["boundaries_vpt_2D"]
@@ -112,6 +135,7 @@ def main():
 
     subprocess.run(["rm", "-r", str(save_path / "sdata.zarr" / "images")])
     subprocess.run(["rm", "-r", str(save_path / "sdata.zarr" / "points")])
+
 
 if __name__ == "__main__":
     main()

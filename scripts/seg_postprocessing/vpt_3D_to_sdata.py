@@ -2,12 +2,13 @@ import argparse
 import logging
 import os
 import pathlib
+
 import geopandas
 import pandas as pd
-import spatialdata.models
-import spatialdata_io
 import sopa.aggregation
 import sopa.utils
+import spatialdata.models
+import spatialdata_io
 
 logger = logging.getLogger("vpt_3D_to_sdata")
 logger.setLevel(logging.INFO)
@@ -15,10 +16,9 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Convert vpt 3D output to sdata."
-    )
+    parser = argparse.ArgumentParser(description="Convert vpt 3D output to sdata.")
     parser.add_argument("data_path", help="Path to vpt folder.")
     parser.add_argument("save_path", help="Path to output folder.")
     args = parser.parse_args()
@@ -40,8 +40,10 @@ def main():
         vpt_outputs={
             "cell_by_gene": save_path / "analysis_outputs" / "cell_by_gene.csv",
             "cell_metadata": save_path / "analysis_outputs" / "cell_metadata.csv",
-            "cell_boundaries": save_path / "analysis_outputs" / "cellpose2_micron_space.parquet",
-        }
+            "cell_boundaries": save_path
+            / "analysis_outputs"
+            / "cellpose2_micron_space.parquet",
+        },
     )
 
     sdata["table"].obs.rename(columns={"EntityID": "cell_id"}, inplace=True)
@@ -74,12 +76,14 @@ def main():
         .astype("category")
     )
 
-    sdata["table"].obsm['intensities'] = pd.DataFrame(
+    sdata["table"].obsm["intensities"] = pd.DataFrame(
         sopa.aggregation.aggregate_channels(sdata, shapes_key="boundaries_vpt_2D"),
         columns=sopa.utils.validated_channel_names(
-            sopa.utils.get_spatial_image(sdata, list(sdata.images.keys())[0], return_key=True)[1]
+            sopa.utils.get_spatial_image(
+                sdata, list(sdata.images.keys())[0], return_key=True
+            )[1]
         ),
-        index=sdata["boundaries_vpt_2D"].index.astype(str)
+        index=sdata["boundaries_vpt_2D"].index.astype(str),
     )
 
     for i in list(sdata.images.keys()):
@@ -89,6 +93,7 @@ def main():
     logger.info("Saving data...")
     sdata.write(str(save_path / "sdata.zarr"), overwrite=True)
     logger.info("Done.")
+
 
 if __name__ == "__main__":
     main()

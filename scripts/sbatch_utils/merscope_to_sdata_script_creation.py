@@ -1,22 +1,34 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+
 import yaml
 
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
-parser = argparse.ArgumentParser(description="Create a SLURM array sbatch for a given cohort to convert Merscope outputs to sdata.")
+parser = argparse.ArgumentParser(
+    description="Create a SLURM array sbatch for a given cohort to convert Merscope outputs to sdata."
+)
 parser.add_argument("cohort", help="Cohort name (e.g. aging).")
-parser.add_argument("--segmentation", choices=["cellpose", "watershed", "both"], default="both")
-parser.add_argument("--sample", help="Process only this sample (e.g. aging_s11_r1). If not defined, adds all samples from cohort.")
-parser.add_argument("--explorer", action="store_true", help="Write 10X Xenium explorer files (cellpose only).")
+parser.add_argument(
+    "--segmentation", choices=["cellpose", "watershed", "both"], default="both"
+)
+parser.add_argument(
+    "--sample",
+    help="Process only this sample (e.g. aging_s11_r1). If not defined, adds all samples from cohort.",
+)
+parser.add_argument(
+    "--explorer",
+    action="store_true",
+    help="Write 10X Xenium explorer files (cellpose only).",
+)
 args = parser.parse_args()
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
     metadata = yaml.safe_load(f)
 
 seg_configs = [
-    ("cellpose",  "path",           "Cellpose_1_Merlin"),
+    ("cellpose", "path", "Cellpose_1_Merlin"),
     ("watershed", "path_watershed", "Watershed_Merlin"),
 ]
 if args.segmentation != "both":
@@ -42,7 +54,7 @@ if not jobs:
 
 data_paths = " ".join(f'"{dp}"' for dp, sp, sf, sn in jobs)
 save_paths = " ".join(f'"{sp}"' for dp, sp, sf, sn in jobs)
-seg_flags  = " ".join(f'"{sf}"' for dp, sp, sf, sn in jobs)
+seg_flags = " ".join(f'"{sf}"' for dp, sp, sf, sn in jobs)
 sample_names = " ".join(f'"{sn}"' for dp, sp, sf, sn in jobs)
 
 sbatch = f"""#!/bin/bash
@@ -51,7 +63,7 @@ sbatch = f"""#!/bin/bash
 #SBATCH -t 12:00:00
 #SBATCH --mem=250G
 #SBATCH -J merscope_{args.cohort}
-#SBATCH --array=0-{len(jobs)-1}
+#SBATCH --array=0-{len(jobs) - 1}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/merscope_to_sdata_{args.cohort}_%a.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/merscope_to_sdata_{args.cohort}_%a.err
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
@@ -80,6 +92,8 @@ python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata
 sbatch_dir = BASE_PATH / "misc/sbatches/sbatch_merscope_to_sdata"
 sbatch_dir.mkdir(parents=True, exist_ok=True)
 sample_suffix = f"_{args.sample.removeprefix(args.cohort + '_')}" if args.sample else ""
-sbatch_file = sbatch_dir / f"{args.cohort}_{args.segmentation}{sample_suffix}_array.sbatch"
+sbatch_file = (
+    sbatch_dir / f"{args.cohort}_{args.segmentation}{sample_suffix}_array.sbatch"
+)
 sbatch_file.write_text(sbatch)
 print(f"[{args.cohort}] {len(jobs)} jobs. Call: sbatch {sbatch_file}")

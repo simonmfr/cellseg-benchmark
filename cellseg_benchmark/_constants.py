@@ -1,5 +1,15 @@
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
+htra1_aging_controls = [
+    "aging_s1_r1",
+    "aging_s5_r1",
+    "aging_s6_r0",
+    "aging_s7_r1",
+    "aging_s7_r2",
+    "aging_s8_r2",
+    "aging_s11_r0",
+]
+
 cell_cycle_genes = {
     "G1": ["Ccne1", "Pttg1"],
     "G1_S": ["Slbp", "Cdca7", "Ung", "Cdc6", "Pcna", "Mcm5", "Orc1", "Dtl"],
@@ -1837,15 +1847,15 @@ clean_method_names_format = {
 clean_method_names = {**clean_method_names, **clean_method_names_format}
 
 brain_regions_colors = {
-    "BS": 'FF7080',
+    "BS": "FF7080",
     "CA3sp": "66A83D",
     "CTX": "B0FFB8",
-    "DG-sg": '66A83D',
+    "DG-sg": "66A83D",
     "HIP": "7ED04B",
     "STR": "98D6F9",
     "VS": "AAAAAA",
     "fiber tracts": "CCCCCC",
     "BS/STR": "CCA3BC",
     "STR/CTX": "A4EAD8",
-    "Meninges": "480091"
+    "Meninges": "480091",
 }

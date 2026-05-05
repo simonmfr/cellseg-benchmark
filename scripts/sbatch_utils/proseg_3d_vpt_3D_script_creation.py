@@ -6,7 +6,9 @@ import yaml
 parser = argparse.ArgumentParser(
     description="Prepare scripts for ProSeg with prior segmentation."
 )
-parser.add_argument("vpt_flavor", choices=["nuclei", "PolyT", "PolyT_nuclei"], help="vpt flavor.")
+parser.add_argument(
+    "vpt_flavor", choices=["nuclei", "PolyT", "PolyT_nuclei"], help="vpt flavor."
+)
 parser.add_argument("vpt_dim", choices=["2D", "3D"], help="vpt dimension.")
 parser.add_argument("--voxel", default=1, type=int, help="number of z-layers.")
 args = parser.parse_args()

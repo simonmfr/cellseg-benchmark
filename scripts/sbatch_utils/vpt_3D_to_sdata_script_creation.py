@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+
 import yaml
 
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
@@ -17,7 +18,9 @@ adapt = f"_{args.staining2}" if args.staining2 else ""
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
-pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_vpt_3D_to_sdata").mkdir(parents=False, exist_ok=True)
+pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_vpt_3D_to_sdata").mkdir(
+    parents=False, exist_ok=True
+)
 for key, value in data.items():
     f = open(
         f"{BASE_PATH}/misc/sbatches/sbatch_vpt_3D_to_sdata/{key}_DAPI_{args.staining}{adapt}.sbatch",

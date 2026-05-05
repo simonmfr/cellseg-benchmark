@@ -289,8 +289,9 @@ def mark_low_quality_mappings(metadata, target_column, mad_factor, level):
 
     # Calculate the low-quality mask
     low_quality_mask = metadata.groupby(level_key)[cor_key].transform(
-        lambda x: x
-        < (x.median() - mad_factor * median_abs_deviation(x, nan_policy="omit"))
+        lambda x: (
+            x < (x.median() - mad_factor * median_abs_deviation(x, nan_policy="omit"))
+        )
     )
 
     # Fill NaN values with False

@@ -3,7 +3,9 @@ from pathlib import Path
 
 import yaml
 
-parser = argparse.ArgumentParser(description="scripts for Baysor segmentation without overlaps.")
+parser = argparse.ArgumentParser(
+    description="scripts for Baysor segmentation without overlaps."
+)
 parser.add_argument("staining", help="Staining of prior cellpose segmentation.")
 parser.add_argument("CP_version", help="Cellpose version of prior  segmentation.")
 parser.add_argument("confidence", help="Confidence of prior cellpose segmentation.")

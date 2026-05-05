@@ -273,7 +273,9 @@ if __name__ == "__main__":
     for group_i in adatas_pb:
         adata_tmp = adatas_pb[group_i]
         counts = (
-            adata_tmp.obs.groupby(args.condition_key)[args.sample_key].nunique().to_dict()
+            adata_tmp.obs.groupby(args.condition_key)[args.sample_key]
+            .nunique()
+            .to_dict()
         )
         # require ≥2 samples per condition
         if any(v < 2 for v in counts.values()):

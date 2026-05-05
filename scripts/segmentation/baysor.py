@@ -58,7 +58,9 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence
-    sopa.segmentation.baysor(sdata, config=config, delete_cache=not keep_cache, force=True)
+    sopa.segmentation.baysor(
+        sdata, config=config, delete_cache=not keep_cache, force=True
+    )
 
     sopa.aggregate(
         sdata,
@@ -80,10 +82,38 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
 
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"), overwrite=True)
+    sdata.write(
+        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"),
+        overwrite=True,
+    )
     if keep_cache:
-        run(["cp", "-r", str(cache_dir), join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr", str(cache_dir).split("/")[-1])])
-    run(["rm", "-r", join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr")])
+        run(
+            [
+                "cp",
+                "-r",
+                str(cache_dir),
+                join(
+                    path,
+                    f"Baysor_2D_{base_segmentation}_{confidence}",
+                    "sdata.zarr",
+                    str(cache_dir).split("/")[-1],
+                ),
+            ]
+        )
+    run(
+        [
+            "rm",
+            "-r",
+            join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"),
+        ]
+    )
+
 
 if __name__ == "__main__":
-    main(args.data_path, args.base_segmentation, args.confidence, args.sample, args.keep_cache)
+    main(
+        args.data_path,
+        args.base_segmentation,
+        args.confidence,
+        args.sample,
+        args.keep_cache,
+    )

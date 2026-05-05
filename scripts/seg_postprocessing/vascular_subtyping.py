@@ -17,6 +17,7 @@ _handler = logging.StreamHandler()
 _handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(_handler)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Identify vascular subtypes.")
     parser.add_argument("cohort")
@@ -125,7 +126,9 @@ def main():
         trim_outliers=False,
         logger=logger,
     )
-    sub = adata_utils.pca_umap_single(sub, n_neighbors=10, n_pcs=20, save_path=None, logger=logger)
+    sub = adata_utils.pca_umap_single(
+        sub, n_neighbors=10, n_pcs=20, save_path=None, logger=logger
+    )
     sub = adata_utils.integration_harmony(
         sub,
         batch_key=args.batch_key,
@@ -142,7 +145,10 @@ def main():
     )
     # Step 2: assign each cell by max scoring subtype
     sub = cell_annotation_utils.annotate_cells_by_score(
-        sub, _constants.selected_EC_subtypes, out_col="ec_zonation", score_threshold=0.15
+        sub,
+        _constants.selected_EC_subtypes,
+        out_col="ec_zonation",
+        score_threshold=0.15,
     )
 
     sub.obs["ec_zonation"] = pd.Categorical(
@@ -167,7 +173,9 @@ def main():
         trim_outliers=False,
         logger=logger,
     )
-    ec = adata_utils.pca_umap_single(ec, n_neighbors=10, n_pcs=20, save_path=None, logger=logger)
+    ec = adata_utils.pca_umap_single(
+        ec, n_neighbors=10, n_pcs=20, save_path=None, logger=logger
+    )
     ec = adata_utils.integration_harmony(
         ec,
         batch_key=args.batch_key,
@@ -335,7 +343,8 @@ def main():
     merged.obs.drop(columns="ec_zonation", inplace=True)
 
     merged.obs["cell_type_incl_zonation"] = pd.Categorical(
-        merged.obs["cell_type_incl_zonation"], categories=list(_constants.cell_type_colors.keys())
+        merged.obs["cell_type_incl_zonation"],
+        categories=list(_constants.cell_type_colors.keys()),
     ).remove_unused_categories()
     merged.uns["cell_type_incl_zonation_colors"] = [
         _constants.cell_type_colors[ct]
@@ -387,6 +396,7 @@ def main():
 
     merged.write(out, compression="gzip")
     logger.info("Done.")
+
 
 if __name__ == "__main__":
     main()

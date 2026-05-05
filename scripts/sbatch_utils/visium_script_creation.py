@@ -1,8 +1,11 @@
 from pathlib import Path
+
 import yaml
 
 YAML = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
-SBATCH_DIR = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_visium"
+SBATCH_DIR = (
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_visium"
+)
 OUT_DIR = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{k}/results/Negative_Control_Visium"
 
 with open(YAML) as f:
@@ -28,7 +31,7 @@ mkdir -p {out}
 
 "$CONDA_PREFIX/bin/time" -v \
   -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/visium_{k}_$(date +%Y%m%d_%H%M%S).time" \
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/visium_segmentation.py {v['path']} {out}
+python ~/gitrepos/cellseg-benchmark/scripts/segmentation/visium_segmentation.py {v["path"]} {out}
 """
 
     Path(SBATCH_DIR, f"{k}.sbatch").write_text(text)

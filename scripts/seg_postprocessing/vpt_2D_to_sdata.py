@@ -2,17 +2,17 @@ import argparse
 import os
 import pathlib
 import subprocess
+
 import pandas as pd
-import spatialdata
-import spatialdata_io
 import sopa.aggregation
 import sopa.io.explorer
 import sopa.utils
+import spatialdata
+import spatialdata_io
+
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Convert vpt 2D output to sdata."
-    )
+    parser = argparse.ArgumentParser(description="Convert vpt 2D output to sdata.")
     parser.add_argument("data_path", help="Path to vpt folder.")
     parser.add_argument("save_path", help="Path to output folder.")
     parser.add_argument(
@@ -33,7 +33,9 @@ def main():
         vpt_outputs={
             "cell_by_gene": save_path / "analysis_outputs" / "cell_by_gene.csv",
             "cell_metadata": save_path / "analysis_outputs" / "cell_metadata.csv",
-            "cell_boundaries": save_path / "analysis_outputs" / "cellpose2_micron_space.parquet",
+            "cell_boundaries": save_path
+            / "analysis_outputs"
+            / "cellpose2_micron_space.parquet",
         },
     )
 
@@ -54,12 +56,14 @@ def main():
 
     sdata["table"].uns["spatialdata_attrs"]["instance_key"] = "cell_id"
 
-    sdata["table"].obsm['intensities'] = pd.DataFrame(
+    sdata["table"].obsm["intensities"] = pd.DataFrame(
         sopa.aggregation.aggregate_channels(sdata, shapes_key=shapes_key),
         columns=sopa.utils.validated_channel_names(
-            sopa.utils.get_spatial_image(sdata, list(sdata.images.keys())[0], return_key=True)[1]
+            sopa.utils.get_spatial_image(
+                sdata, list(sdata.images.keys())[0], return_key=True
+            )[1]
         ),
-        index=sdata[shapes_key].index.astype(str)
+        index=sdata[shapes_key].index.astype(str),
     )
 
     zarr_path = save_path / "sdata.zarr"
@@ -77,6 +81,7 @@ def main():
 
     subprocess.run(["rm", "-r", str(zarr_path / "images")])
     subprocess.run(["rm", "-r", str(zarr_path / "points")])
+
 
 if __name__ == "__main__":
     main()

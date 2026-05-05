@@ -1,14 +1,19 @@
-import numpy as np
-import os
-from tqdm import tqdm
 import argparse
+import os
 from pathlib import Path
+
 import dask
-dask.config.set({"dataframe.query-planning": False}) # noqa: E402
+import numpy as np
+from tqdm import tqdm
+
+dask.config.set({"dataframe.query-planning": False})  # noqa: E402
 import sis
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Spots-in-space segmentation using cellpose 3D, writes polygons and cell-by-gene.")
+    parser = argparse.ArgumentParser(
+        description="Spots-in-space segmentation using cellpose 3D, writes polygons and cell-by-gene."
+    )
     parser.add_argument("data_path", type=Path, help="Path to merfish output folder.")
     parser.add_argument("save_path", type=Path, help="Path to sis output folder.")
     parser.add_argument("model_path", type=Path, help="Path to cellpose model.")
@@ -29,8 +34,8 @@ def main():
     )
 
     # test on subset
-    #subrgn = ((12000, 12200), (2500, 2700))
-    #st = st.get_subregion(xlim=subrgn[0], ylim=subrgn[1])
+    # subrgn = ((12000, 12200), (2500, 2700))
+    # st = st.get_subregion(xlim=subrgn[0], ylim=subrgn[1])
 
     seg_opts = {
         "cellpose_model": str(model_path),
@@ -39,7 +44,7 @@ def main():
         "cell_dia": 10,
         "z_plane_thickness": 1.5,
         "images": {
-            "cyto":   {"channel": staining, "n_planes": 7},
+            "cyto": {"channel": staining, "n_planes": 7},
             "nuclei": {"channel": "DAPI"},
         },
         "cellpose_options": {"batch_size": 8, "min_size": 5000},
@@ -49,24 +54,24 @@ def main():
     tiles = st.grid_tiles(max_tile_size=350, overlap=30, min_transcripts=1000)
     for i, tile in enumerate(tqdm(tiles)):
         result = seg_custom_3d.run(tile)
-        np.save(save_path / f'cell_ids_{i}.npy', result.cell_ids)
+        np.save(save_path / f"cell_ids_{i}.npy", result.cell_ids)
 
     truncated_meta = {
-                'seg_method': f"sis_dapi_{staining}",
-                'seg_opts': seg_opts,
-                #'polygon_opts': polygon_opts
-                }
+        "seg_method": f"sis_dapi_{staining}",
+        "seg_opts": seg_opts,
+        #'polygon_opts': polygon_opts
+    }
 
     seg_st = sis.spot_table.SegmentedSpotTable(
-                    spot_table=st,
-                    cell_ids=np.empty(len(st), dtype=int),
-                    seg_metadata=truncated_meta,
-                    )
+        spot_table=st,
+        cell_ids=np.empty(len(st), dtype=int),
+        seg_metadata=truncated_meta,
+    )
 
     merge_results = []
     skipped = []
     for i, tile in enumerate(tiles):
-        cell_id_file = save_path / f'cell_ids_{i}.npy'
+        cell_id_file = save_path / f"cell_ids_{i}.npy"
         if not os.path.exists(cell_id_file):
             print(f"Skipping tile {i} : no cell ID file generated")
             skipped.append(i)
@@ -77,19 +82,20 @@ def main():
 
         tiles[i] = tile
 
-    _ = seg_st.set_cell_ids_from_tiles(tiles, padding=seg_opts['cell_dia'] / 2)
+    _ = seg_st.set_cell_ids_from_tiles(tiles, padding=seg_opts["cell_dia"] / 2)
 
     seg_st.calculate_cell_polygons()
     seg_st.save_cell_polygons(save_path / "cell_polygons.geojson")
 
     seg_st.generate_cell_labels(prefix=None, suffix=None)
-    cell_by_gene = seg_st.cell_by_gene_anndata(x_format='sparse')
+    cell_by_gene = seg_st.cell_by_gene_anndata(x_format="sparse")
     seg_st.save_anndata(save_path / "cell_by_gene.h5ad", cell_by_gene)
 
     cache_file.unlink(missing_ok=True)
     for f in save_path.glob("cell_ids_*.npy"):
         f.unlink()
     print("Done.")
+
 
 if __name__ == "__main__":
     main()

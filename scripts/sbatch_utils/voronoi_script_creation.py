@@ -1,8 +1,11 @@
 from pathlib import Path
+
 import yaml
 
 YAML = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
-SBATCH_DIR = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_visium"
+SBATCH_DIR = (
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_visium"
+)
 OUT_DIR = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{k}/results/Negative_Control_Visium"
 
 with open(YAML) as f:

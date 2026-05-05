@@ -1,9 +1,7 @@
 import argparse
 from pathlib import Path
 
-parser = argparse.ArgumentParser(
-    description="Scripts for vascular subtyping."
-)
+parser = argparse.ArgumentParser(description="Scripts for vascular subtyping.")
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 
 args = parser.parse_args()
@@ -58,7 +56,9 @@ Path(sbatch_path).mkdir(parents=False, exist_ok=True)
 for seg_method in methods:
     if seg_method == "Negative_Control_Rastered_5":
         time_limit = "1-00:00:00"
-    elif any(keyword in seg_method for keyword in ["Baysor", "Cellpose"]) or seg_method in [
+    elif any(
+        keyword in seg_method for keyword in ["Baysor", "Cellpose"]
+    ) or seg_method in [
         "Negative_Control_Rastered_10",
         "Negative_Control_Voronoi",
     ]:
@@ -72,7 +72,6 @@ for seg_method in methods:
     sbatch_file = Path(sbatch_path) / f"{job_name}.sbatch"
 
     with open(sbatch_file, "w") as f:
-
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu

@@ -61,8 +61,10 @@ Path(sbatch_path).mkdir(parents=False, exist_ok=True)
 for seg_method in methods:
     if seg_method == "Negative_Control_Rastered_5":
         time_limit, memory = "1-00:00:00", "200G"
-    elif (any(k in seg_method for k in ["Baysor", "Cellpose"])
-          or seg_method in ["Negative_Control_Rastered_10", "Negative_Control_Voronoi"]):
+    elif any(k in seg_method for k in ["Baysor", "Cellpose"]) or seg_method in [
+        "Negative_Control_Rastered_10",
+        "Negative_Control_Voronoi",
+    ]:
         time_limit, memory = "10:00:00", "150G"
     else:
         time_limit, memory = "02:00:00", "25G"
@@ -71,7 +73,6 @@ for seg_method in methods:
     sbatch_file = Path(sbatch_path) / f"{job_name}.sbatch"
 
     with open(sbatch_file, "w") as f:
-
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu

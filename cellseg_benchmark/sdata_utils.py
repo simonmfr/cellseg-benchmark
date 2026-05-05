@@ -6,7 +6,7 @@ import math
 import os
 import warnings
 from os.path import join
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import geopandas as gpd
 import numpy as np
@@ -15,7 +15,7 @@ import spatialdata as sd
 import spatialdata_io
 from joblib import Parallel, delayed
 from scipy.spatial import ConvexHull
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
 from spatialdata.models import ShapesModel
 from spatialdata.transformations import (
@@ -26,7 +26,7 @@ from spatialdata.transformations import (
 )
 from tqdm import tqdm
 
-from ._constants import pixel_based, methods_3D
+from ._constants import methods_3D, pixel_based
 
 PI = math.pi
 
@@ -641,15 +641,15 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
             )
         else:
             set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel.inverse(), "micron",
+                sdata_main[f"boundaries_{seg_method}"],
+                transformation_to_pixel.inverse(),
+                "micron",
             )
             set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], Identity(), "pixel"
             )
     else:
-        set_transformation(
-            sdata_main[f"boundaries_{seg_method}"], Identity(), "micron"
-        )
+        set_transformation(sdata_main[f"boundaries_{seg_method}"], Identity(), "micron")
         set_transformation(
             sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
         )
@@ -1157,6 +1157,7 @@ def _compute_3d_metrics(
     except Exception as e:
         warnings.warn(f"Failed to compute 3D metrics: {str(e)}")
         return {}
+
 
 def add_visium_boundaries(
     sdata,
