@@ -58,6 +58,7 @@ def main():
         adata = adata.copy()
 
     adata.obs["region"] = pd.Categorical(["boundaries_3D"] * adata.n_obs)
+    adata.obs = adata.obs.drop(columns=["area"], errors="ignore")
 
     sdata = sd.SpatialData(
         shapes={"boundaries_3D": sd_models.ShapesModel.parse(boundaries)},
