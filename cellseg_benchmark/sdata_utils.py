@@ -362,6 +362,7 @@ def add_3D_intensities(
         path_intens = os.path.join(sdata_path, "results", seg_method, "Intensities_3D", "Intensities_3D.csv")
         if os.path.exists(path_intens):
             intensities = pd.read_csv(path_intens, index_col=0)
+            intensities.index = intensities.index.astype(str)
             sdata_main[f"adata_{seg_method}"].obsm['intensities'] = intensities
         else:
             if logger is not None:
