@@ -633,22 +633,22 @@ def compute_polygon_stats_3D(
     Returns:
         3D stats.
     """
-    try:
-        m = _compute_3d_metrics(
-            group,
-            z_spacing,
-            global_z_min=global_z_min,
-            global_z_max=global_z_max,
-            ZIndex=z_level_name,
-        )
-        m["cell_id"] = entity_id
-        return m
-    except Exception as e:
-        if logger is not None:
-            logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
-        else:
-            print(f"Failed {entity_id}: {e}")
-        return None
+   # try:
+    m = _compute_3d_metrics(
+        group,
+        z_spacing,
+        global_z_min=global_z_min,
+        global_z_max=global_z_max,
+        ZIndex=z_level_name,
+    )
+    m["cell_id"] = entity_id
+    return m
+ #   except Exception as e:
+ #       if logger is not None:
+ #           logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
+ #       else:
+ #           print(f"Failed {entity_id}: {e}")
+ #       return None
 
 
 def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
