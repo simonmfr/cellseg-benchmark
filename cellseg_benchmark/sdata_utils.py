@@ -461,7 +461,7 @@ def add_cell_type_annotation(
             )
         )[cell_type_information]
     except KeyError:
-        if logger:
+        if logger is not None:
             logger.warning(
                 "No cell type annotation found for {}. Skipping.".format(seg_method)
             )
@@ -531,6 +531,9 @@ def calculate_volume(
             cell_identifier = "cell_id"
         elif seg_method.startswith("Watershed_Merlin"):
             z_level_name = "ZIndex"
+            cell_identifier = "cell_id"
+        elif seg_method.startswith("SIS"):
+            z_level_name = "z_plane"
             cell_identifier = "cell_id"
         if logger:
             logger.info(f"Collecting volume metadata for {seg_method}")
