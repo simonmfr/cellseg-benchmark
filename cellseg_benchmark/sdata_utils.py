@@ -537,6 +537,7 @@ def calculate_volume(
             cell_identifier = "cell_id"
         if logger is not None:
             logger.info(f"Collecting volume metadata for {seg_method}")
+        boundaries[z_level_name] = boundaries[z_level_name].astype(float)
         global_z_min, global_z_max = (
             boundaries[z_level_name].min(),
             boundaries[z_level_name].max(),
@@ -633,22 +634,22 @@ def compute_polygon_stats_3D(
     Returns:
         3D stats.
     """
-   # try:
-    m = _compute_3d_metrics(
-        group,
-        z_spacing,
-        global_z_min=global_z_min,
-        global_z_max=global_z_max,
-        ZIndex=z_level_name,
-    )
-    m["cell_id"] = entity_id
-    return m
- #   except Exception as e:
- #       if logger is not None:
- #           logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
- #       else:
- #           print(f"Failed {entity_id}: {e}")
- #       return None
+    try:
+        m = _compute_3d_metrics(
+            group,
+            z_spacing,
+            global_z_min=global_z_min,
+            global_z_max=global_z_max,
+            ZIndex=z_level_name,
+        )
+        m["cell_id"] = entity_id
+        return m
+    except Exception as e:
+        if logger is not None:
+            logger.warning(f"Failed to process entity {entity_id}: {str(e)}")
+        else:
+            print(f"Failed {entity_id}: {e}")
+        return None
 
 
 def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
@@ -1060,134 +1061,134 @@ def _compute_3d_metrics(
     group, z_spacing, global_z_min, global_z_max, ZIndex: str = "ZIndex"
 ):
     """Compute 3D morphology metrics with robust and dual volume estimation."""
-#    try:
-    group = group.sort_values(ZIndex)
-    z_indices = group[ZIndex].to_numpy()
-    z_um = z_indices * z_spacing
-    polygons = group["geometry"].tolist()
+    try:
+        group = group.sort_values(ZIndex)
+        z_indices = group[ZIndex].to_numpy()
+        z_um = z_indices * z_spacing
+        polygons = group["geometry"].tolist()
 
-    if z_indices.shape[0] == 1:
-        return _compute_2d_metrics(polygons[0], z_spacing)
+        if z_indices.shape[0] == 1:
+            return _compute_2d_metrics(polygons[0], z_spacing)
 
-    assert len(polygons) == len(z_indices)
-    assert np.all(np.diff(z_indices) >= 0), "ZIndex must be non-decreasing"
+        assert len(polygons) == len(z_indices)
+        assert np.all(np.diff(z_indices) >= 0), "ZIndex must be non-decreasing"
 
-    areas = np.fromiter(
-        (
-            p.area
-            for p in polygons  # Multipolygons bereits gehandled
-        ),
-        dtype=float,
-    )
+        areas = np.fromiter(
+            (
+                p.area
+                for p in polygons  # Multipolygons bereits gehandled
+            ),
+            dtype=float,
+        )
 
-    volume_sum = np.sum(areas) * z_spacing
-    volume_trapz = _compute_trapz_with_conditional_caps(
-        areas, z_indices, z_spacing, global_z_min, global_z_max
-    )
+        volume_sum = np.sum(areas) * z_spacing
+        volume_trapz = _compute_trapz_with_conditional_caps(
+            areas, z_indices, z_spacing, global_z_min, global_z_max
+        )
 
-    perimeters = np.fromiter(
-        (
-            p.length
-            for p in polygons  # Multipolygons bereits gehandled
-        ),
-        dtype=float,
-    )
+        perimeters = np.fromiter(
+            (
+                p.length
+                for p in polygons  # Multipolygons bereits gehandled
+            ),
+            dtype=float,
+        )
 
-    total_height = (len(areas) - 1) * z_spacing
-    lateral_surface = (
-        np.mean(perimeters) * total_height if len(perimeters) > 1 else 0
-    )
-    top_bottom_surface = areas[0] + areas[-1] if len(areas) > 0 else 0
-    surface_area = lateral_surface + top_bottom_surface
+        total_height = (len(areas) - 1) * z_spacing
+        lateral_surface = (
+            np.mean(perimeters) * total_height if len(perimeters) > 1 else 0
+        )
+        top_bottom_surface = areas[0] + areas[-1] if len(areas) > 0 else 0
+        surface_area = lateral_surface + top_bottom_surface
 
-    metrics = {
-        "dimensionality": "3D",
-        "area": surface_area,
-        "volume_sum": volume_sum,
-        "volume_trapz": volume_trapz,
-        "volume_final": volume_trapz,
-        "num_z_planes": len(areas),
-        "size_normalized": np.cbrt(volume_trapz) if volume_trapz > 0 else np.nan,
-        "surface_to_volume_ratio": surface_area / volume_trapz
-        if volume_trapz > 0
-        else np.nan,
-        "sphericity": (
-            (PI ** (1 / 3)) * (6 * volume_trapz) ** (2 / 3) / surface_area
-            if volume_trapz > 0 and surface_area > 0
-            else np.nan
-        ),
-    }
+        metrics = {
+            "dimensionality": "3D",
+            "area": surface_area,
+            "volume_sum": volume_sum,
+            "volume_trapz": volume_trapz,
+            "volume_final": volume_trapz,
+            "num_z_planes": len(areas),
+            "size_normalized": np.cbrt(volume_trapz) if volume_trapz > 0 else np.nan,
+            "surface_to_volume_ratio": surface_area / volume_trapz
+            if volume_trapz > 0
+            else np.nan,
+            "sphericity": (
+                (PI ** (1 / 3)) * (6 * volume_trapz) ** (2 / 3) / surface_area
+                if volume_trapz > 0 and surface_area > 0
+                else np.nan
+            ),
+        }
 
-    thin_stack = len(polygons) < 2 or (np.ptp(z_um) < 3 * z_spacing)
+        thin_stack = len(polygons) < 2 or (np.ptp(z_um) < 3 * z_spacing)
 
-    all_points = []
-    for i, polygon in enumerate(polygons):
-        if polygon.is_empty or not polygon.is_valid:
-            continue
-        if polygon.geom_type == "Polygon":
-            coords = np.array(polygon.exterior.coords[:-1])
-        else:
-            coords = (
-                np.vstack(
-                    [
-                        np.asarray(part.exterior.coords)[:-1]
-                        for part in polygon.geoms
-                    ]
+        all_points = []
+        for i, polygon in enumerate(polygons):
+            if polygon.is_empty or not polygon.is_valid:
+                continue
+            if polygon.geom_type == "Polygon":
+                coords = np.array(polygon.exterior.coords[:-1])
+            else:
+                coords = (
+                    np.vstack(
+                        [
+                            np.asarray(part.exterior.coords)[:-1]
+                            for part in polygon.geoms
+                        ]
+                    )
+                    if len(polygon.geoms)
+                    else np.empty((0, 2))
                 )
-                if len(polygon.geoms)
-                else np.empty((0, 2))
-            )
-        if coords.shape[0] < 3:
-            continue
-        z_coords = np.full((coords.shape[0], 1), z_um[i])
-        all_points.append(np.hstack([coords, z_coords]))
+            if coords.shape[0] < 3:
+                continue
+            z_coords = np.full((coords.shape[0], 1), z_um[i])
+            all_points.append(np.hstack([coords, z_coords]))
 
-    if not all_points:
-        metrics.update({"solidity": np.nan, "elongation": np.nan})
+        if not all_points:
+            metrics.update({"solidity": np.nan, "elongation": np.nan})
+            return metrics
+
+        all_points = np.vstack(all_points)
+        all_points -= all_points.mean(axis=0, keepdims=True)
+
+        solidity = np.nan
+        if not thin_stack:
+            if all_points.shape[0] >= 4:
+                try:
+                    hull = ConvexHull(
+                        all_points, qhull_options="QJ"
+                    )  # jitter coplanar cases
+                    hv = hull.volume
+                    solidity = (volume_trapz / hv) if hv > 0 else np.nan
+                except Exception:
+                    # fall back to deduped points (expensive; only if needed)
+                    up = np.unique(all_points, axis=0)
+                    if up.shape[0] >= 4:
+                        try:
+                            hull = ConvexHull(up, qhull_options="QJ")
+                            hv = hull.volume
+                            solidity = (volume_trapz / hv) if hv > 0 else np.nan
+                        except Exception:
+                            solidity = np.nan
+        metrics["solidity"] = solidity
+
+        cov = (all_points.T @ all_points) / all_points.shape[0]
+        eigenvalues = np.linalg.eigvalsh(cov)[::-1]
+
+        if eigenvalues[0] <= 0:
+            elongation = np.nan
+        elif eigenvalues[2] > 1e-6:
+            elongation = 1 - np.sqrt(eigenvalues[2] / eigenvalues[0])
+        elif eigenvalues[1] > 1e-6:
+            elongation = 1 - np.sqrt(eigenvalues[1] / eigenvalues[0])
+        else:
+            elongation = 1.0
+        metrics["elongation"] = elongation
+
         return metrics
 
-    all_points = np.vstack(all_points)
-    all_points -= all_points.mean(axis=0, keepdims=True)
-
-    solidity = np.nan
-    if not thin_stack:
-        if all_points.shape[0] >= 4:
-            try:
-                hull = ConvexHull(
-                    all_points, qhull_options="QJ"
-                )  # jitter coplanar cases
-                hv = hull.volume
-                solidity = (volume_trapz / hv) if hv > 0 else np.nan
-            except Exception:
-                # fall back to deduped points (expensive; only if needed)
-                up = np.unique(all_points, axis=0)
-                if up.shape[0] >= 4:
-                    try:
-                        hull = ConvexHull(up, qhull_options="QJ")
-                        hv = hull.volume
-                        solidity = (volume_trapz / hv) if hv > 0 else np.nan
-                    except Exception:
-                        solidity = np.nan
-    metrics["solidity"] = solidity
-
-    cov = (all_points.T @ all_points) / all_points.shape[0]
-    eigenvalues = np.linalg.eigvalsh(cov)[::-1]
-
-    if eigenvalues[0] <= 0:
-        elongation = np.nan
-    elif eigenvalues[2] > 1e-6:
-        elongation = 1 - np.sqrt(eigenvalues[2] / eigenvalues[0])
-    elif eigenvalues[1] > 1e-6:
-        elongation = 1 - np.sqrt(eigenvalues[1] / eigenvalues[0])
-    else:
-        elongation = 1.0
-    metrics["elongation"] = elongation
-
-    return metrics
-
-#    except Exception as e:
-#        warnings.warn(f"Failed to compute 3D metrics: {str(e)}")
-#        return {}
+    except Exception as e:
+        warnings.warn(f"Failed to compute 3D metrics: {str(e)}")
+        return {}
 
 
 def add_visium_boundaries(
