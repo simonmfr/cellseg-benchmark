@@ -283,6 +283,8 @@ def integrate_segmentation_data(
                             seg_method
                         )
                     )
+                if any([seg_method.startswith(x) for x in methods_3D]):
+                    sdata_main = add_3D_intensities(sdata_main, seg_method, sdata_path)
 
                 adata = sdata_main[f"adata_{seg_method}"]
 
@@ -347,6 +349,32 @@ def integrate_segmentation_data(
                     f"Skipping adata import of {seg_method} as adata_{seg_method} exist already."
                 )
 
+    return sdata_main
+
+
+def add_3D_intensities(
+        sdata_main: sd.SpatialData,
+        seg_method: str,
+        sdata_path: str,
+        logger: logging.Logger = None
+) -> sd.SpatialData:
+    if any([seg_method.startswith(x) for x in methods_3D]):
+        path_intens = os.path.join(sdata_path, "results", seg_method, "Intensities_3D", "Intensities_3D.csv")
+        if os.path.exists(path_intens):
+            intensities = pd.read_csv(path_intens, index_col=0)
+            sdata_main[f"adata_{seg_method}"].obsm['intensities'] = intensities
+        else:
+            if logger is not None:
+                logger.warning(
+                    "No Intensities_3D file found for {}. Skipping Intensities import".format(seg_method)
+                )
+            else:
+                print("No Intensities_3D file found for {}. Skipping Intensities import".format(seg_method))
+    else:
+        if logger is not None:
+            logger.warning("{} is not a 3D method. 3D intensities do not exist.".format(seg_method))
+        else:
+            print("{} is not a 3D method. 3D intensities do not exist.".format(seg_method))
     return sdata_main
 
 
