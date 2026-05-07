@@ -276,7 +276,7 @@ def integrate_segmentation_data(
                     join(sdata_path, "results", seg_method, "Ovrlpy_stats")
                 ):
                     logger.info("Adding Ovrlpy stats to {}...".format(seg_method))
-                    add_statistical_data(sdata_main, seg_method, sdata_path)
+                    add_statistical_data(sdata_main, seg_method, sdata_path, logger=logger)
                 else:
                     logger.warning(
                         "No Ovrlpy_stats files found for {}. Skipping.".format(
@@ -494,7 +494,7 @@ def add_cell_type_annotation(
 
 
 def add_statistical_data(
-    sdata_main: sd.SpatialData, seg_method: str, sdata_path: str
+    sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, logger: logging.Logger
 ) -> sd.SpatialData:
     """Add ovrlpy information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
@@ -507,6 +507,10 @@ def add_statistical_data(
             )
             ovrlpy_stats.index = ovrlpy_stats.index.astype(str)
             ovrlpy_stats = ovrlpy_stats.loc[adata.obs_names]
+            logger.debug("Index Ovrlpy:")
+            logger.debug(ovrlpy_stats.index)
+            logger.debug("Index adata:")
+            logger.debug(adata.obs_names)
             adata.obsm[name] = ovrlpy_stats
     sdata_main[f"adata_{seg_method}"] = adata
     return sdata_main
