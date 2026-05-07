@@ -275,14 +275,20 @@ def integrate_segmentation_data(
                 if os.path.exists(
                     join(sdata_path, "results", seg_method, "Ovrlpy_stats")
                 ):
-                    logger.info("Adding Ovrlpy stats to {}...".format(seg_method))
-                    add_statistical_data(sdata_main, seg_method, sdata_path, logger=logger)
+                    if logger:
+                        logger.info("Adding Ovrlpy stats to {}...".format(seg_method))
+                    else:
+                        print(f"Adding Ovrlpy stats to {seg_method}...")
+                    add_ovrlpy(sdata_main, seg_method, sdata_path, logger=logger)
                 else:
-                    logger.warning(
-                        "No Ovrlpy_stats files found for {}. Skipping.".format(
-                            seg_method
+                    if logger:
+                        logger.warning(
+                            "No Ovrlpy_stats files found for {}. Skipping.".format(
+                                seg_method
+                            )
                         )
-                    )
+                    else:
+                        print(f"No Ovrlpy_stats files found for {seg_method}. Skipping.")
                 if any([seg_method.startswith(x) for x in methods_3D]):
                     sdata_main = add_3D_intensities(
                         sdata_main, seg_method, sdata_path, logger=logger
@@ -355,29 +361,29 @@ def integrate_segmentation_data(
 
 
 def add_3D_intensities(
-        sdata_main: sd.SpatialData,
-        seg_method: str,
-        sdata_path: str,
-        logger: logging.Logger = None
+    sdata_main: sd.SpatialData,
+    seg_method: str,
+    sdata_path: str,
+    logger: Optional[logging.Logger] = None,
 ) -> sd.SpatialData:
+    """Add 3D intensity table to adata.obsm for 3D segmentation methods."""
+    log = logger or logging.getLogger(__name__)
     if any([seg_method.startswith(x) for x in methods_3D]):
-        path_intens = os.path.join(sdata_path, "results", seg_method, "Intensities_3D", "Intensities_3D.csv")
+        path_intens = os.path.join(
+            sdata_path, "results", seg_method, "Intensities_3D", "Intensities_3D.csv"
+        )
         if os.path.exists(path_intens):
             intensities = pd.read_csv(path_intens, index_col=0)
             intensities.index = intensities.index.astype(str)
-            sdata_main[f"adata_{seg_method}"].obsm['intensities'] = intensities
+            sdata_main[f"adata_{seg_method}"].obsm["intensities"] = intensities
         else:
-            if logger is not None:
-                logger.warning(
-                    "No Intensities_3D file found for {}. Skipping Intensities import".format(seg_method)
+            log.error(
+                "No Intensities_3D file found for {}. Skipping Intensities import".format(
+                    seg_method
                 )
-            else:
-                print("No Intensities_3D file found for {}. Skipping Intensities import".format(seg_method))
+            )
     else:
-        if logger is not None:
-            logger.warning("{} is not a 3D method. 3D intensities do not exist.".format(seg_method))
-        else:
-            print("{} is not a 3D method. 3D intensities do not exist.".format(seg_method))
+        log.error("{} is not a 3D method. 3D intensities do not exist.".format(seg_method))
     return sdata_main
 
 
@@ -496,13 +502,18 @@ def add_cell_type_annotation(
     return sdata_main
 
 
-def add_statistical_data(
-    sdata_main: sd.SpatialData, seg_method: str, sdata_path: str, logger: logging.Logger
+def add_ovrlpy(
+    sdata_main: sd.SpatialData,
+    seg_method: str,
+    sdata_path: str,
+    logger: Optional[logging.Logger] = None,
 ) -> sd.SpatialData:
-    """Add ovrlpy information to sdata_main."""
+    """Add Ovrlpy statistics to ``adata.obsm`` for a segmentation method."""
     adata = sdata_main[f"adata_{seg_method}"]
+    found_csv = False
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ovrlpy_stats")):
         if file.endswith(".csv"):
+            found_csv = True
             name = file.split(".")[0]
             ovrlpy_stats = pd.read_csv(
                 join(sdata_path, "results", seg_method, "Ovrlpy_stats", file),
@@ -511,6 +522,8 @@ def add_statistical_data(
             ovrlpy_stats.index = ovrlpy_stats.index.astype(str)
             ovrlpy_stats = ovrlpy_stats.loc[adata.obs_names]
             adata.obsm[name] = ovrlpy_stats
+    if logger and not found_csv:
+        logger.warning(f"No Ovrlpy csv files found for {seg_method}.")
     sdata_main[f"adata_{seg_method}"] = adata
     return sdata_main
 
@@ -530,10 +543,9 @@ def calculate_volume(
         if seg_method.startswith("Proseg_3D"):
             z_level_name = "layer"
             cell_identifier = "cell_id"
-        elif seg_method.startswith("vpt_3D"):
-            z_level_name = "ZIndex"
-            cell_identifier = "cell_id"
-        elif seg_method.startswith("Watershed_Merlin"):
+        elif seg_method.startswith("vpt_3D") or seg_method.startswith(
+            "Watershed_Merlin"
+        ):
             z_level_name = "ZIndex"
             cell_identifier = "cell_id"
         elif seg_method.startswith("SIS"):
