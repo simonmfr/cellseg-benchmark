@@ -47,7 +47,8 @@ def main():
     boundaries["cell_id"] = boundaries["id"].astype(str).map(spot_id_to_label)
     boundaries = boundaries.dropna(subset=["cell_id", "geometry"]).copy()
     boundaries["geometry"] = boundaries.geometry.make_valid()
-    boundaries.index = boundaries.pop("cell_id")
+    boundaries.index = boundaries["cell_id"].copy()
+    boundaries.index = boundaries.index.rename(None)
 
     adata.obs_names = adata.obs["cell_id"].astype(str)
     boundaries = boundaries[boundaries.index.isin(adata.obs_names)]
