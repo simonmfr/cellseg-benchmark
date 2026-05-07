@@ -19,7 +19,7 @@ def main():
     parser = argparse.ArgumentParser(
         description=(
             "Convert SIS output to sdata. "
-            "Matches cells via SpotTable_cell_id -> cell_label. "
+            "Matches cells via SpotTable_cell_id -> cell_id. "
             "Boundaries are 3D (multiple z-plane polygons per cell). "
             "Raises error if >5% of cells lack a boundary polygon."
         )
@@ -35,20 +35,21 @@ def main():
 
     logger.info("Loading data...")
     adata = ad.read_h5ad(sis_out / "cell_by_gene.h5ad")
+    adata.obs.rename({"cell_label": "cell_id"}, axis="columns", inplace=True)
     boundaries = gpd.read_file(sis_out / "cell_polygons.geojson")
 
     spot_id_to_label = dict(
         zip(
             adata.obs["SpotTable_cell_id"].astype(str),
-            adata.obs["cell_label"].astype(str),
+            adata.obs["cell_id"].astype(str),
         )
     )
-    boundaries["cell_label"] = boundaries["id"].astype(str).map(spot_id_to_label)
-    boundaries = boundaries.dropna(subset=["cell_label", "geometry"]).copy()
+    boundaries["cell_id"] = boundaries["id"].astype(str).map(spot_id_to_label)
+    boundaries = boundaries.dropna(subset=["cell_id", "geometry"]).copy()
     boundaries["geometry"] = boundaries.geometry.make_valid()
-    boundaries.index = boundaries.pop("cell_label")
+    boundaries.index = boundaries.pop("cell_id")
 
-    adata.obs_names = adata.obs["cell_label"].astype(str)
+    adata.obs_names = adata.obs["cell_id"].astype(str)
     boundaries = boundaries[boundaries.index.isin(adata.obs_names)]
 
     missing = adata.obs_names.difference(boundaries.index)
@@ -85,7 +86,7 @@ def main():
                 adata,
                 region="boundaries_3D",
                 region_key="region",
-                instance_key="cell_label",
+                instance_key="cell_id",
             )
         },
     )
