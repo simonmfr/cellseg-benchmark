@@ -284,7 +284,9 @@ def integrate_segmentation_data(
                         )
                     )
                 if any([seg_method.startswith(x) for x in methods_3D]):
-                    sdata_main = add_3D_intensities(sdata_main, seg_method, sdata_path)
+                    sdata_main = add_3D_intensities(
+                        sdata_main, seg_method, sdata_path, logger=logger
+                    )
 
                 adata = sdata_main[f"adata_{seg_method}"]
 
