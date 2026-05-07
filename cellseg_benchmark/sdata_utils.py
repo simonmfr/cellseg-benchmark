@@ -756,7 +756,7 @@ def get_2D_boundaries(
     Returns:
         assigned transcriptions to sdata.
     """
-    if method.startswith("vpt_3D") or method.startswith("Watershed_Merlin"):
+    if method.startswith("vpt_3D") or method.startswith("Watershed_Merlin") or method.startswith("SIS"):
         try:
             bound = org_sdata[boundary_key][["cell_id", "geometry"]].dissolve(
                 by="cell_id"
