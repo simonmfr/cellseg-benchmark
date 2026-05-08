@@ -22,8 +22,6 @@ for sample, meta in data.items():
         extras += ["--obs", f"{k}={v}"]
 
     argv = [
-        "python",
-        "~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/master_sdata.py",
         sample,
         meta["path"],
         "z3",
@@ -40,7 +38,7 @@ for sample, meta in data.items():
         str(meta["run_date"]),
         *extras,
     ]
-    cli = " \\\n".join(shlex.quote(str(a)) for a in argv)
+    cli_args = " \\\n".join(shlex.quote(str(a)) for a in argv)
 
     sbatch = f"""#!/bin/bash
 
@@ -57,6 +55,6 @@ for sample, meta in data.items():
 set -eu
 
 mamba activate seg_postprocessing
-{cli}
+python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/master_sdata.py {cli_args}
 """
     (Path(OUT) / f"{sample}.sbatch").write_text(sbatch)
