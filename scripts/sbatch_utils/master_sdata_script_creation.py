@@ -57,8 +57,6 @@ for sample, meta in data.items():
 set -eu
 
 mamba activate seg_postprocessing
-"$CONDA_PREFIX/bin/time" -v \
-  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/master_sdata_{sample}_$(date +%Y%m%d_%H%M%S).time" \
 {cli}
 """
     (Path(OUT) / f"{sample}.sbatch").write_text(sbatch)
