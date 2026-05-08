@@ -46,7 +46,7 @@ for sample, meta in data.items():
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 02:00:00
+#SBATCH -t 04:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=200G
