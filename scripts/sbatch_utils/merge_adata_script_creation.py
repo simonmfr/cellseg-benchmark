@@ -52,6 +52,8 @@ methods = [
     "vpt_3D_DAPI_PolyT",
     "vpt_3D_DAPI_nuclei",
     "vpt_3D_DAPI_PolyT_nuclei",
+    "Watershed_Merlin",
+    "SIS_DAPI_total_mrna",
 ]
 
 Path(sbatch_path).mkdir(parents=False, exist_ok=True)
@@ -89,7 +91,5 @@ export NUMEXPR_NUM_THREADS=1
 set -eu
 
 mamba activate seg_postprocessing
-"$CONDA_PREFIX/bin/time" -v \
-  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merge_adata_{args.cohort}_{method}_$(date +%Y%m%d_%H%M%S).time" \
 python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
 """)
