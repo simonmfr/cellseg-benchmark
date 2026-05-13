@@ -650,6 +650,7 @@ def compute_polygon_stats_3D(
             global_z_min=global_z_min,
             global_z_max=global_z_max,
             ZIndex=z_level_name,
+            logger=logger,
         )
         m["cell_id"] = entity_id
         return m
@@ -1067,7 +1068,7 @@ def _compute_trapz_with_conditional_caps(areas, z_indices, z_spacing, z_min, z_m
 
 
 def _compute_3d_metrics(
-    group, z_spacing, global_z_min, global_z_max, ZIndex: str = "ZIndex"
+    group, z_spacing, global_z_min, global_z_max, ZIndex: str = "ZIndex", logger=None
 ):
     """Compute 3D morphology metrics with robust and dual volume estimation."""
     try:
@@ -1094,6 +1095,7 @@ def _compute_3d_metrics(
         volume_trapz = _compute_trapz_with_conditional_caps(
             areas, z_indices, z_spacing, global_z_min, global_z_max
         )
+        logger.debug(f"volume_final: {volume_trapz}")
 
         perimeters = np.fromiter(
             (
@@ -1127,6 +1129,7 @@ def _compute_3d_metrics(
                 else np.nan
             ),
         }
+        logger.debug("build metrics dict")
 
         thin_stack = len(polygons) < 2 or (np.ptp(z_um) < 3 * z_spacing)
 
@@ -1192,7 +1195,7 @@ def _compute_3d_metrics(
         else:
             elongation = 1.0
         metrics["elongation"] = elongation
-
+        logger.debug("return dict.")
         return metrics
 
     except Exception as e:
