@@ -1197,7 +1197,18 @@ def _compute_3d_metrics(
 
     except Exception as e:
         warnings.warn(f"Failed to compute 3D metrics: {str(e)}")
-        return {}
+        return {
+            "dimensionality": "3D",
+            "area": 0,
+            "volume_sum": 0,
+            "volume_trapz": 0,
+            "volume_final": 0,
+            "num_z_planes": 0,
+            "size_normalized": np.nan,
+            "surface_to_volume_ratio": np.nan,
+            "solidity": np.nan,
+            "elongation": np.nan,
+        }
 
 
 def add_visium_boundaries(

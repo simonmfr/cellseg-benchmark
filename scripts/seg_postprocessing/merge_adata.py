@@ -82,19 +82,6 @@ def main():
     # keep YAML order, drop Nones
     adata_list = [(name, ad) for name, ad in results if ad is not None]
 
-    # temp fix for aging_s11_r0
-    # for i, (n, ad) in enumerate(adata_list):
-    #    if n == "aging_s11_r0":
-    #        # if "aging" in n:
-    #        m = sample_metadata_file[n]
-    #        for k, v in {
-    #            **m,
-    #            "sample": n,
-    #            "condition": f"{m['genotype']}_{m['age_months']}",
-    #        }.items():
-    #            ad.obs[k] = pd.Categorical([str(v)] * len(ad))
-    #        adata_list[i] = (n, ad)
-
     # Merge and process
     adata = adata_utils.merge_adatas(
         adata_list,
