@@ -56,12 +56,6 @@ suppressPackageStartupMessages({
     library(ggplot2)
 })
 """)
-# Logger setup
-logger = logging.getLogger("vascular_subclustering")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
-logger.addHandler(handler)
 
 parser = argparse.ArgumentParser(description="DEA")
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
