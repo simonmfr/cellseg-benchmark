@@ -1016,7 +1016,8 @@ def _compute_2d_metrics(geom, z_spacing: float):
         geom = max(geom.geoms, key=lambda p: p.area)
 
     if geom.is_empty or geom.geom_type != "Polygon":
-        return {}
+        #needs to return at least volume_final for merge
+        return {"volume_final": 0}
 
     area = geom.area
     perimeter = geom.length
