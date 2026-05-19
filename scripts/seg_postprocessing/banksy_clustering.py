@@ -189,8 +189,8 @@ for s in adata.obs["sample"].unique():
         library_id="spatial",
         figsize=(7, 7),
         wspace=0.25,
-        save=f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/banksy_tests/{args.cohort}/banksy_align_{s}.png",
+        save=f"{args.save_folder}/Plots/banksy_align_{args.cohort}_{s}.png",
     )
 adata.write(
-    f"{args.save_folder}/spatial_reg_adata.h5ad"
+    f"{args.save_folder}/spatial_reg_adata_{args.cohort}.h5ad"
 )
