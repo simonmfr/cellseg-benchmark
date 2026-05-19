@@ -60,20 +60,20 @@ suppressPackageStartupMessages({
 parser = argparse.ArgumentParser(description="DEA")
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 parser.add_argument(
-    "--seg_method",
-    default="Negative_Control_Rastered_25",
-    help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'",
+    "adata_path", help="Path to adata used for banksy clustering.",
+)
+parser.add_argument(
+    "save_folder", help="Folder to save adata with banksy clustering.",
 )
 args = parser.parse_args()
 
 base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-method_path = base_path / "analysis" / args.cohort / args.seg_method
 data_dir = os.path.abspath("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])
     print(sc.settings.n_jobs)
 logger.info("Loading integrated adata...")
-adata = sc.read_h5ad(os.path.join(base_path, "analysis", args.cohort, args.seg_method, "adatas", "adata_integrated.h5ad.gz"))
+adata = sc.read_h5ad(args.adata_path)
 point_size_factor = 320000
 celltype_col = "cell_type_mmc_raw_revised"
 
@@ -192,5 +192,5 @@ for s in adata.obs["sample"].unique():
         save=f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/banksy_tests/{args.cohort}/banksy_align_{s}.png",
     )
 adata.write(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/analysis/{args.cohort}/{args.seg_method}/adatas/spatial_reg_adata.h5ad"
+    f"{args.save_folder}/spatial_reg_adata.h5ad"
 )
