@@ -3,6 +3,7 @@ from .cell_type import compute_cell_type_distribution, plot_cell_type_distributi
 from .clustering import compute_clustering_scores, plot_clustering_scores
 from .ficture import compute_ficture_f1_parallel
 from .general import extract_general_stats, plot_general_stats, extract_mem_and_time, plot_mem_and_time
+from .f1_score import compute_f1
 from .marker_gene_based import (
     compute_marker_F1_score,
     compute_MECR_score,
@@ -43,6 +44,7 @@ __all__ = [
     "plot_general_stats",
     "extract_mem_and_time",
     "plot_mem_and_time",
+    "compute_f1",
     "compute_marker_F1_score",
     "plot_marker_F1_score",
     "compute_MECR_score",
