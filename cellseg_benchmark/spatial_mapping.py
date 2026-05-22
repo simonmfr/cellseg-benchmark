@@ -978,16 +978,8 @@ def _build_slide_index(label_polys_for_slide: dict):
 
     tree = STRtree(geoms)
     prepared = [_prepare(g) for g in geoms]
-    if _SHAPELY2:
-
-        def cand_fn(geom):  # returns integer indices
-            return tree.query(geom)
-    else:
-        # Shapely 1.8 returns geometries; map to indices
-        id_to_idx = {id(g): i for i, g in enumerate(geoms)}
-
-        def cand_fn(geom):
-            return [id_to_idx[id(g)] for g in tree.query(geom)]
+    def cand_fn(geom):  # returns integer indices
+        return tree.query(geom)
 
     return tree, prepared, meta, cand_fn
 

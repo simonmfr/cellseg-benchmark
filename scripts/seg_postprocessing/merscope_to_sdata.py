@@ -114,8 +114,16 @@ def main():
         header=None,
     )
 
-    sdata["table"].obsm["intensities"] = sopa.aggregation.aggregate_channels(
-        sdata, shapes_key=agg_key
+    sdata["table"].obsm["intensities"] = pandas.DataFrame(
+            sopa.aggregation.aggregate_channels(
+            sdata, shapes_key=agg_key
+        ),
+        columns=sopa.utils.validated_channel_names(
+            sopa.utils.get_spatial_image(
+                sdata, list(sdata.images.keys())[0], return_key=True
+            )[1]
+        ),
+        index=sdata[agg_key].index.astype(str),
     )
 
     if args.segmentation == "watershed":

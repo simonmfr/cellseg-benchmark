@@ -6,6 +6,7 @@ import anndata as ad
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import sopa
 import spatialdata as sd
 import spatialdata.models as sd_models
 
@@ -91,6 +92,25 @@ def main():
             )
         },
     )
+
+    boundaries = sdata['boundaries_3D'].copy()
+    boundaries_2d = boundaries[["cell_id", "geometry"]].dissolve(by="cell_id")
+    boundaries_2d.index = boundaries_2d.index.rename(None)
+    sdata["boundaries_2D"] = sd.models.ShapesModel.parse(boundaries_2d)
+
+    sdata["table"].obsm["intensities"] = pd.DataFrame(
+        sopa.aggregation.aggregate_channels(
+            sdata, shapes_key="boundaries_2D"
+        ),
+        columns=sopa.utils.validated_channel_names(
+            sopa.utils.get_spatial_image(
+                sdata, list(sdata.images.keys())[0], return_key=True
+            )[1]
+        ),
+        index=sdata["boundaries_2D"].index.astype(str),
+    )
+
+    del sdata["boundaries_2D"]
 
     out_path = pathlib.Path(args.data_path, "sdata.zarr")
     logger.info(f"Writing to {out_path}")
