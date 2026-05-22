@@ -9,6 +9,7 @@ import pandas as pd
 import sopa
 import spatialdata as sd
 import spatialdata.models as sd_models
+import spatialdata_io
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s"
@@ -26,6 +27,7 @@ def main():
         )
     )
     parser.add_argument("data_path", type=str, help="Path to sis_out.")
+    parser.add_argument("image_path", type=str, help="Path to images.")
     args = parser.parse_args()
 
     sis_out = pathlib.Path(args.data_path, "sis_out")
@@ -92,6 +94,16 @@ def main():
             )
         },
     )
+
+    sdata_tmp = spatialdata_io.merscope(
+        args.image_path,
+        transcripts=False,
+        cells_boundaries=False,
+        cells_table=False,
+    )
+    for key in sdata_tmp.images.keys():
+        sdata[key] = sdata_tmp[key]
+    del sdata_tmp
 
     boundaries = sdata['boundaries_3D'].copy()
     boundaries_2d = boundaries[["cell_id", "geometry"]].dissolve(by="cell_id")

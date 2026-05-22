@@ -3,6 +3,8 @@
 
 import pathlib
 
+import yaml
+
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 samples = sorted(
@@ -19,7 +21,16 @@ if not samples:
 
 print(f"Found {len(samples)} samples.")
 
+YAML = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+with open(YAML) as f:
+    data = yaml.safe_load(f)
+
 paths = " ".join(f'"{s}"' for s in samples)
+image_paths = []
+for s in samples:
+    path = data[s]["path"]
+    image_paths.append(f'"{path}"')
+image_paths = " ".join(image_paths)
 sbatch = f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
@@ -32,8 +43,9 @@ sbatch = f"""#!/bin/bash
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 PATHS=({paths})
+IMAGE_PATHS=({image_paths})
 mamba activate segmentation
-python "$HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/sis_to_sdata.py" "${{PATHS[$SLURM_ARRAY_TASK_ID]}}"
+python "$HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/sis_to_sdata.py" "${{PATHS[$SLURM_ARRAY_TASK_ID]}}" "${{IMAGE_PATHS[$SLURM_ARRAY_TASK_ID]}}"
 """
 
 sbatch_file = BASE_PATH / "misc/sbatches/sbatch_SIS_to_sdata/SIS_to_sdata_array.sbatch"
