@@ -28,7 +28,7 @@ with open(YAML) as f:
 paths = " ".join(f'"{s}"' for s in samples)
 image_paths = []
 for s in samples:
-    path = data[s]["path"]
+    path = data[s.parent.parent]["path"]
     image_paths.append(f'"{path}"')
 image_paths = " ".join(image_paths)
 sbatch = f"""#!/bin/bash
