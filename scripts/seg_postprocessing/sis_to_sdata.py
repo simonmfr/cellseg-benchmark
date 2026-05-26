@@ -110,7 +110,7 @@ def main():
     boundaries_2d.index = boundaries_2d.index.rename(None)
     sdata["boundaries_2D"] = sd.models.ShapesModel.parse(boundaries_2d)
 
-    sdata["table"].obsm["intensities"] = pd.DataFrame(
+    intensities = pd.DataFrame(
         sopa.aggregation.aggregate_channels(
             sdata, shapes_key="boundaries_2D"
         ),
@@ -121,7 +121,8 @@ def main():
         ),
         index=sdata["boundaries_2D"].index.astype(str),
     )
-
+    intensities = intensities.loc[sdata['table'].obs_names]
+    sdata["table"].obsm["intensities"] = intensities
     del sdata["boundaries_2D"]
 
     out_path = pathlib.Path(args.data_path, "sdata.zarr")
