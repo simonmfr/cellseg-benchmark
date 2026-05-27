@@ -52,6 +52,9 @@ methods = [
     "vpt_3D_DAPI_PolyT",
     "vpt_3D_DAPI_nuclei",
     "vpt_3D_DAPI_PolyT_nuclei",
+    "Proseg_3D_vpt_3D_DAPI_PolyT",
+    "Proseg_3D_vpt_3D_DAPI_nuclei",
+    "Proseg_3D_vpt_3D_DAPI_PolyT_nuclei",
     "Watershed_Merlin",
     "SIS_DAPI_total_mrna",
 ]
