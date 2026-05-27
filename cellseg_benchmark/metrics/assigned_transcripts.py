@@ -29,6 +29,7 @@ def compute_assigned_transcripts(
         ["sample", "gene", "assigned_count_qced", "assigned_count_raw",
          "total_count", "pct_assigned_raw", "pct_assigned_qced"].
     """
+    base_path = pathlib.Path(base_path)
     df_total = _total_transcripts(adata, base_path=base_path)
     df_assigned = _assigned_transcripts(
         adata=adata,

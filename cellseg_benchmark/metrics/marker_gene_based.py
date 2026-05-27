@@ -491,7 +491,7 @@ def plot_MECR_score(cohort, results_suffix, percentile=97, show=False):
 
 
 def compute_marker_F1_score(
-    adata, celltype_name, layer="volume_log1p_norm", threshold=1
+    adata, celltype_name, layer="volume_log1p_norm", threshold=1, **kwargs
 ):
     """Compute F1 scores for matching marker–cell type pairs.
 
@@ -500,6 +500,7 @@ def compute_marker_F1_score(
         celltype_name: column in adata containing celltypes
         layer: layer of gene expression in adata to use for computing marker f1 score
         threshold: expression threshold
+        **kwargs: additional keywords, not recognized
 
     Returns:
         pd.DataFrame with F1 scores and related metrics
