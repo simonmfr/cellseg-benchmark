@@ -38,4 +38,4 @@ if __name__ == "__main__":
         "intensities_DAPI",
         "Ovrlpy_stats_mean_integrity",
     ]:
-        plot_general_stats(args.cohorts, metric, show=False)
+        plot_general_stats(args.cohort, metric, show=False)
