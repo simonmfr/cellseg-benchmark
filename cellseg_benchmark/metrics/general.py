@@ -283,15 +283,17 @@ def extract_mem_and_time(
     out = out.reset_index(drop=True)
     return out
 
-def plot_mem_and_time(cohort, metric, show: bool = False):
+def plot_mem_and_time(cohort, metric=None, show: bool = False):
     """Violin plots of chosen metrics. Metrics can be "memory", "cpus", "duration"."""
     if isinstance(metric, str):
         if metric not in ["memory", "cpus", "duration"]:
             raise ValueError(f"Metric {metric!r} is not supported. Choose one of memory, cpus or duration.")
         metric = [metric]
     elif isinstance(metric, list):
-        if not all(x.isin(["memory", "cpus", "duration"]) for x in metric):
+        if not all([x in ["memory", "cpus", "duration"] for x in metric]):
             raise ValueError(f"Metric {metric!r} is not supported. Choose subset of memory, cpus or duration.")
+        if metric is None:
+            metric = ["memory", "cpus", "duration"]
 
     column_mapping = {
         "memory": "maxrss_gb",
