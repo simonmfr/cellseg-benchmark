@@ -326,7 +326,11 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
     if j == f"voronoi_{k}":
         return "Negative_Control_Voronoi"
     if j == f"nuclei_{k}":
-        return "Negative_Control_Nuclei"
+        return "Cellpose_1_nuclei_model"
+    if j == f"merscope_watershed_{k}":
+        return "Watershed_Merlin"
+    if j == f"SIS_{k}":
+        return "SIS_DAPI_total_mrna"
     if j == f"merscope_{k}":
         return "MERSCOPE"
     if j == f"transcript_tif_{k}":
