@@ -1622,30 +1622,6 @@ methods_3D = ["Proseg_3D", "vpt_3D", "Watershed_Merlin"]
 
 image_based = ["Cellpose", "Negative_Control"]
 
-factor_to_celltype = {
-    "0": "Astrocytes",
-    "1": "BAMs",
-    "2": "ECs",
-    "3": "Ependymal",
-    "4": "Immune-Other",
-    "5": "Microglia",
-    "6": "Neurons-Dopa-Gaba",
-    "7": "Neurons-Gaba",
-    "8": "Neurons-Glut",
-    "9": "Neurons-Glyc-Gaba",
-    "10": "Neurons-Granule-Immature",
-    "11": "Neurons-Other",
-    "12": "OECs",
-    "13": "OPCs",
-    "14": "Oligodendrocytes",
-    "15": "Pericytes",
-    "16": "SMCs",
-    "17": "VLMCs",
-    "18": "ABCs",
-    "19": "Bergmann",
-    "20": "Neurons-Dopa",
-}
-
 index_order = [
     "Astrocytes",
     "BAMs",
@@ -1695,7 +1671,33 @@ column_order = [
     "OECs",
 ]
 
+factor_to_celltype = {
+    "0": "Astrocytes",
+    "1": "BAMs",
+    "2": "ECs",
+    "3": "Ependymal",
+    "4": "Immune-Other",
+    "5": "Microglia",
+    "6": "Neurons-Dopa-Gaba",
+    "7": "Neurons-Gaba",
+    "8": "Neurons-Glut",
+    "9": "Neurons-Glyc-Gaba",
+    "10": "Neurons-Granule-Immature",
+    "11": "Neurons-Other",
+    "12": "OECs",
+    "13": "OPCs",
+    "14": "Oligodendrocytes",
+    "15": "Pericytes",
+    "16": "SMCs",
+    "17": "VLMCs",
+    "18": "ABCs",
+    "19": "Bergmann",
+    "20": "Neurons-Dopa",
+}
+
 true_cluster = {
+
+    
     "Astrocytes": "Astrocytes",
     "Astroependymal": "Astrocytes",
     "BAMs": "BAMs",
@@ -1719,6 +1721,7 @@ true_cluster = {
     "ABCs": "ABCs",
     "Bergmann": "Bergmann",
     "Neurons-Dopa": "Neurons-Dopa",
+    "Tanycytes": "Ependymal",
 }
 
 contamination_markers = {
@@ -1808,9 +1811,9 @@ method_colors = {
     "Proseg_3D_Cellpose_1_nuclei_model": "#f1d9a1",
     "Proseg_3D_Cellpose_2_DAPI_PolyT": "#efce82",
     "Proseg_3D_Cellpose_2_DAPI_Transcripts": "#eec364",
-    "Proseg_3D_vpt3D_nuclei": "#edb846",
-    "Proseg_3D_vpt3D_PolyT": "#eaad28",
-    "Proseg_3D_vpt3D_PolyT_nuclei": "#e8a20a",
+    "Proseg_3D_vpt3D_DAPI_nuclei": "#edb846",
+    "Proseg_3D_vpt3D_DAPI_PolyT": "#eaad28",
+    "Proseg_3D_vpt3D_DAPI_PolyT_nuclei": "#e8a20a",
     # Negative controls (grey palette)
     "Negative_Control_Rastered_5": "#252525",
     "Negative_Control_Rastered_10": "#525252",
@@ -1818,6 +1821,8 @@ method_colors = {
     "Negative_Control_Voronoi": "#969696",
     # ComSeg standalone (dark purple)
     "ComSeg": "#d7f035",
+    "SIS_DAPI_total_mrna": "#9cb01c",
+    "Watershed_Merlin": "#8a9159",
 }
 
 clean_method_names_raw = {
