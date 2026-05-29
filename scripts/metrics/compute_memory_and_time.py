@@ -12,7 +12,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("cohort", help="Cohort name.")
     parser.add_argument(
-        "plot_metric", choices=["memory", "cpus", "duration"], help="Specify the metric to plot."
+        "--plot_metric", nargs="+", choices=["memory", "cpus", "duration"], help="Specify the metric to plot."
     )
     parser.add_argument(
         "--ref_file_path", help="Path to file containing the raw output of sacct."
