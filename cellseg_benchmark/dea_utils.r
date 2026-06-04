@@ -272,7 +272,8 @@ mast_run_cached <- function(adata,
                             clear_cache = TRUE,
                             sample_random_effects = TRUE,
                             max_cells_per_condition = 10000,
-                            brain_region_subset = NULL) {
+                            brain_region_subset = NULL,
+                            cond_theshold = FALSE) {
 
   mode_tag <- if (isTRUE(sample_random_effects)) "RE" else "FE"
 
@@ -407,6 +408,18 @@ mast_run_cached <- function(adata,
       message("   Skipping group '", group_i,
               "': too few cells after removing samples with few cells (",
               n_cells, " cells).")
+      return(NULL)
+    }
+  }
+
+  if (cond_theshold) {
+    tab_cond <- table(cd[[condition_col]])
+    small_conditions <- names(tab_cond[tab_cond < 50L])
+
+    if (length(small_samples) > 0L) {
+      message("   Skipping group '", group_i,
+              "': too few cells within one condition."
+              )
       return(NULL)
     }
   }
