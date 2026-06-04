@@ -273,7 +273,7 @@ mast_run_cached <- function(adata,
                             sample_random_effects = TRUE,
                             max_cells_per_condition = 10000,
                             brain_region_subset = NULL,
-                            cond_theshold = FALSE) {
+                            cond_threshold = FALSE) {
 
   mode_tag <- if (isTRUE(sample_random_effects)) "RE" else "FE"
 
@@ -412,7 +412,7 @@ mast_run_cached <- function(adata,
     }
   }
 
-  if (cond_theshold) {
+  if (cond_threshold) {
     tab_cond <- table(cd[[condition_col]])
     small_conditions <- names(tab_cond[tab_cond < 50L])
 
