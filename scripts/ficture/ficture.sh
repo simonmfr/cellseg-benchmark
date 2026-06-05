@@ -94,11 +94,16 @@ ficture init_model_from_pseudobulk --input "$hexagon_gz" --output "$fit_prefix" 
 cp "${fit_prefix}.posterior.count.tsv.gz" "${fit_prefix}.model_matrix.tsv.gz"
 model_matrix="${fit_prefix}.model_matrix.tsv.gz"
 
-# --- Step 6: choose_color + plot_base ---
-echo "Step 6: choose_color + plot_base"
+# --- Step 6: load color + plot overview ---
+echo "Step 6: choose color + plot overview"
+GLOBAL_CMAP="${RESOURCES_DIR}/model.rgb.tsv"
 cmap_path="${figure_path}/model.rgb.tsv"
-ficture choose_color --input "${fit_prefix}.fit_result.tsv.gz" \
-    --output "${figure_path}/model" --cmap_name turbo
+if [ ! -f "$GLOBAL_CMAP" ]; then
+  ficture choose_color --input "${fit_prefix}.fit_result.tsv.gz" \
+    --output "${RESOURCES_DIR}/model.tmp.$$" --cmap_name turbo
+  mv -n "${RESOURCES_DIR}/model.tmp.$$.rgb.tsv" "$GLOBAL_CMAP"
+fi
+cp "$GLOBAL_CMAP" "$cmap_path"
 ficture plot_base --input "${fit_prefix}.fit_result.tsv.gz" \
     --output "${figure_path}/model.coarse" --fill_range $((train_width/2+1)) \
     --color_table "$cmap_path" --plot_um_per_pixel 1 --plot_discretized

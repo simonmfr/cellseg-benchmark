@@ -29,8 +29,9 @@ for key, value in samples.items():
 #SBATCH --qos=cm4_tiny
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=112
-#SBATCH -t 02:00:00
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=64G
+#SBATCH -t 04:00:00
 #SBATCH -J Ficture_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/Ficture_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/Ficture_{key}.err
