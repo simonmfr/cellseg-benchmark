@@ -39,7 +39,7 @@ RESOURCES_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/Fictur
 AGGREGATED_MODEL="${RESOURCES_DIR}/aggregated_counts.tsv.gz"
 
 train_width=6
-thread=48
+thread=32
 mu_scale=1
 key="Count"
 major_axis="X"
