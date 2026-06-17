@@ -22,7 +22,6 @@ def assign_cell_types_to_clusters(
     adata, leiden_col, cell_type_col="cell_type_mapmycells", min_cells=100
 ):
     """Assign cell type labels to leiden clusters based on majority vote of MapMyCells results."""
-    # Create crosstab
     cluster_cell_type_crosstab = pd.crosstab(
         adata.obs[leiden_col],
         adata.obs[cell_type_col],
@@ -62,42 +61,29 @@ def assign_final_cell_types(
     score_delta=0.2,
     logger=None,
 ):
-    """Assign final cell types based on cluster-mean marker gene scores.
+    """
+    Assign final cell types based on cluster-mean marker gene scores.
 
         - If highest_score ≥ score_high_threshold → reassign to top-scoring cell type
           (only if ≥ score_delta higher than current MMC label)
         - If all scores < score_low_threshold → mark as 'Undefined'
         - Otherwise → keep MMC label (no change)
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data matrix.
-    cluster_labels_dict : dict
-        Mapping from Leiden cluster ID → MMC-assigned cell type (majority vote).
-    mmc_to_score_dict : dict
-        Mapping from MMC cell type names → score column suffixes.
-    leiden_col : str
-        Column in adata.obs containing Leiden cluster IDs.
-    out_col : str, default "cell_type_final"
-        Column name for the final assigned cell type.
-    score_high_threshold : float, default 0.7
-        Minimum score to confidently reassign a cluster to the top-scoring cell type.
-    score_low_threshold : float, default 0.25
-        If all scores are below this, cluster is set to 'Undefined'.
-    score_delta : float, default 0.2
-        Minimum score difference required to justify reassignment.
-    logger : logging.Logger, optional
-        Logger for progress reporting.
-
+    Args:
+        adata (AnnData): Annotated data matrix.
+        cluster_labels_dict (dict): Mapping from Leiden cluster ID to MMC-assigned cell type (majority vote).
+        mmc_to_score_dict (dict): Mapping from MMC cell type names to score column suffixes.
+        leiden_col (str): Column in adata.obs containing Leiden cluster IDs.
+        out_col (str): Column name for the final assigned cell type. Default "cell_type_final".
+        score_high_threshold (float): Minimum score to confidently reassign a cluster to the top-scoring cell type. Default 0.7.
+        score_low_threshold (float): If all scores are below this, cluster is set to 'Undefined'. Default 0.25.
+        score_delta (float): Minimum score difference required to justify reassignment. Default 0.2.
+        logger (logging.Logger, optional): Logger instance.
+    
     Returns:
-    -------
-    adata : AnnData
-        Updated AnnData with new column adata.obs[out_col].
-    undefined_reasons : dict
-        Reasons for why clusters were marked as 'Undefined'.
-    cluster_score_matrix : pd.DataFrame
-        Mean score per cluster and cell type.
+        adata (AnnData): Updated AnnData with new column adata.obs[out_col].
+        undefined_reasons (dict): Reasons for why clusters were marked as 'Undefined'.
+        cluster_score_matrix (pd.DataFrame): Mean score per cluster and cell type.
     """
     adata.obs[out_col] = np.nan
     undefined_reasons = {}
@@ -129,7 +115,7 @@ def assign_final_cell_types(
         highest_score = valid_scores[highest_cell_type]
         assigned_score = valid_scores.get(assigned_cell_type, np.nan)
 
-        # --- Decision logic ---
+        # Decision logic
         if highest_score >= score_high_threshold:
             delta = (
                 (highest_score - assigned_score)
@@ -171,10 +157,8 @@ def create_mixed_cell_types(
     runnerup_col="allen_runner_up_1_SUBC",
 ):
     """Create DataFrame with mixed cell type annotations, based on MapMyCells probability differences."""
-    # Identify mixed cells
     is_mixed = (df[diff_col] < diff_threshold) & (df[main_col] != df[runnerup_col])
 
-    # Create result DataFrame
     result = pd.DataFrame(index=df.index)
     result["allen_SUBC_is_mixed"] = is_mixed.map({True: "mixed", False: "unique"})
     result["allen_SUBC_incl_mixed"] = df[main_col].where(~is_mixed, "Mixed")
@@ -191,7 +175,6 @@ def export_filter_adatas_from_sdata(sdata_path, logger):
 
     sdata = read_zarr(sdata_path)
 
-    # Create target dir
     export_dir = os.path.join(sdata_path, "..", "_cell_type_annotation")
     os.makedirs(export_dir, exist_ok=True)
 
@@ -265,11 +248,9 @@ def group_cell_types(metadata_col):
         "BAM": "BAMs",
         "IMN": "Neurons-Granule-Immature",
         "Neurons-Glut-Chol": "Neurons-Other",
-        # "Neurons-Gaba-Glut": "Neurons-Other",
         "Neurons-Chol": "Neurons-Other",
         "Neurons-Hist-Gaba": "Neurons-Other",
         "Neurons-Gaba-Chol": "Neurons-Other",
-        # "Neurons-Glut-Sero": "Neurons-Other",
         "Neurons-Dopa-Gaba": "Neurons-Dopa",
         "Neurons-Gly-Gaba": "Neurons-Glyc-Gaba",
         "Neurons-Gaba-Glut": "Neurons-Gaba",
@@ -311,13 +292,17 @@ def plot_mad_thresholds(
     mad_factor=3,
     figsize=(13, 7),
 ):
-    """Plot a violin plot of data grouped by a specified column, with horizontal lines showing MAD thresholds.
+    """
+    Plot a violin plot of data grouped by a specified column, with horizontal lines showing MAD thresholds.
 
-    Parameters:
-    - Allen_MMC_metadata: DataFrame containing the data
-    - group_column: Column name for grouping (e.g. "allen_CLUS")
-    - value_column: Column name for the values (e.g. "allen_avg_cor_CLUS")
-    - mad_factor: The factor for excluding outliers based on MAD (default is 3)
+    Args:
+        Allen_MMC_metadata (pd.DataFrame): DataFrame containing the data.
+        out_path (str): Output directory path.
+        name (str): Output filename stem. Default "mad_threshold".
+        group_column (str): Column name for grouping. Default "allen_CLUS".
+        value_column (str): Column name for the values. Default "allen_cor_CLUS".
+        mad_factor (int): Factor for excluding outliers based on MAD. Default 3.
+        figsize (tuple): Figure size. Default (13, 7).
     """
     # Compute MAD within each cluster
     grouped_mad = Allen_MMC_metadata.groupby(group_column)[value_column].apply(
@@ -363,7 +348,8 @@ def plot_mad_thresholds(
 
 
 def process_adata(adata, seg_method, logger):
-    """Preprocess AnnData object.
+    """
+    Preprocess AnnData object.
 
         - Filter cells
         - Normalize count data by cell volume
@@ -443,33 +429,29 @@ def process_adata(adata, seg_method, logger):
 
 
 def plot_metric_distributions(df, out_path, file_name):
-    """Plots histograms of raw MapMyCell metrics (correlations, probabilities, and runner-up metrics) for "CLAS" and "SUBC".
+    """
+    Plots histograms of raw MapMyCell metrics (correlations, probabilities, and runner-up metrics) for "CLAS" and "SUBC".
 
     For detailed explanation of MapMyCells output see https://github.com/AllenInstitute/cell_type_mapper/blob/main/docs/output.md.
     """
-    # Sample data
     sample_data = df.sample(min(50000, len(df)))
 
-    # Get columns ending with "CLAS" or "SUBC"
     cols_to_plot = [
         col
         for col in sample_data.select_dtypes(include=[np.number]).columns
         if col.endswith(("CLAS", "SUBC"))
     ]
 
-    # Set up plot grid
     n_cols, n_rows = 4, (len(cols_to_plot) + 3) // 4
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(10, 8))
     axes = axes.flatten() if hasattr(axes, "flatten") else [axes]
 
-    # Plot histograms
     for i, col in enumerate(cols_to_plot):
         if i < len(axes):
             axes[i].hist(sample_data[col].dropna(), bins=80, range=(0, 1))
             axes[i].set_title(col, fontsize=8)
             axes[i].tick_params(labelsize=7)
 
-    # Hide unused subplots
     for i in range(len(cols_to_plot), len(axes)):
         axes[i].set_visible(False)
 
@@ -479,7 +461,8 @@ def plot_metric_distributions(df, out_path, file_name):
 
 
 def process_mapmycells_output(json_results):
-    """Process MapMyCells JSON output into pd.DataFrame per cell with cell type labels, correlations, probabilities, and runner-up metrics.
+    """
+    Process MapMyCells JSON output into pd.DataFrame per cell with cell type labels, correlations, probabilities, and runner-up metrics.
 
     For detailed explanation of MapMyCells output see https://github.com/AllenInstitute/cell_type_mapper/blob/main/docs/output.md.
     """
@@ -564,21 +547,16 @@ def revise_annotations(
     ABCAtlas_marker_df_path=None,
     logger=None,
 ):
-    """De-noise MapMyCells annotations by assigning cell types to Leiden clusters based on majority vote, plus revise annotations based on marker gene expression. Wrapper for score_cell_types(), assign_cell_types_to_clusters(), assign_final_cell_types().
+    """
+    De-noise MapMyCells annotations by assigning cell types to Leiden clusters based on majority vote, plus revise annotations based on marker gene expression. Wrapper for score_cell_types(), assign_cell_types_to_clusters(), assign_final_cell_types().
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data matrix with gene expression and metadata.
-    leiden_col : string
-        Column containing leiden clusters
-    cell_type_colors : dict
-        Dictionary mapping cell types to colors.
-    score_threshold : float, default=0.5
-        Threshold for cell type score to be considered valid.
-    top_n_genes : int, default=50
-        Number of top marker genes to use for scoring.
-    logger : logging.Logger, optional
+    Args:
+        adata (AnnData): Annotated data matrix with gene expression and metadata.
+        leiden_col (str): Column containing leiden clusters.
+        cell_type_colors (dict): Dictionary mapping cell types to colors.
+        score_threshold (float): Threshold for cell type score to be considered valid. Default 0.5.
+        top_n_genes (int): Number of top marker genes to use for scoring. Default 50.
+        logger (logging.Logger, optional): Logger instance.
 
     """
     # Check if leiden clustering exists, run if not present
@@ -796,7 +774,7 @@ def flag_contamination(
         layer (str): Expression layer to use.
         absolute_min (float, optional): Minimum expression threshold for meaningful signal in adata.layers[layer].
         z_threshold (float, optional): Z-score threshold for population outliers.
-        logger (logging.Logger, optional): Python logging instance.
+        logger (logging.Logger, optional): Logger instance.
     """
     if logger:
         logger.info("Marker expression distribution check")
@@ -952,11 +930,12 @@ def annotate_cells_by_score(
 
 
 def update_explorer(path, adata):
-    """Update explorer files.
+    """
+    Update explorer files.
 
     Args:
-    path: path to sdata.zarr and sdata.explorer
-    adata: annotated adata
+        path: path to sdata.zarr and sdata.explorer
+        adata: annotated adata
     """
     # load on demand
     from sopa.io.explorer import write_cell_categories
