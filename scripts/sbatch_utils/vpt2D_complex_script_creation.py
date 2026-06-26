@@ -2,7 +2,6 @@ import argparse
 from os import listdir
 from os.path import join
 from pathlib import Path
-
 import yaml
 
 parser = argparse.ArgumentParser(description="Prepare scripts for vpt pipeline.")

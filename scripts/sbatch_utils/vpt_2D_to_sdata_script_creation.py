@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-
 import yaml
 
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"

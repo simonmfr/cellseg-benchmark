@@ -93,9 +93,11 @@ def main():
     del adata_list
 
     adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
+    
+    # workaround, as explorer is in pixel units
     if (
         args.seg_method == "Cellpose_1_Merlin"
-    ):  # workaround, as explorer is in pixel units
+    ):  
         adata.obsm["spatial"] = adata.obsm.get("spatial_pixel", adata.obsm["spatial"])
 
     adata = adata_utils.filter_spatial_outlier_cells(
@@ -106,9 +108,10 @@ def main():
         logger=logger,
     )
 
+    # workaround, as explorer is in pixel units
     if (
         args.seg_method == "Cellpose_1_Merlin"
-    ):  # workaround, as explorer is in pixel units
+    ): 
         adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 
     if "vpt_3D" in args.seg_method:

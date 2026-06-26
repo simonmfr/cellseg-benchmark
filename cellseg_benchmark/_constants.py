@@ -1639,11 +1639,11 @@ factor_to_celltype = {
     "3": "Ependymal",
     "4": "Immune-Other",
     "5": "Microglia",
-    "6": "Neurons-Dopa-Gaba",
+    "6": "Neurons-Dopa-Gaba", # renamed to Neurons-Dopa, see true_cluster dict
     "7": "Neurons-Gaba",
     "8": "Neurons-Glut",
     "9": "Neurons-Glyc-Gaba",
-    "10": "Neurons-Immature",
+    "10": "Neurons-Immature", # renamed to Neurons-Granule-Immature, see true_cluster dict
     "11": "Neurons-Other",
     "12": "OECs",
     "13": "OPCs",
@@ -1739,10 +1739,10 @@ contamination_markers = {
 
 cell_type_colors = {
     "ECs": "#FF6464",
-    "aECs": "#FF7700",  # for EC subtyping script
-    "capECs": "#FF6464",  # for EC subtyping script
-    "vECs": "#9966CC",  # for EC subtyping script
-    "otherECs": "#FFBFBF",  # for EC subtyping script
+    "aECs": "#FF7700",  # for EC subtyping
+    "capECs": "#FF6464",  # for EC subtyping
+    "vECs": "#9966CC",  # for EC subtyping
+    "otherECs": "#FFBFBF",  # for EC subtyping
     "Pericytes": "#F6EC2A",
     "SMCs": "#29FBA7",
     "VLMCs": "#85B0F9",
@@ -1770,7 +1770,7 @@ cell_type_colors = {
     "Undefined": "#D9D9D9",  # = below QC threshold
     "Mixed": "#D9D9D9",
     "Low-Read-Cells": "#D9D9D9",
-}  # Updated method-to-color mapping with distinct, moderately saturated shades
+}
 
 method_colors = {
     # Baysor variants (red palette)
