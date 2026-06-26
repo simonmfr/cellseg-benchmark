@@ -12,6 +12,8 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+runtime = "08:00:00" if args.cohort in ("VizgenMouseBrain", "ABCAtlas") else "04:00:00"
+
 SBATCH_DIR = pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_Ficture")
 SBATCH_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -31,7 +33,7 @@ for key, value in samples.items():
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=64G
-#SBATCH -t 04:00:00
+#SBATCH -t {runtime}
 #SBATCH -J Ficture_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/Ficture_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/Ficture_{key}.err

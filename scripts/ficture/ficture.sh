@@ -175,7 +175,11 @@ else
     echo "WARNING: pixel plot input not found: $pixel_sorted"
 fi
 
-echo "Cleanup: removing $path"
+echo "Cleanup: removing $path and redundant files"
+# redundant with model.posterior.count.tsv.gz
+rm -f "${fit_prefix}.model_matrix.tsv.gz" "${RUN_ROOT}/${prefix_decode}.posterior.count.tsv.gz"
+# superseded by the sorted + tabix-indexed file
+[ -s "$pixel_sorted" ] && [ -s "${pixel_sorted}.tbi" ] && rm -f "$pixel_in"
 rm -rf "$path"
 
 echo "Done $(date)"
