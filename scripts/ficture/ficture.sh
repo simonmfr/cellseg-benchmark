@@ -35,8 +35,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORMAT_VIZGEN_SCRIPT="${FORMAT_VIZGEN_SCRIPT:-${SCRIPT_DIR}/format_vizgen.py}"
 [ -f "$FORMAT_VIZGEN_SCRIPT" ] || { echo "ERROR: format_vizgen.py not found: $FORMAT_VIZGEN_SCRIPT"; exit 1; }
 
-RESOURCES_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/Ficture"
-AGGREGATED_MODEL="${RESOURCES_DIR}/aggregated_counts.tsv.gz"
+RESOURCES_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc"
+AGGREGATED_COUNTS="${RESOURCES_DIR}/scRNAseq_ref_ABCAtlas_Yao2023Nature/pseudobulk_celltype_for_ficture.norm.tsv.gz"
 
 train_width=6
 thread=32
@@ -90,14 +90,14 @@ hexagon_gz="${hexagon}.gz"
 echo "Step 5: init_model_from_pseudobulk"
 ficture init_model_from_pseudobulk --input "$hexagon_gz" --output "$fit_prefix" \
     --feature "$feature" --epoch 0 --scale_model_rel -1 --key "$key" \
-    --min_ct_per_feature $min_ct_per_feature --thread $thread --model "$AGGREGATED_MODEL"
+    --min_ct_per_feature $min_ct_per_feature --thread $thread --model "$AGGREGATED_COUNTS"
 cp "${fit_prefix}.posterior.count.tsv.gz" "${fit_prefix}.model_matrix.tsv.gz"
 model_matrix="${fit_prefix}.model_matrix.tsv.gz"
 
 # --- Step 6: load color + plot overview ---
 echo "Step 6: choose color + plot overview"
-GLOBAL_CMAP="${RESOURCES_DIR}/model.rgb.tsv"
-cmap_path="${figure_path}/model.rgb.tsv"
+GLOBAL_CMAP="${RESOURCES_DIR}/ficture_model.rgb.tsv"
+cmap_path="${figure_path}/ficture_model.rgb.tsv"
 if [ ! -f "$GLOBAL_CMAP" ]; then
   ficture choose_color --input "${fit_prefix}.fit_result.tsv.gz" \
     --output "${RESOURCES_DIR}/model.tmp.$$" --cmap_name turbo

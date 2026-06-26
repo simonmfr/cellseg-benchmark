@@ -1632,28 +1632,28 @@ methods_3D = ["Proseg_3D", "vpt_3D", "SIS", "Watershed_Merlin"]
 
 pixel_based = ["Cellpose", "Negative_Control"]
 
-factor_to_celltype = {
-    "0": "Astrocytes",
-    "1": "BAMs",
-    "2": "ECs",
-    "3": "Ependymal",
-    "4": "Immune-Other",
-    "5": "Microglia",
-    "6": "Neurons-Dopa-Gaba", # renamed to Neurons-Dopa, see true_cluster dict
-    "7": "Neurons-Gaba",
-    "8": "Neurons-Glut",
-    "9": "Neurons-Glyc-Gaba",
-    "10": "Neurons-Immature", # renamed to Neurons-Granule-Immature, see true_cluster dict
-    "11": "Neurons-Other",
-    "12": "OECs",
-    "13": "OPCs",
-    "14": "Oligodendrocytes",
-    "15": "Pericytes",
-    "16": "SMCs",
-    "17": "VLMCs",
-    "18": "ABCs",
-    "19": "Bergmann",
-    "20": "Neurons-Dopa",
+ficture_factor_to_celltype = {
+    "0": "ABCs",
+    "1": "Astrocytes",
+    "2": "BAMs",
+    "3": "Bergmann",
+    "4": "ECs",
+    "5": "Ependymal",
+    "6": "Immune-Other",
+    "7": "Microglia",
+    "8": "Neurons-Dopa",
+    "9": "Neurons-Dopa-Gaba",  # renamed to Neurons-Dopa, see true_cluster dict
+    "10": "Neurons-Gaba",
+    "11": "Neurons-Glut",
+    "12": "Neurons-Glyc-Gaba",
+    "13": "Neurons-Immature",  # renamed to Neurons-Granule-Immature, see true_cluster dict
+    "14": "Neurons-Other",
+    "15": "OECs",
+    "16": "OPCs",
+    "17": "Oligodendrocytes",
+    "18": "Pericytes",
+    "19": "SMCs",
+    "20": "VLMCs",
 }
 
 index_order = [
