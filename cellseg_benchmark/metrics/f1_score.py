@@ -51,14 +51,9 @@ def compute_f1(
     if flavor in ["micro", "all"]:
         assert general_stats is not None, "general_stats must be provided."
 
-    if isinstance(general_stats, pd.DataFrame):
-        assert isinstance(data, pd.DataFrame), (
-            "data must be DataFrame, since general_stats is DataFrame."
-        )
-    if isinstance(data, pd.DataFrame):
-        assert isinstance(general_stats, pd.DataFrame), (
-            "general_stats must be DataFrame, since data is DataFrame."
-        )
+    assert isinstance(data, pd.DataFrame) == isinstance(general_stats, pd.DataFrame), (
+        "data and general_stats must both be DataFrames or both be dicts."
+    )
 
     # ensure data and general_stats are dicts
     if isinstance(general_stats, pd.DataFrame):

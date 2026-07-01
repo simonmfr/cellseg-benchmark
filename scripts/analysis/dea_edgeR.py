@@ -123,9 +123,6 @@ if __name__ == "__main__":
     setattr(rcb, "consolewrite_warnerror", rcb.consolewrite_warn)
 
     conv = ro.default_converter + ro.pandas2ri.converter + anndata2ri.converter
-    # r_script = Path(__file__).resolve().parent / "cellseg_benchmark" / "dea_utils.r"
-    # ro.r["source"](str(r_script))
-    # edgeR_loop = ro.globalenv["edgeR_loop"]
     ro.r["source"](str(files(csb) / "dea_utils.r"))
     edgeR_loop = ro.globalenv["edgeR_loop"]
 
