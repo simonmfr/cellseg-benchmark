@@ -276,7 +276,7 @@ def _split_factor(sub, rr, cc, ee, conn):
     return out, metas
 
 
-def split_by_nuclei(lab: np.ndarray, affine: Affine, bbox, nuclei_xy, entity_ids,
+def split_by_nuclei(lab: np.ndarray, affine: Affine, nuclei_xy, entity_ids,
                     connectivity: int = 1, n_jobs: int = 8) -> gpd.GeoDataFrame:
     """Split FICTURE segments into single cells using DAPI nuclei as seeds.
 
@@ -287,7 +287,6 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, bbox, nuclei_xy, entity_ids
     Args:
         lab: Majority-factor raster from build_factor_raster.
         affine: Grid->um transform (a/c/f give res, offset_x, offset_y).
-        bbox: (xmin, xmax, ymin, ymax) in um, for the frame-match check.
         nuclei_xy: (N, 2) nucleus centroids in um.
         entity_ids: (N,) nucleus ids aligned to nuclei_xy.
         connectivity: 1 (4-conn, avoids diagonal 1px bridges) or 2 (8-conn).
@@ -299,14 +298,13 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, bbox, nuclei_xy, entity_ids
     """
     res, offx, offy = affine.a, affine.c, affine.f
     xy = np.asarray(nuclei_xy, float)
-    nb = (xy[:, 0].min(), xy[:, 0].max(), xy[:, 1].min(), xy[:, 1].max())
-    tol = 0.05 * max(bbox[1] - bbox[0], bbox[3] - bbox[2])
-    if not all(abs(a - b) <= tol for a, b in zip(bbox, nb)):
-        raise ValueError(f"nuclei and pixel coordinate frames differ: pix{bbox} nuc{nb}")
-
     rows = ((xy[:, 1] - offy) / res).astype(int)
     cols = ((xy[:, 0] - offx) / res).astype(int)
     inb = (rows >= 0) & (rows < lab.shape[0]) & (cols >= 0) & (cols < lab.shape[1])
+    if inb.mean() < 0.5:  # wrong frame -> most nuclei fall outside the raster
+        raise ValueError(
+            f"nuclei and pixel coordinate frames likely differ: only "
+            f"{inb.mean():.0%} of nuclei fall within the raster")
     rows, cols, ids = rows[inb], cols[inb], np.asarray(entity_ids)[inb]
 
     boxes = ndi.find_objects(lab)

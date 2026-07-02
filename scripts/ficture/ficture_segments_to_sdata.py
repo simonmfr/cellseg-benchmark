@@ -82,7 +82,7 @@ def main():
     log.info("[%s] loading nuclei and splitting", args.sample)
     obs = ad.read_zarr(str(dapi)).obs
     nuclei = obs[["center_x", "center_y"]].to_numpy(float)
-    cells = split_by_nuclei(lab, affine, bbox, nuclei, obs.index.to_numpy(),
+    cells = split_by_nuclei(lab, affine, nuclei, obs.index.to_numpy(),
                             args.connectivity, args.n_jobs)
     log.info("[%s] %d cells (%d nucleated, %d nucleus-free)", args.sample, len(cells),
              int((cells.n_nuclei == 1).sum()), int((cells.n_nuclei == 0).sum()))
