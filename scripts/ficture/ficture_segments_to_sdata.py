@@ -34,7 +34,6 @@ from cellseg_benchmark.ficture_utils import (  # noqa: E402
     plot_qc,
     segments_to_boundaries,
     split_by_nuclei,
-    write_boundaries,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -47,8 +46,8 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("sample", help="sample id, e.g. foxf2_s7_r1")
     p.add_argument("--base", default=_constants.BASE_PATH, help="cellseg-benchmark base path")
-    p.add_argument("--data-path", default=None,
-                   help="MERSCOPE output folder; if given, aggregate transcripts into a table")
+    p.add_argument("--data-path", required=True,
+                   help="MERSCOPE output folder (transcripts to aggregate into a table)")
     p.add_argument("--min-transcripts", type=int, default=10,
                    help="drop cells with fewer transcripts when building the table")
     p.add_argument("--res", type=float, default=1.5, help="grid size in um")
@@ -86,17 +85,13 @@ def main():
     log.info("[%s] %d cells (%d nucleated, %d nucleus-free)", args.sample, len(cells),
              int((cells.n_nuclei == 1).sum()), int((cells.n_nuclei == 0).sum()))
 
-    # write boundaries (+ transcript table if --data-path given)
+    # aggregate transcripts -> boundaries + table for both sets
     out_raw.mkdir(parents=True, exist_ok=True)
     out_split.mkdir(parents=True, exist_ok=True)
-    if args.data_path:
-        log.info("[%s] aggregating transcripts into tables", args.sample)
-        aggregate_tables(args.data_path,
-                         [(seg, out_raw / "sdata.zarr"), (cells, out_split / "sdata.zarr")],
-                         min_transcripts=args.min_transcripts, n_workers=args.n_jobs)
-    else:
-        write_boundaries(seg, out_raw / "sdata.zarr")
-        write_boundaries(cells, out_split / "sdata.zarr")
+    log.info("[%s] aggregating transcripts into tables", args.sample)
+    aggregate_tables(args.data_path,
+                     [(seg, out_raw / "sdata.zarr"), (cells, out_split / "sdata.zarr")],
+                     min_transcripts=args.min_transcripts, n_workers=args.n_jobs)
 
     # QC plots
     if not args.no_plot:

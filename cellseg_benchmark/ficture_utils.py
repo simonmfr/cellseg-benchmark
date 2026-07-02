@@ -335,16 +335,6 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, nuclei_xy, entity_ids,
     return gdf
 
 
-def write_boundaries(gdf: gpd.GeoDataFrame, zarr) -> None:
-    """Write polygons as shapes["boundaries"] in a fresh SpatialData .zarr (Identity/micron)."""
-    import spatialdata as sd
-    from spatialdata.models import ShapesModel
-    from spatialdata.transformations import Identity
-
-    shapes = ShapesModel.parse(gdf, transformations={"micron": Identity()})
-    sd.SpatialData(shapes={"boundaries": shapes}).write(str(zarr), overwrite=True)
-
-
 def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
                      min_transcripts: int = 10, n_workers: int = 4) -> None:
     """Assign MERSCOPE transcripts to boundary sets and write each as sdata with a table.
