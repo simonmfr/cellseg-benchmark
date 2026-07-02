@@ -3,6 +3,7 @@ spatialdata
 spatialdata-io>=0.1.5
 scanpy
 scikit-learn
+joblib
 scipy
 seaborn
 numpy
@@ -10,6 +11,7 @@ pandas
 shapely
 dask
 geopandas
+rasterio
 xarray
 tifffile
 tqdm
