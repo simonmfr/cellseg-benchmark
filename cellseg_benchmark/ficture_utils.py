@@ -360,11 +360,6 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
     from spatialdata.models import ShapesModel
     from spatialdata.transformations import get_transformation
 
-    # sopa 2.0.6 builds COO count matrices; anndata >=0.12 only accepts CSR/CSC
-    _coerce = anndata_core.coerce_array
-    anndata_core.coerce_array = lambda v, **kw: _coerce(
-        v.tocsr() if sp.issparse(v) and v.format not in ("csr", "csc") else v, **kw)
-
     src = sopa.io.merscope(data_path)
     tx = src[list(src.points.keys())[0]]
     # boundaries and transcript columns share the um frame -> give the boundaries the
@@ -373,23 +368,31 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
 
     sopa.settings.parallelization_backend = "dask"
     sopa.settings.dask_client_kwargs["n_workers"] = n_workers
-    for gdf, zarr in targets:
-        sdata = sd.SpatialData(
-            points={"transcripts": tx},
-            shapes={"boundaries": ShapesModel.parse(gdf, transformations=dict(transforms))},
-        )
-        sdata.attrs["transcripts_dataframe"] = "transcripts"
 
-        tmp = f"{zarr}.tmp"                                 # sopa needs a backed store
-        try:
-            sdata.write(tmp, overwrite=True)
-            sdata = sd.read_zarr(tmp)
-            sopa.aggregate(sdata, gene_column=gene_column, aggregate_channels=False,
-                           min_transcripts=min_transcripts, shapes_key="boundaries")
-            del sdata["transcripts"]
-            sdata.write(str(zarr), overwrite=True)
-        finally:
-            shutil.rmtree(tmp, ignore_errors=True)
+    # sopa 2.0.6 builds COO count matrices; anndata >=0.12 only accepts CSR/CSC
+    coerce = anndata_core.coerce_array
+    anndata_core.coerce_array = lambda v, **kw: coerce(
+        v.tocsr() if sp.issparse(v) and v.format not in ("csr", "csc") else v, **kw)
+    try:
+        for gdf, zarr in targets:
+            sdata = sd.SpatialData(
+                points={"transcripts": tx},
+                shapes={"boundaries": ShapesModel.parse(gdf, transformations=dict(transforms))},
+            )
+            sdata.attrs["transcripts_dataframe"] = "transcripts"
+
+            tmp = f"{zarr}.tmp"                             # sopa needs a backed store
+            try:
+                sdata.write(tmp, overwrite=True)
+                sdata = sd.read_zarr(tmp)
+                sopa.aggregate(sdata, gene_column=gene_column, aggregate_channels=False,
+                               min_transcripts=min_transcripts, shapes_key="boundaries")
+                del sdata["transcripts"]
+                sdata.write(str(zarr), overwrite=True)
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+    finally:
+        anndata_core.coerce_array = coerce
 
 
 def plot_qc(gdf: gpd.GeoDataFrame, nuclei, aspect: float, title: str, path) -> None:

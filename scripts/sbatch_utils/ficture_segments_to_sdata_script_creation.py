@@ -38,7 +38,9 @@ for key, value in data.items():
 #SBATCH -e {BASE_PATH}/misc/logs/errors/ficture_segments_to_sdata_{key}.err
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
-mamba activate segmentation
+mamba activate seg_postprocessing
+pip install --quiet --no-deps -e ~/gitrepos/cellseg-benchmark
+pip install --quiet rasterio joblib
 python ~/gitrepos/cellseg-benchmark/scripts/ficture/ficture_segments_to_sdata.py \\
  {key} --res {args.res} --data-path {value["path"]}
 """)
