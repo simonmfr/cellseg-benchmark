@@ -201,7 +201,7 @@ def build_factor_raster(pixel_file: str, res: float = 1.5, min_um2: float = 5.0)
     meta = parse_metadata(pixel_file)
     offx, offy, scale = float(meta["OFFSET_X"]), float(meta["OFFSET_Y"]), float(meta["SCALE"])
     with gzip.open(pixel_file, "rt") as f:
-        cols = next(l for l in f if l[:1] == "#" and l[:2] != "##")[1:].strip().split("\t")
+        cols = next(ln for ln in f if ln[:1] == "#" and ln[:2] != "##")[1:].strip().split("\t")
 
     df = pd.read_csv(pixel_file, sep="\t", comment="#", names=cols, usecols=["X", "Y", "K1"])
     x, y = df.X / scale + offx, df.Y / scale + offy

@@ -44,6 +44,7 @@ log = logging.getLogger("ficture_segments")
 
 
 def main():
+    """Build FICTURE boundary sdatas (and transcript tables) for one sample."""
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("sample", help="sample id, e.g. foxf2_s7_r1")
