@@ -380,13 +380,15 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
         sdata.attrs["transcripts_dataframe"] = "transcripts"
 
         tmp = f"{zarr}.tmp"                                 # sopa needs a backed store
-        sdata.write(tmp, overwrite=True)
-        sdata = sd.read_zarr(tmp)
-        sopa.aggregate(sdata, gene_column=gene_column, aggregate_channels=False,
-                       min_transcripts=min_transcripts, shapes_key="boundaries")
-        del sdata["transcripts"]
-        sdata.write(str(zarr), overwrite=True)
-        shutil.rmtree(tmp, ignore_errors=True)
+        try:
+            sdata.write(tmp, overwrite=True)
+            sdata = sd.read_zarr(tmp)
+            sopa.aggregate(sdata, gene_column=gene_column, aggregate_channels=False,
+                           min_transcripts=min_transcripts, shapes_key="boundaries")
+            del sdata["transcripts"]
+            sdata.write(str(zarr), overwrite=True)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 def plot_qc(gdf: gpd.GeoDataFrame, nuclei, aspect: float, title: str, path) -> None:
