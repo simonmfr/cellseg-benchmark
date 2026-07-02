@@ -216,7 +216,7 @@ def build_factor_raster(pixel_file: str, res: float = 1.5, min_um2: float = 5.0)
     lab = np.zeros((int(win.row.max()) + 1, int(win.col.max()) + 1), np.int32)
     lab[win.row, win.col] = win.K1 + 1
 
-    mp = max(1, int(min_um2 / res ** 2))     # drop tiny blobs / fill tiny holes
+    mp = max(1, int(min_um2 / res ** 2))
     clean = np.zeros_like(lab)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -268,7 +268,7 @@ def _split_factor(sub, rr, cc, ee, conn):
                            mask=sub, connectivity=conn)
         out[lab_ws > 0] = lab_ws[lab_ws > 0]
     nid = len(metas) + 1
-    comp, ncomp = ndi.label(sub & (lab_ws == 0))   # nucleus-free components
+    comp, ncomp = ndi.label(sub & (lab_ws == 0))
     for k in range(1, ncomp + 1):
         out[comp == k] = nid
         metas.append((None, 0))
@@ -309,8 +309,8 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, bbox, nuclei_xy, entity_ids
     inb = (rows >= 0) & (rows < lab.shape[0]) & (cols >= 0) & (cols < lab.shape[1])
     rows, cols, ids = rows[inb], cols[inb], np.asarray(entity_ids)[inb]
 
-    boxes = ndi.find_objects(lab)          # bbox per factor -> small crops
-    nuc_fac = lab[rows, cols]              # factor(+1) under each nucleus
+    boxes = ndi.find_objects(lab)
+    nuc_fac = lab[rows, cols]
     tasks = [(int(fac), sl := boxes[fac - 1], lab[sl] == fac,
               rows[nuc_fac == fac] - sl[0].start, cols[nuc_fac == fac] - sl[1].start,
               ids[nuc_fac == fac]) for fac in np.unique(lab[lab > 0])]
@@ -318,7 +318,7 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, bbox, nuclei_xy, entity_ids
         delayed(_split_factor)(sub, rr, cc, ee, connectivity)
         for _, _, sub, rr, cc, ee in tasks)
 
-    ws = np.zeros_like(lab)                # global cell-id raster
+    ws = np.zeros_like(lab)
     factor, entity, nnuc = {}, {}, {}
     cid = 0
     for (fac, sl, *_), (out, metas) in zip(tasks, results):
@@ -370,9 +370,9 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
     from spatialdata.models import ShapesModel
     from spatialdata.transformations import Identity, get_transformation
 
-    src = sopa.io.merscope(data_path)                      # images + transcripts (points)
+    src = sopa.io.merscope(data_path)
     tx = src[list(src.points.keys())[0]]
-    cs = list(get_transformation(tx, get_all=True).keys())  # coordinate system(s), in microns
+    cs = list(get_transformation(tx, get_all=True).keys())
 
     sopa.settings.parallelization_backend = "dask"
     sopa.settings.dask_client_kwargs["n_workers"] = n_workers
@@ -389,7 +389,7 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
         sdata = sd.read_zarr(tmp)
         sopa.aggregate(sdata, gene_column=gene_column, aggregate_channels=False,
                        min_transcripts=min_transcripts)
-        del sdata["transcripts"]                            # keep boundaries + table only
+        del sdata["transcripts"]
         sdata.write(str(zarr), overwrite=True)
         shutil.rmtree(tmp, ignore_errors=True)
 

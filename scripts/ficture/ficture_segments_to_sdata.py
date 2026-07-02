@@ -74,11 +74,11 @@ def main():
     lab, affine, bbox = build_factor_raster(str(pix), args.res, args.min_um2)
     aspect = (bbox[3] - bbox[2]) / (bbox[1] - bbox[0])
 
-    # 1) raw FICTURE segments (fused patches)
+    # raw FICTURE segments
     seg = segments_to_boundaries(lab, affine)
     log.info("[%s] %d unsplit segments", args.sample, len(seg))
 
-    # 2) nuclei-split cells
+    # nuclei-split cells
     log.info("[%s] loading nuclei and splitting", args.sample)
     obs = ad.read_zarr(str(dapi)).obs
     nuclei = obs[["center_x", "center_y"]].to_numpy(float)
@@ -87,10 +87,10 @@ def main():
     log.info("[%s] %d cells (%d nucleated, %d nucleus-free)", args.sample, len(cells),
              int((cells.n_nuclei == 1).sum()), int((cells.n_nuclei == 0).sum()))
 
-    # 3) write both boundary sets (with a transcript table if --data-path given)
+    # write boundaries (+ transcript table if --data-path given)
     out_raw.mkdir(parents=True, exist_ok=True)
     out_split.mkdir(parents=True, exist_ok=True)
-    if args.data_path:   # assign transcripts -> tables["table"] on both sets
+    if args.data_path:
         log.info("[%s] aggregating transcripts into tables", args.sample)
         aggregate_tables(args.data_path,
                          [(seg, out_raw / "sdata.zarr"), (cells, out_split / "sdata.zarr")],
@@ -99,7 +99,7 @@ def main():
         write_boundaries(seg, out_raw / "sdata.zarr")
         write_boundaries(cells, out_split / "sdata.zarr")
 
-    # 4) QC plots
+    # QC plots
     if not args.no_plot:
         plot_qc(seg, None, aspect, f"{args.sample}: FICTURE segments (unsplit)",
                 out_raw / "ficture_segments_qc.png")

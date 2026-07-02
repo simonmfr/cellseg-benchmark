@@ -12,7 +12,7 @@ import pathlib
 import yaml
 
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-CPUS = 16  # per-factor parallelism (exposed to the script as SLURM_CPUS_PER_TASK)
+CPUS = 16
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--res", type=float, default=1.5, help="grid size in um")
