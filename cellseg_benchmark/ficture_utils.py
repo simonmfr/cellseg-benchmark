@@ -364,7 +364,7 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
     import sopa
     import spatialdata as sd
     from spatialdata.models import ShapesModel
-    from spatialdata.transformations import Identity, get_transformation
+    from spatialdata.transformations import get_transformation
 
     # sopa 2.0.6 builds COO count matrices; anndata >=0.12 only accepts CSR/CSC
     _coerce = anndata_core.coerce_array
@@ -373,15 +373,16 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
 
     src = sopa.io.merscope(data_path)
     tx = src[list(src.points.keys())[0]]
-    cs = list(get_transformation(tx, get_all=True).keys())
+    # boundaries and transcript columns share the um frame -> give the boundaries the
+    # transcripts' transform so both map into "global" together
+    transforms = get_transformation(tx, get_all=True)
 
     sopa.settings.parallelization_backend = "dask"
     sopa.settings.dask_client_kwargs["n_workers"] = n_workers
     for gdf, zarr in targets:
         sdata = sd.SpatialData(
             points={"transcripts": tx},
-            shapes={"boundaries": ShapesModel.parse(
-                gdf, transformations={c: Identity() for c in cs})},
+            shapes={"boundaries": ShapesModel.parse(gdf, transformations=dict(transforms))},
         )
         sdata.attrs["transcripts_dataframe"] = "transcripts"
 
