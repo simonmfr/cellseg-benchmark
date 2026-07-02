@@ -408,5 +408,5 @@ def plot_qc(gdf: gpd.GeoDataFrame, nuclei, aspect: float, title: str, path) -> N
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(title)
-    fig.savefig(str(path), dpi=300, bbox_inches="tight")
+    fig.savefig(str(path), dpi=400, bbox_inches="tight")
     plt.close(fig)
