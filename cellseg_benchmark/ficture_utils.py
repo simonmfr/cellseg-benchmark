@@ -397,7 +397,7 @@ def plot_qc(gdf: gpd.GeoDataFrame, nuclei, aspect: float, title: str, path) -> N
     gdf.plot(ax=ax, color=gdf.cell_type.map(_COLORS), edgecolor="black", linewidth=0.1)
     if nuclei is not None:
         ax.plot(nuclei[:, 0], nuclei[:, 1], "+", color="black",
-                markersize=0.9, markeredgewidth=0.2)
+                markersize=0.7, markeredgewidth=0.15)
     ax.set_aspect("equal")
     ax.axis("off")
     ax.set_title(title)
