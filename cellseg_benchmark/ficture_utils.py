@@ -298,7 +298,7 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, nuclei_xy, entity_ids,
     rows = ((xy[:, 1] - offy) / res).astype(int)
     cols = ((xy[:, 0] - offx) / res).astype(int)
     inb = (rows >= 0) & (rows < lab.shape[0]) & (cols >= 0) & (cols < lab.shape[1])
-    if inb.mean() < 0.5:  # wrong frame -> most nuclei fall outside the raster
+    if inb.size and inb.mean() < 0.5:  # wrong frame -> most nuclei fall outside the raster
         raise ValueError(
             f"nuclei and pixel coordinate frames likely differ: only "
             f"{inb.mean():.0%} of nuclei fall within the raster")
