@@ -43,6 +43,7 @@ for key, value in data.items():
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt3D_{key}_{args.staining}.out
 #SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt3D_{key}_{args.staining}.err
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/vpt.sqsh"
+#SBATCH --container-mounts=/dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/vpt_plugin_cellpose_predict.py:/home/ubuntu/miniforge3/envs/vpt/lib/python3.10/site-packages/vpt_plugin_cellpose/predict.py
 
 set -euo pipefail
 
@@ -121,12 +122,16 @@ vpt --verbose derive-entity-metadata \\
   --input-boundaries "${{BOUNDARIES}}" \\
   --output-metadata "${{OUT_META}}"
 
-vpt --verbose --processes 10 update-vzg \\
-  --input-vzg "${{VZG_PATH}}" \\
-  --input-boundaries "${{BOUNDARIES}}" \\
-  --input-entity-by-gene "${{OUT_CBG}}" \\
-  --output-vzg "${{OUT_VZG}}" \\
-  --input-metadata "${{OUT_META}}" \\
-  --temp-path "${{TMP_PATH}}"
+if [ -f "${{VZG_PATH}}" ]; then
+  vpt --verbose --processes 10 update-vzg \\
+    --input-vzg "${{VZG_PATH}}" \\
+    --input-boundaries "${{BOUNDARIES}}" \\
+    --input-entity-by-gene "${{OUT_CBG}}" \\
+    --output-vzg "${{OUT_VZG}}" \\
+    --input-metadata "${{OUT_META}}" \\
+    --temp-path "${{TMP_PATH}}"
+else
+  echo "No input .vzg (true 3D method); skipping update-vzg."
+fi
 """)
     f.close()
