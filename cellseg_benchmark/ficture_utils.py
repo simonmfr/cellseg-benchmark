@@ -18,9 +18,8 @@ from skimage.morphology import remove_small_holes, remove_small_objects
 from skimage.segmentation import watershed
 from tqdm import tqdm
 
-# NOTE: spatialdata is imported lazily inside the functions that need it. Importing
-# it at module top triggers spatialdata's dask-expr guard, which crashes joblib/loky
-# workers (they re-import this module for _split_factor but never set the dask config).
+# spatialdata is imported lazily inside functions; a module-top import trips its
+# dask-expr guard and crashes the joblib/loky workers.
 from cellseg_benchmark import _constants
 
 _COLORS = _constants.cell_type_colors
