@@ -12,9 +12,7 @@ in a ``sdata.zarr`` (polygons in micrometers, Identity transform to "micron"):
   within the segment. A segment with N nuclei becomes N cells; a segment with
   one nucleus stays whole; nucleus-free segments are kept (n_nuclei == 0).
 
-The heavy lifting lives in cellseg_benchmark.ficture_utils; this script is just
-the per-sample CLI. Run (e.g. from an sbatch created by
-``ficture_segments_to_sdata_script_creation.py``)::
+Logic lives in cellseg_benchmark.ficture_utils; this is the per-sample CLI:
 
     python ficture_segments_to_sdata.py <SAMPLE_ID>
 """
