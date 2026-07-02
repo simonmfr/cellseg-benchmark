@@ -42,3 +42,5 @@ mamba activate segmentation
 python ~/gitrepos/cellseg-benchmark/scripts/ficture/ficture_segments_to_sdata.py \\
  {key} --res {args.res} --data-path {value["path"]}
 """)
+
+print(f"Wrote {len(data)} sbatch scripts to {out_dir}")
