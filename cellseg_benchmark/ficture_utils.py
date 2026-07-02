@@ -305,9 +305,12 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, nuclei_xy, entity_ids,
 
     boxes = ndi.find_objects(lab)
     nuc_fac = lab[rows, cols]
-    tasks = [(int(fac), sl := boxes[fac - 1], lab[sl] == fac,
-              rows[nuc_fac == fac] - sl[0].start, cols[nuc_fac == fac] - sl[1].start,
-              ids[nuc_fac == fac]) for fac in np.unique(lab[lab > 0])]
+    tasks = []
+    for fac in np.unique(lab[lab > 0]):
+        sl = boxes[fac - 1]
+        sel = nuc_fac == fac
+        tasks.append((int(fac), sl, lab[sl] == fac,
+                      rows[sel] - sl[0].start, cols[sel] - sl[1].start, ids[sel]))
     results = Parallel(n_jobs=n_jobs, backend="loky")(
         delayed(_split_factor)(sub, rr, cc, ee, connectivity)
         for _, _, sub, rr, cc, ee in tasks)
