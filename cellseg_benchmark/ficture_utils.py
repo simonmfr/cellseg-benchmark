@@ -386,7 +386,7 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
         sdata.write(tmp, overwrite=True)
         sdata = sd.read_zarr(tmp)
         sopa.aggregate(sdata, gene_column=gene_column, aggregate_channels=False,
-                       min_transcripts=min_transcripts)
+                       min_transcripts=min_transcripts, shapes_key="boundaries")
         del sdata["transcripts"]
         sdata.write(str(zarr), overwrite=True)
         shutil.rmtree(tmp, ignore_errors=True)
