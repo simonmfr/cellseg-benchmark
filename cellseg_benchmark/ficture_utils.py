@@ -23,15 +23,12 @@ from tqdm import tqdm
 # workers (they re-import this module for _split_factor but never set the dask config).
 from cellseg_benchmark import _constants
 
-_F2CT = _constants.ficture_factor_to_celltype
-_TRUE = _constants.true_cluster
 _COLORS = _constants.cell_type_colors
-
-
-def _resolve_cell_type(factor: pd.Series) -> pd.Series:
-    """Map factor ids to their color-table cell-type names (see _constants.true_cluster)."""
-    resolve = lambda ct: (_TRUE.get(ct) or [ct])[0]
-    return factor.astype(str).map(_F2CT).map(resolve)
+# factor id (as str) -> color-table cell-type name (via _constants.true_cluster)
+_FACTOR_CELL_TYPE = {
+    f: (_constants.true_cluster.get(ct) or [ct])[0]
+    for f, ct in _constants.ficture_factor_to_celltype.items()
+}
 
 
 def parse_metadata(file_path: str) -> Dict[str, str]:
@@ -242,7 +239,7 @@ def segments_to_boundaries(lab: np.ndarray, affine: Affine) -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame(
         [{"factor": int(v) - 1, "geometry": shape(g)}
          for g, v in rf.shapes(lab, mask=lab > 0, transform=affine, connectivity=8)])
-    gdf["cell_type"] = _resolve_cell_type(gdf.factor)
+    gdf["cell_type"] = gdf.factor.astype(str).map(_FACTOR_CELL_TYPE)
     gdf["area_um2"] = gdf.geometry.area
     gdf.index.name = "segment_id"
     return gdf
@@ -331,7 +328,7 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, nuclei_xy, entity_ids,
          for g, v in rf.shapes(ws, mask=ws > 0, transform=affine, connectivity=8)]
     ).dissolve(by="cell_id", aggfunc={"factor": "first", "entity_id": "first",
                                       "n_nuclei": "first"})
-    gdf["cell_type"] = _resolve_cell_type(gdf.factor)
+    gdf["cell_type"] = gdf.factor.astype(str).map(_FACTOR_CELL_TYPE)
     gdf["area_um2"] = gdf.geometry.area
     return gdf
 
