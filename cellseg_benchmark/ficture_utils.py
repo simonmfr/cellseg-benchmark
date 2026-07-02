@@ -34,6 +34,24 @@ def _resolve_cell_type(factor: pd.Series) -> pd.Series:
     return factor.astype(str).map(_F2CT).map(resolve)
 
 
+def _patch_anndata_coo_to_csr():
+    """sopa 2.0.6 builds COO count matrices; anndata >=0.12 only accepts CSR/CSC."""
+    import anndata._core.anndata as core
+    import scipy.sparse as sp
+
+    if getattr(core, "_coo_to_csr_patched", False):
+        return
+    orig = core.coerce_array
+
+    def coerce_array(value, **kwargs):
+        if sp.issparse(value) and value.format not in ("csr", "csc"):
+            value = value.tocsr()
+        return orig(value, **kwargs)
+
+    core.coerce_array = coerce_array
+    core._coo_to_csr_patched = True
+
+
 def parse_metadata(file_path: str) -> Dict[str, str]:
     """Parse metadata from the first three lines of FICTURE pixel-level tsv.gz file.
 
@@ -368,6 +386,7 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
     from spatialdata.models import ShapesModel
     from spatialdata.transformations import Identity, get_transformation
 
+    _patch_anndata_coo_to_csr()
     src = sopa.io.merscope(data_path)
     tx = src[list(src.points.keys())[0]]
     cs = list(get_transformation(tx, get_all=True).keys())
