@@ -98,6 +98,8 @@ if [ -f "${{VZG_PATH}}" ]; then
     --output-vzg "${{OUT_VZG}}" \\
     --input-metadata "${{OUT_META}}" \\
     --temp-path "${{TMP_PATH}}"
+  # remove leftover temp dir if vpt emptied it
+  rmdir --ignore-fail-on-non-empty "${{TMP_PATH}}" 2>/dev/null || true
 else
   echo "No input .vzg (true 3D method); skipping update-vzg."
 fi
