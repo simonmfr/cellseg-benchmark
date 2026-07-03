@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 from pathlib import Path
-
 import yaml
 
 YAML = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"

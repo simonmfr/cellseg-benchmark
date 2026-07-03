@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 from pathlib import Path
-
 import yaml
 
 parser = argparse.ArgumentParser(description="Generate ComSeg sbatch scripts.")
