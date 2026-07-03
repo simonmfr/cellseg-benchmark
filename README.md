@@ -1,4 +1,4 @@
-# Benchmarking cell segmentation in brain tissue
+# Cell segmentation benchmark
 
 ## Structure of this repository
 - `cellseg_benchmark`
@@ -17,8 +17,7 @@
 ## Development
 We are using `ruff` and the [ruff pre-commit hook](https://github.com/astral-sh/ruff-pre-commit) to check and format the code and docstrings
 
-### Installation
-Install ruff and pre-commit in your environment and install the pre-commit hooks for ruff defined in `.pre-commit-config.yml`
+**Installation**: Install ruff and pre-commit in your environment and install the pre-commit hooks for ruff defined in `.pre-commit-config.yml`
 ```
 pip install ruff
 pip install pre-commit
@@ -27,8 +26,7 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-### Basic usage
-The ruff config is located in `pyproject.toml`. See the [ruff documentation of rules](https://docs.astral.sh/ruff/rules/) for all possible rules that we can enable / disable.
+**Basic usage**: The ruff config is located in `pyproject.toml`. See the [ruff documentation of rules](https://docs.astral.sh/ruff/rules/) for all possible rules that we can enable / disable.
 As we have installed the pre-commit hook, ruff formatting and liniting will run automatically for all changed files whenever you do git commit. If there are errors, you will get a detailled messaged of the offending code and the error. Fix the errors, add the changed file and try to commit again.
 
 You can also manually run the ruff formatter and checker on all files with: 
