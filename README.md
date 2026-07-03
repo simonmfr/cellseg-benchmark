@@ -1,18 +1,18 @@
 # Benchmarking cell segmentation in brain tissue
 
 ## Structure of this repository
-- `src`
-  Function definitions
+- `cellseg_benchmark`
+  Function definitions (the package)
 - `scripts`
-  Scripts for metric calculations and segmentation algorithms
+  Scripts for metric calculations and segmentation algorithms, incl. `scripts/sbatch_utils` for generating per-method sbatch scripts
 - `notebooks`
   Jupyter notebooks for development and analysis
+- `configs`
+  Configuration files (e.g. VPT segmentation configs)
 - `archive`
   Symlink to raw MERSCOPE data on DSS
 - `data`
-  Symlink to processed data on DSS 
-- `sbatch_utils`
-  Scripts for creating sbatch scripts for each method
+  Symlink to processed data on DSS
 
 ## Development
 We are using `ruff` and the [ruff pre-commit hook](https://github.com/astral-sh/ruff-pre-commit) to check and format the code and docstrings
