@@ -19,7 +19,7 @@ adapt = f"_{args.staining2}" if args.staining2 else ""
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
-pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_vpt3D_to_sdata").mkdir(
+(BASE_PATH / "misc/sbatches/sbatch_vpt3D_to_sdata").mkdir(
     parents=False, exist_ok=True
 )
 for key, value in data.items():

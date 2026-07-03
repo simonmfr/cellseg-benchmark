@@ -4,14 +4,14 @@ import shlex
 import yaml
 
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-YAML = f"{BASE_PATH}/misc/sample_metadata.yaml"
-OUT = f"{BASE_PATH}/misc/sbatches/sbatch_master_sdata"
+YAML = BASE_PATH / "misc/sample_metadata.yaml"
+OUT = BASE_PATH / "misc/sbatches/sbatch_master_sdata"
 MANDATORY = {"cohort", "slide", "region", "organism", "run_date", "path"}
 
 with open(YAML) as f:
     data = yaml.safe_load(f)
 
-pathlib.Path(OUT).mkdir(parents=False, exist_ok=True)
+OUT.mkdir(parents=False, exist_ok=True)
 
 for sample, meta in data.items():
     # extra obs = non-mandatory keys
@@ -57,4 +57,4 @@ set -eu
 mamba activate seg_postprocessing
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/master_sdata.py {cli_args}
 """
-    (pathlib.Path(OUT) / f"{sample}.sbatch").write_text(sbatch)
+    (OUT / f"{sample}.sbatch").write_text(sbatch)

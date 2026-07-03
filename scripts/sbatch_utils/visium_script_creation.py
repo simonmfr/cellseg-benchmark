@@ -3,7 +3,7 @@ import pathlib
 import yaml
 
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-YAML = f"{BASE_PATH}/misc/sample_metadata.yaml"
+YAML = BASE_PATH / "misc/sample_metadata.yaml"
 SBATCH_DIR = f"{BASE_PATH}/misc/sbatches/sbatch_visium"
 OUT_DIR = f"{BASE_PATH}/samples/{{k}}/results/Negative_Control_Visium"
 

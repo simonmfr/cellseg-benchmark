@@ -19,7 +19,7 @@ if not samples:
 
 print(f"Found {len(samples)} samples.")
 
-YAML = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+YAML = BASE_PATH / "misc/sample_metadata.yaml"
 with open(YAML) as f:
     data = yaml.safe_load(f)
 
@@ -46,7 +46,7 @@ mamba activate segmentation
 python "$HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/sis_to_sdata.py" "${{PATHS[$SLURM_ARRAY_TASK_ID]}}" "${{IMAGE_PATHS[$SLURM_ARRAY_TASK_ID]}}"
 """
 
-sbatch_file = BASE_PATH / "misc/sbatches/sbatch_SIS_to_sdata/SIS_to_sdata_array.sbatch"
-sbatch_file.parent.mkdir(parents=True, exist_ok=True)
-sbatch_file.write_text(sbatch)
-print(f"To call: sbatch {sbatch_file}")
+SBATCH_FILE = BASE_PATH / "misc/sbatches/sbatch_SIS_to_sdata/SIS_to_sdata_array.sbatch"
+SBATCH_FILE.parent.mkdir(parents=True, exist_ok=True)
+SBATCH_FILE.write_text(sbatch)
+print(f"To call: sbatch {SBATCH_FILE}")

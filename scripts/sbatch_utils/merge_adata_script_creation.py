@@ -12,9 +12,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-sbatch_path = f"{BASE_PATH}/misc/sbatches/sbatch_merge_adata"
-container_image = f"{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
-log_path = f"{BASE_PATH}/misc/logs/merged"
+SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_merge_adata"
 methods = [
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8",
@@ -60,7 +58,7 @@ methods = [
     "Ficture_segments_dapi"
 ]
 
-pathlib.Path(sbatch_path).mkdir(parents=False, exist_ok=True)
+SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 
 for method in methods:
     if method == "Negative_Control_Rastered_5":
@@ -75,7 +73,7 @@ for method in methods:
 
     memory = "700G" if "Negative_Control" in method else "350G"
 
-    with open(f"{sbatch_path}/{args.cohort}_{method}.sbatch", "w") as f:
+    with open(SBATCH_DIR / f"{args.cohort}_{method}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
@@ -84,8 +82,8 @@ for method in methods:
 #SBATCH --cpus-per-task=20
 #SBATCH --mem={memory}
 #SBATCH -J merge_adata_{args.cohort}_{method}
-#SBATCH -o {log_path}/%x.log
-#SBATCH --container-image="{container_image}"
+#SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1

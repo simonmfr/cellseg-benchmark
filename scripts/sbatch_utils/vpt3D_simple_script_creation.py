@@ -17,8 +17,8 @@ SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vpt_3D_simple"
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
-experiment_json_path = f"{REPO_PATH}/configs/vpt_3D_{args.staining}.json"
-run_log_path = f"{REPO_PATH}/scripts/sbatch_utils/run_log.sh"
+EXPERIMENT_JSON_PATH = f"{REPO_PATH}/configs/vpt_3D_{args.staining}.json"
+RUN_LOG_PATH = f"{REPO_PATH}/scripts/sbatch_utils/run_log.sh"
 
 SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
@@ -43,10 +43,10 @@ for key, value in data.items():
 
 set -euo pipefail
 
-source {run_log_path}
+source {RUN_LOG_PATH}
 
 RES_PATH="{res_path}"
-EXPERIMENT_JSON="{experiment_json_path}"
+EXPERIMENT_JSON="{EXPERIMENT_JSON_PATH}"
 INPUT_IMAGES="{pathlib.Path(value["path"], "images")}"
 INPUT_TRANSFORM="{pathlib.Path(value["path"], "images/micron_to_mosaic_pixel_transform.csv")}"
 INPUT_TRANSCRIPTS="{pathlib.Path(value["path"], "detected_transcripts.csv")}"

@@ -11,11 +11,11 @@ BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
-out_dir = pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_ficture_segments_to_sdata")
-out_dir.mkdir(parents=False, exist_ok=True)
+SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_ficture_segments_to_sdata"
+SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 
 for key, value in data.items():
-    with open(out_dir / f"{key}.sbatch", "w") as f:
+    with open(SBATCH_DIR / f"{key}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 
 #SBATCH -p lrz-cpu
@@ -35,4 +35,4 @@ python $HOME/gitrepos/cellseg-benchmark/scripts/ficture/ficture_segments_to_sdat
  {key} --res {args.res} --data-path {value["path"]}
 """)
 
-print(f"Wrote {len(data)} sbatch scripts to {out_dir}")
+print(f"Wrote {len(data)} sbatch scripts to {SBATCH_DIR}")

@@ -17,9 +17,9 @@ parser.add_argument(
 )
 args = parser.parse_args()
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-SBATCH_DIR = pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_SIS")
+SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_SIS"
 SBATCH_DIR.mkdir(parents=True, exist_ok=True)
-MODEL = f"{BASE_PATH}/misc/cellpose_custom_models/CP_20240611_mousedev_Allen"
+MODEL = BASE_PATH / "misc/cellpose_custom_models/CP_20240611_mousedev_Allen"
 
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     samples = yaml.safe_load(f)

@@ -12,7 +12,7 @@ BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
-pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_ficture_factor_to_sdata").mkdir(
+(BASE_PATH / "misc/sbatches/sbatch_ficture_factor_to_sdata").mkdir(
     parents=False, exist_ok=True
 )
 for key, value in data.items():

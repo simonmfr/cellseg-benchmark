@@ -10,7 +10,7 @@ parser.add_argument(
 args = parser.parse_args()
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 runtime = "08:00:00" if args.cohort in ("VizgenMouseBrain", "ABCAtlas") else "04:00:00"
-SBATCH_DIR = pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_Ficture")
+SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_Ficture"
 SBATCH_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:

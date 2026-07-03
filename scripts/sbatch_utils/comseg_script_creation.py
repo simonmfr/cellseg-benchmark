@@ -14,11 +14,8 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-outdir = pathlib.Path(
-    f"{BASE_PATH}/misc/sbatches/"
-    f"sbatch_ComSeg_CP{args.CP_version}_{args.staining}"
-)
-outdir.mkdir(parents=False, exist_ok=True)
+SBATCH_DIR = BASE_PATH / f"misc/sbatches/sbatch_ComSeg_CP{args.CP_version}_{args.staining}"
+SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 
 for key, value in data.items():
     cp_tag = "CP1" if args.staining == "nuclei" else f"CP{args.CP_version}"
@@ -29,7 +26,7 @@ for key, value in data.items():
         else f"Cellpose_1_{args.staining}_model"
     )
 
-    sbatch_path = outdir / f"{key}.sbatch"
+    sbatch_path = SBATCH_DIR / f"{key}.sbatch"
     with open(sbatch_path, "w") as f:
         f.write(
             f"""#!/bin/bash
