@@ -329,6 +329,8 @@ def aggregate_channels_aligned(
     match mode:
         case "average":
             return aggregation / areas[:, None].clip(1)
+        case "min":
+            return aggregation
         case "max":
             return aggregation
         case "variance":
