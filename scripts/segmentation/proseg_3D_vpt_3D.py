@@ -34,7 +34,8 @@ def main(data_path, sample, proseg_flags, base_segmentation):
         / "results"
         / base_segmentation
     )
-    dir_name = base_segmentation.split("_")[0] + "_".join(
+    # e.g. "vpt_3D_DAPI_PolyT" -> "Proseg_3D_vpt3D_DAPI_PolyT"
+    dir_name = "Proseg_3D_" + base_segmentation.split("_")[0] + "_".join(
         base_segmentation.split("_")[1:]
     )
     save_path = (
