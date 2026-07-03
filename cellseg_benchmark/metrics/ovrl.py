@@ -324,7 +324,7 @@ def aggregate_channels_aligned(
             for iy, row in enumerate(image.chunk({"c": -1}).data.to_delayed()[0])
             for ix, chunk in enumerate(row)
         ]
-        dask.compute(tasks)
+        dask.compute(tasks, scheduler="single-threaded")
 
     match mode:
         case "average":
