@@ -12,6 +12,7 @@ args = parser.parse_args()
 
 BASE_PATH = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 REPO_PATH = "$HOME/gitrepos/cellseg-benchmark"
+REPO_ABS = str(Path.home() / "gitrepos/cellseg-benchmark")  # absolute: pyxis --container-mounts won't expand $HOME
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vpt_3D_complex"
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
@@ -39,7 +40,7 @@ for key, value in data.items():
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/vpt3D_{key}_{args.staining1}_{args.staining2}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/vpt3D_{key}_{args.staining1}_{args.staining2}.err
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/vpt.sqsh"
-#SBATCH --container-mounts={REPO_PATH}/scripts/segmentation/vpt_plugin_cellpose_predict.py:/home/ubuntu/miniforge3/envs/vpt/lib/python3.10/site-packages/vpt_plugin_cellpose/predict.py
+#SBATCH --container-mounts={REPO_ABS}/scripts/segmentation/vpt_plugin_cellpose_predict.py:/home/ubuntu/miniforge3/envs/vpt/lib/python3.10/site-packages/vpt_plugin_cellpose/predict.py
 
 set -euo pipefail
 
