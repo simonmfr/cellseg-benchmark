@@ -877,7 +877,6 @@ def prepare_ficture(
     sample: str,
     base_path: str,
     top_n_factors: int = 3,
-    n_ficture: int = 21,
     logger: logging.Logger = None,
     factors: Optional[List[int]] = None,
 ) -> Dict[str, Union[np.ndarray, List[int]]]:
@@ -889,7 +888,6 @@ def prepare_ficture(
         sample: Sample name
         base_path: Path to base folder
         top_n_factors: only consider top n factors for ficture picture
-        n_ficture: number of factors of ficture run
         logger: logger instance
         factors: if provided, only these ficture images will be generated.
 
@@ -907,7 +905,7 @@ def prepare_ficture(
 
     if "Ficture" not in listdir(results_path):
         return {}
-    ficture_full_path = fu.find_ficture_output(sample, base_path, n_ficture)
+    ficture_full_path = fu.find_ficture_output(sample, base_path)
     assert ficture_full_path != "", "Ficture output not correctly computed."
 
     ficture_pixels = fu.read_ficture_pixels(ficture_full_path)

@@ -27,12 +27,6 @@ p.add_argument(
     help="Mode of master sdata. Either 'z3' or '3d' (currently only z3 is implemented).",
 )
 p.add_argument("data_dir", help="Output data folder.")
-p.add_argument(
-    "--n_ficture",
-    default=21,
-    type=int,
-    help="Consider Ficture model with n_ficture factors.",
-)
 p.add_argument("--run_date", type=str, help="run date (YYYYMMDD).", default=None)
 p.add_argument("--organism", type=str, help="organism.", default=None)
 p.add_argument("--slide", type=str, help="slide.", default=None)
