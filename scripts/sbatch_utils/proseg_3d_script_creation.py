@@ -11,19 +11,20 @@ parser.add_argument("staining", help="Staining of prior segmentation.")
 parser.add_argument("CP_version", choices=["1", "2"], help="Cellpose version.")
 parser.add_argument("--voxel", default=1, type=int, help="intensity ratio.")
 args = parser.parse_args()
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+    f"{BASE_PATH}/misc/sample_metadata.yaml"
 ) as f:
     data = yaml.safe_load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_3D_CP{args.CP_version}_{args.staining}"
+    f"{BASE_PATH}/misc/sbatches/sbatch_Proseg_3D_CP{args.CP_version}_{args.staining}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     if args.staining == "nuclei":
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_3D_CP{args.CP_version}_{args.staining}/{key}_{args.voxel}.sbatch",
+            f"{BASE_PATH}/misc/sbatches/sbatch_Proseg_3D_CP{args.CP_version}_{args.staining}/{key}_{args.voxel}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash
@@ -34,14 +35,14 @@ for key, value in data.items():
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=30
 #SBATCH -J Proseg_3D_{key}_CP1_{args.staining}_vxl_{args.voxel}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_3D_{key}_CP1_{args.staining}_vxl_{args.voxel}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_3D_{key}_CP1_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/Proseg_3D_{key}_CP1_{args.staining}_vxl_{args.voxel}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/Proseg_3D_{key}_CP1_{args.staining}_vxl_{args.voxel}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -60,9 +61,9 @@ STAINING="{args.staining}"
 VOXEL="{args.voxel}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_Cellpose_1_{args.staining}_model"
+RESULT_DIR="{BASE_PATH}/samples/{key}/results/Proseg_3D_Cellpose_1_{args.staining}_model"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\"${{INPUT_PATH}}\\" ${{KEY}} Cellpose_1_${{STAINING}}_model --voxel-layers ${{VOXEL}} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\"${{INPUT_PATH}}\\" ${{KEY}} Cellpose_1_${{STAINING}}_model --voxel-layers ${{VOXEL}} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
 
 write_log() {{
   local rc="$1"
@@ -87,7 +88,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 
 mamba activate segmentation
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\
   "${{INPUT_PATH}}" \\
   "${{KEY}}" \\
   "Cellpose_1_${{STAINING}}_model" \\
@@ -97,7 +98,7 @@ python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\
         f.close()
     else:
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_3D_CP{args.CP_version}_{args.staining}/{key}_vxl_{args.voxel}.sbatch",
+            f"{BASE_PATH}/misc/sbatches/sbatch_Proseg_3D_CP{args.CP_version}_{args.staining}/{key}_vxl_{args.voxel}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash
@@ -108,14 +109,14 @@ python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=30
 #SBATCH -J Proseg_3D_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_3D_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_3D_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/Proseg_3D_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/Proseg_3D_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -134,9 +135,9 @@ STAINING="{args.staining}"
 VOXEL="{args.voxel}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_Cellpose_{args.CP_version}_DAPI_{args.staining}"
+RESULT_DIR="{BASE_PATH}/samples/{key}/results/Proseg_3D_Cellpose_{args.CP_version}_DAPI_{args.staining}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\"${{INPUT_PATH}}\\" ${{KEY}} Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}} --voxel-layers ${{VOXEL}} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\"${{INPUT_PATH}}\\" ${{KEY}} Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}} --voxel-layers ${{VOXEL}} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
 
 write_log() {{
   local rc="$1"
@@ -162,7 +163,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D.py \\
   "${{INPUT_PATH}}" \\
   "${{KEY}}" \\
   "Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}}" \\

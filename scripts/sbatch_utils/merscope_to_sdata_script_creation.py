@@ -82,7 +82,7 @@ if [ "${{SEG_FLAGS[$SLURM_ARRAY_TASK_ID]}}" = "cellpose" ] && [ "{str(args.explo
     EXPLORER_FLAG="--explorer"
 fi
 
-python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata.py \\
   "${{DATA_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
   "${{SAVE_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
   --segmentation "${{SEG_FLAGS[$SLURM_ARRAY_TASK_ID]}}" \\

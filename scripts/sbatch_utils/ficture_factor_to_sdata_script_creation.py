@@ -34,7 +34,7 @@ for key, value in data.items():
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 mamba activate segmentation
-python ~/gitrepos/cellseg-benchmark/scripts/ficture/ficture_factor_to_h5ad.py \
+python $HOME/gitrepos/cellseg-benchmark/scripts/ficture/ficture_factor_to_h5ad.py \
  {out}/output/model.posterior.count.tsv.gz \
  --zarr {out}/../Ficture_factors/sdata.zarr
 """)

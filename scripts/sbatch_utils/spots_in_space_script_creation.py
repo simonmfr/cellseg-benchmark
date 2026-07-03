@@ -44,14 +44,14 @@ for key, value in samples.items():
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_with_sis.sqsh"
 
 set -euo pipefail
-source ~/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
+source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
 
 KEY="{key}"
 METHOD="SIS"
 STAINING="{args.staining}"
 INPUT_PATH="{value["path"]}"
 RESULT_DIR="{result_dir}"
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/spots_in_space.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\" \\"{MODEL}\\" \\"${{STAINING}}\\""
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/spots_in_space.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\" \\"{MODEL}\\" \\"${{STAINING}}\\""
 start_run_log
 
 mamba activate segmentation

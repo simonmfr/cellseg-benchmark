@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 from pathlib import Path
-
 import yaml
 
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+    f"{BASE_PATH}/misc/sample_metadata.yaml"
 ) as f:
     data = yaml.safe_load(f)
 
 Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_voronoi"
+    f"{BASE_PATH}/misc/sbatches/sbatch_voronoi"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_voronoi/{key}.sbatch",
+        f"{BASE_PATH}/misc/sbatches/sbatch_voronoi/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -22,14 +23,14 @@ for key, value in data.items():
 #SBATCH -t 10:00:00
 #SBATCH --mem=128G
 #SBATCH -J voronoi_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/voronoi_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/voronoi_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/voronoi_{key}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/voronoi_{key}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -45,9 +46,9 @@ START_EPOCH="$(date +%s)"
 KEY="{key}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Voronoi"
+RESULT_DIR="{BASE_PATH}/samples/{key}/results/Negative_Control_Voronoi"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\""
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\""
 
 write_log() {{
   local rc="$1"
@@ -72,7 +73,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\
   "${{INPUT_PATH}}" \\
   "${{RESULT_DIR}}"
 """)

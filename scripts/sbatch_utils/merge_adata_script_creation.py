@@ -95,5 +95,5 @@ export NUMEXPR_NUM_THREADS=1
 set -eu
 
 mamba activate seg_postprocessing
-python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
 """)

@@ -3,8 +3,9 @@ import shlex
 from pathlib import Path
 
 import yaml
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
-BASE = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+BASE = f"{BASE_PATH}"
 YAML = f"{BASE}/misc/sample_metadata.yaml"
 OUT = f"{BASE}/misc/sbatches/sbatch_master_sdata"
 MANDATORY = {"cohort", "slide", "region", "organism", "run_date", "path"}
@@ -51,11 +52,11 @@ for sample, meta in data.items():
 #SBATCH --mem=200G
 #SBATCH -J master_sdata_{sample}
 #SBATCH -o {BASE}/misc/logs/merged/%x.log
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -eu
 
 mamba activate seg_postprocessing
-python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/master_sdata.py {cli_args}
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/master_sdata.py {cli_args}
 """
     (Path(OUT) / f"{sample}.sbatch").write_text(sbatch)

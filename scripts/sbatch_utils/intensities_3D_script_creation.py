@@ -2,19 +2,20 @@
 from pathlib import Path
 
 import yaml
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+    f"{BASE_PATH}/misc/sample_metadata.yaml"
 ) as f:
     data = yaml.safe_load(f)
 
 Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Intensities_3D"
+    f"{BASE_PATH}/misc/sbatches/sbatch_Intensities_3D"
 ).mkdir(parents=False, exist_ok=True)
 
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Intensities_3D/{key}.sbatch",
+        f"{BASE_PATH}/misc/sbatches/sbatch_Intensities_3D/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -23,11 +24,11 @@ for key, value in data.items():
 #SBATCH -t 12:00:00
 #SBATCH --mem=150G
 #SBATCH -J intensities_3D_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/intensities_3D_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/intensities_3D_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/intensities_3D_{key}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/intensities_3D_{key}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
             
 mamba activate segmentation
-python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/intensities_3D_wrapper.py {key} {value["path"]}
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/intensities_3D_wrapper.py {key} {value["path"]}
 """)
     f.close()

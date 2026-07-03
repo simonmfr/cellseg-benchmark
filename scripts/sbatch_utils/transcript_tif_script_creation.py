@@ -2,18 +2,19 @@
 from pathlib import Path
 
 import yaml
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+    f"{BASE_PATH}/misc/sample_metadata.yaml"
 ) as f:
     data = yaml.safe_load(f)
 
 Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_transcript_tif"
+    f"{BASE_PATH}/misc/sbatches/sbatch_transcript_tif"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_transcript_tif/{key}.sbatch",
+        f"{BASE_PATH}/misc/sbatches/sbatch_transcript_tif/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -22,14 +23,14 @@ for key, value in data.items():
 #SBATCH -t 12:00:00
 #SBATCH --mem=100G
 #SBATCH -J transcript_tif_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/transcript_tif_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/transcript_tif_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/transcript_tif_{key}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/transcript_tif_{key}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -45,7 +46,7 @@ START_EPOCH="$(date +%s)"
 KEY="{key}"
 INPUT_PATH="{value["path"]}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/transcript_tif.py \\"${{INPUT_PATH}}\\""
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/transcript_tif.py \\"${{INPUT_PATH}}\\""
 
 write_log() {{
   local rc="$1"
@@ -70,7 +71,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 
 mamba activate segmentation
 
-python ~/gitrepos/cellseg-benchmark/scripts/transcript_tif.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/transcript_tif.py \\
   "${{INPUT_PATH}}"
 """)
     f.close()

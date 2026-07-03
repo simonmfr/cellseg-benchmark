@@ -47,7 +47,7 @@ KEY="{k}"
 INPUT_PATH="{v["path"]}"
 RESULT_DIR="{out}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\""
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\""
 
 write_log() {{
   local rc="$1"
@@ -73,7 +73,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\
   "${{INPUT_PATH}}" \\
   "${{RESULT_DIR}}"
 """

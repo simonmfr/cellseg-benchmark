@@ -84,7 +84,7 @@ for seg_method in methods:
 #SBATCH --container-image="{container_image}"
 
 set -eu
-cd ~/gitrepos/cellseg-benchmark
+cd $HOME/gitrepos/cellseg-benchmark
 git pull -q
 
 python scripts/analysis/dea_edgeR.py {args.cohort} {seg_method} --condition_key {condition_col} --batch_key {batch_col} --ref {ref}

@@ -41,7 +41,7 @@ for key, value in samples.items():
 source $HOME/.bashrc
 source "$HOME/miniconda3/etc/profile.d/conda.sh"
 conda activate ficture
-bash /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/ficture/ficture.sh {key} {value["path"]}/detected_transcripts.csv
+bash $HOME/gitrepos/cellseg-benchmark/scripts/ficture/ficture.sh {key} {value["path"]}/detected_transcripts.csv
 """)
 
 print(f"Wrote {count} sbatch scripts to {SBATCH_DIR}")

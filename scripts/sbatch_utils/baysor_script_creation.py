@@ -9,19 +9,20 @@ parser.add_argument("staining", help="Staining of prior cellpose segmentation.")
 parser.add_argument("CP_version", help="Cellpose version of prior  segmentation.")
 parser.add_argument("confidence", help="Confidence of prior cellpose segmentation.")
 args = parser.parse_args()
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+    f"{BASE_PATH}/misc/sample_metadata.yaml"
 ) as f:
     data = yaml.safe_load(f)
 
 Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}"
+    f"{BASE_PATH}/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     if args.staining == "nuclei":
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}/{key}_{args.confidence}.sbatch",
+            f"{BASE_PATH}/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}/{key}_{args.confidence}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash
@@ -31,14 +32,14 @@ for key, value in data.items():
 #SBATCH -t 1-00:00:00
 #SBATCH --mem=75G
 #SBATCH -J Baysor_{key}_CP1_{args.staining}_{args.confidence}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP1_{args.staining}_{args.confidence}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP1_{args.staining}_{args.confidence}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/Baysor_{key}_CP1_{args.staining}_{args.confidence}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/Baysor_{key}_CP1_{args.staining}_{args.confidence}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -57,9 +58,9 @@ STAINING="{args.staining}"
 CONFIDENCE="{args.confidence}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_1_{args.staining}_model_{args.confidence}"
+RESULT_DIR="{BASE_PATH}/samples/{key}/results/Baysor_2D_Cellpose_1_{args.staining}_model_{args.confidence}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \\"${{INPUT_PATH}}\\" Cellpose_1_${{STAINING}}_model ${{CONFIDENCE}} ${{KEY}}"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \\"${{INPUT_PATH}}\\" Cellpose_1_${{STAINING}}_model ${{CONFIDENCE}} ${{KEY}}"
 
 write_log() {{
   local rc="$1"
@@ -84,7 +85,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
   "${{INPUT_PATH}}" \
   "Cellpose_1_${{STAINING}}"_model \
   "${{CONFIDENCE}}" \
@@ -93,7 +94,7 @@ python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
         f.close()
     else:
         f = open(
-            f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}/{key}_{args.confidence}.sbatch",
+            f"{BASE_PATH}/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}/{key}_{args.confidence}.sbatch",
             "w",
         )
         f.write(f"""#!/bin/bash
@@ -102,14 +103,14 @@ python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
 #SBATCH -t 1-00:00:00
 #SBATCH --mem=75G
 #SBATCH -J Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/Baysor_{key}_CP{args.CP_version}_{args.staining}_{args.confidence}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -128,9 +129,9 @@ STAINING="{args.staining}"
 CONFIDENCE="{args.confidence}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Baysor_2D_Cellpose_{args.CP_version}_DAPI_{args.staining}_{args.confidence}"
+RESULT_DIR="{BASE_PATH}/samples/{key}/results/Baysor_2D_Cellpose_{args.CP_version}_DAPI_{args.staining}_{args.confidence}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \\"${{INPUT_PATH}}\\" Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}} ${{CONFIDENCE}} ${{KEY}}"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \\"${{INPUT_PATH}}\\" Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}} ${{CONFIDENCE}} ${{KEY}}"
 
 write_log() {{
   local rc="$1"
@@ -155,7 +156,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
   "${{INPUT_PATH}}" \
   "Cellpose_${{CP_VERSION}}_DAPI_${{STAINING}}" \
   "${{CONFIDENCE}}" \
