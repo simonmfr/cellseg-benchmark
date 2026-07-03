@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
-from pathlib import Path
+import pathlib
+
 import yaml
 
 parser = argparse.ArgumentParser(
@@ -20,7 +21,7 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-Path(
+pathlib.Path(
     f"{BASE_PATH}/misc/sbatches/sbatch_rastered_{args.width}{args.unit}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import argparse
+import pathlib
 from os import listdir
 from os.path import join
-from pathlib import Path
+
 import yaml
 
 parser = argparse.ArgumentParser(description="Prepare scripts for vpt pipeline (3D).")
@@ -10,9 +11,9 @@ parser.add_argument("staining1", help="Name of cytoplasm staining (e.g. PolyT)."
 parser.add_argument("staining2", help="Name of nucleus staining (e.g. nuclei).")
 args = parser.parse_args()
 
-BASE_PATH = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 REPO_PATH = "$HOME/gitrepos/cellseg-benchmark"
-REPO_ABS = str(Path.home() / "gitrepos/cellseg-benchmark")  # absolute: pyxis --container-mounts won't expand $HOME
+REPO_ABS = str(pathlib.Path.home() / "gitrepos/cellseg-benchmark")  # absolute: pyxis --container-mounts won't expand $HOME
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vpt_3D_complex"
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:

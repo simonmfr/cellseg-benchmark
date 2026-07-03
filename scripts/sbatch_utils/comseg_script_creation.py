@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
-from pathlib import Path
+import pathlib
+
 import yaml
 
 parser = argparse.ArgumentParser(description="Generate ComSeg sbatch scripts.")
@@ -14,7 +15,7 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-outdir = Path(
+outdir = pathlib.Path(
     f"{BASE_PATH}/misc/sbatches/"
     f"sbatch_ComSeg_CP{args.CP_version}_{args.staining}"
 )

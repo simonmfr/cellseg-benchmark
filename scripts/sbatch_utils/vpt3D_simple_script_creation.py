@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import argparse
+import pathlib
 from os import listdir
 from os.path import join
-from pathlib import Path
+
 import yaml
 
 parser = argparse.ArgumentParser(
@@ -11,9 +12,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument("staining", help="Name of staining (e.g. nuclei or PolyT).")
 args = parser.parse_args()
 
-BASE_PATH = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 REPO_PATH = "$HOME/gitrepos/cellseg-benchmark"
-REPO_ABS = str(Path.home() / "gitrepos/cellseg-benchmark")  # absolute: pyxis --container-mounts won't expand $HOME
+REPO_ABS = str(pathlib.Path.home() / "gitrepos/cellseg-benchmark")  # absolute: pyxis --container-mounts won't expand $HOME
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vpt_3D_simple"
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:

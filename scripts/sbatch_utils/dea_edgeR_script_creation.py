@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import argparse
-from pathlib import Path
+import pathlib
 
 parser = argparse.ArgumentParser(
     description="Scripts for dea usind edgeR (pseudobulk-based)."
@@ -9,10 +9,10 @@ parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 
 args = parser.parse_args()
 
-base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-sbatch_path = f"{base_path}/misc/sbatches/sbatch_dea_edgeR"
-container_image = f"{base_path}/misc/enroot_images/downstream.sqsh"
-log_path = f"{base_path}/misc/logs/merged"
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+sbatch_path = f"{BASE_PATH}/misc/sbatches/sbatch_dea_edgeR"
+container_image = f"{BASE_PATH}/misc/enroot_images/downstream.sqsh"
+log_path = f"{BASE_PATH}/misc/logs/merged"
 
 if args.cohort == "foxf2":
     condition_col, ref, batch_col = "genotype", "WT", "slide"
@@ -57,7 +57,7 @@ methods = [
     "vpt_3D_DAPI_PolyT_nuclei",
 ]
 
-Path(sbatch_path).mkdir(parents=False, exist_ok=True)
+pathlib.Path(sbatch_path).mkdir(parents=False, exist_ok=True)
 
 for seg_method in methods:
     if seg_method == "Negative_Control_Rastered_5":
@@ -71,7 +71,7 @@ for seg_method in methods:
         time_limit, memory = "02:00:00", "25G"
 
     job_name = f"dea_edgeR_{args.cohort}_{seg_method}"
-    sbatch_file = Path(sbatch_path) / f"{job_name}.sbatch"
+    sbatch_file = pathlib.Path(sbatch_path) / f"{job_name}.sbatch"
 
     with open(sbatch_file, "w") as f:
         f.write(f"""#!/bin/bash

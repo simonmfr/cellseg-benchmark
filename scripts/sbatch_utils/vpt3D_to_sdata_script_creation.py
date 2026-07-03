@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 
-BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+import yaml
 
 parser = argparse.ArgumentParser(
     description="Create SLURM jobs to convert vpt 3D outputs to sdatas."
@@ -15,6 +14,8 @@ parser.add_argument(
     help="Optional nucleus staining for complex runs (e.g. nuclei).",
 )
 args = parser.parse_args()
+
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
 adapt = f"_{args.staining2}" if args.staining2 else ""
 

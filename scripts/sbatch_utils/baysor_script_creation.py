@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
-from pathlib import Path
+import pathlib
+
 import yaml
 
 parser = argparse.ArgumentParser(description="scripts for Baysor segmentation.")
@@ -15,7 +16,7 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-Path(
+pathlib.Path(
     f"{BASE_PATH}/misc/sbatches/sbatch_Baysor_CP{args.CP_version}_{args.staining}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import argparse
-from pathlib import Path
+import pathlib
 
 parser = argparse.ArgumentParser(
     description="scripts for merging one method from different samples."
@@ -12,10 +12,10 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
-container_image = f"{base_path}/misc/enroot_images/benchmark.sqsh"
-log_path = f"{base_path}/misc/logs/merged"
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+sbatch_path = f"{BASE_PATH}/misc/sbatches/sbatch_merge_adata"
+container_image = f"{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+log_path = f"{BASE_PATH}/misc/logs/merged"
 
 methods = [
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
@@ -60,7 +60,7 @@ methods = [
     "SIS_DAPI_total_mrna",
 ]
 
-Path(sbatch_path).mkdir(parents=False, exist_ok=True)
+pathlib.Path(sbatch_path).mkdir(parents=False, exist_ok=True)
 
 for method in methods:
     if method == "Negative_Control_Rastered_5":

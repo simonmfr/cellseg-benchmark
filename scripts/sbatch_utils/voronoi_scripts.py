@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-from pathlib import Path
+import pathlib
+
 import yaml
 
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
@@ -9,7 +10,7 @@ with open(
 ) as f:
     data = yaml.safe_load(f)
 
-Path(
+pathlib.Path(
     f"{BASE_PATH}/misc/sbatches/sbatch_voronoi"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():

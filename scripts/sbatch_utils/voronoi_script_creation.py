@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-from pathlib import Path
+import pathlib
+
 import yaml
 
-YAML = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
-SBATCH_DIR = (
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_visium"
-)
-OUT_DIR = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{k}/results/Negative_Control_Visium"
+BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+YAML = f"{BASE_PATH}/misc/sample_metadata.yaml"
+SBATCH_DIR = f"{BASE_PATH}/misc/sbatches/sbatch_visium"
+OUT_DIR = f"{BASE_PATH}/samples/{{k}}/results/Negative_Control_Visium"
 
 with open(YAML) as f:
     data = yaml.safe_load(f)
 
-Path(SBATCH_DIR).mkdir(exist_ok=True)
+pathlib.Path(SBATCH_DIR).mkdir(exist_ok=True)
 
 for k, v in data.items():
     out = OUT_DIR.format(k=k)
@@ -22,14 +22,14 @@ for k, v in data.items():
 #SBATCH -t 10:00:00
 #SBATCH --mem=128G
 #SBATCH -J voronoi_{k}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/voronoi_{k}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/voronoi_{k}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/voronoi_{k}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/voronoi_{k}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -77,4 +77,4 @@ python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentatio
   "${{RESULT_DIR}}"
 """
 
-    Path(SBATCH_DIR, f"{k}.sbatch").write_text(text)
+    pathlib.Path(SBATCH_DIR, f"{k}.sbatch").write_text(text)

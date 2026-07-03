@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-import yaml
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+import yaml
 
 parser = argparse.ArgumentParser(
     description="Create a SLURM array sbatch for a given cohort to convert Merscope outputs to sdata."
@@ -22,6 +21,8 @@ parser.add_argument(
     help="Write 10X Xenium explorer files (cellpose only).",
 )
 args = parser.parse_args()
+
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
     metadata = yaml.safe_load(f)

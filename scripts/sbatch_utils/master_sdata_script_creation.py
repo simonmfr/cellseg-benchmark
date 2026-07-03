@@ -1,18 +1,19 @@
 #!/usr/bin/env python
+import pathlib
 import shlex
-from pathlib import Path
+
 import yaml
+
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
-BASE = f"{BASE_PATH}"
-YAML = f"{BASE}/misc/sample_metadata.yaml"
-OUT = f"{BASE}/misc/sbatches/sbatch_master_sdata"
+YAML = f"{BASE_PATH}/misc/sample_metadata.yaml"
+OUT = f"{BASE_PATH}/misc/sbatches/sbatch_master_sdata"
 MANDATORY = {"cohort", "slide", "region", "organism", "run_date", "path"}
 
 with open(YAML) as f:
     data = yaml.safe_load(f)
 
-Path(OUT).mkdir(parents=False, exist_ok=True)
+pathlib.Path(OUT).mkdir(parents=False, exist_ok=True)
 
 for sample, meta in data.items():
     # extra obs = non-mandatory keys
@@ -26,7 +27,7 @@ for sample, meta in data.items():
         sample,
         meta["path"],
         "z3",
-        BASE,
+        BASE_PATH,
         "--cohort",
         meta["cohort"],
         "--slide",
@@ -50,7 +51,7 @@ for sample, meta in data.items():
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=200G
 #SBATCH -J master_sdata_{sample}
-#SBATCH -o {BASE}/misc/logs/merged/%x.log
+#SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -eu
@@ -58,4 +59,4 @@ set -eu
 mamba activate seg_postprocessing
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/master_sdata.py {cli_args}
 """
-    (Path(OUT) / f"{sample}.sbatch").write_text(sbatch)
+    (pathlib.Path(OUT) / f"{sample}.sbatch").write_text(sbatch)

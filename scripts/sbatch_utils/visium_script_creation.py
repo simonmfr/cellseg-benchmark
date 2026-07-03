@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-from pathlib import Path
+import pathlib
+
 import yaml
 
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
@@ -10,7 +11,7 @@ OUT_DIR = f"{BASE_PATH}/samples/{{k}}/results/Negative_Control_Visium"
 with open(YAML) as f:
     data = yaml.safe_load(f)
 
-Path(SBATCH_DIR).mkdir(exist_ok=True)
+pathlib.Path(SBATCH_DIR).mkdir(exist_ok=True)
 
 for k, v in data.items():
     out = OUT_DIR.format(k=k)
@@ -31,4 +32,4 @@ mkdir -p {out}
 python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/visium_segmentation.py {v["path"]} {out}
 """
 
-    Path(SBATCH_DIR, f"{k}.sbatch").write_text(text)
+    pathlib.Path(SBATCH_DIR, f"{k}.sbatch").write_text(text)
