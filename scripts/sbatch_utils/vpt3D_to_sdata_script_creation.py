@@ -42,6 +42,6 @@ for key, value in data.items():
 
 mamba activate segmentation
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/vpt_3D_to_sdata.py {value["path"]} \
- {BASE_PATH}/samples/{key}/results/vpt3D_{args.staining}{adapt}
+ {BASE_PATH}/samples/{key}/results/vpt_3D_DAPI_{args.staining}{adapt}
 """)
     f.close()
