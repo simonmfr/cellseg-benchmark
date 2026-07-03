@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import shlex
 from pathlib import Path
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 from os import listdir
 from os.path import join
@@ -135,3 +136,8 @@ else
 fi
 """)
     f.close()
+
+print(
+    f"Wrote {len(data)} sbatch scripts to "
+    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_3D_simple"
+)

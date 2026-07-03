@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Run automated cell type annotation by combining MapMyCells (MMC) and marker genes scores.
 
 1. Load adata from sdata.zarr

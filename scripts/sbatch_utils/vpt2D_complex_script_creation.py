@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 from os import listdir
 from os.path import join
