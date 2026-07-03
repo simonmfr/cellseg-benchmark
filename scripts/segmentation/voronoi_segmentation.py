@@ -1,18 +1,17 @@
 #!/usr/bin/env python
 import argparse
-from os.path import join
-from pathlib import Path
+import pathlib
 
+import geopandas as gpd
+import numpy as np
+import pandas as pd
 import shapely
-from geopandas import GeoDataFrame
-from numpy.random import random
-from pandas import read_csv
+import tifffile
 from scipy.spatial import Voronoi
 from sopa import aggregate
 from sopa.io import merscope
 from spatialdata import read_zarr
 from spatialdata.models import ShapesModel
-from tifffile import imread
 
 parser = argparse.ArgumentParser(
     description="Compute Voronoi segmentation based on Negative Control 10um."
@@ -25,21 +24,21 @@ parser.add_argument(
 args = parser.parse_args()
 
 sdata = merscope(args.data_path)
-shape = imread(join(args.data_path, "images/mosaic_DAPI_z3.tif")).shape
-translation = read_csv(
-    join(args.data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+shape = tifffile.imread(pathlib.Path(args.data_path, "images/mosaic_DAPI_z3.tif")).shape
+translation = pd.read_csv(
+    pathlib.Path(args.data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
     sep=" ",
     header=None,
 )
 
 N = read_zarr(
-    join(
-        str(Path(args.save_path).parent.resolve()),
+    pathlib.Path(
+        str(pathlib.Path(args.save_path).parent.resolve()),
         "Negative_Control_Rastered_10",
         "sdata.zarr",
     )
 )["table"].n_obs
-points = random((N, 2))
+points = np.random.random((N, 2))
 points[:, 1] = (points[:, 1] * shape[0]).astype(int)
 points[:, 0] = (points[:, 0] * shape[1]).astype(int)
 
@@ -50,17 +49,17 @@ lines = [
     if -1 not in line
 ]
 polygons = shapely.ops.polygonize(lines)
-gdf = GeoDataFrame({"geometry": [polygon for polygon in polygons]})
+gdf = gpd.GeoDataFrame({"geometry": [polygon for polygon in polygons]})
 
 sdata["cellpose_boundaries"] = ShapesModel.parse(gdf)
 aggregate(sdata, shapes_key="cellpose_boundaries")
-sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)
+sdata.write(pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True)
 
 if args.explorer:
     from sopa.io.explorer import write
 
     write(
-        join(args.save_path, "sdata.explorer"),
+        pathlib.Path(args.save_path, "sdata.explorer"),
         sdata,
         gene_column="gene",
         save_h5ad=True,

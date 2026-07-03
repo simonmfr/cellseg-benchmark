@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 import argparse
 import os
-from os.path import join
-from pathlib import Path
-from subprocess import run
+import pathlib
+import subprocess
 
+import pandas as pd
 import sopa
-from pandas import read_csv
 from spatialdata import read_zarr
 from spatialdata_io import merscope
 
@@ -29,7 +28,7 @@ proseg_flags = " ".join(args.proseg_flags)
 def main(data_path, sample, proseg_flags, base_segmentation):
     """Proseg 3D with vpt 3D segmentation."""
     vpt_path = (
-        Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples")
+        pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples")
         / sample
         / "results"
         / base_segmentation
@@ -39,7 +38,7 @@ def main(data_path, sample, proseg_flags, base_segmentation):
         base_segmentation.split("_")[1:]
     )
     save_path = (
-        Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples")
+        pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples")
         / sample
         / "results"
         / dir_name
@@ -71,8 +70,8 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     sdata.attrs["cell_segmentation_image"] = "image"
     sdata.attrs["transcripts_dataframe"] = "transcripts"
     sdata.attrs["transcript_to_cell_assignment"] = ["cell_id", -1]
-    translation = read_csv(
-        join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+    translation = pd.read_csv(
+        pathlib.Path(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     )
@@ -106,7 +105,7 @@ def main(data_path, sample, proseg_flags, base_segmentation):
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
     sdata.write(save_path / "sdata.zarr", overwrite=True)
-    run(
+    subprocess.run(
         [
             "cp",
             "-r",
@@ -114,7 +113,7 @@ def main(data_path, sample, proseg_flags, base_segmentation):
             str(save_path / "sdata.zarr" / str(cache_dir).split("/")[-1]),
         ]
     )
-    run(["rm", "-r", join(str(save_path), "sdata_tmp.zarr")])
+    subprocess.run(["rm", "-r", pathlib.Path(str(save_path), "sdata_tmp.zarr")])
 
 
 if __name__ == "__main__":

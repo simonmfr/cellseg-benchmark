@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-
 import yaml
 
 parser = argparse.ArgumentParser(
@@ -21,7 +20,6 @@ parser.add_argument(
     help="Write 10X Xenium explorer files (cellpose only).",
 )
 args = parser.parse_args()
-
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
@@ -56,7 +54,6 @@ data_paths = " ".join(f'"{dp}"' for dp, sp, sf, sn in jobs)
 save_paths = " ".join(f'"{sp}"' for dp, sp, sf, sn in jobs)
 seg_flags = " ".join(f'"{sf}"' for dp, sp, sf, sn in jobs)
 sample_names = " ".join(f'"{sn}"' for dp, sp, sf, sn in jobs)
-
 sbatch = f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu

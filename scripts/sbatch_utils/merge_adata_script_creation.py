@@ -11,12 +11,10 @@ parser.add_argument(
     "--genotype", action="store_true", help="Consider genotype differentiation"
 )
 args = parser.parse_args()
-
-BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 sbatch_path = f"{BASE_PATH}/misc/sbatches/sbatch_merge_adata"
 container_image = f"{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 log_path = f"{BASE_PATH}/misc/logs/merged"
-
 methods = [
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8",
@@ -58,6 +56,8 @@ methods = [
     "Proseg_3D_vpt3D_DAPI_PolyT_nuclei",
     "Watershed_Merlin",
     "SIS_DAPI_total_mrna",
+    "Ficture_segments",
+    "Ficture_segments_dapi"
 ]
 
 pathlib.Path(sbatch_path).mkdir(parents=False, exist_ok=True)

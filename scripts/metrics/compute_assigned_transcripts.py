@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 import argparse
 import logging
-import os
+import pathlib
 
 # TODO: ADD TO CONTAINER
 import subprocess
 import warnings
-from pathlib import Path
 
 import pandas as pd
 from spatialdata import read_zarr
@@ -36,7 +35,7 @@ parser.add_argument("sample", help="Sample, e.g., 'foxf2_s2_r1'")
 args = parser.parse_args()
 
 # Paths
-base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 sample_path = base_path / "samples" / args.sample
 save_path = base_path / "samples" / args.sample / "misc"
 save_path.mkdir(parents=True, exist_ok=True)
@@ -55,5 +54,5 @@ df = pd.DataFrame.from_dict(assigned_transcripts_results, orient="index")
 df.reset_index(inplace=True)
 df = df.rename(columns={"index": "seg_method"})
 logger.info("Saving results...")
-df.to_csv(os.path.join(save_path, "assigned_transcripts_results.csv"), index=False)
+df.to_csv(pathlib.Path(save_path, "assigned_transcripts_results.csv"), index=False)
 logger.info("Done.")

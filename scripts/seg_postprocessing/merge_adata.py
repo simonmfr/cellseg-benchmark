@@ -4,9 +4,9 @@ import concurrent.futures
 import functools
 import logging
 import os
+import pathlib
 import typing
 import warnings
-from pathlib import Path
 
 import anndata
 import scanpy as sc
@@ -25,7 +25,7 @@ logger = logging.getLogger("integrate_adatas")
 
 
 def _load_one(
-    sample_dir: Path, seg_method: str, logger: logging.Logger
+    sample_dir: pathlib.Path, seg_method: str, logger: logging.Logger
 ) -> typing.Tuple[str, anndata.AnnData | None]:
     """Load AnnData from one master sdata."""
     sdata = sd.read_zarr(sample_dir / "sdata_z3.zarr", selection=("tables",))
@@ -45,7 +45,7 @@ def main():
     )
     args = parser.parse_args()
 
-    base_path = Path(_constants.BASE_PATH)
+    base_path = pathlib.Path(_constants.BASE_PATH)
     samples_path = base_path / "samples"
     save_path = base_path / "analysis" / args.cohort / args.seg_method
     save_path.mkdir(parents=True, exist_ok=True)

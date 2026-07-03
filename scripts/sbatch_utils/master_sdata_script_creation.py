@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 import pathlib
 import shlex
-
 import yaml
 
-BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 YAML = f"{BASE_PATH}/misc/sample_metadata.yaml"
 OUT = f"{BASE_PATH}/misc/sbatches/sbatch_master_sdata"
 MANDATORY = {"cohort", "slide", "region", "organism", "run_date", "path"}

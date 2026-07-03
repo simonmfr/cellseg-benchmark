@@ -23,13 +23,11 @@
 
 import warnings
 
-import numpy as np
 import cv2  # PATCH: used by the safety-net except below
-
+import numpy as np
 from cellpose import models
-
 from vpt_core.io.image import ImageSet
-from vpt_plugin_cellpose import CellposeSegProperties, CellposeSegParameters
+from vpt_plugin_cellpose import CellposeSegParameters, CellposeSegProperties
 
 
 def run(images: ImageSet, properties: CellposeSegProperties, parameters: CellposeSegParameters) -> np.ndarray:

@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import pathlib
+
 """Turn a FICTURE pixel decode into cell boundaries as SpatialData objects.
 
 For one sample two boundary sets are written, each as ``shapes["boundaries"]``
@@ -19,7 +21,6 @@ Per-sample CLI:
 import argparse
 import logging
 import os
-from pathlib import Path
 
 import dask
 
@@ -62,7 +63,7 @@ def main():
     p.add_argument("--no-plot", action="store_true", help="skip QC plots")
     args = p.parse_args()
 
-    root = Path(args.base) / "samples" / args.sample / "results"
+    root = pathlib.Path(args.base) / "samples" / args.sample / "results"
     pix = root / "Ficture" / "output" / "decode.pixel.sorted.tsv.gz"
     dapi = root / "vpt_3D_DAPI_nuclei" / "sdata.zarr" / "tables" / "table"
     out_raw = root / "Ficture_segments"

@@ -2,11 +2,9 @@
 """Create SLURM array job to convert all available SIS outputs to sdatas."""
 
 import pathlib
-
 import yaml
 
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-
 samples = sorted(
     [
         p.parent

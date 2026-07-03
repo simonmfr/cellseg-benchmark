@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 import argparse
+import os
 import pathlib
-from os import listdir
-from os.path import join
-
 import yaml
 
 parser = argparse.ArgumentParser(description="Prepare scripts for vpt pipeline (3D).")
 parser.add_argument("staining1", help="Name of cytoplasm staining (e.g. PolyT).")
 parser.add_argument("staining2", help="Name of nucleus staining (e.g. nuclei).")
 args = parser.parse_args()
-
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 REPO_PATH = "$HOME/gitrepos/cellseg-benchmark"
 REPO_ABS = str(pathlib.Path.home() / "gitrepos/cellseg-benchmark")  # absolute: pyxis --container-mounts won't expand $HOME
@@ -26,9 +23,9 @@ SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     res_path = f"{BASE_PATH}/samples/{key}/results/vpt_3D_DAPI_{args.staining1}_{args.staining2}"
     vzg_path = None
-    for dire in listdir(value["path"]):
+    for dire in os.listdir(value["path"]):
         if dire.endswith(".vzg") or dire.endswith(".vzg2"):
-            vzg_path = join(value["path"], dire)
+            vzg_path = pathlib.Path(value["path"], dire)
     f = open(SBATCH_DIR / f"{key}_{args.staining1}_{args.staining2}.sbatch", "w")
     f.write(f"""#!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
@@ -49,17 +46,17 @@ source {run_log_path}
 
 RES_PATH="{res_path}"
 EXPERIMENT_JSON="{experiment_json_path}"
-INPUT_IMAGES="{join(value["path"], "images")}"
-INPUT_TRANSFORM="{join(value["path"], "images/micron_to_mosaic_pixel_transform.csv")}"
-INPUT_TRANSCRIPTS="{join(value["path"], "detected_transcripts.csv")}"
+INPUT_IMAGES="{pathlib.Path(value["path"], "images")}"
+INPUT_TRANSFORM="{pathlib.Path(value["path"], "images/micron_to_mosaic_pixel_transform.csv")}"
+INPUT_TRANSCRIPTS="{pathlib.Path(value["path"], "detected_transcripts.csv")}"
 VZG_PATH="{vzg_path}"
 
-BOUNDARIES="{join(res_path, "analysis_outputs/cellpose2_micron_space.parquet")}"
-OUT_ANALYSIS="{join(res_path, "analysis_outputs")}"
-OUT_CBG="{join(res_path, "analysis_outputs/cell_by_gene.csv")}"
-OUT_META="{join(res_path, "analysis_outputs/cell_metadata.csv")}"
-OUT_VZG="{join(res_path, "visualize.vzg")}"
-TMP_PATH="{join(res_path, "tmp")}"
+BOUNDARIES="{pathlib.Path(res_path, "analysis_outputs/cellpose2_micron_space.parquet")}"
+OUT_ANALYSIS="{pathlib.Path(res_path, "analysis_outputs")}"
+OUT_CBG="{pathlib.Path(res_path, "analysis_outputs/cell_by_gene.csv")}"
+OUT_META="{pathlib.Path(res_path, "analysis_outputs/cell_metadata.csv")}"
+OUT_VZG="{pathlib.Path(res_path, "visualize.vzg")}"
+TMP_PATH="{pathlib.Path(res_path, "tmp")}"
 
 KEY="{key}"
 METHOD="vpt_3D"

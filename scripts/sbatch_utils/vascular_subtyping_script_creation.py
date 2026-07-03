@@ -6,14 +6,11 @@ parser = argparse.ArgumentParser(description="Scripts for vascular subtyping.")
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 
 args = parser.parse_args()
-
-BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 sbatch_path = f"{BASE_PATH}/misc/sbatches/sbatch_vascular_subtyping"
 container_image = f"{BASE_PATH}/misc/enroot_images/downstream.sqsh"
 log_path = f"{BASE_PATH}/misc/logs/merged"
-
 condition_col = "genotype" if args.cohort == "foxf2" else "condition"
-
 methods = [
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8",

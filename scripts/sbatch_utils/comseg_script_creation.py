@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-
 import yaml
 
 parser = argparse.ArgumentParser(description="Generate ComSeg sbatch scripts.")
 parser.add_argument("staining", help="Staining of prior cellpose segmentation.")
 parser.add_argument("CP_version", help="Cellpose version to use.")
 args = parser.parse_args()
-BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 with open(
     f"{BASE_PATH}/misc/sample_metadata.yaml"

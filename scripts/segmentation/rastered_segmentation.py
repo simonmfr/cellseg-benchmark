@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import argparse
-from os.path import join
+import pathlib
 
-from pandas import read_csv
+import pandas as pd
 from sopa import aggregate, make_image_patches
 from sopa.io import merscope
 
@@ -21,8 +21,8 @@ parser.add_argument(
 args = parser.parse_args()
 
 sdata = merscope(args.data_path)
-translation = read_csv(
-    join(args.data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+translation = pd.read_csv(
+    pathlib.Path(args.data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
     sep=" ",
     header=None,
 )
@@ -38,13 +38,13 @@ elif args.scale == "microns":
 
 aggregate(sdata, shapes_key="image_patches", min_intensity_ratio=args.intens_rat)
 sdata["rastered_boundaries"] = sdata["image_patches"]
-sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)
+sdata.write(pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True)
 
 if args.explorer:
     from sopa.io.explorer import write
 
     write(
-        join(args.save_path, "sdata.explorer"),
+        pathlib.Path(args.save_path, "sdata.explorer"),
         sdata,
         shapes_key="image_patches",
         gene_column="gene",

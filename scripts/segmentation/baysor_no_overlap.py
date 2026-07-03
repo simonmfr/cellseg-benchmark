@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 import argparse
-from os.path import join
-from pathlib import Path
-from subprocess import run
+import pathlib
+import subprocess
 
+import pandas as pd
 import sopa
-from pandas import read_csv
 from spatialdata import read_zarr
 
 parser = argparse.ArgumentParser(
@@ -18,8 +17,8 @@ args = parser.parse_args()
 
 
 def main(data_path, zarr_path, save_path):
-    sdata_tmp = sopa.io.merscope(Path(data_path))
-    sdata = read_zarr(Path(zarr_path) / "sdata.zarr")
+    sdata_tmp = sopa.io.merscope(pathlib.Path(data_path))
+    sdata = read_zarr(pathlib.Path(zarr_path) / "sdata.zarr")
 
     sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
         list(sdata_tmp.images.keys())[0]
@@ -45,23 +44,23 @@ def main(data_path, zarr_path, save_path):
         image_key=list(sdata.images.keys())[0],
     )
 
-    sdata.write(Path(save_path) / "sdata.zarr", overwrite=True)
-    sdata = read_zarr(Path(save_path) / "sdata.zarr")
+    sdata.write(pathlib.Path(save_path) / "sdata.zarr", overwrite=True)
+    sdata = read_zarr(pathlib.Path(save_path) / "sdata.zarr")
 
-    translation = read_csv(
-        join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+    translation = pd.read_csv(
+        pathlib.Path(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     )
     sopa.explorer.write(
-        Path(save_path) / "sdata.explorer",
+        pathlib.Path(save_path) / "sdata.explorer",
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
         pixel_size=1 / translation.iloc[0, 0],
     )
-    run(["rm", "-r", join(save_path, "sdata.zarr", "images")])
-    run(["rm", "-r", join(save_path, "sdata.zarr", "points")])
+    subprocess.run(["rm", "-r", pathlib.Path(save_path, "sdata.zarr", "images")])
+    subprocess.run(["rm", "-r", pathlib.Path(save_path, "sdata.zarr", "points")])
 
 
 if __name__ == "__main__":

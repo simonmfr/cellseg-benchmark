@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 import pathlib
-
 import yaml
 
-BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 with open(
     f"{BASE_PATH}/misc/sample_metadata.yaml"

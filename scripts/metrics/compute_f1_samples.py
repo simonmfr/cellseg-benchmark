@@ -2,15 +2,14 @@
 import argparse
 import logging
 import os
+import pathlib
+import re
 import warnings
-from os import listdir
-from os.path import exists, join
-from re import split
 
+import matplotlib.pyplot as plt
 import pandas as pd
+import scanpy as sc
 import seaborn as sns
-from matplotlib import pyplot as plt
-from scanpy import read_h5ad
 
 from cellseg_benchmark._constants import (
     column_order,
@@ -55,11 +54,11 @@ parser.add_argument(
 args = parser.parse_args()
 
 base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/"
-data_path = join(base_path, "analysis", args.cohort, args.method)
+data_path = pathlib.Path(base_path, "analysis", args.cohort, args.method)
 
-adata = read_h5ad(join(data_path, "adatas", "adata_integrated.h5ad.gz"))
+adata = sc.read_h5ad(pathlib.Path(data_path, "adatas", "adata_integrated.h5ad.gz"))
 
-save_path = os.path.join(base_path, "metrics", args.cohort, "ficture")
+save_path = pathlib.Path(base_path, "metrics", args.cohort, "ficture")
 os.makedirs(save_path, exists_ok=True)
 
 
@@ -67,7 +66,7 @@ def rename(colnames):
     """Rename column names."""
     mapper = {}
     for col in colnames:
-        mapper[col] = factor_to_celltype[split("_", col)[1]]
+        mapper[col] = factor_to_celltype[re.split("_", col)[1]]
     return mapper
 
 
@@ -84,12 +83,12 @@ if not args.subset:
 obsm_key = f"ficture_{args.data}{'_weight' if args.weighted else ''}"
 
 general_stats_dic = {}
-for sample in listdir(join(base_path, "samples")):
-    if sample.startswith(args.cohort) and exists(
-        join(base_path, "samples", sample, "results", "Ficture", "general_stats.csv")
+for sample in os.listdir(pathlib.Path(base_path, "samples")):
+    if sample.startswith(args.cohort) and os.path.exists(
+        pathlib.Path(base_path, "samples", sample, "results", "Ficture", "general_stats.csv")
     ):
         tmp = pd.read_csv(
-            join(base_path, "samples", sample, "results/Ficture/general_stats.csv"),
+            pathlib.Path(base_path, "samples", sample, "results/Ficture/general_stats.csv"),
             index_col=0,
         )
         tmp.rename(columns=factor_to_celltype, inplace=True)
@@ -117,7 +116,7 @@ results = pd.concat(results, names=["sample", "metric"])
 results.index = results.index.droplevel(1)
 
 results.to_csv(
-    join(
+    pathlib.Path(
         save_path,
         f"{args.method}_f1{'_weighted' if args.weighted else ''}_{'celltypes' if args.correct_celltypes else 'matrix'}.csv",
     )
@@ -130,7 +129,7 @@ if args.correct_celltypes:
     plt.xticks(rotation=90)
     plt.ylim(0, 1)
     plt.savefig(
-        join(
+        pathlib.Path(
             save_path,
             f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_barplot.png",
         )
@@ -144,7 +143,7 @@ else:
         sns.set_theme(rc={"figure.figsize": (20, 16)})
         sns.heatmap(data, cmap="YlOrRd", annot=True)
         plt.savefig(
-            join(
+            pathlib.Path(
                 save_path,
                 f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png",
             )
@@ -153,7 +152,7 @@ else:
         sns.set_theme(rc={"figure.figsize": (20, 16)})
         sns.heatmap(data, fmt=".3f", cmap="YlOrRd", vmin=0, vmax=1, annot=True)
         plt.savefig(
-            join(
+            pathlib.Path(
                 save_path,
                 f"{args.method}_f1_{args.data}{'_weighted' if args.weighted else ''}_heatmap.png",
             )

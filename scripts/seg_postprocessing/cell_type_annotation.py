@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+import datetime
+import pathlib
+
 """Run automated cell type annotation by combining MapMyCells (MMC) and marker genes scores.
 
 1. Load adata from sdata.zarr
@@ -21,8 +24,6 @@ import logging
 import math
 import os
 import warnings
-from datetime import date
-from pathlib import Path
 
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
@@ -31,7 +32,6 @@ import pandas as pd
 import scanpy as sc
 import scipy.sparse as sp
 import seaborn as sns
-from matplotlib.pyplot import rc_context
 from spatialdata import read_zarr
 
 import cellseg_benchmark.cell_annotation_utils as anno_utils
@@ -44,7 +44,7 @@ plt.rcParams["font.family"] = (
 plt.rcParams["font.weight"] = "normal"
 # see https://medium.com/@daimin0514/how-to-install-the-arial-font-in-linux-9e6ac76d3d9f
 
-today = date.today().strftime("%Y%m%d")
+today = datetime.date.today().strftime("%Y%m%d")
 
 logger = logging.getLogger("annotation")
 logger.setLevel(logging.INFO)
@@ -79,16 +79,16 @@ args = parser.parse_args()
 if args.mad_factor <= 0:
     parser.error("--mad_factor must be positive")
 
-method_path = os.path.join(
+method_path = pathlib.Path(
     args.data_dir, "samples", args.sample_name, "results", args.seg_method
 )
-annotation_path = os.path.join(method_path, "cell_type_annotation")
+annotation_path = pathlib.Path(method_path, "cell_type_annotation")
 os.makedirs(annotation_path, exist_ok=True)
-mmc_dir = os.path.join(annotation_path, "mapmycells_out")
+mmc_dir = pathlib.Path(annotation_path, "mapmycells_out")
 os.makedirs(mmc_dir, exist_ok=True)
 
 logger.info("Loading data...")
-adata = read_zarr(os.path.join(method_path, "sdata.zarr"))["table"]
+adata = read_zarr(pathlib.Path(method_path, "sdata.zarr"))["table"]
 logger.debug(f"adata columns: {adata.obs.columns}")
 adata = adata[:, ~adata.var_names.str.startswith("Blank")]  # remove blank genes
 adata.var["gene"] = adata.var.index
@@ -106,7 +106,7 @@ adata.var = add_ensembl_id(
 )
 
 pattern = f"MapMyCells_{args.sample_name}_{args.seg_method}.json"
-files = [f for f in Path(mmc_dir).glob(f"*{pattern}")]
+files = [f for f in pathlib.Path(mmc_dir).glob(f"*{pattern}")]
 json_path = max(files, key=os.path.getmtime) if files else None
 
 if json_path:
@@ -121,7 +121,7 @@ else:
         data_dir=args.data_dir,
     )
     json_path = (
-        Path(mmc_dir) / f"{today}_MapMyCells_{args.sample_name}_{args.seg_method}.json"
+        pathlib.Path(mmc_dir) / f"{today}_MapMyCells_{args.sample_name}_{args.seg_method}.json"
     )
 
 logger.info("Processing MapMyCells output...")
@@ -198,7 +198,7 @@ adata = anno_utils.process_adata(adata=adata, seg_method=args.seg_method, logger
 pt_size_umap = 220000 / adata.shape[0]
 
 # plot QC metrics (mapping correlation and probability)
-with rc_context({"figure.figsize": (9, 9)}):
+with plt.rc_context({"figure.figsize": (9, 9)}):
     # Copy relevant columns from obsm to obs temporarily
     for col in adata.obsm["allen_cell_type_mapping"].columns:
         adata.obs[col] = adata.obsm["allen_cell_type_mapping"][col]
@@ -225,7 +225,7 @@ with rc_context({"figure.figsize": (9, 9)}):
     )
     plt.tight_layout()
     plt.gca().set_aspect(1)
-    plt.savefig(os.path.join(annotation_path, "UMAP_mapmycells_metrics.png"))
+    plt.savefig(pathlib.Path(annotation_path, "UMAP_mapmycells_metrics.png"))
     plt.close()
     adata.obs.drop(columns=adata.obsm["allen_cell_type_mapping"].columns, inplace=True)
 
@@ -272,7 +272,7 @@ for i, key in enumerate(keys):
     )
     axes[1, i].set_aspect("equal")
 
-output_path = os.path.join(
+output_path = pathlib.Path(
     annotation_path, "UMAP_and_Spatial_mapmycells_mixed_and_undefined.png"
 )
 plt.savefig(output_path, dpi=200, bbox_inches="tight")
@@ -313,7 +313,7 @@ adata, annotation_results, mmc_leiden_crosstab = anno_utils.revise_annotations(
     score_low_threshold=0.5,
     score_delta=0.25,
     top_n_genes=50,
-    ABCAtlas_marker_df_path=os.path.join(
+    ABCAtlas_marker_df_path=pathlib.Path(
         args.data_dir,
         "misc",
         "scRNAseq_ref_ABCAtlas_Yao2023Nature",
@@ -426,7 +426,7 @@ axes = np.atleast_2d(axes)
 for i, key in enumerate(plot_keys):
     _plot_row(axes[i, 0], axes[i, 1], axes[i, 2], key)
 
-out_png = os.path.join(annotation_path, "UMAP_and_Spatial_annotation_results.png")
+out_png = pathlib.Path(annotation_path, "UMAP_and_Spatial_annotation_results.png")
 plt.savefig(out_png, dpi=120, bbox_inches="tight")
 plt.close()
 
@@ -491,7 +491,7 @@ plt.tight_layout()
 plt.subplots_adjust(right=0.85)
 plt.suptitle("Spatial Plots by Cell Type", fontsize=16, y=1.02)
 plt.savefig(
-    os.path.join(annotation_path, f"Spatial_faceted_{ct_col}.png"),
+    pathlib.Path(annotation_path, f"Spatial_faceted_{ct_col}.png"),
     dpi=200,
     bbox_inches="tight",
 )
@@ -501,7 +501,7 @@ logger.info("Exporting output...")
 
 # diagnostic
 # mmc_leiden_crosstab.to_csv(
-#    os.path.join(annotation_path, "mmc_leiden_crosstab_normalized.csv")
+#    pathlib.Path(annotation_path, "mmc_leiden_crosstab_normalized.csv")
 # )
 
 # subset columns
@@ -525,5 +525,5 @@ for col in na_cols:
     if isinstance(adata.obs[col].dtype, pd.CategoricalDtype):
         adata.obs[col] = adata.obs[col].cat.add_categories("None")
     adata.obs[col] = adata.obs[col].fillna("None")
-adata.obs.to_csv(os.path.join(annotation_path, "adata_obs_annotated.csv"), index=False)
+adata.obs.to_csv(pathlib.Path(annotation_path, "adata_obs_annotated.csv"), index=False)
 logger.info("Done.")

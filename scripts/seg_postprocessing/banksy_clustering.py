@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 import argparse
+import datetime
 import logging
 import os
+import pathlib
 
 # Activate automatic converters (pandas <-> R, numpy <-> R)
-from datetime import date
-from pathlib import Path
-
 import pandas as pd
 import rpy2.rinterface_lib.callbacks as rcb
 import rpy2.robjects as ro
@@ -15,7 +14,7 @@ import squidpy as sq
 from rpy2.robjects import default_converter, numpy2ri, pandas2ri
 from rpy2.robjects.conversion import localconverter
 
-today = date.today().strftime("%Y%m%d")
+today = datetime.date.today().strftime("%Y%m%d")
 
 
 def R(code: str):
@@ -68,7 +67,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 data_dir = os.path.abspath("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])

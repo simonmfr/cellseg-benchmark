@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import argparse
 import os
-from pathlib import Path
+import pathlib
 
 import dask
 import numpy as np
-from tqdm import tqdm
+import tqdm
 
 dask.config.set({"dataframe.query-planning": False})  # noqa: E402
 import sis
@@ -15,9 +15,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Spots-in-space segmentation using cellpose 3D, writes polygons and cell-by-gene."
     )
-    parser.add_argument("data_path", type=Path, help="Path to merfish output folder.")
-    parser.add_argument("save_path", type=Path, help="Path to sis output folder.")
-    parser.add_argument("model_path", type=Path, help="Path to cellpose model.")
+    parser.add_argument("data_path", type=pathlib.Path, help="Path to merfish output folder.")
+    parser.add_argument("save_path", type=pathlib.Path, help="Path to sis output folder.")
+    parser.add_argument("model_path", type=pathlib.Path, help="Path to cellpose model.")
     parser.add_argument("staining", help="Cytoplasm channel (e.g. total_mrna, PolyT).")
     args = parser.parse_args()
 
@@ -53,7 +53,7 @@ def main():
 
     seg_custom_3d = sis.segmentation.CellposeSegmentationMethod(seg_opts)
     tiles = st.grid_tiles(max_tile_size=350, overlap=30, min_transcripts=1000)
-    for i, tile in enumerate(tqdm(tiles)):
+    for i, tile in enumerate(tqdm.tqdm(tiles)):
         result = seg_custom_3d.run(tile)
         np.save(save_path / f"cell_ids_{i}.npy", result.cell_ids)
 

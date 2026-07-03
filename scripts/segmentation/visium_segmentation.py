@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import argparse
-from os.path import join
+import pathlib
 
 import sopa.aggregation.transcripts as tr
 from scipy.sparse import coo_matrix as _coo
@@ -53,20 +53,20 @@ if hasattr(tr, "coo_matrix"):
     tr.coo_matrix = _coo_as_csr
 
 aggregate(sdata, shapes_key=args.out_name)
-sdata.write(join(args.save_path, "sdata.zarr"), overwrite=True)
+sdata.write(pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True)
 
 if args.explorer:
     from pandas import read_csv
     from sopa.io.explorer import write
 
     translation = read_csv(
-        join(args.data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+        pathlib.Path(args.data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     )
 
     write(
-        join(args.save_path, "sdata.explorer"),
+        pathlib.Path(args.save_path, "sdata.explorer"),
         sdata,
         gene_column="gene",
         save_h5ad=True,

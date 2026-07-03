@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
-
 import yaml
 
 parser = argparse.ArgumentParser(description="Generate sbatch scripts for FICTURE.")
@@ -9,11 +8,8 @@ parser.add_argument(
     "cohort", help="Cohort name (filters samples by metadata key prefix)."
 )
 args = parser.parse_args()
-
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-
 runtime = "08:00:00" if args.cohort in ("VizgenMouseBrain", "ABCAtlas") else "04:00:00"
-
 SBATCH_DIR = pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_Ficture")
 SBATCH_DIR.mkdir(parents=True, exist_ok=True)
 
