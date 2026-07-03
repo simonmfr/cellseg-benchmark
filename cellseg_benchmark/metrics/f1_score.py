@@ -1,114 +1,55 @@
-from typing import Dict, List, Literal, Union
+#!/usr/bin/env python
+"""Per-label F1 from a confusion matrix over aligned true/predicted labels."""
 
 import numpy as np
 import pandas as pd
 
 
-def _f1_score(
-    tp: Union[float, np.ndarray], fp: Union[float, np.ndarray], fn: Union[float, np.ndarray]
-) -> Union[float, np.ndarray]:
-    """Compute F1 score.
+def compute_f1(true, pred, labels=None) -> pd.DataFrame:
+    """Per-label precision, recall and F1 from aligned true/predicted labels.
+
+    Rows where either label is missing (NaN or not in ``labels``) are ignored.
 
     Args:
-        tp: True positive
-        fp: False positive
-        fn: False negative
+        true: Iterable of ground-truth labels.
+        pred: Iterable of predicted labels, aligned element-wise with ``true``.
+        labels: Label order. Defaults to the sorted union of observed labels.
 
     Returns:
-        F1 score.
+        DataFrame indexed by label (index name "cell_type") with columns
+        tp, fp, fn, precision, recall, f1.
     """
-    return (2 * tp) / (2 * tp + fp + fn)
+    true = pd.Series(list(true), dtype="object")
+    pred = pd.Series(list(pred), dtype="object")
+    if labels is None:
+        labels = sorted(set(true.dropna()) | set(pred.dropna()))
+    labels = pd.Index(labels, name="cell_type")
 
-
-def compute_f1(
-    data: pd.DataFrame | Dict[str, pd.DataFrame],
-    flavor: Literal["f1", "micro", "macro", "all"] = "f1",
-    celltype_col: str = "celltype",
-    factor_col: str = "Factor",
-    subset: List[str] | None = None,
-    return_confusion: bool = False,
-) -> pd.DataFrame:
-    """Compute per-class F1 scores from a ground-truth celltype column and a
-    predicted/assigned Factor column.
-
-    Output is flipped:
-    - columns = labels
-    - rows = F1_score (and optionally TP, FP, FN, TN)
-
-    Standard confusion matrix naming:
-    - TP: true label == current class, predicted label == current class
-    - FN: true label == current class, predicted label != current class
-    - FP: true label != current class, predicted label == current class
-    - TN: true label != current class, predicted label != current class.
-    """
-    if isinstance(data, pd.DataFrame):
-        data = {"tmp": data}
-    elif not isinstance(data, dict):
-        raise TypeError("data must be a pandas DataFrame or a dict of DataFrames.")
-
-    for key, df in data.items():
-        if not isinstance(df, pd.DataFrame):
-            raise TypeError(f"data['{key}'] is not a DataFrame.")
-        missing = {celltype_col, factor_col} - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"data['{key}'] is missing required columns: {sorted(missing)}"
-            )
-
-    if subset is None:
-        labels = set()
-        for df in data.values():
-            labels.update(df[celltype_col].dropna().unique())
-            labels.update(df[factor_col].dropna().unique())
-        labels = pd.Index(sorted(labels))
-    else:
-        labels = pd.Index(sorted(set(subset)))
-
+    # int64: codes are int8 for <=127 categories, and codes * n would overflow.
+    true_codes = pd.Categorical(true, categories=labels).codes.astype(np.int64)
+    pred_codes = pd.Categorical(pred, categories=labels).codes.astype(np.int64)
+    keep = (true_codes >= 0) & (pred_codes >= 0)
     n = len(labels)
-    cm_total = np.zeros((n, n), dtype=np.int64)
+    confusion = np.bincount(
+        true_codes[keep] * n + pred_codes[keep], minlength=n * n
+    ).reshape(n, n)
 
-    for df in data.values():
-        true = pd.Categorical(df[celltype_col], categories=labels)
-        pred = pd.Categorical(df[factor_col], categories=labels)
-        true_codes = true.codes.astype(np.int64)
-        pred_codes = pred.codes.astype(np.int64)
+    tp = np.diag(confusion)
+    fn = confusion.sum(axis=1) - tp
+    fp = confusion.sum(axis=0) - tp
+    with np.errstate(divide="ignore", invalid="ignore"):
+        precision = np.where(tp + fp > 0, tp / (tp + fp), 0.0)
+        recall = np.where(tp + fn > 0, tp / (tp + fn), 0.0)
+        f1 = np.where(2 * tp + fp + fn > 0, 2 * tp / (2 * tp + fp + fn), 0.0)
 
-        valid = (true_codes >= 0) & (pred_codes >= 0)
-        cm = np.bincount(
-            true_codes[valid] * n + pred_codes[valid],
-            minlength=n * n,
-        ).reshape(n, n)
-        cm_total += cm
-
-    tp = np.diag(cm_total)
-    fn = cm_total.sum(axis=1) - tp
-    fp = cm_total.sum(axis=0) - tp
-    f1 = _f1_score(tp, fp, fn)
-    out = pd.DataFrame([f1], index=["F1_score"], columns=labels)
-
-    if return_confusion:
-        total = cm_total.sum()
-        tn = total - tp - fp - fn
-
-        out.loc["TP"] = tp
-        out.loc["FP"] = fp
-        out.loc["FN"] = fn
-        out.loc["TN"] = tn
-        out = out.loc[["TP", "FP", "FN", "TN", "F1_score"]]
-
-    if flavor in {"macro", "all"}:
-        macro_f1 = float(np.mean(f1)) if len(f1) else 0.0
-        out["macro F1_score"] = np.nan
-        out.loc["F1_score", "macro F1_score"] = macro_f1
-
-    if flavor in {"micro", "all"}:
-        tp_total = int(tp.sum())
-        fp_total = int(fp.sum())
-        fn_total = int(fn.sum())
-        denom = 2 * tp_total + fp_total + fn_total
-        micro_f1 = 0.0 if denom == 0 else 2 * tp_total / denom
-
-        out["micro F1_score"] = np.nan
-        out.loc["F1_score", "micro F1_score"] = micro_f1
-
-    return out
+    return pd.DataFrame(
+        {
+            "tp": tp,
+            "fp": fp,
+            "fn": fn,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+        },
+        index=labels,
+    )

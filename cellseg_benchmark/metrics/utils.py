@@ -464,17 +464,6 @@ def run_sacct(jobids):
     )
 
 
-def prepare_label_maps(factor_to_celltype, true_cluster):
-    """Prepare label maps."""
-    correct_celltypes = {
-        factor_to_celltype[i]: true_cluster[factor_to_celltype[i]]
-        for i in factor_to_celltype.keys()
-    }
-
-    factor_map = factor_to_celltype.copy()
-    factor_map["-1"] = "unassigned"
-
-    return factor_map, correct_celltypes
 
 def show_all_method_names(
     ref_file_path: Union[str, pathlib.Path],

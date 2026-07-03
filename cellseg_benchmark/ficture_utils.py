@@ -1,123 +1,67 @@
-# Prevents runtime error (seg_postprocessing)
-import dask
-dask.config.set({'dataframe.query-planning': False})
+#!/usr/bin/env python
+"""FICTURE output I/O shared across the package (metrics and master-sdata builds)."""
 
 import gzip
-import os
 import pathlib
-import re
 from typing import Dict
 
-import dask.dataframe as dd
+import dask
 import numpy as np
 import pandas as pd
-import scipy.spatial as ss
-import spatialdata.models
-from tqdm import tqdm
+
+dask.config.set(
+    {"dataframe.query-planning": False}
+)  # prevents a seg_postprocessing runtime error
 
 
 def parse_metadata(file_path: str) -> Dict[str, str]:
-    """Parse metadata from the first three lines of FICTURE pixel-level tsv.gz file.
-
-    Args:
-        file_path (str): Path to file.
-
-    Returns:
-        dict: Extracted metadata as key-value pairs.
-    """
+    """Parse the ``key=value`` metadata from the first three lines of a FICTURE pixel file."""
     metadata = {}
     with gzip.open(file_path, "rb") as f:
         for i, line in enumerate(f):
             if i >= 3:
                 break
-            line = line.decode().strip("#").strip()
-            for s in line.split(";"):
-                k, v = s.split("=")
-                metadata[k] = v
+            for entry in line.decode().strip("#").strip().split(";"):
+                key, value = entry.split("=")
+                metadata[key] = value
     return metadata
 
 
-def load_pixel_tsv(
-    file_path: str, skiprows: int = 3, chunksize: int = 10000
+def read_ficture_pixels(
+    path, header=("BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3")
 ) -> pd.DataFrame:
-    """Load FICTURE pixel-level tsv.gz file with progress bar.
+    """Read a FICTURE pixel-level decode file (``decode.pixel.sorted.tsv.gz``)."""
+    return pd.read_csv(path, sep="\t", names=list(header), comment="#")
+
+
+def find_ficture_output(sample: str, base_path: str) -> str:
+    """Return the path to a sample's FICTURE decode pixel file.
+
+    Since the FICTURE pipeline refactor the output layout is fixed at
+    ``samples/<sample>/results/Ficture/output/decode.pixel.sorted.tsv.gz``.
 
     Args:
-        file_path (str): Path to the FICTURE pixel-level tsv.gz file (*.pixel.sorted.tsv.gz)
-        skiprows (int): Number of rows to skip at the beginning of the file.
-        chunksize (int): Number of rows to read per chunk.
+        sample: Sample name.
+        base_path: Benchmark base directory.
 
     Returns:
-        pd.DataFrame: Concatenated DataFrame from all chunks.
+        Path to ``decode.pixel.sorted.tsv.gz``.
+
+    Raises:
+        FileNotFoundError: If the file does not exist for the sample.
     """
-    with gzip.open(file_path, "rb") as f:
-        total_lines = sum(1 for _ in f)
-        f.seek(0)
-        df_chunks = pd.read_table(
-            f,
-            skiprows=skiprows,
-            header=0,
-            engine="c",
-            iterator=True,
-            chunksize=chunksize,
-        )
-        return pd.concat(
-            tqdm(df_chunks, total=total_lines // chunksize, desc="Loading data"),
-            ignore_index=True,
-        )
-
-
-def process_coordinates(df: pd.DataFrame, metadata: Dict[str, str]) -> pd.DataFrame:
-    """Transform FICTURE pixel coordinates to micrometer scale and rename columns.
-
-    Args:
-        df (pd.DataFrame): DataFrame containing pixel coordinates.
-        metadata (dict): Metadata containing scale and offset values.
-
-    Returns:
-        pd.DataFrame: Updated DataFrame with transformed and renamed coordinates.
-    """
-    scale = float(metadata["SCALE"])
-    offset_x = float(metadata["OFFSET_X"])
-    offset_y = float(metadata["OFFSET_Y"])
-
-    df["X_um"] = df["X"] / scale + offset_x
-    df["Y_um"] = df["Y"] / scale + offset_y
-    df = df.sort_values(["X_um", "Y_um"])
-    return df.rename(columns={"X_um": "x", "Y_um": "y", "X": "X_px", "Y": "Y_px"})
-
-
-def get_pixel_level_factors(pixel_level_factors_file: str) -> dd.DataFrame:
-    """Load and format FICTURE pixel-level file to micrometer scale and return a parsed SpatialData PointsModel.
-
-    Args:
-        pixel_level_factors_file (str): Path to the FICTURE pixel-level tsv.gz file (*.pixel.sorted.tsv.gz)
-
-    Returns:
-        PointsModel: Dask dataframe parsed  as a SpatialData PointsModel.
-    """
-    metadata = parse_metadata(pixel_level_factors_file)
-    df = load_pixel_tsv(pixel_level_factors_file, skiprows=3)
-    dask_df = dd.from_pandas(process_coordinates(df, metadata), npartitions=96)
-    return spatialdata.models.PointsModel.parse(dask_df)
-
-
-def get_transcript_level_factors(
-    transcripts: pd.DataFrame,
-    tree: ss.KDTree,
-    df: pd.DataFrame,
-    metadata: pd.DataFrame,
-    current_factor: int,
-) -> pd.DataFrame:
-    """Assigns factor values to transcripts based on their nearest spatial location."""
-    # query tree to get nearest pixels and according factor assignment
-    query = np.array([transcripts["x"], transcripts["y"]]).T
-    dd, ii = tree.query(query)
-    # get factor prediction from df
-    factor = np.array(df.iloc[ii]["K1"])
-    # where distance > 5 um set factor to max_factor to indicate that this transcript was not mapped
-    factor[dd > 5] = int(metadata["K"])
-    return transcripts.assign(**{f"{current_factor}_factors": factor})
+    path = (
+        pathlib.Path(base_path)
+        / "samples"
+        / sample
+        / "results"
+        / "Ficture"
+        / "output"
+        / "decode.pixel.sorted.tsv.gz"
+    )
+    if not path.exists():
+        raise FileNotFoundError(f"No FICTURE output for sample '{sample}': {path}")
+    return str(path)
 
 
 def create_factor_level_image(
@@ -166,85 +110,3 @@ def create_factor_level_image(
     ).astype(np.uint16)  # makes smaller file
     image = image[np.newaxis, :]
     return image
-
-
-def find_ficture_output(sample, base_path, n_ficture):
-    """Compute the ficture path dynamically."""
-    ficture_path = (
-        pathlib.Path(base_path) / "samples" / sample / "results" / "Ficture" / "output"
-    )
-
-    for file in os.listdir(ficture_path):
-        if n_ficture == int(re.split(r"\.|F", file)[1]):
-            ficture_path = ficture_path / file
-            break
-
-    ficture_full_path = ""
-    for file in os.listdir(ficture_path):
-        if file.endswith(".pixel.sorted.tsv.gz"):
-            ficture_full_path = str(ficture_path / file)
-            break
-
-    if ficture_full_path == "":
-        # Previous computations have flatter hierarchies.
-        # Newer output may be in:
-        # Ficture/output/nF21.../analysis/nF21.../FILE
-        ficture_path = ficture_path / "analysis"
-        for file in os.listdir(ficture_path):
-            if n_ficture == int(re.split(r"\.|F", file)[1]):
-                ficture_path = ficture_path / file
-                break
-
-        for file in os.listdir(ficture_path):
-            if file.endswith(".pixel.sorted.tsv.gz"):
-                ficture_full_path = str(ficture_path / file)
-                break
-
-    if ficture_full_path == "":
-        raise FileNotFoundError(
-            f"Ficture output not correctly computed for sample '{sample}'."
-        )
-
-    return ficture_full_path
-
-
-def read_ficture_pixels(
-    path, header=["BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"]
-):
-    """Read the ficture pixel data."""
-    return pd.read_csv(
-        path,
-        sep="\t",
-        names=header,
-        comment="#",
-    )
-
-
-def assign_points_to_ficture(points_df, ficture_df) -> pd.DataFrame:
-    """Assign points to ficture factors.
-
-    Args:
-        points_df: points dataframe with x, y coordinates.
-        ficture_df: dataframe with x, y coordinates with assigned ficture factor.
-
-    Returns:
-        points_df with additional column "assigned_factor". -1 is default value.
-
-    Note:
-        points_df and ficture_df must be in same coordinate system. Recommendation: use micron space.
-    """
-
-    fic_microns = ficture_df[["x", "y"]].to_numpy()
-    points_coords = points_df[["x", "y"]].to_numpy()
-
-    tree = ss.cKDTree(fic_microns)
-    distances, indices = tree.query(points_coords, k=1, distance_upper_bound=5)
-
-    result = points_df.copy()
-    valid = np.isfinite(distances)
-    result["assigned_factor"] = -1
-    result["nearest_distance"] = distances
-    result.loc[valid, "assigned_factor"] = ficture_df.iloc[indices[valid]][
-        "K1"
-    ].to_numpy()
-    return result

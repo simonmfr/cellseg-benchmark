@@ -1,27 +1,25 @@
 import logging
 import os
 
-import numpy as np
-import ovrlpy
-import pandas as pd
+import dask
 import dask.array as da
+import dask.diagnostics
 import geopandas as gpd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import mpl_toolkits.axes_grid1
+import numpy as np
+import numpy.ma as ma
+import ovrlpy
+import pandas as pd
 import polars
 import shapely
+import sopa.segmentation.shapes
 import xarray
-
-from . import ficture
 
 
 def compute_ovrl(
-    sample: str,
-    sample_dir: str,
-    data_dir: str,
-    logger: logging.Logger = None,
-    **kwargs
+    sample: str, sample_dir: str, data_dir: str, logger: logging.Logger = None, **kwargs
 ) -> None:
     """Compute ovrlpy output.
 
@@ -34,7 +32,9 @@ def compute_ovrl(
     Returns:
         None
     """
-    if not os.path.exists(os.path.join(sample_dir, "vertical_doublets_ovrlpy_output.npz")):
+    if not os.path.exists(
+        os.path.join(sample_dir, "vertical_doublets_ovrlpy_output.npz")
+    ):
         coords_df = pd.read_csv(
             os.path.join(data_dir, "detected_transcripts.csv"), index_col=0
         )[["gene", "x", "y", "global_z"]].rename(columns={"global_z": "z"})
@@ -92,7 +92,10 @@ def run_ovrlpy(
 
 
 def compute_mean_vsi_per_polygon(
-    integrity_map: np.ndarray, boundaries: gpd.GeoDataFrame, transform_matrix: np.ndarray, **kwargs
+    integrity_map: np.ndarray,
+    boundaries: gpd.GeoDataFrame,
+    transform_matrix: np.ndarray,
+    **kwargs,
 ) -> pd.DataFrame:
     """Compute mean vsi per polygon.
 
@@ -116,7 +119,9 @@ def compute_mean_vsi_per_polygon(
         omx, omy = ox / sx, oy / sy
 
         geom = shapely.affinity.affine_transform(geom, [1, 0, 0, 1, omx, omy])
-        geom = shapely.affinity.translate(geom, xoff=-pixel_offset[0], yoff=-pixel_offset[1])
+        geom = shapely.affinity.translate(
+            geom, xoff=-pixel_offset[0], yoff=-pixel_offset[1]
+        )
         return geom
 
     pic = np.expand_dims(integrity_map, axis=0)
@@ -127,8 +132,8 @@ def compute_mean_vsi_per_polygon(
         micron_to_pixel_coords, args=(transform_matrix, (13, 13))
     )
 
-    result = ficture.aggregate_channels_aligned(pic, boundaries, "average")
-    var = ficture.aggregate_channels_aligned(pic, boundaries, "variance", means=result)
+    result = aggregate_channels_aligned(pic, boundaries, "average")
+    var = aggregate_channels_aligned(pic, boundaries, "variance", means=result)
     result = pd.DataFrame(result, index=boundaries.index, columns=["mean_integrity"])
     result["variance"] = var
     return result
@@ -186,7 +191,9 @@ def plot_vsi_overview(
         )
         axs[0, 0].add_patch(rect)
 
-    cax = mpl_toolkits.axes_grid1.make_axes_locatable(axs[0, 0]).append_axes("right", size="4%", pad=0.05)
+    cax = mpl_toolkits.axes_grid1.make_axes_locatable(axs[0, 0]).append_axes(
+        "right", size="4%", pad=0.05
+    )
     fig.colorbar(im, cax=cax).ax.set_title("VSI", fontsize=10)
 
     # histogram
@@ -209,3 +216,124 @@ def plot_vsi_overview(
     if png_path:
         plt.savefig(png_path, dpi=200)
     plt.close()
+
+
+# from sopa.aggregation.channels.py
+AVAILABLE_MODES = ["average", "min", "max", "variance", "sum"]
+
+
+def aggregate_channels_aligned(
+    image: xarray.DataArray,
+    geo_df: gpd.GeoDataFrame | list[shapely.geometry.Polygon],
+    mode: str,
+    means: np.ndarray | None = None,
+) -> np.ndarray:
+    """Reduce each image channel to one value per cell polygon.
+
+    ``mode`` selects the per-cell statistic: average, min, max, variance, or sum.
+    Image and polygons must share a coordinate system. Generic image aggregation
+    (e.g. ovrlpy intensities), not FICTURE-specific.
+
+    Args:
+        image: Image ``DataArray`` of shape ``(n_channels, y, x)``.
+        geo_df: Cell boundary polygons (``GeoDataFrame`` or list of polygons).
+        mode: Aggregation statistic: "average", "min", "max", "variance", or "sum".
+        means: Per-channel means, required only when ``mode="variance"``.
+
+    Returns:
+        Array of shape ``(n_cells, n_channels)``.
+    """
+    assert mode in AVAILABLE_MODES, (
+        f"Invalid {mode=}. Available modes are {AVAILABLE_MODES}"
+    )
+    if mode == "variance":
+        assert means is not None, "means required for variance computation"
+
+    cells = geo_df if isinstance(geo_df, list) else list(geo_df.geometry)
+    tree = shapely.STRtree(cells)
+
+    n_channels = len(image.coords["c"])
+    areas = np.zeros(len(cells))
+    if mode == "min":
+        aggregation = np.full((len(cells), n_channels), fill_value=np.inf)
+    else:
+        aggregation = np.zeros((len(cells), n_channels))
+
+    chunk_sizes = image.data.chunks
+    offsets_y = np.cumsum(np.pad(chunk_sizes[1], (1, 0), "constant"))
+    offsets_x = np.cumsum(np.pad(chunk_sizes[2], (1, 0), "constant"))
+
+    def _average_chunk_inside_cells(chunk, iy, ix):
+        ymin, ymax = offsets_y[iy], offsets_y[iy + 1]
+        xmin, xmax = offsets_x[ix], offsets_x[ix + 1]
+
+        patch = shapely.geometry.box(xmin, ymin, xmax, ymax)
+        intersections = tree.query(patch, predicate="intersects")
+
+        for index in intersections:
+            cell = cells[index]
+            bounds = sopa.segmentation.shapes.pixel_outer_bounds(cell.bounds)
+
+            sub_image = chunk[
+                :,
+                max(bounds[1] - ymin, 0) : bounds[3] - ymin,
+                max(bounds[0] - xmin, 0) : bounds[2] - xmin,
+            ]
+
+            if sub_image.shape[1] == 0 or sub_image.shape[2] == 0:
+                continue
+
+            mask = sopa.segmentation.shapes.rasterize(cell, sub_image.shape[1:], bounds)
+
+            areas[index] += np.sum(mask)
+
+            if mode == "min":
+                masked_image = ma.masked_array(
+                    sub_image, 1 - np.repeat(mask[None], n_channels, axis=0)
+                )
+                aggregation[index] = np.minimum(
+                    aggregation[index], masked_image.min(axis=(1, 2))
+                )
+            elif mode == "variance":
+                func = np.sum
+                values = func(
+                    np.power(
+                        sub_image * mask - means[index][:, np.newaxis, np.newaxis], 2
+                    ),
+                    axis=(1, 2),
+                )
+                aggregation[index] += values
+            elif mode in ["average", "max", "sum"]:
+                if mode in ["average", "sum"]:
+                    func = np.sum
+                else:
+                    func = np.max
+                values = func(sub_image * mask, axis=(1, 2))
+
+                match mode:
+                    case "average":
+                        aggregation[index] += values
+                    case "max":
+                        aggregation[index] = np.maximum(aggregation[index], values)
+                    case "sum":
+                        aggregation[index] += values
+
+    with dask.diagnostics.ProgressBar():
+        tasks = [
+            dask.delayed(_average_chunk_inside_cells)(chunk, iy, ix)
+            for iy, row in enumerate(image.chunk({"c": -1}).data.to_delayed()[0])
+            for ix, chunk in enumerate(row)
+        ]
+        dask.compute(tasks, scheduler="single-threaded")
+
+    match mode:
+        case "average":
+            return aggregation / areas[:, None].clip(1)
+        case "min":
+            return aggregation
+        case "max":
+            return aggregation
+        case "variance":
+            return aggregation / (areas[:, None].clip(2) - 1)
+        case "sum":
+            return aggregation

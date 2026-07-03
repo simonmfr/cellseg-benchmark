@@ -1672,27 +1672,27 @@ column_order = [
 ]
 
 factor_to_celltype = {
-    "0": "Astrocytes",
-    "1": "BAMs",
-    "2": "ECs",
-    "3": "Ependymal",
-    "4": "Immune-Other",
-    "5": "Microglia",
-    "6": "Neurons-Dopa-Gaba",
-    "7": "Neurons-Gaba",
-    "8": "Neurons-Glut",
-    "9": "Neurons-Glyc-Gaba",
-    "10": "Neurons-Granule-Immature",
-    "11": "Neurons-Other",
-    "12": "OECs",
-    "13": "OPCs",
-    "14": "Oligodendrocytes",
-    "15": "Pericytes",
-    "16": "SMCs",
-    "17": "VLMCs",
-    "18": "ABCs",
-    "19": "Bergmann",
-    "20": "Neurons-Dopa",
+    "0": "ABCs",
+    "1": "Astrocytes",
+    "2": "BAMs",
+    "3": "Bergmann",
+    "4": "ECs",
+    "5": "Ependymal",
+    "6": "Immune-Other",
+    "7": "Microglia",
+    "8": "Neurons-Dopa",
+    "9": "Neurons-Dopa-Gaba",
+    "10": "Neurons-Gaba",
+    "11": "Neurons-Glut",
+    "12": "Neurons-Glyc-Gaba",
+    "13": "Neurons-Granule-Immature",
+    "14": "Neurons-Other",
+    "15": "OECs",
+    "16": "OPCs",
+    "17": "Oligodendrocytes",
+    "18": "Pericytes",
+    "19": "SMCs",
+    "20": "VLMCs",
 }
 
 true_cluster = {
@@ -1718,11 +1718,18 @@ true_cluster = {
     "Pericytes": "Pericytes",
     "SMCs": "SMCs",
     "VLMCs": "VLMCs",
-    "ABCs": "ABCs",
-    "Bergmann": "Bergmann",
+    "ABCs": "VLMCs",
+    "Bergmann": "Astrocytes",
     "Neurons-Dopa": "Neurons-Dopa",
     "Tanycytes": "Ependymal",
 }
+
+# Vascular cell types, used for the secondary macro-F1 (see metrics.ficture).
+vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
+
+# Cell types without clear marker genes: their boundary annotation is unreliable, so
+# transcripts touching them are dropped from the FICTURE F1 comparison (metrics.ficture).
+unreliable_celltypes = ["Neurons-Other", "Immune-Other", "OECs"]
 
 contamination_markers = {
     "Immune": ["Ptprc", "Ctss", "Tmem119", "Cd68", "Ncam1"],
