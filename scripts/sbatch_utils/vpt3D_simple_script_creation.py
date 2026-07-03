@@ -6,64 +6,45 @@ from pathlib import Path
 import yaml
 
 parser = argparse.ArgumentParser(
-    description="Prepare scripts for vpt pipeline (3D). Only cell-boundary staining."
+    description="Prepare scripts for vpt pipeline (3D). Single staining."
 )
-parser.add_argument("staining", help="Name of cell-boundary staining.")
+parser.add_argument("staining", help="Name of staining (e.g. nuclei or PolyT).")
 args = parser.parse_args()
 
-with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
-) as f:
+BASE_PATH = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+REPO_PATH = "$HOME/gitrepos/cellseg-benchmark"
+SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vpt_3D_simple"
+
+with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
-experiment_json_path = str(
-    Path(__file__).parents[2] / "configs" / f"vpt_3D_{args.staining}.json"
-)
+experiment_json_path = f"{REPO_PATH}/configs/vpt_3D_{args.staining}.json"
+run_log_path = f"{REPO_PATH}/scripts/sbatch_utils/run_log.sh"
 
-Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_3D_simple"
-).mkdir(parents=False, exist_ok=True)
+SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
-    res_path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/vpt_3D_DAPI_{args.staining}"
+    res_path = f"{BASE_PATH}/samples/{key}/results/vpt_3D_DAPI_{args.staining}"
     vzg_path = None
     for dire in listdir(value["path"]):
         if dire.endswith(".vzg") or dire.endswith(".vzg2"):
             vzg_path = join(value["path"], dire)
-    f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_3D_simple/{key}_{args.staining}.sbatch",
-        "w",
-    )
+    f = open(SBATCH_DIR / f"{key}_{args.staining}.sbatch", "w")
     f.write(f"""#!/bin/bash
-#SBATCH -p lrz-hgx-a100-80x4
+#SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH -t 1-12:00:00
 #SBATCH --mem=600G
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=40
 #SBATCH -J vpt3D_{key}_{args.staining}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/vpt3D_{key}_{args.staining}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/vpt3D_{key}_{args.staining}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/vpt.sqsh"
-#SBATCH --container-mounts=/dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/segmentation/vpt_plugin_cellpose_predict.py:/home/ubuntu/miniforge3/envs/vpt/lib/python3.10/site-packages/vpt_plugin_cellpose/predict.py
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/vpt3D_{key}_{args.staining}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/vpt3D_{key}_{args.staining}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/vpt.sqsh"
+#SBATCH --container-mounts={REPO_PATH}/scripts/segmentation/vpt_plugin_cellpose_predict.py:/home/ubuntu/miniforge3/envs/vpt/lib/python3.10/site-packages/vpt_plugin_cellpose/predict.py
 
 set -euo pipefail
 
-# ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
-LOCK_FILE="${{RUN_LOG}}.lock"
-mkdir -p "$(dirname "${{RUN_LOG}}")"
-
-JOBID="${{SLURM_JOB_ID:-NA}}"
-JOBNAME="${{SLURM_JOB_NAME:-NA}}"
-NODELIST="${{SLURM_JOB_NODELIST:-NA}}"
-SUBMIT_DIR="${{SLURM_SUBMIT_DIR:-$PWD}}"
-HOST="$(hostname -f 2>/dev/null || hostname)"
-
-START_ISO="$(date -Is)"
-START_EPOCH="$(date +%s)"
-
-KEY="{key}"
-STAINING="{args.staining}"
+source {run_log_path}
 
 RES_PATH="{res_path}"
 EXPERIMENT_JSON="{experiment_json_path}"
@@ -79,28 +60,13 @@ OUT_META="{join(res_path, "analysis_outputs/cell_metadata.csv")}"
 OUT_VZG="{join(res_path, "visualize.vzg")}"
 TMP_PATH="{join(res_path, "tmp")}"
 
-CMD="vpt run-segmentation (json=${{EXPERIMENT_JSON}}; images=${{INPUT_IMAGES}}; out=${{OUT_ANALYSIS}}) + partition-transcripts + derive-entity-metadata + update-vzg"
-
-write_log() {{
-  local rc="$1"
-  local end_iso="$2"
-  local elapsed_s="$3"
-
-  (
-    flock -x 200
-    if [ ! -f "${{RUN_LOG}}" ]; then
-      printf "start_iso\tend_iso\telapsed_s\trc\tjobid\tjobname\tkey\tcp_version\tstaining\tconfidence\tinput_path\tresult_dir\thost\tnodelist\tsubmit_dir\tcmd\n" >> "${{RUN_LOG}}"
-    fi
-    # not a Cellpose/Proseg confidence-style run -> NA; keep staining in 'staining' field
-    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-      "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \
-      "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "NA" "${{STAINING}}" "NA" \
-      "${{INPUT_IMAGES}}" "${{RES_PATH}}" "${{HOST}}" "${{NODELIST}}" "${{SUBMIT_DIR}}" "${{CMD}}" \
-      >> "${{RUN_LOG}}"
-  ) 200>>"${{LOCK_FILE}}"
-}}
-
-trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_epoch-START_EPOCH)); write_log "$rc" "$end_iso" "$elapsed_s"' EXIT
+KEY="{key}"
+METHOD="vpt_3D"
+STAINING="{args.staining}"
+INPUT_PATH="${{INPUT_IMAGES}}"
+RESULT_DIR="${{RES_PATH}}"
+CMD="vpt run-segmentation + partition-transcripts + derive-entity-metadata + update-vzg"
+start_run_log
 
 mamba activate vpt
 
@@ -137,7 +103,4 @@ fi
 """)
     f.close()
 
-print(
-    f"Wrote {len(data)} sbatch scripts to "
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_vpt_3D_simple"
-)
+print(f"Wrote {len(data)} sbatch scripts to {SBATCH_DIR}")
