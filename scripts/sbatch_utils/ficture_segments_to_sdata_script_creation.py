@@ -1,14 +1,6 @@
 #!/usr/bin/env python
-"""Create one SLURM job per sample to build FICTURE cell boundaries as sdatas.
-
-Each job runs scripts/ficture/ficture_segments_to_sdata.py, which writes the
-raw FICTURE segments (Ficture_segments) and the nuclei-split cells
-(Ficture_segments_dapi) as SpatialData .zarr objects, and aggregates MERSCOPE
-transcripts into a cell x gene table on the split cells.
-"""
 import argparse
 import pathlib
-
 import yaml
 
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
