@@ -65,10 +65,9 @@ def compute_ficture_f1(
 
     obs = adata.obs[[sample_col, celltype_col]].copy()
     # Cell ids used to link transcripts (via their polygon) back to .obs cell types.
-    if method.startswith("vpt") or method == "Cellpose_1_Merlin":
-        obs.index = obs.index.astype(str)
-    else:
-        obs.index = [name[:10] for name in adata.obs_names]
+    obs.index = obs.index.astype(str)
+    if not obs.index.str.fullmatch(r"\d+").all():
+        obs.index = obs.index.str.slice(0, 10)
 
     samples = obs[sample_col].unique().tolist()
     per_sample = joblib.Parallel(n_jobs=n_jobs, verbose=10)(
@@ -140,12 +139,8 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
     ).copy()
     del sdata
 
-    if method.startswith("Proseg"):
-        boundaries["cell"] = boundaries["cell_id"]
-    else:
-        boundaries["cell"] = boundaries.index
-    if method.startswith("vpt") or method == "Cellpose_1_Merlin":
-        boundaries["cell"] = boundaries["cell"].astype(str)
+    ids = boundaries["cell_id"] if "cell_id" in boundaries.columns else boundaries.index
+    boundaries["cell"] = pd.Index(ids).astype(str)
 
     # Predicted label: nearest FICTURE pixel's top factor (K1) within 5 um -> canonical cell type.
     meta = fu.parse_metadata(pixel_file)
@@ -163,6 +158,9 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
     transcripts = su.assign_points_to_polygons(
         transcripts, boundaries, polygon_id_col="cell", output_col="cell"
     )
+    if not np.intersect1d(transcripts["cell"].dropna().unique(),
+                      celltypes.index.to_numpy()).size:
+    raise ValueError(f"[{sample}/{method}] no cell-id overlap between boundaries and obs")
     labels = pd.DataFrame(
         {
             "true": transcripts["cell"]
