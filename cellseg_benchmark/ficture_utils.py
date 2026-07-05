@@ -5,13 +5,8 @@ import gzip
 import pathlib
 from typing import Dict
 
-import dask
 import numpy as np
 import pandas as pd
-
-dask.config.set(
-    {"dataframe.query-planning": False}
-)  # prevents a seg_postprocessing runtime error
 
 
 def parse_metadata(file_path: str) -> Dict[str, str]:
@@ -112,6 +107,6 @@ def create_factor_level_image(
         ),  # ensures no overflow with np.float16
         0,
         (np.finfo(np.float16).max.astype(np.uint16) - 5),
-    ).astype(np.uint16)  # makes smaller file
+    ).astype(np.uint16)
     image = image[np.newaxis, :]
     return image
