@@ -121,19 +121,71 @@ def compute_ficture_f1(
     return pd.concat(results, ignore_index=True)
 
 
+def _transcript_factors(sample, base_path):
+    """Nearest FICTURE top-factor (K1, within 5 um) per transcript for one sample.
+
+    Method-independent, so computed once and cached next to the FICTURE output as
+    ``ficture_transcript_factors.parquet`` (columns: x, y, factor; factor -1 = no
+    pixel within 5 um). Reused across all segmentation methods.
+
+    Raises:
+        FileNotFoundError: If the sample has no FICTURE output.
+    """
+    cache = (
+        pathlib.Path(base_path)
+        / "samples"
+        / sample
+        / "results"
+        / "Ficture"
+        / "output"
+        / "ficture_transcript_factors.parquet"
+    )
+    if cache.exists():
+        return pd.read_parquet(cache)
+
+    pixel_file = fu.find_ficture_output(sample, base_path)  # raises if missing
+    sdata = sd.read_zarr(
+        pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr",
+        selection=("points",),
+    )
+    transcripts = sdata[f"{sample}_transcripts"][["x", "y"]].compute()
+    del sdata
+
+    meta = fu.parse_metadata(pixel_file)
+    pixels = fu.read_ficture_pixels(pixel_file, usecols=["X", "Y", "K1"])
+    xy = np.column_stack(
+        [
+            pixels["X"].to_numpy("float64") / float(meta["SCALE"]) + float(meta["OFFSET_X"]),
+            pixels["Y"].to_numpy("float64") / float(meta["SCALE"]) + float(meta["OFFSET_Y"]),
+        ]
+    )
+    k1 = pixels["K1"].to_numpy()
+    del pixels
+    distance, nearest = ss.cKDTree(xy).query(
+        transcripts[["x", "y"]].to_numpy(), k=1, distance_upper_bound=5
+    )
+    del xy
+    within = np.isfinite(distance)
+    factor = np.full(len(transcripts), -1)
+    factor[within] = k1[nearest[within]]
+
+    transcripts["factor"] = factor
+    transcripts.to_parquet(cache)
+    return transcripts
+
+
 def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canonical):
     """Return per-transcript canonical (true, pred) cell-type labels for one sample."""
     try:
-        pixel_file = fu.find_ficture_output(sample, base_path)
+        transcripts = _transcript_factors(sample, base_path)
     except FileNotFoundError:
         logger.warning(f"[{sample}] no FICTURE output; skipping.")
         return sample, pd.DataFrame(columns=["true", "pred"])
 
     sdata = sd.read_zarr(
         pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr",
-        selection=("points", "shapes"),
+        selection=("shapes",),
     )
-    transcripts = sdata[f"{sample}_transcripts"].compute()
     boundaries = sd.transform(
         sdata[f"boundaries_{method}"], to_coordinate_system="micron"
     ).copy()
@@ -142,32 +194,24 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
     ids = boundaries["cell_id"] if "cell_id" in boundaries.columns else boundaries.index
     boundaries["cell"] = pd.Index(ids).astype(str)
 
-    # Predicted label: nearest FICTURE pixel's top factor (K1) within 5 um -> canonical cell type.
-    meta = fu.parse_metadata(pixel_file)
-    pixels = fu.read_ficture_pixels(pixel_file)
-    pixels["x"] = pixels["X"] / float(meta["SCALE"]) + float(meta["OFFSET_X"])
-    pixels["y"] = pixels["Y"] / float(meta["SCALE"]) + float(meta["OFFSET_Y"])
-    distance, nearest = ss.cKDTree(pixels[["x", "y"]].to_numpy()).query(
-        transcripts[["x", "y"]].to_numpy(), k=1, distance_upper_bound=5
-    )
-    within = np.isfinite(distance)
-    factor = np.full(len(transcripts), -1)
-    factor[within] = pixels["K1"].to_numpy()[nearest[within]]
-
     # True label: segmentation cell type of the polygon each transcript lies in -> canonical.
     transcripts = su.assign_points_to_polygons(
         transcripts, boundaries, polygon_id_col="cell", output_col="cell"
     )
-    if not np.intersect1d(transcripts["cell"].dropna().unique(),
-                      celltypes.index.to_numpy()).size:
-        raise ValueError(f"[{sample}/{method}] no cell-id overlap between boundaries and obs")
+    if not np.intersect1d(
+        transcripts["cell"].dropna().unique(), celltypes.index.to_numpy()
+    ).size:
+        raise ValueError(
+            f"[{sample}/{method}] no cell-id overlap between boundaries and obs"
+        )
+    # Predicted label: cached nearest FICTURE factor -> canonical cell type.
     labels = pd.DataFrame(
         {
             "true": transcripts["cell"]
             .map(dict(celltypes))
             .map(_constants.true_cluster)
             .to_numpy(),
-            "pred": pd.Series(factor).map(factor_to_canonical).to_numpy(),
+            "pred": transcripts["factor"].map(factor_to_canonical).to_numpy(),
         }
     )
     # drop transcripts touching markerless types (unreliable annotation) on either side

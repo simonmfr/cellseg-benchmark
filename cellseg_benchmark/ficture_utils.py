@@ -28,10 +28,15 @@ def parse_metadata(file_path: str) -> Dict[str, str]:
 
 
 def read_ficture_pixels(
-    path, header=("BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3")
+    path, header=("BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"), usecols=None
 ) -> pd.DataFrame:
-    """Read a FICTURE pixel-level decode file (``decode.pixel.sorted.tsv.gz``)."""
-    return pd.read_csv(path, sep="\t", names=list(header), comment="#")
+    """Read a FICTURE pixel-level decode file (``decode.pixel.sorted.tsv.gz``).
+
+    Pass ``usecols`` (e.g. ``["X", "Y", "K1"]``) to load only the needed columns.
+    """
+    return pd.read_csv(
+        path, sep="\t", names=list(header), comment="#", usecols=usecols
+    )
 
 
 def find_ficture_output(sample: str, base_path: str) -> str:
