@@ -168,8 +168,12 @@ def _transcript_factors(sample, base_path):
     factor = np.full(len(transcripts), -1)
     factor[within] = k1[nearest[within]]
 
-    transcripts["factor"] = factor
-    transcripts.to_parquet(cache)
+    # downcast for a compact cache: float32 keeps sub-um precision (5 um cutoff),
+    # int8 fits all factors (-1..20); zstd shrinks it further.
+    transcripts["x"] = transcripts["x"].astype("float32")
+    transcripts["y"] = transcripts["y"].astype("float32")
+    transcripts["factor"] = factor.astype("int8")
+    transcripts.to_parquet(cache, compression="zstd", compression_level=3)
     return transcripts
 
 
