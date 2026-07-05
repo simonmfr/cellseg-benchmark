@@ -160,7 +160,7 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
     )
     if not np.intersect1d(transcripts["cell"].dropna().unique(),
                       celltypes.index.to_numpy()).size:
-    raise ValueError(f"[{sample}/{method}] no cell-id overlap between boundaries and obs")
+        raise ValueError(f"[{sample}/{method}] no cell-id overlap between boundaries and obs")
     labels = pd.DataFrame(
         {
             "true": transcripts["cell"]
