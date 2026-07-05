@@ -140,8 +140,10 @@ def _transcript_factors(sample, base_path):
         / "ficture_transcript_factors.parquet"
     )
     if cache.exists():
+        logger.info(f"[{sample}] loading cached transcript factors")
         return pd.read_parquet(cache)
 
+    logger.info(f"[{sample}] computing transcript factors (no cache)")
     pixel_file = fu.find_ficture_output(sample, base_path)  # raises if missing
     sdata = sd.read_zarr(
         pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr",
