@@ -137,7 +137,6 @@ def _transcript_factors(sample, base_path):
         / sample
         / "results"
         / "Ficture"
-        / "output"
         / "ficture_transcript_factors.parquet"
     )
     if cache.exists():
