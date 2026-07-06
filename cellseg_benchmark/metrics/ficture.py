@@ -16,11 +16,8 @@ from .. import ficture_utils as fu
 from .. import sdata_utils as su
 from . import f1_score
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("ficture_f1")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
-logger.addHandler(handler)
 
 
 def compute_ficture_f1(
@@ -92,7 +89,7 @@ def compute_ficture_f1(
     labels["all_samples"] = pd.concat(labels.values(), ignore_index=True)
     results = []
     for sample, df in labels.items():
-        report = f1_score.compute_f1(df["true"], df["pred"]).reset_index()
+        report = f1_score.compute_f1(df["ficture"], df["segmentation"]).reset_index()
 
         # micro (pooled counts) and macro (mean per-type f1), over all types and vascular only
         vascular = report[report["cell_type"].isin(_constants.vascular_celltypes)]
@@ -182,12 +179,12 @@ def _transcript_factors(sample, base_path):
 
 
 def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canonical):
-    """Return per-transcript canonical (true, pred) cell-type labels for one sample."""
+    """Return per-transcript canonical labels (ficture, segmentation) for one sample."""
     try:
         transcripts = _transcript_factors(sample, base_path)
     except FileNotFoundError:
         logger.warning(f"[{sample}] no FICTURE output; skipping.")
-        return sample, pd.DataFrame(columns=["true", "pred"])
+        return sample, pd.DataFrame(columns=["ficture", "segmentation"])
 
     sdata = sd.read_zarr(
         pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr",
@@ -201,7 +198,7 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
     ids = boundaries["cell_id"] if "cell_id" in boundaries.columns else boundaries.index
     boundaries["cell"] = pd.Index(ids).astype(str)
 
-    # True label: segmentation cell type of the polygon each transcript lies in -> canonical.
+    # Observed label: segmentation cell type of the polygon each transcript lies in -> canonical.
     transcripts = su.assign_points_to_polygons(
         transcripts, boundaries, polygon_id_col="cell", output_col="cell"
     )
@@ -212,21 +209,18 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
         raise ValueError(
             f"[{sample}/{method}] no cell-id overlap between boundaries and obs"
         )
-    # Predicted label: cached nearest FICTURE factor -> canonical cell type.
     labels = pd.DataFrame(
         {
-            "true": transcripts["cell"]
+            "ficture": transcripts["factor"].map(factor_to_canonical).to_numpy(),
+            "segmentation": transcripts["cell"]
             .map(dict(celltypes))
             .map(_constants.true_cluster)
             .to_numpy(),
-            "pred": transcripts["factor"].map(factor_to_canonical).to_numpy(),
         }
     )
     # drop transcripts touching markerless types (unreliable annotation) on either side
     labels = labels.replace(_constants.unreliable_celltypes, np.nan).dropna()
 
-    # Reused loky workers don't return freed memory to the OS on their own; drop the big
-    # temporaries and collect here so worker RSS doesn't creep up across samples -> OOM kills.
     del transcripts
     gc.collect()
     return sample, labels
