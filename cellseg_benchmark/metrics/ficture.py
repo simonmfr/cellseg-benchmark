@@ -66,8 +66,10 @@ def compute_ficture_f1(
     }
 
     obs = adata.obs[[sample_col, celltype_col]].copy()
-    # strip AnnData-concat batch suffix ("-<n>") so obs ids match boundary cell_ids
-    obs.index = obs.index.astype(str).str.replace(r"-\d+$", "", regex=True)
+    # obs ids are the boundary cell_id (first 10 chars) plus an AnnData suffix
+    obs.index = obs.index.astype(str)
+    if not obs.index.str.fullmatch(r"\d+").all():
+        obs.index = obs.index.str.slice(0, 10)
 
     samples = obs[sample_col].unique().tolist()
     per_sample = joblib.Parallel(n_jobs=n_jobs, verbose=10)(
