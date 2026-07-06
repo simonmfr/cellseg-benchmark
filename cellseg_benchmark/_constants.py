@@ -1618,7 +1618,7 @@ gwas_hits = {
     ],
 }
 
-methods_3D = ["Proseg_3D", "vpt_3D", "Watershed_Merlin"]
+methods_3D = ["Proseg_3D", "vpt_3D", "SIS", "Watershed_Merlin"]
 
 image_based = ["Cellpose", "Negative_Control"]
 

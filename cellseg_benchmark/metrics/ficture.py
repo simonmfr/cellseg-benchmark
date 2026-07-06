@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """FICTURE F1 metric: agreement between FICTURE factor identity and a segmentation's cell types."""
 
+import gc
 import logging
 import pathlib
 
@@ -58,16 +59,18 @@ def compute_ficture_f1(
         f1_micro_vascular, f1_macro_vascular (micro = pooled counts, macro = mean of
         per-type f1; vascular = ECs/Pericytes/SMCs/VLMCs).
     """
+    if any(method.startswith(p) for p in _constants.methods_3D):
+        logger.info(f"[{method}] 3D method; skipping FICTURE F1.")
+        return None
+
     factor_to_canonical = {
         int(factor): _constants.true_cluster[celltype]
         for factor, celltype in _constants.factor_to_celltype.items()
     }
 
     obs = adata.obs[[sample_col, celltype_col]].copy()
-    # Cell ids used to link transcripts (via their polygon) back to .obs cell types.
-    obs.index = obs.index.astype(str)
-    if not obs.index.str.fullmatch(r"\d+").all():
-        obs.index = obs.index.str.slice(0, 10)
+    # strip AnnData-concat batch suffix ("-<n>") so obs ids match boundary cell_ids
+    obs.index = obs.index.astype(str).str.replace(r"-\d+$", "", regex=True)
 
     samples = obs[sample_col].unique().tolist()
     per_sample = joblib.Parallel(n_jobs=n_jobs, verbose=10)(
@@ -202,6 +205,7 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
     transcripts = su.assign_points_to_polygons(
         transcripts, boundaries, polygon_id_col="cell", output_col="cell"
     )
+    del boundaries
     if not np.intersect1d(
         transcripts["cell"].dropna().unique(), celltypes.index.to_numpy()
     ).size:
@@ -219,5 +223,10 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
         }
     )
     # drop transcripts touching markerless types (unreliable annotation) on either side
-    labels = labels.replace(_constants.unreliable_celltypes, np.nan)
-    return sample, labels.dropna()
+    labels = labels.replace(_constants.unreliable_celltypes, np.nan).dropna()
+
+    # Reused loky workers don't return freed memory to the OS on their own; drop the big
+    # temporaries and collect here so worker RSS doesn't creep up across samples -> OOM kills.
+    del transcripts
+    gc.collect()
+    return sample, labels
