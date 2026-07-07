@@ -11,7 +11,6 @@ parser.add_argument("staining", help="Name of staining (e.g. nuclei or PolyT).")
 args = parser.parse_args()
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 REPO_PATH = "$HOME/gitrepos/cellseg-benchmark"
-REPO_ABS = str(pathlib.Path.home() / "gitrepos/cellseg-benchmark")  # absolute: pyxis --container-mounts won't expand $HOME
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vpt_3D_simple"
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
@@ -39,7 +38,6 @@ for key, value in data.items():
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/vpt3D_{key}_{args.staining}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/vpt3D_{key}_{args.staining}.err
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/vpt.sqsh"
-#SBATCH --container-mounts={REPO_ABS}/scripts/segmentation/vpt_plugin_cellpose_predict.py:/home/ubuntu/miniforge3/envs/vpt/lib/python3.10/site-packages/vpt_plugin_cellpose/predict.py
 
 set -euo pipefail
 
@@ -68,6 +66,10 @@ CMD="vpt run-segmentation + partition-transcripts + derive-entity-metadata + upd
 start_run_log
 
 mamba activate vpt
+
+# Patch the vpt_plugin_cellpose predict.py with our fixed version (locate package at runtime)
+PKG=$(python -c "import vpt_plugin_cellpose, os; print(os.path.dirname(vpt_plugin_cellpose.__file__))")
+cp "{REPO_PATH}/scripts/segmentation/vpt_plugin_cellpose_predict.py" "${{PKG}}/predict.py"
 
 mkdir -p "${{RES_PATH}}"
 
