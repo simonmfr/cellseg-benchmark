@@ -12,15 +12,20 @@ if __name__ == "__main__":
     )
     parser.add_argument("cohort", help="Cohort name.")
     parser.add_argument(
-        "--plot_metric", nargs="+", choices=["memory", "cpus", "duration"], help="Specify the metric to plot."
+        "--plot_metric",
+        nargs="+",
+        default=["memory", "cpus", "duration"],
+        choices=["memory", "cpus", "duration"],
+        help="Specify the metric(s) to plot.",
     )
     parser.add_argument(
         "--ref_file_path", help="Path to file containing the raw output of sacct."
     )
     parser.add_argument(
-        "--metrics_dir", help="Path to directory containing from sacct output extracted metrics."
+        "--metrics_dir",
+        help="Path to directory containing from sacct output extracted metrics.",
     )
-    args = parser.add_argument(
+    parser.add_argument(
         "--ignore_missing", action="store_true", help="Ignore missing method metrics."
     )
     parser.add_argument(
