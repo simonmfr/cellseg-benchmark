@@ -468,15 +468,8 @@ def add_cell_type_annotation(
 def add_statistical_data(
     sdata_main: sd.SpatialData, seg_method: str, sdata_path: str
 ) -> sd.SpatialData:
-    """Add ficture and ovrlpy information to sdata_main."""
+    """Add ovrlpy information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
-    for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
-        name = file.split(".")[0]
-        ficture_stats = pd.read_csv(
-            join(sdata_path, "results", seg_method, "Ficture_stats", file), index_col=0
-        )
-        ficture_stats.index = ficture_stats.index.astype(str)
-        adata.obsm[f"ficture_{name}"] = ficture_stats
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ovrlpy_stats")):
         if file.endswith(".csv"):
             name = file.split(".")[0]
