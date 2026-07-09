@@ -324,6 +324,9 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         return "Cellpose_1_nuclei_model"
     if j == f"merscope_watershed_{k}":
         return "Watershed_Merlin"
+    prefix = f"SIS_{k}_"
+    if j.startswith(prefix):
+        return f"SIS_DAPI_{j[len(prefix):]}"
     if j == f"SIS_{k}":
         return "SIS_DAPI_total_mrna"
     if j == f"merscope_{k}":
@@ -349,7 +352,7 @@ def find_latest_job_data_tsv(metrics_dir):
 
 
 def export_job_metrics_tsv(
-    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
+    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/run_log.tsv",
     out_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
 ):
     """Export aggregated Slurm job metrics for all jobids in ref_file_path to:
@@ -470,7 +473,7 @@ def show_all_method_names(
     Show all possible canonical method names derived from the ref file.
 
     Args:
-        ref_file_path (str | Path): Path to the appended job_runs.tsv file.
+        ref_file_path (str | Path): Path to the appended run_log.tsv file.
         only_successful (bool): If True, only include methods with successful runs according to the
             newest *_job_data.tsv file in metrics_dir. Defaults to False.
         metrics_dir (str | Path, optional): Required if only_successful=True. Path to the metrics directory of sacct.
