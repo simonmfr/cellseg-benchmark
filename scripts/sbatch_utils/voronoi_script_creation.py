@@ -4,8 +4,8 @@ import yaml
 
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 YAML = BASE_PATH / "misc/sample_metadata.yaml"
-SBATCH_DIR = f"{BASE_PATH}/misc/sbatches/sbatch_visium"
-OUT_DIR = f"{BASE_PATH}/samples/{{k}}/results/Negative_Control_Visium"
+SBATCH_DIR = f"{BASE_PATH}/misc/sbatches/sbatch_voronoi"
+OUT_DIR = f"{BASE_PATH}/samples/{{k}}/results/Negative_Control_Voronoi"
 
 with open(YAML) as f:
     data = yaml.safe_load(f)
@@ -26,47 +26,14 @@ for k, v in data.items():
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
-
-# ---------- central run log (shared across all scripts) ----------
-RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
-LOCK_FILE="${{RUN_LOG}}.lock"
-mkdir -p "$(dirname "${{RUN_LOG}}")"
-
-JOBID="${{SLURM_JOB_ID:-NA}}"
-JOBNAME="${{SLURM_JOB_NAME:-NA}}"
-NODELIST="${{SLURM_JOB_NODELIST:-NA}}"
-SUBMIT_DIR="${{SLURM_SUBMIT_DIR:-$PWD}}"
-HOST="$(hostname -f 2>/dev/null || hostname)"
-
-START_ISO="$(date -Is)"
-START_EPOCH="$(date +%s)"
+source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
 
 KEY="{k}"
 INPUT_PATH="{v["path"]}"
 RESULT_DIR="{out}"
 
 CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/voronoi_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\""
-
-write_log() {{
-  local rc="$1"
-  local end_iso="$2"
-  local elapsed_s="$3"
-
-  (
-    flock -x 200
-    if [ ! -f "${{RUN_LOG}}" ]; then
-      printf "start_iso\tend_iso\telapsed_s\trc\tjobid\tjobname\tkey\tcp_version\tstaining\tconfidence\tinput_path\tresult_dir\thost\tnodelist\tsubmit_dir\tcmd\n" >> "${{RUN_LOG}}"
-    fi
-    # not a Cellpose/Proseg confidence-style run -> NA
-    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-      "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \
-      "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "NA" "NA" "NA" \
-      "${{INPUT_PATH}}" "${{RESULT_DIR}}" "${{HOST}}" "${{NODELIST}}" "${{SUBMIT_DIR}}" "${{CMD}}" \
-      >> "${{RUN_LOG}}"
-  ) 200>>"${{LOCK_FILE}}"
-}}
-
-trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_epoch-START_EPOCH)); write_log "$rc" "$end_iso" "$elapsed_s"' EXIT
+start_run_log
 
 mamba activate segmentation
 

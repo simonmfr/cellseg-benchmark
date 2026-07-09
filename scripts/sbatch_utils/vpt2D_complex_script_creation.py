@@ -57,7 +57,6 @@ OUT_VZG="{pathlib.Path(res_path, "visualize.vzg")}"
 TMP_PATH="{pathlib.Path(res_path, "tmp")}"
 
 KEY="{key}"
-METHOD="vpt_2D"
 STAINING="{args.staining1}+{args.staining2}"
 INPUT_PATH="${{INPUT_IMAGES}}"
 RESULT_DIR="${{RES_PATH}}"
