@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 
 from  cellseg_benchmark.metrics import (
