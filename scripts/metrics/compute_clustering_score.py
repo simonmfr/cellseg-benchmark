@@ -31,17 +31,20 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--sample_size",
+        type=int,
         default=10000,
         help="Downsamples data to sample_size to speed up computation. Default is 10000.",
     )
     parser.add_argument(
         "--n_pcs",
+        type=int,
         default=30,
         help="Number of principal components to use. Default is 30.",
     )
     parser.add_argument(
         "--leiden_resolution",
-        default=1,
+        type=float,
+        default=1.0,
         help="Resolution to use for leiden clustering if desired. Default is 1",
     )
 
