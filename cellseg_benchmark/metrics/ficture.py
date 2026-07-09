@@ -62,7 +62,7 @@ def compute_ficture_f1(
 
     factor_to_canonical = {
         int(factor): _constants.true_cluster[celltype]
-        for factor, celltype in _constants.factor_to_celltype.items()
+        for factor, celltype in _constants.ficture_factor_to_celltype.items()
     }
 
     obs = adata.obs[[sample_col, celltype_col]].copy()

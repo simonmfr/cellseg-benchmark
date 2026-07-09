@@ -1671,7 +1671,7 @@ column_order = [
     "OECs",
 ]
 
-factor_to_celltype = {
+ficture_factor_to_celltype = {
     "0": "ABCs",
     "1": "Astrocytes",
     "2": "BAMs",
@@ -1681,11 +1681,11 @@ factor_to_celltype = {
     "6": "Immune-Other",
     "7": "Microglia",
     "8": "Neurons-Dopa",
-    "9": "Neurons-Dopa-Gaba",
+    "9": "Neurons-Dopa-Gaba",  # renamed to Neurons-Dopa, see true_cluster dict
     "10": "Neurons-Gaba",
     "11": "Neurons-Glut",
     "12": "Neurons-Glyc-Gaba",
-    "13": "Neurons-Granule-Immature",
+    "13": "Neurons-Immature",  # renamed to Neurons-Granule-Immature, see true_cluster dict
     "14": "Neurons-Other",
     "15": "OECs",
     "16": "OPCs",
@@ -1695,9 +1695,8 @@ factor_to_celltype = {
     "20": "VLMCs",
 }
 
-true_cluster = {
-
-    
+true_cluster = {  # fine label -> canonical cell type
+    "Neurons-Immature": "Neurons-Granule-Immature",  # legacy FICTURE factor label
     "Astrocytes": "Astrocytes",
     "Astroependymal": "Astrocytes",
     "BAMs": "BAMs",
@@ -1832,7 +1831,7 @@ method_colors = {
     "Watershed_Merlin": "#8a9159",
 }
 
-clean_method_names_raw = {
+clean_method_names = {
     "Negative_Control_": "",
     "Rastered": "Raster",
     "Voronoi": "Random_Voronoi",
@@ -1858,7 +1857,7 @@ clean_method_names_format = {
     "CP_": "CP",
 }
 
-clean_method_names = {**clean_method_names_raw, **clean_method_names_format}
+clean_method_names = {**clean_method_names, **clean_method_names_format}
 
 brain_regions_colors = {
     "BS": "FF7080",
