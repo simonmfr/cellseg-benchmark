@@ -22,6 +22,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     results_name = "assigned_transcripts/assigned_transcript_counts.csv"
     compute_metric_for_all_methods(
-        compute_assigned_transcripts, results_name=results_name, pass_method=True, **vars(args)
+        compute_assigned_transcripts, results_name=results_name, **vars(args)
     )
     plot_assigned_transcripts(args.cohort)
