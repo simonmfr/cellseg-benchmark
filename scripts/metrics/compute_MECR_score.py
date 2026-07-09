@@ -1,14 +1,14 @@
 import argparse
 
 from cellseg_benchmark.metrics import (
+    compute_MECR_score,
     compute_metric_for_all_methods,
-    compute_assigned_transcripts,
-    plot_assigned_transcripts,
+    plot_MECR_score,
 )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Compute assigned transcripts for all methods in cohort, splitting data per sample."
+        description="Compute MECR score for all methods in cohort."
     )
     parser.add_argument("cohort", help="Cohort name.")
     parser.add_argument(
@@ -19,9 +19,18 @@ if __name__ == "__main__":
     parser.add_argument(
         "--overwrite", action="store_true", help="Overwrite existing results"
     )
-    args = parser.parse_args()
-    results_name = "assigned_transcripts/assigned_transcript_counts.csv"
-    compute_metric_for_all_methods(
-        compute_assigned_transcripts, results_name=results_name, pass_method=True, **vars(args)
+    parser.add_argument(
+        "--subset_vascular_celltypes",
+        action="store_true",
+        help="Subset gene list to vascular celltypes",
     )
-    plot_assigned_transcripts(args.cohort)
+
+    args = parser.parse_args()
+    suffix = "all"
+    if args.subset_vascular_celltypes:
+        suffix = "vascular_celltypes"
+    results_name = f"marker_gene_metrics/MECR_score_{suffix}.csv"
+    compute_metric_for_all_methods(
+        compute_MECR_score, results_name=results_name, **vars(args)
+    )
+    plot_MECR_score(args.cohort, suffix, show=False)

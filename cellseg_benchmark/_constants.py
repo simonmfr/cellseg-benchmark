@@ -1,15 +1,5 @@
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
-htra1_aging_controls = [
-    "aging_s1_r1",
-    "aging_s5_r1",
-    "aging_s6_r0",
-    "aging_s7_r1",
-    "aging_s7_r2",
-    "aging_s8_r2",
-    "aging_s11_r0",
-]
-
 cell_cycle_genes = {
     "G1": ["Ccne1", "Pttg1"],
     "G1_S": ["Slbp", "Cdca7", "Ung", "Cdc6", "Pcna", "Mcm5", "Orc1", "Dtl"],
@@ -1630,31 +1620,7 @@ gwas_hits = {
 
 methods_3D = ["Proseg_3D", "vpt_3D", "SIS", "Watershed_Merlin"]
 
-pixel_based = ["Cellpose", "Negative_Control"]
-
-ficture_factor_to_celltype = {
-    "0": "ABCs",
-    "1": "Astrocytes",
-    "2": "BAMs",
-    "3": "Bergmann",
-    "4": "ECs",
-    "5": "Ependymal",
-    "6": "Immune-Other",
-    "7": "Microglia",
-    "8": "Neurons-Dopa",
-    "9": "Neurons-Dopa-Gaba",  # renamed to Neurons-Dopa, see true_cluster dict
-    "10": "Neurons-Gaba",
-    "11": "Neurons-Glut",
-    "12": "Neurons-Glyc-Gaba",
-    "13": "Neurons-Immature",  # renamed to Neurons-Granule-Immature, see true_cluster dict
-    "14": "Neurons-Other",
-    "15": "OECs",
-    "16": "OPCs",
-    "17": "Oligodendrocytes",
-    "18": "Pericytes",
-    "19": "SMCs",
-    "20": "VLMCs",
-}
+image_based = ["Cellpose", "Negative_Control"]
 
 index_order = [
     "Astrocytes",
@@ -1705,29 +1671,64 @@ column_order = [
     "OECs",
 ]
 
-true_cluster = {
-    "Astrocytes": ["Astrocytes", "Astroependymal"],
-    "BAMs": ["BAMs"],
-    "ECs": ["ECs"],
-    "Ependymal": ["Ependymal", "Choroid-Plexus"],
-    "Immune-Other": ["Immune-Other"],
-    "Microglia": ["Microglia"],
-    "Neurons-Dopa-Gaba": ["Neurons-Dopa"],
-    "Neurons-Gaba": ["Neurons-Gaba"],
-    "Neurons-Glut": ["Neurons-Glut"],
-    "Neurons-Glyc-Gaba": ["Neurons-Glyc-Gaba"],
-    "Neurons-Immature": ["Neurons-Granule-Immature"],
-    "Neurons-Other": ["Neurons-Other"],
-    "OECs": [],
-    "OPCs": ["OPCs"],
-    "Oligodendrocytes": ["Oligodendrocytes"],
-    "Pericytes": ["Pericytes"],
-    "SMCs": ["SMCs"],
-    "VLMCs": ["VLMCs"],
-    "ABCs": ["VLMCs"],
-    "Bergmann": ["Astrocytes"],
-    "Neurons-Dopa": ["Neurons-Dopa"],
+ficture_factor_to_celltype = {
+    "0": "ABCs",
+    "1": "Astrocytes",
+    "2": "BAMs",
+    "3": "Bergmann",
+    "4": "ECs",
+    "5": "Ependymal",
+    "6": "Immune-Other",
+    "7": "Microglia",
+    "8": "Neurons-Dopa",
+    "9": "Neurons-Dopa-Gaba",  # renamed to Neurons-Dopa, see true_cluster dict
+    "10": "Neurons-Gaba",
+    "11": "Neurons-Glut",
+    "12": "Neurons-Glyc-Gaba",
+    "13": "Neurons-Immature",  # renamed to Neurons-Granule-Immature, see true_cluster dict
+    "14": "Neurons-Other",
+    "15": "OECs",
+    "16": "OPCs",
+    "17": "Oligodendrocytes",
+    "18": "Pericytes",
+    "19": "SMCs",
+    "20": "VLMCs",
 }
+
+true_cluster = {  # fine label -> canonical cell type
+    "Neurons-Immature": "Neurons-Granule-Immature",  # legacy FICTURE factor label
+    "Astrocytes": "Astrocytes",
+    "Astroependymal": "Astrocytes",
+    "BAMs": "BAMs",
+    "Choroid-Plexus": "Ependymal",
+    "ECs": "ECs",
+    "Ependymal": "Ependymal",
+    "Immune-Other": "Immune-Other",
+    "Microglia": "Microglia",
+    "Neurons-Dopa-Gaba": "Neurons-Dopa",
+    "Neurons-Gaba": "Neurons-Gaba",
+    "Neurons-Glut": "Neurons-Glut",
+    "Neurons-Glyc-Gaba": "Neurons-Glyc-Gaba",
+    "Neurons-Granule-Immature": "Neurons-Granule-Immature",
+    "Neurons-Other": "Neurons-Other",
+    "OECs": "OECs",
+    "OPCs": "OPCs",
+    "Oligodendrocytes": "Oligodendrocytes",
+    "Pericytes": "Pericytes",
+    "SMCs": "SMCs",
+    "VLMCs": "VLMCs",
+    "ABCs": "VLMCs",
+    "Bergmann": "Astrocytes",
+    "Neurons-Dopa": "Neurons-Dopa",
+    "Tanycytes": "Ependymal",
+}
+
+# Vascular cell types, used for the secondary macro-F1 (see metrics.ficture).
+vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
+
+# Cell types without clear marker genes: their boundary annotation is unreliable, so
+# transcripts touching them are dropped from the FICTURE F1 comparison (metrics.ficture).
+unreliable_celltypes = ["Neurons-Other", "Immune-Other", "OECs"]
 
 contamination_markers = {
     "Immune": ["Ptprc", "Ctss", "Tmem119", "Cd68", "Ncam1"],
@@ -1739,10 +1740,10 @@ contamination_markers = {
 
 cell_type_colors = {
     "ECs": "#FF6464",
-    "aECs": "#FF7700",  # for EC subtyping
-    "capECs": "#FF6464",  # for EC subtyping
-    "vECs": "#9966CC",  # for EC subtyping
-    "otherECs": "#FFBFBF",  # for EC subtyping
+    "aECs": "#FF7700",  # for EC subtyping script
+    "capECs": "#FF6464",  # for EC subtyping script
+    "vECs": "#9966CC",  # for EC subtyping script
+    "otherECs": "#FFBFBF",  # for EC subtyping script
     "Pericytes": "#F6EC2A",
     "SMCs": "#29FBA7",
     "VLMCs": "#85B0F9",
@@ -1765,12 +1766,13 @@ cell_type_colors = {
     # "Neurons-Immature": "#FF50E5",
     "Neurons-Granule-Immature": "#FF50E5",
     "Neurons-Other": "#FCA0FF",
+    "Neurons": "#B449F8",  # for marker f1 score where Neurons are merged in one celltype
     "OECs": "#9EDAE5",
     "Unknown": "#D9D9D9",  # = not found in mmc dict, see process_mapmycells_output()
     "Undefined": "#D9D9D9",  # = below QC threshold
     "Mixed": "#D9D9D9",
     "Low-Read-Cells": "#D9D9D9",
-}
+}  # Updated method-to-color mapping with distinct, moderately saturated shades
 
 method_colors = {
     # Baysor variants (red palette)
@@ -1809,6 +1811,15 @@ method_colors = {
     "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
     "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
     "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
+    # Proseg 3D variants (yellow palette)
+    "Proseg_3D_Cellpose_1_DAPI_PolyT": "#f5f0df",
+    "Proseg_3D_Cellpose_1_DAPI_Transcripts": "#f3e4bf",
+    "Proseg_3D_Cellpose_1_nuclei_model": "#f1d9a1",
+    "Proseg_3D_Cellpose_2_DAPI_PolyT": "#efce82",
+    "Proseg_3D_Cellpose_2_DAPI_Transcripts": "#eec364",
+    "Proseg_3D_vpt3D_DAPI_nuclei": "#edb846",
+    "Proseg_3D_vpt3D_DAPI_PolyT": "#eaad28",
+    "Proseg_3D_vpt3D_DAPI_PolyT_nuclei": "#e8a20a",
     # Negative controls (grey palette)
     "Negative_Control_Rastered_5": "#252525",
     "Negative_Control_Rastered_10": "#525252",
@@ -1816,6 +1827,8 @@ method_colors = {
     "Negative_Control_Voronoi": "#969696",
     # ComSeg standalone (dark purple)
     "ComSeg": "#d7f035",
+    "SIS_DAPI_total_mrna": "#9cb01c",
+    "Watershed_Merlin": "#8a9159",
 }
 
 clean_method_names = {
@@ -1858,4 +1871,13 @@ brain_regions_colors = {
     "BS/STR": "CCA3BC",
     "STR/CTX": "A4EAD8",
     "Meninges": "480091",
+}
+
+# merges neurons for marker-gene-based metrics
+merged_celltypes = {
+    "Neurons-Dopa": "Neurons",
+    "Neurons-Dopa-Gaba": "Neurons",
+    "Neurons-Gaba": "Neurons",
+    "Neurons-Glut": "Neurons",
+    "Neurons-Glyc-Gaba": "Neurons",
 }

@@ -1,4 +1,5 @@
 import gzip
+import pathlib
 import shutil
 import warnings
 from typing import Dict
@@ -25,7 +26,7 @@ from cellseg_benchmark import _constants
 _COLORS = _constants.cell_type_colors
 # factor id (as str) -> color-table cell-type name (via _constants.true_cluster)
 _FACTOR_CELL_TYPE = {
-    f: (_constants.true_cluster.get(ct) or [ct])[0]
+    f: _constants.true_cluster.get(ct, ct)
     for f, ct in _constants.ficture_factor_to_celltype.items()
 }
 
@@ -409,3 +410,45 @@ def plot_qc(gdf: gpd.GeoDataFrame, nuclei, aspect: float, title: str, path) -> N
     ax.set_title(title)
     fig.savefig(str(path), dpi=400, bbox_inches="tight")
     plt.close(fig)
+
+
+def read_ficture_pixels(
+    path, header=("BLOCK", "X", "Y", "K1", "K2", "K3", "P1", "P2", "P3"), usecols=None
+) -> pd.DataFrame:
+    """Read a FICTURE pixel-level decode file (``decode.pixel.sorted.tsv.gz``).
+
+    Pass ``usecols`` (e.g. ``["X", "Y", "K1"]``) to load only the needed columns.
+    """
+    return pd.read_csv(
+        path, sep="\t", names=list(header), comment="#", usecols=usecols
+    )
+
+
+def find_ficture_output(sample: str, base_path: str) -> str:
+    """Return the path to a sample's FICTURE decode pixel file.
+
+    Since the FICTURE pipeline refactor the output layout is fixed at
+    ``samples/<sample>/results/Ficture/output/decode.pixel.sorted.tsv.gz``.
+
+    Args:
+        sample: Sample name.
+        base_path: Benchmark base directory.
+
+    Returns:
+        Path to ``decode.pixel.sorted.tsv.gz``.
+
+    Raises:
+        FileNotFoundError: If the file does not exist for the sample.
+    """
+    path = (
+        pathlib.Path(base_path)
+        / "samples"
+        / sample
+        / "results"
+        / "Ficture"
+        / "output"
+        / "decode.pixel.sorted.tsv.gz"
+    )
+    if not path.exists():
+        raise FileNotFoundError(f"No FICTURE output for sample '{sample}': {path}")
+    return str(path)

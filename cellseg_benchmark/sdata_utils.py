@@ -1,3 +1,7 @@
+# Fixes runtime error (seg_postprocessing)
+import dask
+dask.config.set({'dataframe.query-planning': False})
+
 import ast
 import gzip
 import io
@@ -5,28 +9,24 @@ import logging
 import math
 import os
 import warnings
+from os import listdir
 from os.path import join
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import spatialdata as sd
 import spatialdata_io
-from joblib import Parallel, delayed
-from scipy.spatial import ConvexHull
-from shapely.geometry import Point, Polygon
-from shapely.ops import unary_union
-from spatialdata.models import ShapesModel
-from spatialdata.transformations import (
-    Affine,
-    Identity,
-    get_transformation,
-    set_transformation,
-)
+import joblib
+import scipy.spatial as ss
+import shapely
+import shapely.ops
+import tifffile
 from tqdm import tqdm
 
-from ._constants import methods_3D, pixel_based
+from . import _constants
+from . import ficture_utils as fu
 
 PI = math.pi
 
@@ -58,28 +58,28 @@ def process_merscope(
     sdata = sd.read_zarr(sdata_file)
 
     # set coordinates system
-    transformation_to_pixel = get_transformation(
+    transformation_to_pixel = sd.transformations.get_transformation(
         sdata[list(sdata.points.keys())[0]], "global"
     )
 
-    set_transformation(
-        sdata[list(sdata.points.keys())[0]], Identity(), "micron", write_to_sdata=sdata
+    sd.transformations.set_transformation(
+        sdata[list(sdata.points.keys())[0]], sd.transformations.Identity(), "micron", write_to_sdata=sdata
     )
-    set_transformation(
+    sd.transformations.set_transformation(
         sdata[list(sdata.points.keys())[0]],
         transformation_to_pixel,
         "pixel",
         write_to_sdata=sdata,
     )
 
-    set_transformation(
+    sd.transformations.set_transformation(
         sdata[list(sdata.images.keys())[0]],
         transformation_to_pixel.inverse(),
         "micron",
         write_to_sdata=sdata,
     )
-    set_transformation(
-        sdata[list(sdata.images.keys())[0]], Identity(), "pixel", write_to_sdata=sdata
+    sd.transformations.set_transformation(
+        sdata[list(sdata.images.keys())[0]], sd.transformations.Identity(), "pixel", write_to_sdata=sdata
     )
 
 
@@ -262,7 +262,7 @@ def integrate_segmentation_data(
                             f"No annotation files found for {seg_method}. Skipping annotation."
                         )
                 if "volume_final" not in sdata_main[f"adata_{seg_method}"].obs.columns:
-                    if any([seg_method.startswith(x) for x in methods_3D]):
+                    if any([seg_method.startswith(x) for x in _constants.methods_3D]):
                         n_planes_2d = None
                     else:
                         n_planes_2d = 7
@@ -273,21 +273,15 @@ def integrate_segmentation_data(
                         logger=logger,
                     )
                 if os.path.exists(
-                    join(sdata_path, "results", seg_method, "Ovrlpy_stats")
+                    join(sdata_path, "results", seg_method, "Ficture_stats")
                 ):
-                    log = logger or logging.getLogger(__name__)
-                    log.info("Adding Ovrlpy stats to {}...".format(seg_method))
-                    add_ovrlpy(sdata_main, seg_method, sdata_path, logger=logger)
+                    logger.info("Adding Ficture stats to {}...".format(seg_method))
+                    add_statistical_data(sdata_main, seg_method, sdata_path)
                 else:
-                    log = logger or logging.getLogger(__name__)
-                    log.warning(
-                        "No Ovrlpy_stats files found for {}. Skipping.".format(
+                    logger.warning(
+                        "No Ficture_stats files found for {}. Skipping.".format(
                             seg_method
                         )
-                    )
-                if any([seg_method.startswith(x) for x in methods_3D]):
-                    sdata_main = add_3D_intensities(
-                        sdata_main, seg_method, sdata_path, logger=logger
                     )
 
                 adata = sdata_main[f"adata_{seg_method}"]
@@ -356,30 +350,6 @@ def integrate_segmentation_data(
     return sdata_main
 
 
-def add_3D_intensities(
-    sdata_main: sd.SpatialData,
-    seg_method: str,
-    sdata_path: str,
-    logger: Optional[logging.Logger] = None,
-) -> sd.SpatialData:
-    """Add 3D intensity table to adata.obsm for 3D segmentation methods."""
-    log = logger or logging.getLogger(__name__)
-    path_intens = os.path.join(
-        sdata_path, "results", seg_method, "Intensities_3D", "Intensities_3D.csv"
-    )
-    if os.path.exists(path_intens):
-        intensities = pd.read_csv(path_intens, index_col=0)
-        intensities.index = intensities.index.astype(str)
-        sdata_main[f"adata_{seg_method}"].obsm["intensities"] = intensities
-    else:
-        log.error(
-            "No Intensities_3D file found for {}. Skipping Intensities import".format(
-                seg_method
-            )
-        )
-    return sdata_main
-
-
 def build_shapes(
     sdata: sd.SpatialData,
     sdata_main: sd.SpatialData,
@@ -409,7 +379,7 @@ def build_shapes(
             geojson_text = f.read()
         gdf = gpd.read_file(io.StringIO(geojson_text))
         gdf = gdf.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
-        obj = ShapesModel.parse(gdf)
+        obj = sd.models.ShapesModel.parse(gdf)
 
     elif boundary_key in sdata.shapes:
         obj = sdata[boundary_key]
@@ -463,7 +433,7 @@ def add_cell_type_annotation(
             )
         )[cell_type_information]
     except KeyError:
-        if logger is not None:
+        if logger:
             logger.warning(
                 "No cell type annotation found for {}. Skipping.".format(seg_method)
             )
@@ -495,28 +465,27 @@ def add_cell_type_annotation(
     return sdata_main
 
 
-def add_ovrlpy(
-    sdata_main: sd.SpatialData,
-    seg_method: str,
-    sdata_path: str,
-    logger: Optional[logging.Logger] = None,
+def add_statistical_data(
+    sdata_main: sd.SpatialData, seg_method: str, sdata_path: str
 ) -> sd.SpatialData:
-    """Add Ovrlpy statistics to ``adata.obsm`` for a segmentation method."""
+    """Add ficture and ovrlpy information to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
-    found_csv = False
+    for file in os.listdir(join(sdata_path, "results", seg_method, "Ficture_stats")):
+        name = file.split(".")[0]
+        ficture_stats = pd.read_csv(
+            join(sdata_path, "results", seg_method, "Ficture_stats", file), index_col=0
+        )
+        ficture_stats.index = ficture_stats.index.astype(str)
+        adata.obsm[f"ficture_{name}"] = ficture_stats
     for file in os.listdir(join(sdata_path, "results", seg_method, "Ovrlpy_stats")):
         if file.endswith(".csv"):
-            found_csv = True
             name = file.split(".")[0]
             ovrlpy_stats = pd.read_csv(
                 join(sdata_path, "results", seg_method, "Ovrlpy_stats", file),
                 index_col=0,
             )
             ovrlpy_stats.index = ovrlpy_stats.index.astype(str)
-            ovrlpy_stats = ovrlpy_stats.loc[adata.obs_names]
             adata.obsm[name] = ovrlpy_stats
-    if logger and not found_csv:
-        logger.warning(f"No Ovrlpy csv files found for {seg_method}.")
     sdata_main[f"adata_{seg_method}"] = adata
     return sdata_main
 
@@ -532,21 +501,18 @@ def calculate_volume(
     boundaries = sd.transform(
         sdata_main[f"boundaries_{seg_method}"], to_coordinate_system="micron"
     )
-    if any([seg_method.startswith(x) for x in methods_3D]):
+    if any([seg_method.startswith(x) for x in _constants.methods_3D]):
         if seg_method.startswith("Proseg_3D"):
             z_level_name = "layer"
             cell_identifier = "cell_id"
-        elif seg_method.startswith("vpt_3D") or seg_method.startswith(
-            "Watershed_Merlin"
-        ):
+        elif seg_method.startswith("vpt_3D"):
             z_level_name = "ZIndex"
             cell_identifier = "cell_id"
-        elif seg_method.startswith("SIS"):
-            z_level_name = "z_plane"
+        elif seg_method.startswith("Watershed_Merlin"):
+            z_level_name = "ZIndex"
             cell_identifier = "cell_id"
-        if logger is not None:
+        if logger:
             logger.info(f"Collecting volume metadata for {seg_method}")
-        boundaries[z_level_name] = boundaries[z_level_name].astype(float)
         global_z_min, global_z_max = (
             boundaries[z_level_name].min(),
             boundaries[z_level_name].max(),
@@ -561,8 +527,8 @@ def calculate_volume(
             (entity_id, group[[z_level_name, "geometry"]])
             for entity_id, group in grouped
         ]
-        morphology_rows = Parallel(n_jobs=-1, backend="loky")(
-            delayed(compute_polygon_stats_3D)(
+        morphology_rows = joblib.Parallel(n_jobs=-1, backend="loky")(
+            joblib.delayed(compute_polygon_stats_3D)(
                 eid, grp, z_spacing, z_level_name, global_z_min, global_z_max, logger
             )
             for eid, grp in items
@@ -576,8 +542,8 @@ def calculate_volume(
             logger.info(f"Calculate volume metrics {seg_method}")
         scale = z_spacing * n_planes_2d
         items = [(entity_id, group.geometry.iat[0]) for entity_id, group in grouped]
-        morphology_rows = Parallel(n_jobs=-1, backend="loky")(
-            delayed(compute_polygon_stats_2D)(item, scale, logger) for item in items
+        morphology_rows = joblib.Parallel(n_jobs=-1, backend="loky")(
+            joblib.delayed(compute_polygon_stats_2D)(item, scale, logger) for item in items
         )
         morphology_rows = [r for r in morphology_rows if r is not None]
 
@@ -650,7 +616,6 @@ def compute_polygon_stats_3D(
             global_z_min=global_z_min,
             global_z_max=global_z_max,
             ZIndex=z_level_name,
-            logger=logger,
         )
         m["cell_id"] = entity_id
         return m
@@ -669,30 +634,30 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
         sdata_main: master sdata
         seg_method: current segmentation method
     """
-    transformation_to_pixel = get_transformation(
+    transformation_to_pixel = sd.transformations.get_transformation(
         sdata_main[list(sdata_main.points.keys())[0]], "global"
     )
 
-    if any([seg_method.startswith(method) for method in pixel_based]):
-        if seg_method in ("Cellpose_1_Merlin"):
-            set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], Identity(), "micron"
+    if any([seg_method.startswith(method) for method in _constants.image_based]):
+        if seg_method == "Cellpose_1_Merlin":
+            sd.transformations.set_transformation(
+                sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron"
             )
-            set_transformation(
+            sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
             )
         else:
-            set_transformation(
+            sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"],
                 transformation_to_pixel.inverse(),
                 "micron",
             )
-            set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], Identity(), "pixel"
+            sd.transformations.set_transformation(
+                sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "pixel"
             )
     else:
-        set_transformation(sdata_main[f"boundaries_{seg_method}"], Identity(), "micron")
-        set_transformation(
+        sd.transformations.set_transformation(sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron")
+        sd.transformations.set_transformation(
             sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
         )
     return
@@ -717,23 +682,17 @@ def transform_adata(
     adata = sdata_main[f"adata_{seg_method}"]
     spatial = adata.obsm["spatial"]
 
-    if any([seg_method.startswith(method) for method in pixel_based]):
-        if seg_method in ("Cellpose_1_Merlin"):
-            adata.obsm["spatial_microns"] = spatial
-            x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
-            y = spatial[:, 1] * transform.iloc[1, 1] + transform.iloc[1, 2]
-            adata.obsm["spatial_pixel"] = np.stack([x, y], axis=1)
-        else:
-            x = (
-                spatial[:, 0] * (1 / transform.iloc[0, 0])
-                - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
-            )
-            y = (
-                spatial[:, 1] * (1 / transform.iloc[1, 1])
-                - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
-            )
-            adata.obsm["spatial_microns"] = np.stack([x, y], axis=1)
-            adata.obsm["spatial_pixel"] = spatial
+    if any([seg_method.startswith(method) for method in _constants.image_based]):
+        x = (
+            spatial[:, 0] * (1 / transform.iloc[0, 0])
+            - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
+        )
+        y = (
+            spatial[:, 1] * (1 / transform.iloc[1, 1])
+            - (1 / transform.iloc[1, 1]) * transform.iloc[1, 2]
+        )
+        adata.obsm["spatial_microns"] = np.stack([x, y], axis=1)
+        adata.obsm["spatial_pixel"] = spatial
     else:
         adata.obsm["spatial_microns"] = spatial
         x = spatial[:, 0] * transform.iloc[0, 0] + transform.iloc[0, 2]
@@ -798,7 +757,7 @@ def get_2D_boundaries(
     Returns:
         assigned transcriptions to sdata.
     """
-    if method.startswith("vpt_3D") or method.startswith("Watershed_Merlin") or method.startswith("SIS"):
+    if method.startswith("vpt_3D") or method.startswith("Watershed_Merlin"):
         try:
             bound = org_sdata[boundary_key][["cell_id", "geometry"]].dissolve(
                 by="cell_id"
@@ -808,33 +767,33 @@ def get_2D_boundaries(
             new.index.rename(None, inplace=True)
             bound = new.dissolve(by="cell_id")
             del new
-        sdata[f"boundaries_{method}"] = ShapesModel.parse(bound)
-        set_transformation(
+        sdata[f"boundaries_{method}"] = sd.models.ShapesModel.parse(bound)
+        sd.transformations.set_transformation(
             sdata[f"boundaries_{method}"],
-            Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
+            sd.transformations.Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
             to_coordinate_system="global",
         )
     else:
-        sdata[f"boundaries_{method}"] = ShapesModel.parse(org_sdata[boundary_key])
-    if any([method.startswith(x) for x in pixel_based]):
-        if method == "Cellpose_1_Merlin":
-            set_transformation(
+        sdata[f"boundaries_{method}"] = sd.models.ShapesModel.parse(org_sdata[boundary_key])
+    if any([method.startswith(x) for x in _constants.image_based]):
+        if method == "Cellpose_1_Merlin" or method == "Watershed_Merlin":
+            sd.transformations.set_transformation(
                 sdata[f"boundaries_{method}"],
-                Identity(),
+                sd.transformations.Identity(),
                 to_coordinate_system="micron",
             )
         else:
-            set_transformation(
+            sd.transformations.set_transformation(
                 sdata[f"boundaries_{method}"],
-                Affine(
+                sd.transformations.Affine(
                     transformation, input_axes=("x", "y"), output_axes=("x", "y")
                 ).inverse(),
                 to_coordinate_system="micron",
             )
     else:
-        set_transformation(
+        sd.transformations.set_transformation(
             sdata[f"boundaries_{method}"],
-            Identity(),
+            sd.transformations.Identity(),
             to_coordinate_system="micron",
         )
 
@@ -912,6 +871,94 @@ def pixel_to_microns(
             transform_count += 1
 
 
+def prepare_ficture(
+    data_path: str,
+    results_path: str,
+    sample: str,
+    base_path: str,
+    top_n_factors: int = 3,
+    logger: logging.Logger = None,
+    factors: Optional[List[int]] = None,
+) -> Dict[str, Union[np.ndarray, List[int]]]:
+    """Generate ficture images stack and other ficture information.
+
+    Args:
+        data_path: Path to merscope data
+        results_path: path to Segmentation folder
+        sample: Sample name
+        base_path: Path to base folder
+        top_n_factors: only consider top n factors for ficture picture
+        logger: logger instance
+        factors: if provided, only these ficture images will be generated.
+
+    Returns:
+        ficture images and factors of the images.
+    """
+    if logger is not None:
+        logger.info(f"Generating ficture images for {data_path}")
+    DAPI_shape = tifffile.imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
+    transform = pd.read_csv(
+        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
+        sep=" ",
+        header=None,
+    )
+
+    if "Ficture" not in listdir(results_path):
+        return {}
+    ficture_full_path = fu.find_ficture_output(sample, base_path)
+    assert ficture_full_path != "", "Ficture output not correctly computed."
+
+    ficture_pixels = fu.read_ficture_pixels(ficture_full_path)
+
+    metadata = fu.parse_metadata(ficture_full_path)
+    scale = float(metadata["SCALE"])
+    offset_x = float(metadata["OFFSET_X"])
+    offset_y = float(metadata["OFFSET_Y"])
+    # assume, that transform[0,1], transform[1,0] = 0
+    ficture_pixels["X_pixel"] = (
+        ficture_pixels["X"] / scale * transform.iloc[0, 0]
+        + offset_x * transform.iloc[0, 0]
+        + transform.iloc[0, 2]
+    )
+    ficture_pixels["Y_pixel"] = (
+        ficture_pixels["Y"] / scale * transform.iloc[1, 1]
+        + offset_y * transform.iloc[1, 1]
+        + transform.iloc[1, 2]
+    )
+    del transform, metadata
+
+    unique_factors = set()
+    for i in range(1, top_n_factors + 1):
+        unique_factors = unique_factors.union(set(np.unique(ficture_pixels[f"K{i}"])))
+    unique_factors = list(unique_factors)
+
+    if factors is not None:
+        assert all([x in unique_factors for x in factors])
+        unique_factors = list(set(factors))
+
+    for factor in tqdm(unique_factors):
+        if logger is not None:
+            logger.info(f"Building ficture image for {factor}")
+        try:
+            image_stack
+        except NameError:
+            image_stack = fu.create_factor_level_image(
+                ficture_pixels, factor, DAPI_shape, top_n_factors
+            )
+        else:
+            image_stack = np.concatenate(
+                (
+                    image_stack,
+                    fu.create_factor_level_image(
+                        ficture_pixels, factor, DAPI_shape, top_n_factors
+                    ),
+                ),
+                axis=0,
+                dtype=np.uint16,
+            )
+    return {"images": image_stack, "factors": unique_factors}
+
+
 def compute_cell_morphology(
     sdata, add_to_adata=False, z_spacing=1.5, verbose=True, return_results=False
 ):
@@ -950,7 +997,7 @@ def compute_cell_morphology(
         # Parse geometry from strings if needed
         boundaries = boundaries.copy()
         boundaries["geometry"] = boundaries["geometry"].apply(
-            lambda x: Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
+            lambda x: shapely.geometry.Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
         )
 
         if "EntityID" not in boundaries:
@@ -1011,13 +1058,12 @@ def compute_cell_morphology(
 def _compute_2d_metrics(geom, z_spacing: float):
     """Compute 2D morphology metrics with improved robustness."""
     if geom.geom_type == "MultiPolygon":
-        geom = unary_union(geom)
+        geom = shapely.ops.unary_union(geom)
     if geom.geom_type == "MultiPolygon":
         geom = max(geom.geoms, key=lambda p: p.area)
 
     if geom.is_empty or geom.geom_type != "Polygon":
-        #needs to return at least volume_final for merge
-        return {"volume_final": 0}
+        return {}
 
     area = geom.area
     perimeter = geom.length
@@ -1069,7 +1115,7 @@ def _compute_trapz_with_conditional_caps(areas, z_indices, z_spacing, z_min, z_m
 
 
 def _compute_3d_metrics(
-    group, z_spacing, global_z_min, global_z_max, ZIndex: str = "ZIndex", logger=None
+    group, z_spacing, global_z_min, global_z_max, ZIndex: str = "ZIndex"
 ):
     """Compute 3D morphology metrics with robust and dual volume estimation."""
     try:
@@ -1096,7 +1142,6 @@ def _compute_3d_metrics(
         volume_trapz = _compute_trapz_with_conditional_caps(
             areas, z_indices, z_spacing, global_z_min, global_z_max
         )
-        logger.debug(f"volume_final: {volume_trapz}")
 
         perimeters = np.fromiter(
             (
@@ -1130,7 +1175,6 @@ def _compute_3d_metrics(
                 else np.nan
             ),
         }
-        logger.debug("build metrics dict")
 
         thin_stack = len(polygons) < 2 or (np.ptp(z_um) < 3 * z_spacing)
 
@@ -1167,7 +1211,7 @@ def _compute_3d_metrics(
         if not thin_stack:
             if all_points.shape[0] >= 4:
                 try:
-                    hull = ConvexHull(
+                    hull = ss.ConvexHull(
                         all_points, qhull_options="QJ"
                     )  # jitter coplanar cases
                     hv = hull.volume
@@ -1177,7 +1221,7 @@ def _compute_3d_metrics(
                     up = np.unique(all_points, axis=0)
                     if up.shape[0] >= 4:
                         try:
-                            hull = ConvexHull(up, qhull_options="QJ")
+                            hull = ss.ConvexHull(up, qhull_options="QJ")
                             hv = hull.volume
                             solidity = (volume_trapz / hv) if hv > 0 else np.nan
                         except Exception:
@@ -1196,23 +1240,12 @@ def _compute_3d_metrics(
         else:
             elongation = 1.0
         metrics["elongation"] = elongation
-        logger.debug("return dict.")
+
         return metrics
 
     except Exception as e:
         warnings.warn(f"Failed to compute 3D metrics: {str(e)}")
-        return {
-            "dimensionality": "3D",
-            "area": 0,
-            "volume_sum": 0,
-            "volume_trapz": 0,
-            "volume_final": 0,
-            "num_z_planes": 0,
-            "size_normalized": np.nan,
-            "surface_to_volume_ratio": np.nan,
-            "solidity": np.nan,
-            "elongation": np.nan,
-        }
+        return {}
 
 
 def add_visium_boundaries(
@@ -1252,11 +1285,79 @@ def add_visium_boundaries(
     for i, yy in enumerate(ys):
         x0 = xmin + (dx / 2.0 if i % 2 else 0.0)
         xs = np.arange(x0, xmax + dx, dx)
-        geoms.extend(Point(xx, yy).buffer(r, resolution=circle_resolution) for xx in xs)
+        geoms.extend(shapely.geometry.Point(xx, yy).buffer(r, resolution=circle_resolution) for xx in xs)
         ids.extend(f"visium_{i}_{j}" for j in range(xs.size))
 
     gdf = gpd.GeoDataFrame({"spot_id": ids}, geometry=geoms).set_index("spot_id")
 
-    transforms = {cs: get_transformation(pts, cs) for cs in sdata.coordinate_systems}
-    sdata.shapes[out_name] = ShapesModel.parse(gdf, transformations=transforms)
+    transforms = {cs: sd.transformations.get_transformation(pts, cs) for cs in sdata.coordinate_systems}
+    sdata.shapes[out_name] = sd.models.ShapesModel.parse(gdf, transformations=transforms)
     return sdata
+
+
+def assign_points_to_polygons(
+    coords_df: pd.DataFrame,
+    polygons_gdf: gpd.GeoDataFrame,
+    x_col: str = "x",
+    y_col: str = "y",
+    polygon_id_col: str = "poly_id",
+    output_col: str = "assigned_polygon",
+    chunk_size: int = 1_000_000,
+    predicate: str = "within",
+    default_value="unassigned",
+) -> pd.DataFrame:
+    """Assign each point in coords_df to a polygon in polygons_gdf.
+
+    Args:
+        coords_df (pd.DataFrame): DataFrame with x/y coordinates.
+        polygons_gdf (gpd.GeoDataFrame): GeoDataFrame with polygon geometries.
+        x_col (str): x column of coords_df. Defaults to "x".
+        y_col (str): y column of coords_df. Defaults to "y".
+        polygon_id_col (str): Column in polygons_gdf whose values should be assigned to points. Defaults to "poly_id".
+        output_col (str): Name of the output column written to coords_df. Defaults to "assigned_polygon".
+        chunk_size (int): Number of points processed per chunk. Defaults to 1_000_000.
+        predicate (str): Spatial predicate, either "within" or "intersects". Defaults to "within".
+        default_value: Value assigned when a point does not match any polygon. Defaults to "unassigned".
+
+    Returns:
+        Copy of coords_df with an added output column.
+    """
+    if polygon_id_col not in polygons_gdf.columns:
+        raise ValueError(f"'{polygon_id_col}' not found in polygons_gdf")
+
+    polygons_gdf = polygons_gdf.loc[~polygons_gdf.geometry.is_empty].copy()
+    poly_lookup = polygons_gdf[[polygon_id_col, "geometry"]].copy()
+    _ = poly_lookup.sindex
+    result = coords_df.copy()
+    result[output_col] = default_value
+    out_col_idx = result.columns.get_loc(output_col)
+
+    n = len(result)
+    for start in range(0, n, chunk_size):
+        stop = min(start + chunk_size, n)
+        chunk = result.iloc[start:stop].copy()
+        chunk = chunk.drop(columns=[polygon_id_col], errors="ignore")
+        chunk["_rowid"] = np.arange(stop - start)
+        geom = shapely.points(chunk[x_col].to_numpy(), chunk[y_col].to_numpy())
+
+        points_gdf = gpd.GeoDataFrame(
+            chunk,
+            geometry=geom,
+            crs=polygons_gdf.crs,
+        )
+        joined = gpd.sjoin(
+            points_gdf,
+            poly_lookup,
+            how="left",
+            predicate=predicate,
+        )
+        assigned = (
+            joined.groupby("_rowid", sort=False)[polygon_id_col]
+            .first()
+            .reindex(np.arange(stop - start))
+            .fillna(default_value)
+            .infer_objects(copy=False)
+            .to_numpy()
+        )
+        result.iloc[start:stop, out_col_idx] = assigned
+    return result

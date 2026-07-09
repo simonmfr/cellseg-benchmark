@@ -4,13 +4,10 @@ import warnings
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import scipy.sparse as sp
-from dask import compute, delayed
-from dask.diagnostics import ProgressBar
-from scipy.spatial import cKDTree
-from shapely import minimum_bounding_radius
-from shapely.geometry import Polygon
-from spatialdata import SpatialData
+import dask
+import dask.diagnostics
+import scipy.spatial as ss
+import shapely
 
 
 def compute_outlier_percentage(sdata, min_counts=25, min_genes=5, inplace=True):
@@ -140,7 +137,7 @@ def compute_cell_areas_2d(sdata, zindex=3, column_name="area", verbose=True):
         # Convert geometry from string to Polygon if needed
         boundaries = boundaries.copy()
         boundaries["geometry"] = boundaries["geometry"].apply(
-            lambda x: Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
+            lambda x: shapely.geometry.Polygon(ast.literal_eval(x)) if isinstance(x, str) else x
         )
 
         # Handle ZIndex if present
@@ -262,60 +259,17 @@ def mean_transcript_densities(sdata, area_col="area"):
 
     return transcript_densities
 
-
-def pct_assigned_transcripts(sdata: SpatialData, genes: bool = False):
-    """Compute the percentage assigned transcripts.
-
-    Args:
-        sdata: spatial data for analysis
-        genes: if True, compute percentage assigned transcripts per gene
-
-    Returns:
-        pd.DataFrame: The percentage assigned transcripts per gene.
-    """
-    pct_assigned_transcripts = {}
-    transcripts = sdata["points"][["gene", "transcript_id"]].compute()
-    if genes:
-        transcripts = transcripts.groupby("gene").count()
-    for table_name in sdata.tables.keys():
-        adata = sdata[table_name]
-
-        if genes:
-            if isinstance(adata.X, np.ndarray):
-                adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
-            sums = adata.X.sum(axis=0)
-            sums = pd.DataFrame(
-                sums, index=adata.var_names, columns=["transcript_counts"]
-            )
-            merged = transcripts.merge(
-                sums, how="left", left_index=True, right_index=True
-            )
-            merged.fillna(
-                0, inplace=True
-            )  # ensure that all available genes are accounted for
-            merged["percentage"] = merged["transcript_counts"] / merged["transcript_id"]
-            pct_assigned_transcripts[table_name] = merged["percentage"]
-
-        else:
-            if isinstance(adata.X, np.ndarray):
-                adata.X = sp.csr_matrix(adata.X, dtype=np.float32)
-            sums = adata.X.sum()
-            pct_assigned_transcripts[table_name] = sums / len(transcripts)
-
-    return pct_assigned_transcripts
-
-
-@delayed
+@dask.delayed
 def _process_cluster_dask(cluster, subset, radii):
     pts = subset[["x", "y", "global_z"]].to_numpy()
     poly = subset["geometry"].iat[0]
 
     # Compute base 2D minimal circle radius and z-range once
-    base_r2 = 2 * minimum_bounding_radius(poly)
+    base_r2 = 2 * shapely.minimum_bounding_radius(poly)
     base_rz = np.ptp(pts[:, 2])
     base_R = np.sqrt(base_r2**2 + base_rz**2) / 2
 
-    tree = cKDTree(pts)
+    tree = ss.cKDTree(pts)
     n = len(pts)
     results = []
 
@@ -352,9 +306,9 @@ def ripley_k(df, cluster_column, radii, scheduler="processes"):
         subset_copy = subset.copy()
         tasks.append(_process_cluster_dask(cluster, subset_copy, radii))
 
-    with ProgressBar():
+    with dask.diagnostics.ProgressBar():
         # each task returns a list of dicts; compute all tasks
-        nested_results = compute(*tasks, scheduler=scheduler)
+        nested_results = dask.compute(*tasks, scheduler=scheduler)
 
     # flatten nested lists of results
     flat_results = [item for sublist in nested_results for item in sublist]

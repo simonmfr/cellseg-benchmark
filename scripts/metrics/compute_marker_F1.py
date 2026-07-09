@@ -1,14 +1,14 @@
 import argparse
 
 from cellseg_benchmark.metrics import (
+    compute_marker_F1_score,
     compute_metric_for_all_methods,
-    compute_assigned_transcripts,
-    plot_assigned_transcripts,
+    plot_marker_F1_score,
 )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Compute assigned transcripts for all methods in cohort, splitting data per sample."
+        description="Compute marker F1 score for all methods in cohort."
     )
     parser.add_argument("cohort", help="Cohort name.")
     parser.add_argument(
@@ -17,11 +17,18 @@ if __name__ == "__main__":
         help="Methods to compute score for. If not specified, use all methods.",
     )
     parser.add_argument(
+        "--celltype_name",
+        default="cell_type_revised",
+        help="Nme of celltype column. Default is cell_type_revised.",
+    )
+    parser.add_argument(
         "--overwrite", action="store_true", help="Overwrite existing results"
     )
+
     args = parser.parse_args()
-    results_name = "assigned_transcripts/assigned_transcript_counts.csv"
+    results_name = f"marker_gene_metrics/marker_f1_score_{args.celltype_name}.csv"
     compute_metric_for_all_methods(
-        compute_assigned_transcripts, results_name=results_name, pass_method=True, **vars(args)
+        compute_marker_F1_score, results_name=results_name, **vars(args)
     )
-    plot_assigned_transcripts(args.cohort)
+
+    plot_marker_F1_score(args.cohort, args.celltype_name, show=False)
