@@ -273,16 +273,16 @@ def integrate_segmentation_data(
                         logger=logger,
                     )
                 if os.path.exists(
-                    join(sdata_path, "results", seg_method, "Ficture_stats")
+                    join(sdata_path, "results", seg_method, "Ovrlpy_stats")
                 ):
                     if logger:
                         logger.info(
-                            "Adding Ficture stats to {}...".format(seg_method)
+                            "Adding Ovrlpy stats to {}...".format(seg_method)
                         )
                     add_statistical_data(sdata_main, seg_method, sdata_path)
                 elif logger:
                     logger.warning(
-                        "No Ficture_stats files found for {}. Skipping.".format(
+                        "No Ovrlpy_stats files found for {}. Skipping.".format(
                             seg_method
                         )
                     )
