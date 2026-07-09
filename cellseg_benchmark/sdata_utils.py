@@ -275,9 +275,12 @@ def integrate_segmentation_data(
                 if os.path.exists(
                     join(sdata_path, "results", seg_method, "Ficture_stats")
                 ):
-                    logger.info("Adding Ficture stats to {}...".format(seg_method))
+                    if logger:
+                        logger.info(
+                            "Adding Ficture stats to {}...".format(seg_method)
+                        )
                     add_statistical_data(sdata_main, seg_method, sdata_path)
-                else:
+                elif logger:
                     logger.warning(
                         "No Ficture_stats files found for {}. Skipping.".format(
                             seg_method
