@@ -1,5 +1,16 @@
 BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 
+# WT samples from the aging cohort used as additional controls for the htra1 cohort
+htra1_aging_controls = [
+    "aging_s1_r1",
+    "aging_s5_r1",
+    "aging_s6_r0",
+    "aging_s7_r1",
+    "aging_s7_r2",
+    "aging_s8_r2",
+    "aging_s11_r0",
+]
+
 cell_cycle_genes = {
     "G1": ["Ccne1", "Pttg1"],
     "G1_S": ["Slbp", "Cdca7", "Ung", "Cdc6", "Pcna", "Mcm5", "Orc1", "Dtl"],
