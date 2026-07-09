@@ -39,6 +39,7 @@ for key, value in data.items():
 
 set -euo pipefail
 
+git -C {REPO_PATH} pull -q
 source {RUN_LOG_PATH}
 
 RES_PATH="{res_path}"
