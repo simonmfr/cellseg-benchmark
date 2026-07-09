@@ -1,79 +1,96 @@
-from pathlib import Path
-
+#!/usr/bin/env python
+import argparse
+import pathlib
 import yaml
 
-with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
-) as f:
-    data = yaml.safe_load(f)
+parser = argparse.ArgumentParser(
+    description="Create a SLURM array sbatch for a given cohort to convert Merscope outputs to sdata."
+)
+parser.add_argument("cohort", help="Cohort name (e.g. aging).")
+parser.add_argument(
+    "--segmentation", choices=["cellpose", "watershed", "both"], default="both"
+)
+parser.add_argument(
+    "--sample",
+    help="Process only this sample (e.g. aging_s11_r1). If not defined, adds all samples from cohort.",
+)
+parser.add_argument(
+    "--explorer",
+    action="store_true",
+    help="Write 10X Xenium explorer files (cellpose only).",
+)
+args = parser.parse_args()
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
-Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merscope"
-).mkdir(parents=False, exist_ok=True)
-for key, value in data.items():
-    f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_merscope_to_sdata/{key}.sbatch",
-        "w",
-    )
-    f.write(f"""#!/bin/bash
+with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
+    metadata = yaml.safe_load(f)
+
+seg_configs = [
+    ("cellpose", "path", "Cellpose_1_Merlin"),
+    ("watershed", "path_watershed", "Watershed_Merlin"),
+]
+if args.segmentation != "both":
+    seg_configs = [c for c in seg_configs if c[0] == args.segmentation]
+
+jobs = []
+for key, val in metadata.items():
+    if key.split("_")[0] != args.cohort:
+        continue
+    if args.sample and key != args.sample:
+        continue
+    for seg, path_key, result_dir in seg_configs:
+        if path_key not in val:
+            continue
+        data_path = pathlib.Path(val[path_key])
+        if (data_path / "cell_by_gene.csv").exists():
+            save_path = BASE_PATH / "samples" / key / "results" / result_dir
+            jobs.append((str(data_path), str(save_path), seg, key))
+
+if not jobs:
+    print(f"No valid samples found for cohort '{args.cohort}'.")
+    exit(0)
+
+data_paths = " ".join(f'"{dp}"' for dp, sp, sf, sn in jobs)
+save_paths = " ".join(f'"{sp}"' for dp, sp, sf, sn in jobs)
+seg_flags = " ".join(f'"{sf}"' for dp, sp, sf, sn in jobs)
+sample_names = " ".join(f'"{sn}"' for dp, sp, sf, sn in jobs)
+sbatch = f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 12:00:00
-#SBATCH --mem=300G
-#SBATCH -J merscope_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merscope_to_sdata_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/merscope_to_sdata_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH --mem=250G
+#SBATCH -J merscope_{args.cohort}
+#SBATCH --array=0-{len(jobs) - 1}
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/merscope_to_sdata_{args.cohort}_%a.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/merscope_to_sdata_{args.cohort}_%a.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
-set -euo pipefail
-
-# ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
-LOCK_FILE="${{RUN_LOG}}.lock"
-mkdir -p "$(dirname "${{RUN_LOG}}")"
-
-JOBID="${{SLURM_JOB_ID:-NA}}"
-JOBNAME="${{SLURM_JOB_NAME:-NA}}"
-NODELIST="${{SLURM_JOB_NODELIST:-NA}}"
-SUBMIT_DIR="${{SLURM_SUBMIT_DIR:-$PWD}}"
-HOST="$(hostname -f 2>/dev/null || hostname)"
-
-START_ISO="$(date -Is)"
-START_EPOCH="$(date +%s)"
-
-KEY="{key}"
-INPUT_PATH="{value["path"]}"
-
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Cellpose_1_Merlin"
-
-# If you want the exact command logged:
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/merscope_sdata.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\""
-
-write_log() {{
-  local rc="$1"
-  local end_iso="$2"
-  local elapsed_s="$3"
-
-  (
-    flock -x 200
-    if [ ! -f "${{RUN_LOG}}" ]; then
-      printf "start_iso\\tend_iso\\telapsed_s\\trc\\tjobid\\tjobname\\tkey\\tcp_version\\tstaining\\tconfidence\\tinput_path\\tresult_dir\\thost\\tnodelist\\tsubmit_dir\\tcmd\\n" >> "${{RUN_LOG}}"
-    fi
-    # not a Cellpose DAPI run -> cp_version/staining/confidence not applicable
-    printf "%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n" \\
-      "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \\
-      "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "NA" "NA" "NA" \\
-      "${{INPUT_PATH}}" "${{RESULT_DIR}}" "${{HOST}}" "${{NODELIST}}" "${{SUBMIT_DIR}}" "${{CMD}}" \\
-      >> "${{RUN_LOG}}"
-  ) 200>>"${{LOCK_FILE}}"
-}}
-
-trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_epoch-START_EPOCH)); write_log "$rc" "$end_iso" "$elapsed_s"' EXIT
+DATA_PATHS=({data_paths})
+SAVE_PATHS=({save_paths})
+SEG_FLAGS=({seg_flags})
+SAMPLE_NAMES=({sample_names})
 
 mamba activate segmentation
-mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata.py \\
-  "${{INPUT_PATH}}" \\
-  "${{RESULT_DIR}}"
-""")
-    f.close()
+mkdir -p "${{SAVE_PATHS[$SLURM_ARRAY_TASK_ID]}}"
+echo "Processing sample: ${{SAMPLE_NAMES[$SLURM_ARRAY_TASK_ID]}}"
+
+EXPLORER_FLAG=""
+if [ "${{SEG_FLAGS[$SLURM_ARRAY_TASK_ID]}}" = "cellpose" ] && [ "{str(args.explorer).lower()}" = "true" ]; then
+    EXPLORER_FLAG="--explorer"
+fi
+
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_sdata.py \\
+  "${{DATA_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
+  "${{SAVE_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
+  --segmentation "${{SEG_FLAGS[$SLURM_ARRAY_TASK_ID]}}" \\
+  $EXPLORER_FLAG
+"""
+
+SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_merscope_to_sdata"
+SBATCH_DIR.mkdir(parents=True, exist_ok=True)
+sample_suffix = f"_{args.sample.removeprefix(args.cohort + '_')}" if args.sample else ""
+SBATCH_FILE = (
+    SBATCH_DIR / f"{args.cohort}_{args.segmentation}{sample_suffix}_array.sbatch"
+)
+SBATCH_FILE.write_text(sbatch)
+print(f"[{args.cohort}] {len(jobs)} jobs. Call: sbatch {SBATCH_FILE}")

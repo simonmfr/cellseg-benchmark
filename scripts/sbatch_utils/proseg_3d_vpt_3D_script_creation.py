@@ -1,27 +1,30 @@
+#!/usr/bin/env python
 import argparse
-from pathlib import Path
-
+import pathlib
 import yaml
 
 parser = argparse.ArgumentParser(
     description="Prepare scripts for ProSeg with prior segmentation."
 )
-parser.add_argument("vpt_flavor", choices=["nuclei", "PolyT", "PolyT_nuclei"], help="vpt flavor.")
+parser.add_argument(
+    "vpt_flavor", choices=["nuclei", "PolyT", "PolyT_nuclei"], help="vpt flavor."
+)
 parser.add_argument("vpt_dim", choices=["2D", "3D"], help="vpt dimension.")
 parser.add_argument("--voxel", default=1, type=int, help="number of z-layers.")
 args = parser.parse_args()
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+    f"{BASE_PATH}/misc/sample_metadata.yaml"
 ) as f:
     data = yaml.safe_load(f)
 
-Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}"
+pathlib.Path(
+    f"{BASE_PATH}/misc/sbatches/sbatch_Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}/{key}_{args.voxel}.sbatch",
+        f"{BASE_PATH}/misc/sbatches/sbatch_Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}/{key}_{args.voxel}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -32,14 +35,14 @@ for key, value in data.items():
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=30
 #SBATCH -J Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/Proseg_3D_{key}_vpt{args.vpt_dim}_{args.vpt_flavor}_vxl_{args.voxel}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -58,11 +61,11 @@ VPT_FLAVOR="{args.vpt_flavor}"
 VOXEL="{args.voxel}"
 INPUT_PATH="{value["path"]}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Proseg_3D_vpt{args.vpt_dim}_{args.vpt_flavor}"
+RESULT_DIR="{BASE_PATH}/samples/{key}/results/Proseg_3D_vpt{args.vpt_dim}_DAPI_{args.vpt_flavor}"
 
 MODEL_NAME="vpt_${{VPT_DIM}}_DAPI_${{VPT_FLAVOR}}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D_vpt_3D.py \\"${{INPUT_PATH}}\\" ${{KEY}} ${{MODEL_NAME}} --voxel-layers ${{VOXEL}} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D_vpt_3D.py \\"${{INPUT_PATH}}\\" ${{KEY}} ${{MODEL_NAME}} --voxel-layers ${{VOXEL}} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
 
 write_log() {{
   local rc="$1"
@@ -87,7 +90,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 
 mamba activate segmentation
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D_vpt_3D.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/proseg_3D_vpt_3D.py \\
   "${{INPUT_PATH}}" \\
   "${{KEY}}" \\
   "${{MODEL_NAME}}" \\

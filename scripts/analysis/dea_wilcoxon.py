@@ -1,7 +1,8 @@
+#!/usr/bin/env python
 import argparse
 import logging
+import pathlib
 import re
-from pathlib import Path
 
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
@@ -79,7 +80,7 @@ if __name__ == "__main__":
         logger.setLevel(logging.INFO)
         logger.propagate = False
 
-    base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+    base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
     method_path = base_path / "analysis" / args.cohort / args.seg_method
     output_dir = method_path / "dea"
     output_dir.mkdir(parents=True, exist_ok=True)

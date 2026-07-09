@@ -1,8 +1,8 @@
+#!/usr/bin/env python
 import argparse
 import os
-from os.path import join
-from pathlib import Path
-from subprocess import run
+import pathlib
+import subprocess
 
 import sopa
 import toml
@@ -23,7 +23,7 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
     """Baysor algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)
     path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
-    sdata = read_zarr(join(path, base_segmentation, "sdata.zarr"))
+    sdata = read_zarr(pathlib.Path(path, base_segmentation, "sdata.zarr"))
     sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
         list(sdata_tmp.images.keys())[0]
     ]
@@ -34,11 +34,11 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
 
     # backing für memory efficiency
     sdata.write(
-        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"),
+        pathlib.Path(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"),
         overwrite=True,
     )
     sdata = read_zarr(
-        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr")
+        pathlib.Path(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr")
     )
 
     sopa.make_transcript_patches(
@@ -54,11 +54,13 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
 
-    path_toml = Path(__file__).parents[2] / "configs" / "baysor_2D_config.toml"
+    path_toml = pathlib.Path(__file__).parents[2] / "configs" / "baysor_2D_config.toml"
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence
-    sopa.segmentation.baysor(sdata, config=config, delete_cache=not keep_cache, force=True)
+    sopa.segmentation.baysor(
+        sdata, config=config, delete_cache=not keep_cache, force=True
+    )
 
     sopa.aggregate(
         sdata,
@@ -69,7 +71,7 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
         image_key=list(sdata.images.keys())[0],
     )
     sopa.io.explorer.write(
-        join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.explorer"),
+        pathlib.Path(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.explorer"),
         sdata,
         points_key=list(sdata.points.keys())[0],
         image_key=list(sdata.images.keys())[0],
@@ -80,10 +82,38 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
 
     cache_dir = sopa.utils.get_cache_dir(sdata)
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"), overwrite=True)
+    sdata.write(
+        pathlib.Path(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr"),
+        overwrite=True,
+    )
     if keep_cache:
-        run(["cp", "-r", str(cache_dir), join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata.zarr", str(cache_dir).split("/")[-1])])
-    run(["rm", "-r", join(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr")])
+        subprocess.run(
+            [
+                "cp",
+                "-r",
+                str(cache_dir),
+                pathlib.Path(
+                    path,
+                    f"Baysor_2D_{base_segmentation}_{confidence}",
+                    "sdata.zarr",
+                    str(cache_dir).split("/")[-1],
+                ),
+            ]
+        )
+    subprocess.run(
+        [
+            "rm",
+            "-r",
+            pathlib.Path(path, f"Baysor_2D_{base_segmentation}_{confidence}", "sdata_tmp.zarr"),
+        ]
+    )
+
 
 if __name__ == "__main__":
-    main(args.data_path, args.base_segmentation, args.confidence, args.sample, args.keep_cache)
+    main(
+        args.data_path,
+        args.base_segmentation,
+        args.confidence,
+        args.sample,
+        args.keep_cache,
+    )

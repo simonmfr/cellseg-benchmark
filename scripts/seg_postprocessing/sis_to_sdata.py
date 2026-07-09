@@ -1,0 +1,136 @@
+#!/usr/bin/env python
+import argparse
+import logging
+import pathlib
+
+import anndata as ad
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import sopa
+import spatialdata as sd
+import spatialdata.models as sd_models
+import spatialdata_io
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s"
+)
+logger = logging.getLogger("sis_to_sdata")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Convert SIS output to sdata. "
+            "Matches cells via SpotTable_cell_id -> cell_id. "
+            "Boundaries are 3D (multiple z-plane polygons per cell). "
+            "Raises error if >5% of cells lack a boundary polygon."
+        )
+    )
+    parser.add_argument("data_path", type=str, help="Path to sis_out.")
+    parser.add_argument("image_path", type=str, help="Path to images.")
+    args = parser.parse_args()
+
+    sis_out = pathlib.Path(args.data_path, "sis_out")
+    assert (sis_out / "cell_by_gene.h5ad").exists(), "cell_by_gene.h5ad not found"
+    assert (sis_out / "cell_polygons.geojson").exists(), (
+        "cell_polygons.geojson not found"
+    )
+
+    logger.info("Loading data...")
+    adata = ad.read_h5ad(sis_out / "cell_by_gene.h5ad")
+    adata.obs.rename({"cell_label": "cell_id"}, axis="columns", inplace=True)
+    boundaries = gpd.read_file(sis_out / "cell_polygons.geojson")
+
+    spot_id_to_label = dict(
+        zip(
+            adata.obs["SpotTable_cell_id"].astype(str),
+            adata.obs["cell_id"].astype(str),
+        )
+    )
+    boundaries["cell_id"] = boundaries["id"].astype(str).map(spot_id_to_label)
+    boundaries = boundaries.dropna(subset=["cell_id", "geometry"]).copy()
+    boundaries["geometry"] = boundaries.geometry.make_valid()
+    boundaries.index = boundaries["cell_id"].copy()
+    boundaries.index = boundaries.index.rename(None)
+
+    adata.obs_names = adata.obs["cell_id"].astype(str)
+    boundaries = boundaries[boundaries.index.isin(adata.obs_names)]
+
+    missing = adata.obs_names.difference(boundaries.index)
+    missing_reads = np.asarray(adata[missing].X.sum(axis=1)).flatten()
+    sample_name = sis_out.parent.parent.parent.name
+    MIN_READS = 10
+    concerning = (missing_reads >= MIN_READS).sum()
+    logger.info(
+        f"[{sample_name}] {len(missing)} missing total, {concerning} with >= {MIN_READS} reads"
+    )
+
+    if concerning / adata.n_obs > 0.05:
+        raise ValueError(
+            f"[{sample_name}] {concerning}/{adata.n_obs} adata cells with >= {MIN_READS} reads have no boundary (>5%)"
+        )
+    if len(missing):
+        logger.warning(
+            f"[{sample_name}] {len(missing)} adata cells have no boundary, dropping from table"
+        )
+        adata = adata[adata.obs_names.isin(boundaries.index)].copy()
+    else:
+        adata = adata.copy()
+
+    adata.obs["region"] = pd.Categorical(["boundaries_3D"] * adata.n_obs)
+    adata.obs = adata.obs.drop(columns=["area"], errors="ignore")
+    adata.obsm["spatial"] = adata.obs[
+        ["polygon_center_x", "polygon_center_y"]
+    ].to_numpy()
+
+    sdata = sd.SpatialData(
+        shapes={"boundaries_3D": sd_models.ShapesModel.parse(boundaries)},
+        tables={
+            "table": sd_models.TableModel.parse(
+                adata,
+                region="boundaries_3D",
+                region_key="region",
+                instance_key="cell_id",
+            )
+        },
+    )
+
+    sdata_tmp = spatialdata_io.merscope(
+        args.image_path,
+        transcripts=False,
+        cells_boundaries=False,
+        cells_table=False,
+    )
+    for key in sdata_tmp.images.keys():
+        sdata[key] = sdata_tmp[key]
+    del sdata_tmp
+
+    boundaries = sdata['boundaries_3D'].copy()
+    boundaries_2d = boundaries[["cell_id", "geometry"]].dissolve(by="cell_id")
+    boundaries_2d.index = boundaries_2d.index.rename(None)
+    sdata["boundaries_2D"] = sd.models.ShapesModel.parse(boundaries_2d)
+
+    intensities = pd.DataFrame(
+        sopa.aggregation.aggregate_channels(
+            sdata, shapes_key="boundaries_2D"
+        ),
+        columns=sopa.utils.validated_channel_names(
+            sopa.utils.get_spatial_image(
+                sdata, list(sdata.images.keys())[0], return_key=True
+            )[1]
+        ),
+        index=sdata["boundaries_2D"].index.astype(str),
+    )
+    intensities = intensities.loc[sdata['table'].obs_names]
+    sdata["table"].obsm["intensities"] = intensities
+    del sdata["boundaries_2D"]
+
+    out_path = pathlib.Path(args.data_path, "sdata.zarr")
+    logger.info(f"Writing to {out_path}")
+    sdata.write(out_path, overwrite=True)
+    logger.info("Done.")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,6 +1,6 @@
+#!/usr/bin/env python
 import argparse
-from pathlib import Path
-
+import pathlib
 import yaml
 
 parser = argparse.ArgumentParser(
@@ -13,18 +13,19 @@ parser.add_argument(
     "-ir", "--intens_rat", default=0.1, type=float, help="intensity ratio."
 )
 args = parser.parse_args()
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+    f"{BASE_PATH}/misc/sample_metadata.yaml"
 ) as f:
     data = yaml.safe_load(f)
 
-Path(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_rastered_{args.width}{args.unit}"
+pathlib.Path(
+    f"{BASE_PATH}/misc/sbatches/sbatch_rastered_{args.width}{args.unit}"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_rastered_{args.width}{args.unit}/{key}.sbatch",
+        f"{BASE_PATH}/misc/sbatches/sbatch_rastered_{args.width}{args.unit}/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -33,14 +34,14 @@ for key, value in data.items():
 #SBATCH -t 08:00:00
 #SBATCH --mem=128G
 #SBATCH -J rastered{args.width}_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/rastered{args.width}_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/rastered{args.width}_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/rastered{args.width}_{key}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/rastered{args.width}_{key}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 set -euo pipefail
 
 # ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
+RUN_LOG="{BASE_PATH}/misc/logs/job_runs.tsv"
 LOCK_FILE="${{RUN_LOG}}.lock"
 mkdir -p "$(dirname "${{RUN_LOG}}")"
 
@@ -61,9 +62,9 @@ OVERLAP="{args.overlap}"
 UNIT="{args.unit}"
 INTENS_RAT="{args.intens_rat}"
 
-RESULT_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{key}/results/Negative_Control_Rastered_{args.width}"
+RESULT_DIR="{BASE_PATH}/samples/{key}/results/Negative_Control_Rastered_{args.width}"
 
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/segmentation/rastered_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\" ${{WIDTH}} ${{OVERLAP}} ${{UNIT}} ${{INTENS_RAT}}"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/rastered_segmentation.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\" ${{WIDTH}} ${{OVERLAP}} ${{UNIT}} ${{INTENS_RAT}}"
 
 write_log() {{
   local rc="$1"
@@ -89,7 +90,7 @@ trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_ep
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python ~/gitrepos/cellseg-benchmark/scripts/segmentation/rastered_segmentation.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/rastered_segmentation.py \\
   "${{INPUT_PATH}}" \\
   "${{RESULT_DIR}}" \\
   "${{WIDTH}}" "${{OVERLAP}}" "${{UNIT}}" "${{INTENS_RAT}}"

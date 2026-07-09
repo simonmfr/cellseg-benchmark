@@ -1,9 +1,10 @@
+#!/usr/bin/env python
 import argparse
+import importlib.resources
 import logging
+import pathlib
 import re
 import warnings
-from importlib.resources import files
-from pathlib import Path
 
 import anndata as ad
 import anndata2ri
@@ -123,13 +124,10 @@ if __name__ == "__main__":
     setattr(rcb, "consolewrite_warnerror", rcb.consolewrite_warn)
 
     conv = ro.default_converter + ro.pandas2ri.converter + anndata2ri.converter
-    # r_script = Path(__file__).resolve().parent / "cellseg_benchmark" / "dea_utils.r"
-    # ro.r["source"](str(r_script))
-    # edgeR_loop = ro.globalenv["edgeR_loop"]
-    ro.r["source"](str(files(csb) / "dea_utils.r"))
+    ro.r["source"](str(importlib.resources.files(csb) / "dea_utils.r"))
     edgeR_loop = ro.globalenv["edgeR_loop"]
 
-    base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+    base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
     method_path = base_path / "analysis" / args.cohort / args.seg_method
     output_dir = method_path / "dea"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -273,7 +271,9 @@ if __name__ == "__main__":
     for group_i in adatas_pb:
         adata_tmp = adatas_pb[group_i]
         counts = (
-            adata_tmp.obs.groupby(args.condition_key)[args.sample_key].nunique().to_dict()
+            adata_tmp.obs.groupby(args.condition_key)[args.sample_key]
+            .nunique()
+            .to_dict()
         )
         # require ≥2 samples per condition
         if any(v < 2 for v in counts.values()):

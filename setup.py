@@ -20,6 +20,8 @@ setup(
         "shapely",
         "dask",
         "geopandas",
+        "rasterio",
+        "joblib",
         "xarray",
         "tifffile",
         "tqdm",

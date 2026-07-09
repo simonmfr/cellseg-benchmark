@@ -1,9 +1,10 @@
+#!/usr/bin/env python
 import argparse
+import importlib.resources
 import logging
+import pathlib
 import re
 import warnings
-from importlib.resources import files
-from pathlib import Path
 
 import anndata as ad
 import anndata2ri
@@ -119,10 +120,10 @@ if __name__ == "__main__":
     setattr(rcb, "consolewrite_warnerror", rcb.consolewrite_warn)
 
     conv = ro.default_converter + ro.pandas2ri.converter + anndata2ri.converter
-    ro.r["source"](str(files(csb) / "dea_utils.r"))
+    ro.r["source"](str(importlib.resources.files(csb) / "dea_utils.r"))
     edgeR_loop = ro.globalenv["edgeR_loop"]
 
-    base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+    base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
     method_path = base_path / "analysis" / args.cohort / args.seg_method
     output_dir = method_path / "dea"
     output_dir.mkdir(parents=True, exist_ok=True)

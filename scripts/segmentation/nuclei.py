@@ -1,10 +1,11 @@
+#!/usr/bin/env python
 import argparse
 import os
-from os.path import join
-from subprocess import run
+import pathlib
+import subprocess
 
+import pandas as pd
 import sopa
-from pandas import read_csv
 from spatialdata import read_zarr
 
 parser = argparse.ArgumentParser(description="Compute Cellpose nuclei segmentation.")
@@ -16,14 +17,14 @@ args = parser.parse_args()
 def main(data_path, save_path):
     """Cellpose nuclei algorithm by sopa with dask backend parallelized."""
     sdata = sopa.io.merscope(data_path)
-    translation = read_csv(
-        join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+    translation = pd.read_csv(
+        pathlib.Path(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     )
 
-    sdata.write(join(save_path, "sdata_tmp.zarr"), overwrite=True)
-    sdata = read_zarr(join(save_path, "sdata_tmp.zarr"))
+    sdata.write(pathlib.Path(save_path, "sdata_tmp.zarr"), overwrite=True)
+    sdata = read_zarr(pathlib.Path(save_path, "sdata_tmp.zarr"))
 
     sopa.make_image_patches(sdata, patch_width=8900, patch_overlap=178)
 
@@ -46,7 +47,7 @@ def main(data_path, save_path):
         sdata, gene_column="gene", aggregate_channels=True, min_transcripts=10
     )
     sopa.io.explorer.write(
-        join(save_path, "sdata.explorer"),
+        pathlib.Path(save_path, "sdata.explorer"),
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
@@ -54,8 +55,8 @@ def main(data_path, save_path):
     )
 
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(save_path, "sdata.zarr"), overwrite=True)
-    run(["rm", "-r", join(save_path, "sdata_tmp.zarr")])
+    sdata.write(pathlib.Path(save_path, "sdata.zarr"), overwrite=True)
+    subprocess.run(["rm", "-r", pathlib.Path(save_path, "sdata_tmp.zarr")])
 
 
 if __name__ == "__main__":

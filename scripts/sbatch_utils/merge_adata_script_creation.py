@@ -1,5 +1,6 @@
+#!/usr/bin/env python
 import argparse
-from pathlib import Path
+import pathlib
 
 parser = argparse.ArgumentParser(
     description="scripts for merging one method from different samples."
@@ -10,12 +11,8 @@ parser.add_argument(
     "--genotype", action="store_true", help="Consider genotype differentiation"
 )
 args = parser.parse_args()
-
-base_path = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-sbatch_path = f"{base_path}/misc/sbatches/sbatch_merge_adata"
-container_image = f"{base_path}/misc/enroot_images/benchmark.sqsh"
-log_path = f"{base_path}/misc/logs/merged"
-
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_merge_adata"
 methods = [
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8",
@@ -52,9 +49,16 @@ methods = [
     "vpt_3D_DAPI_PolyT",
     "vpt_3D_DAPI_nuclei",
     "vpt_3D_DAPI_PolyT_nuclei",
+    "Proseg_3D_vpt3D_DAPI_PolyT",
+    "Proseg_3D_vpt3D_DAPI_nuclei",
+    "Proseg_3D_vpt3D_DAPI_PolyT_nuclei",
+    "Watershed_Merlin",
+    "SIS_DAPI_total_mrna",
+    "Ficture_segments",
+    "Ficture_segments_dapi"
 ]
 
-Path(sbatch_path).mkdir(parents=False, exist_ok=True)
+SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 
 for method in methods:
     if method == "Negative_Control_Rastered_5":
@@ -69,7 +73,7 @@ for method in methods:
 
     memory = "700G" if "Negative_Control" in method else "350G"
 
-    with open(f"{sbatch_path}/{args.cohort}_{method}.sbatch", "w") as f:
+    with open(SBATCH_DIR / f"{args.cohort}_{method}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
@@ -78,8 +82,8 @@ for method in methods:
 #SBATCH --cpus-per-task=20
 #SBATCH --mem={memory}
 #SBATCH -J merge_adata_{args.cohort}_{method}
-#SBATCH -o {log_path}/%x.log
-#SBATCH --container-image="{container_image}"
+#SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
@@ -89,7 +93,5 @@ export NUMEXPR_NUM_THREADS=1
 set -eu
 
 mamba activate seg_postprocessing
-"$CONDA_PREFIX/bin/time" -v \
-  -o "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/merge_adata_{args.cohort}_{method}_$(date +%Y%m%d_%H%M%S).time" \
-python ~/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
 """)

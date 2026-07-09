@@ -1,27 +1,11 @@
-# -*- coding: utf-8 -*-
-# Auto-export from Jupyter notebook -> Python script with rpy2 integration
-# Source notebook: banksy-setup 1 (1).ipynb
-#
-# Notes:
-#  - Markdown cells preserved as comments.
-#  - Python cells preserved.
-#  - R cells (%%R / %R) are executed via rpy2: ro.r("""...""").
-#  - Shell lines starting with '!' are commented to keep the script valid.
-#  - If you need to pass data between Python and R, pandas2ri/numpy2ri are activated.
-#
-# Environment requirement:
-#   conda install -c conda-forge r-base r-essentials rpy2
-#
-# ---------------------------------------------------------------------------
-# Bootstrap rpy2
+#!/usr/bin/env python
 import argparse
+import datetime
 import logging
 import os
+import pathlib
 
 # Activate automatic converters (pandas <-> R, numpy <-> R)
-from datetime import date
-from pathlib import Path
-
 import pandas as pd
 import rpy2.rinterface_lib.callbacks as rcb
 import rpy2.robjects as ro
@@ -30,12 +14,11 @@ import squidpy as sq
 from rpy2.robjects import default_converter, numpy2ri, pandas2ri
 from rpy2.robjects.conversion import localconverter
 
-today = date.today().strftime("%Y%m%d")
+today = datetime.date.today().strftime("%Y%m%d")
 
 
 def R(code: str):
     """Run a multi-line R snippet safely via rpy2."""
-    # Suppress warnings about UTF-8 on some systems by setting locale in R if needed.
     return ro.r(code)
 
 
@@ -58,20 +41,10 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
-###############################################################################
-# Cell 4 - code
-###############################################################################
-# load R environment
-
 rcb.logger.setLevel(logging.ERROR)
 rcb.logger.handlers = logger.handlers
 rcb.logger.setLevel(logger.level)
 
-# %load_ext rpy2.ipython
-
-###############################################################################
-# Cell 5 - code
-###############################################################################
 R("""
 suppressPackageStartupMessages({
     library(Banksy)
@@ -84,43 +57,23 @@ suppressPackageStartupMessages({
 })
 """)
 
-###############################################################################
-# Cell 6 - code
-###############################################################################
-
-# --- Captured outputs/comments from notebook ---
-# '20250902'
-
-###############################################################################
-# Cell 7 - code
-###############################################################################
-# Logger setup
-logger = logging.getLogger("vascular_subclustering")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
-logger.addHandler(handler)
-
 parser = argparse.ArgumentParser(description="DEA")
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 parser.add_argument(
-    "--seg_method",
-    default="Negative_Control_Rastered_25",
-    help="Segmentation method, e.g., 'Cellpose_1_nuclei_model'",
+    "adata_path", help="Path to adata used for banksy clustering.",
+)
+parser.add_argument(
+    "save_folder", help="Folder to save adata with banksy clustering.",
 )
 args = parser.parse_args()
 
-base_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-method_path = base_path / "analysis" / args.cohort / args.seg_method
+base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 data_dir = os.path.abspath("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])
     print(sc.settings.n_jobs)
 logger.info("Loading integrated adata...")
-# adata = sc.read_h5ad(os.path.join(base_path, "analysis", args.cohort, args.seg_method, "adatas", "adata_integrated.h5ad.gz"))
-adata = sc.read_h5ad(
-    base_path / "misc" / f"{args.cohort}_Neg_25_banksy_adata_integrated.h5ad.gz"
-)
+adata = sc.read_h5ad(args.adata_path)
 point_size_factor = 320000
 celltype_col = "cell_type_mmc_raw_revised"
 
@@ -236,8 +189,8 @@ for s in adata.obs["sample"].unique():
         library_id="spatial",
         figsize=(7, 7),
         wspace=0.25,
-        save=f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/banksy_tests/{args.cohort}/banksy_align_{s}_1.png",
+        save=f"{args.save_folder}/Plots/banksy_align_{args.cohort}_{s}.png",
     )
 adata.write(
-    f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/analysis/{args.cohort}/{args.seg_method}/adatas/spatial_reg_adata.h5ad"
+    f"{args.save_folder}/spatial_reg_adata_{args.cohort}.h5ad"
 )

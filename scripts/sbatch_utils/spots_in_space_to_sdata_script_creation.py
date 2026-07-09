@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+"""Create SLURM array job to convert all available SIS outputs to sdatas."""
+
+import pathlib
+import yaml
+
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+samples = sorted(
+    [
+        p.parent
+        for p in (BASE_PATH / "samples").glob("*/results/*/sis_out")
+        if (p / "cell_by_gene.h5ad").exists() and (p / "cell_polygons.geojson").exists()
+    ]
+)
+
+if not samples:
+    print("No samples with sis_out found.")
+    exit(0)
+
+print(f"Found {len(samples)} samples.")
+
+YAML = BASE_PATH / "misc/sample_metadata.yaml"
+with open(YAML) as f:
+    data = yaml.safe_load(f)
+
+paths = " ".join(f'"{s}"' for s in samples)
+image_paths = []
+for s in samples:
+    path = data[str(s.parent.parent).split("/")[-1]]["path"]
+    image_paths.append(f'"{path}"')
+image_paths = " ".join(image_paths)
+sbatch = f"""#!/bin/bash
+#SBATCH -p lrz-cpu
+#SBATCH --qos=cpu
+#SBATCH -t 02:00:00
+#SBATCH --mem=64G
+#SBATCH -J SIS_to_sdata
+#SBATCH --array=0-{len(samples) - 1}
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/SIS_to_sdata_%a.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/SIS_to_sdata_%a.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+
+PATHS=({paths})
+IMAGE_PATHS=({image_paths})
+mamba activate segmentation
+python "$HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/sis_to_sdata.py" "${{PATHS[$SLURM_ARRAY_TASK_ID]}}" "${{IMAGE_PATHS[$SLURM_ARRAY_TASK_ID]}}"
+"""
+
+SBATCH_FILE = BASE_PATH / "misc/sbatches/sbatch_SIS_to_sdata/SIS_to_sdata_array.sbatch"
+SBATCH_FILE.parent.mkdir(parents=True, exist_ok=True)
+SBATCH_FILE.write_text(sbatch)
+print(f"To call: sbatch {SBATCH_FILE}")

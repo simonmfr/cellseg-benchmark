@@ -1,18 +1,30 @@
 from pathlib import Path
 
 import numpy as np
-import geopandas as gpd
-import scipy.ndimage
-import shapely
-import shapely.ops
-import shapely.prepared
-import shapely.strtree
-import skimage.measure
+from geopandas import GeoDataFrame
+from scipy.ndimage import binary_fill_holes, convolve
+from shapely.geometry import GeometryCollection, MultiPolygon, Point, Polygon, box
+from shapely.ops import unary_union
+from shapely.prepared import prep
+from shapely.strtree import STRtree
+from skimage.measure import find_contours
+from skimage.measure import label as cc_label
+
+try:
+    import shapely
+    from packaging.version import Version
+    from shapely.prepared import prep as _prepare
+
+    _SHAPELY2 = Version(shapely.__version__).major >= 2
+except Exception:
+    from shapely.prepare import prepare as _prepare
+
+    _SHAPELY2 = False
 
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-import matplotlib.collections
-import matplotlib.patches
+from matplotlib import cm
+from matplotlib.collections import LineCollection
+from matplotlib.patches import Polygon as MplPolygon
 
 
 # ------------------------- 0) Build Grid -----------------------------------
@@ -78,18 +90,18 @@ def relabel_small_holes(grid, *, min_hole_area_um2, dx, dy, connectivity=1):
     for L in np.unique(G[G >= 0]):
         maskL = G == L
 
-        filled = scipy.ndimage.binary_fill_holes(maskL)  # fills all holes of L
+        filled = binary_fill_holes(maskL)  # fills all holes of L
         holes = filled & (~maskL)
         if not holes.any():
             continue
 
-        lab = skimage.measure.label(holes, connectivity=connectivity)
+        lab = cc_label(holes, connectivity=connectivity)
         for hid in range(1, lab.max() + 1):
             H = lab == hid
             if H.sum() > min_hole_px:
                 continue  # keep larger internal structure
 
-            boundary = scipy.ndimage.convolve(H.astype(int), K8, mode="constant", cval=0) > 0
+            boundary = convolve(H.astype(int), K8, mode="constant", cval=0) > 0
             neigh = G[boundary & (~H)]
             neigh = neigh[neigh >= 0]
             if neigh.size == 0:
@@ -113,13 +125,13 @@ def remove_small_islands(grid, *, min_island_area_um2, dx, dy, connectivity=1):
 
     K8 = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], int)
     for L in np.unique(G[G >= 0]):
-        lab = skimage.measure.label(G == L, connectivity=connectivity)
+        lab = cc_label(G == L, connectivity=connectivity)
         for cid in range(1, lab.max() + 1):
             comp = lab == cid
             sz = int(comp.sum())
             if sz == 0 or sz > min_comp_px:
                 continue
-            boundary = scipy.ndimage.convolve(comp.astype(int), K8, mode="constant", cval=0) > 0
+            boundary = convolve(comp.astype(int), K8, mode="constant", cval=0) > 0
             neigh = G[boundary & (~comp)]
             neigh = neigh[neigh >= 0]
             if neigh.size == 0:
@@ -144,10 +156,10 @@ def polygons_per_component_from_grid(clean_grid, geo, value_map=None, connectivi
     codes = np.unique(clean_grid[clean_grid >= 0])
 
     for code in codes:
-        comp_lab = skimage.measure.label(clean_grid == code, connectivity=connectivity)
+        comp_lab = cc_label(clean_grid == code, connectivity=connectivity)
         for cid in range(1, comp_lab.max() + 1):
             reg = (comp_lab == cid).astype(float)
-            curves = skimage.measure.find_contours(reg, level=0.5)
+            curves = find_contours(reg, level=0.5)
             if not curves:
                 continue
 
@@ -163,7 +175,7 @@ def polygons_per_component_from_grid(clean_grid, geo, value_map=None, connectivi
             exterior = rings[0][1]
             holes = [r[1] for r in rings[1:] if r[0] < 0]
 
-            poly = shapely.geometry.Polygon(exterior, holes if holes else None)
+            poly = Polygon(exterior, holes if holes else None)
             if not poly.is_valid:
                 poly = poly.buffer(0)
             if poly.is_empty:
@@ -187,11 +199,17 @@ def polygons_per_component_from_grid(clean_grid, geo, value_map=None, connectivi
 
 def build_region_index(regions):
     geoms = [r["poly"] for r in regions]
-    tree = shapely.strtree.STRtree(geoms)
-    prepared = [shapely.prepared.prep(g) for g in geoms]
+    tree = STRtree(geoms)
+    prepared = [prep(g) for g in geoms]
+    if _SHAPELY2:
 
-    def candidates(geom):
-        return tree.query(geom)  # idx array
+        def candidates(geom):
+            return tree.query(geom)  # idx array
+    else:
+        id_to_idx = {id(g): i for i, g in enumerate(geoms)}
+
+        def candidates(geom):
+            return [id_to_idx[id(g)] for g in tree.query(geom)]
 
     return prepared, candidates
 
@@ -205,7 +223,7 @@ def map_points_to_regions(
     comp_id = np.full(len(pts), -1, int)
 
     for i, (x, y) in enumerate(pts):
-        p = shapely.geometry.Point(float(x), float(y))
+        p = Point(float(x), float(y))
         for k in candidates_fn(p):
             ok = prepared[k].covers(p) if include_boundary else prepared[k].contains(p)
             if ok:
@@ -267,7 +285,7 @@ def polygons_per_component_exact(clean_grid, geo, value_map=None, connectivity=1
     x0, y0, dx, dy = [float(v) for v in geo]
     regions = []
     for code in np.unique(clean_grid[clean_grid >= 0]):
-        comp = skimage.measure.label(clean_grid == code, connectivity=connectivity)
+        comp = cc_label(clean_grid == code, connectivity=connectivity)
         for cid in range(1, comp.max() + 1):
             rr, cc = np.where(comp == cid)
             if rr.size == 0:
@@ -280,9 +298,9 @@ def polygons_per_component_exact(clean_grid, geo, value_map=None, connectivity=1
                 y_top = y0 - r * dy
                 y_bot = y0 - (r + 1) * dy
                 ymin, ymax = (y_bot, y_top) if y_bot < y_top else (y_top, y_bot)
-                polys.append(shapely.geometry.box(x_left, ymin, x_right, ymax))
+                polys.append(box(x_left, ymin, x_right, ymax))
 
-            poly = shapely.ops.unary_union(polys)
+            poly = unary_union(polys)
             if not poly.is_empty:
                 regions.append(
                     {
@@ -417,7 +435,7 @@ def _overlay_polygons(
                 hx, hy = hole.xy
                 lines.append(np.column_stack([hx, hy]))
     if lines:
-        lc = matplotlib.collections.LineCollection(lines, **base_edge_kw)
+        lc = LineCollection(lines, **base_edge_kw)
         ax.add_collection(lc)
 
     # 2) overlay HIGHLIGHT region(s) (thick + optional fill)
@@ -440,7 +458,7 @@ def _overlay_polygons(
                 else:
                     face_color = None
                 if face_color and highlight_face_alpha > 0:
-                    patch = matplotlib.patches.Polygon(
+                    patch = MplPolygon(
                         np.column_stack([x, y]),
                         closed=True,
                         facecolor=face_color,
@@ -667,14 +685,14 @@ def _flatten_to_polys(geom):
     """Return a list of Polygon(s) from any Shapely geometry, ignoring non-areas."""
     if geom is None or geom.is_empty:
         return []
-    if isinstance(geom, shapely.geometry.Polygon):
+    if isinstance(geom, Polygon):
         return [geom]
-    if isinstance(geom, shapely.geometry.MultiPolygon):
+    if isinstance(geom, MultiPolygon):
         return list(geom.geoms)
-    if isinstance(geom, shapely.geometry.GeometryCollection):
+    if isinstance(geom, GeometryCollection):
         out = []
         for g in geom.geoms:
-            if isinstance(g, (shapely.geometry.Polygon, shapely.geometry.MultiPolygon)):
+            if isinstance(g, (Polygon, MultiPolygon)):
                 out.extend(_flatten_to_polys(g))
         return out
     return []  # lines/points/etc. are ignored
@@ -701,9 +719,9 @@ def dissolve_slide_labels(
         if join_distance > 0:
             # bridge small gaps, then shrink back
             grown = [p.buffer(join_distance) for p in polys]
-            u = shapely.ops.unary_union(grown).buffer(-join_distance)
+            u = unary_union(grown).buffer(-join_distance)
         else:
-            u = shapely.ops.unary_union(polys)
+            u = unary_union(polys)
 
         # repair minor invalidities
         try:
@@ -742,7 +760,7 @@ def _bounds_from_polys(label_polys):
 def _label_color_map(labels, cmap_name="tab20"):
     # deterministic color per label string
     uniq = sorted(set(labels))
-    cmap = mpl.cm.get_cmap(cmap_name, max(10, len(uniq)))
+    cmap = cm.get_cmap(cmap_name, max(10, len(uniq)))
     return {lab: cmap(i % cmap.N) for i, lab in enumerate(uniq)}
 
 
@@ -855,7 +873,7 @@ def plot_slide_regions(
             for seg in _iter_all_polylines(g):
                 lines.append(seg)
         if lines:
-            lc = matplotlib.collections.LineCollection(lines, **base_edge_kw)
+            lc = LineCollection(lines, **base_edge_kw)
             lc.set_color(col)
             ax.add_collection(lc)
 
@@ -888,7 +906,7 @@ def plot_slide_regions(
                 if face_color and highlight_face_alpha > 0:
                     for poly in geoms:
                         x, y = poly.exterior.xy
-                        patch = matplotlib.patches.Polygon(
+                        patch = MplPolygon(
                             np.column_stack([x, y]),
                             closed=True,
                             facecolor=face_color,
@@ -937,7 +955,7 @@ def _build_slide_index(label_polys_for_slide: dict):
     tree        : STRtree over all polygons of this slide
     prepared    : list of prepared geometries (same order as tree input)
     meta        : list of tuples (label, poly_idx_within_label)
-    cand_fn     : function(Point)->iter(indices) (integer geometry indices from Shapely >= 2 STRtree.query)
+    cand_fn     : function(Point)->iter(indices) (handles Shapely 1.8 vs 2.x)
     """
     geoms, meta = [], []
     for lab, polys in label_polys_for_slide.items():
@@ -949,19 +967,18 @@ def _build_slide_index(label_polys_for_slide: dict):
 
     if not geoms:
         # empty index
-        dummy = [shapely.geometry.Polygon()]
-        tree = shapely.strtree.STRtree(dummy)
-        prepared = [shapely.prepared.prep(dummy[0])]
+        dummy = [Polygon()]
+        tree = STRtree(dummy)
+        prepared = [_prepare(dummy[0])]
 
         def cand_fn(_):
             return []
 
         return tree, prepared, meta, cand_fn
 
-    tree = shapely.strtree.STRtree(geoms)
-    prepared = [shapely.prepared.prep(g) for g in geoms]
-    def cand_fn(geom):
-        """integer geometry indices from Shapely >= 2 STRtree.query."""
+    tree = STRtree(geoms)
+    prepared = [_prepare(g) for g in geoms]
+    def cand_fn(geom):  # returns integer indices
         return tree.query(geom)
 
     return tree, prepared, meta, cand_fn
@@ -988,7 +1005,7 @@ def _map_points_for_slide(
     poly_idx = np.full(N, -1, dtype=int)
 
     for i, (x, y) in enumerate(pts):
-        p = shapely.geometry.Point(float(x), float(y))
+        p = Point(float(x), float(y))
         for k in cand_fn(p):
             ok = prepared[k].covers(p) if include_boundary else prepared[k].contains(p)
             if ok:
@@ -1124,4 +1141,4 @@ def to_gdf(d):
         for label, geoms in labels.items():
             for i, g in enumerate(geoms):
                 rows.append({"sample": sample, "label": label, "idx": i, "geometry": g})
-    return gpd.GeoDataFrame(rows, geometry="geometry")
+    return GeoDataFrame(rows, geometry="geometry")

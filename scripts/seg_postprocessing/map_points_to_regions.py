@@ -1,26 +1,30 @@
+#!/usr/bin/env python
 import argparse
 import logging
-from multiprocessing import cpu_count
-from os import listdir
-from pathlib import Path
-from typing import Tuple
+import multiprocessing
+import os
+import pathlib
+import typing
 
-from geopandas import read_parquet
+import geopandas as gpd
+import pandas as pd
+import scanpy as sc
+import tqdm
 from joblib import Parallel, delayed
-from pandas import concat
-from scanpy import read_h5ad
-from tqdm import tqdm
 
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 
+
 # ---------------------------------------------------------------------
 # Worker function for one segmentation method
 # ---------------------------------------------------------------------
-def process_method(method: str, cohort: str, anatom_annot: dict, data_path: Path) -> None:
+def process_method(
+    method: str, cohort: str, anatom_annot: dict, data_path: pathlib.Path
+) -> None:
     """Process a single segmentation method: read, map, save CSV & plot."""
     method_dir = data_path / "analysis" / cohort / method
-    adata_points = read_h5ad(method_dir / "adatas" / "adata_integrated.h5ad.gz")
+    adata_points = sc.read_h5ad(method_dir / "adatas" / "adata_integrated.h5ad.gz")
 
     # Map points to regions
     results = map_points_to_regions_from_anndata(
@@ -35,7 +39,7 @@ def process_method(method: str, cohort: str, anatom_annot: dict, data_path: Path
     )
 
     # Combine results into a single DataFrame
-    df_all = concat([v["df"] for v in results.values()], ignore_index=True)
+    df_all = pd.concat([v["df"] for v in results.values()], ignore_index=True)
     df_all = df_all.set_index("obs_id").reindex(adata_points.obs_names)
 
     # Add to AnnData
@@ -53,13 +57,17 @@ def process_method(method: str, cohort: str, anatom_annot: dict, data_path: Path
         save_name="spatial_registration.png",
     )
 
-def _process_method_wrapper(method: str, cohort: str, anatom_annot: dict, data_path: Path) -> Tuple[str, str]:
+
+def _process_method_wrapper(
+    method: str, cohort: str, anatom_annot: dict, data_path: pathlib.Path
+) -> typing.Tuple[str, str]:
     """Small wrapper so we see failures per method instead of crashing everything."""
     try:
         process_method(method, cohort, anatom_annot, data_path)
         return method, "ok"
     except Exception as e:
         return method, f"error: {e}"
+
 
 # ---------------------------------------------------------------------
 # Logging
@@ -92,14 +100,14 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-data_path = Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+data_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 if args.seg_methods is not None:
     seg_methods = args.seg_methods
 else:
-    seg_methods = listdir(data_path / "analysis" / args.cohort)
+    seg_methods = os.listdir(data_path / "analysis" / args.cohort)
 
 logger.info("read in reference.")
-gdf = read_parquet(
+gdf = gpd.read_parquet(
     data_path / "misc" / "brain_regions" / f"{args.cohort}_brain_regions.parquet"
 )
 
@@ -108,7 +116,7 @@ for (sample, label), sub in gdf.groupby(["sample", "label"]):
     anatom_annot.setdefault(sample, {})[label] = list(sub.geometry)
 
 if args.n_jobs == -1:
-    n_jobs = cpu_count()
+    n_jobs = multiprocessing.cpu_count()
 else:
     n_jobs = args.n_jobs
 
@@ -116,7 +124,8 @@ logger.info(
     f"Starting parallel processing of {len(seg_methods)} methods with n_jobs={n_jobs}"
 )
 results = Parallel(n_jobs=n_jobs)(
-    delayed(_process_method_wrapper)(m, args.cohort, anatom_annot, data_path) for m in tqdm(seg_methods, desc="spatial registration")
+    delayed(_process_method_wrapper)(m, args.cohort, anatom_annot, data_path)
+    for m in tqdm.tqdm(seg_methods, desc="spatial registration")
 )
 for m, status in results:
     if status != "ok":

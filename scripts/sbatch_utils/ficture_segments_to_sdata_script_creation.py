@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+import argparse
+import pathlib
+import yaml
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--res", type=float, default=1.5, help="grid size in um")
+args = parser.parse_args()
+BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+
+with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
+    data = yaml.safe_load(f)
+
+SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_ficture_segments_to_sdata"
+SBATCH_DIR.mkdir(parents=False, exist_ok=True)
+
+for key, value in data.items():
+    with open(SBATCH_DIR / f"{key}.sbatch", "w") as f:
+        f.write(f"""#!/bin/bash
+
+#SBATCH -p lrz-cpu
+#SBATCH --qos=cpu
+#SBATCH -t 04:00:00
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=128G
+#SBATCH -J ficture_segments_{key}
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/ficture_segments_to_sdata_{key}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/ficture_segments_to_sdata_{key}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+
+mamba activate seg_postprocessing
+pip install --quiet --no-deps -e $HOME/gitrepos/cellseg-benchmark
+pip install --quiet rasterio joblib
+python $HOME/gitrepos/cellseg-benchmark/scripts/ficture/ficture_segments_to_sdata.py \\
+ {key} --res {args.res} --data-path {value["path"]}
+""")
+
+print(f"Wrote {len(data)} sbatch scripts to {SBATCH_DIR}")
