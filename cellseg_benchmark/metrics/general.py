@@ -185,7 +185,7 @@ def extract_mem_and_time(
 
     df_legacy = pd.read_csv(legacy_file_path, sep="\t")
     df_legacy["jobid"] = df_legacy["jobid"].astype(str)
-    df_legacy.drop(ref['jobid'].unique().tolist(), inplace=True)
+    df_legacy = df_legacy[~df_legacy['jobid'].isin(ref["jobid"].unique())]
     if len(df_legacy) > 0:
         df_legacy['method'] = np.nan
         df_legacy['params'] = np.nan
