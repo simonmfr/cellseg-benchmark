@@ -365,7 +365,7 @@ def export_job_metrics_tsv(
 
     df_legacy = pd.read_csv(legacy_file_path, sep="\t")
     df_legacy["jobid"] = df_legacy["jobid"].astype(str)
-    df_legacy.drop(df['jobid'].unique().tolist(), inplace=True)
+    df_legacy = df_legacy[~df_legacy['jobid'].isin(df["jobid"].unique())]
     if len(df_legacy) > 0:
         df_legacy['method'] = np.nan
         df_legacy['params'] = np.nan
