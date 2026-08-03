@@ -36,7 +36,7 @@ for key, value in data.items():
 #SBATCH -J Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/Proseg_{key}_CP1_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
@@ -77,7 +77,7 @@ python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/proseg.py \\
 #SBATCH -J Proseg_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/Proseg_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/Proseg_{key}_CP{args.CP_version}_{args.staining}_vxl_{args.voxel}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh

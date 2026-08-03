@@ -83,7 +83,7 @@ for method in methods:
 #SBATCH --mem={memory}
 #SBATCH -J merge_adata_{args.cohort}_{method}
 #SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1

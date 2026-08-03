@@ -27,7 +27,7 @@ for key, value in data.items():
 #SBATCH -J nuclei_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/nuclei_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/nuclei_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh

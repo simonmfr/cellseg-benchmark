@@ -36,7 +36,7 @@ for key, value in data.items():
 #SBATCH -J vpt3D_{key}_{args.staining}{adapt}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/vpt3D_to_sdata_{key}_{args.staining}{adapt}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/vpt3D_to_sdata_{key}_{args.staining}{adapt}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 mamba activate segmentation
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/vpt_3D_to_sdata.py {value["path"]} \

@@ -63,7 +63,7 @@ sbatch = f"""#!/bin/bash
 #SBATCH --array=0-{len(jobs) - 1}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/merscope_to_sdata_{args.cohort}_%a.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/merscope_to_sdata_{args.cohort}_%a.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 DATA_PATHS=({data_paths})
 SAVE_PATHS=({save_paths})

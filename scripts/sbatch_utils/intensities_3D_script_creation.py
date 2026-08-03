@@ -26,7 +26,7 @@ for key, value in data.items():
 #SBATCH -J intensities_3D_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/intensities_3D_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/intensities_3D_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
             
 mamba activate segmentation
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/intensities_3D_wrapper.py {key} {value["path"]}

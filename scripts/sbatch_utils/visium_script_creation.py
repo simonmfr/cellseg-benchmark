@@ -23,7 +23,7 @@ for k, v in data.items():
 #SBATCH -J visium_{k}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/visium_{k}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/visium_{k}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 mamba activate segmentation
 mkdir -p {out}

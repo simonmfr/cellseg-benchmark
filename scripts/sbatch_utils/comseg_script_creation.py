@@ -39,7 +39,7 @@ for key, value in data.items():
 #SBATCH -J {job_name}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/%x.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/%x.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_py3_12.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -eu
 

@@ -43,7 +43,7 @@ for key, value in data.items():
 #SBATCH -J Baysor_{key}_CP{cp_tag}_{args.staining}_{args.confidence}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/Baysor_{key}_CP{cp_tag}_{args.staining}_{args.confidence}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/Baysor_{key}_CP{cp_tag}_{args.staining}_{args.confidence}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh

@@ -25,7 +25,7 @@ for key, value in data.items():
 #SBATCH -J transcript_tif_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/transcript_tif_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/transcript_tif_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 

@@ -26,7 +26,7 @@ for key, value in data.items():
 #SBATCH -J ficture_segments_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/ficture_segments_to_sdata_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/ficture_segments_to_sdata_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 mamba activate seg_postprocessing
 pip install --quiet --no-deps -e $HOME/gitrepos/cellseg-benchmark

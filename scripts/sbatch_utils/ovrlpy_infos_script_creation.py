@@ -32,7 +32,7 @@ for key, value in data.items():
 #SBATCH -J ovrlpy_stats_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/ovrlpy_stats_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/ovrlpy_stats_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 mamba activate seg_postprocessing
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/ovrlpy_infos.py {key} {value["path"]} {"--recompute" if args.recompute else ""}

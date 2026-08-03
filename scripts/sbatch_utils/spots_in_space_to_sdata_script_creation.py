@@ -38,7 +38,7 @@ sbatch = f"""#!/bin/bash
 #SBATCH --array=0-{len(samples) - 1}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/SIS_to_sdata_%a.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/SIS_to_sdata_%a.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 PATHS=({paths})
 IMAGE_PATHS=({image_paths})

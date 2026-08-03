@@ -30,7 +30,7 @@ for key, value in data.items():
 #SBATCH -J ficture_factor_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/ficture_factor_to_sdata_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/ficture_factor_to_sdata_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 mamba activate segmentation
 python $HOME/gitrepos/cellseg-benchmark/scripts/ficture/ficture_factor_to_h5ad.py \

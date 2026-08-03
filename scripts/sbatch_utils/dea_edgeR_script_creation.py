@@ -78,11 +78,11 @@ for seg_method in methods:
 #SBATCH --mem={memory}
 #SBATCH -J {job_name}
 #SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/downstream.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -eu
 cd $HOME/gitrepos/cellseg-benchmark
-git pull -q
+mamba activate analysis
 
 python scripts/analysis/dea_edgeR.py {args.cohort} {seg_method} --condition_key {condition_col} --batch_key {batch_col} --ref {ref}
 """)
