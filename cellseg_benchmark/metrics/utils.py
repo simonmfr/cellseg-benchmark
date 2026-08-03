@@ -7,6 +7,7 @@ import io
 import pathlib
 from typing import Union, Optional
 
+import numpy as np
 import pandas as pd
 import scanpy as sc
 
@@ -353,6 +354,7 @@ def find_latest_job_data_tsv(metrics_dir):
 
 def export_job_metrics_tsv(
     ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/run_log.tsv",
+    legacy_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
     out_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
 ):
     """Export aggregated Slurm job metrics for all jobids in ref_file_path to:
@@ -360,6 +362,14 @@ def export_job_metrics_tsv(
     """
     df = pd.read_csv(ref_file_path, sep="\t")
     df["jobid"] = df["jobid"].astype(str)
+
+    df_legacy = pd.read_csv(legacy_file_path, sep="\t")
+    df_legacy["jobid"] = df_legacy["jobid"].astype(str)
+    df_legacy.drop(df['jobid'].unique().tolist(), inplace=True)
+    if len(df_legacy) > 0:
+        df_legacy['method'] = np.nan
+        df_legacy['params'] = np.nan
+        df = pd.concat([df, df_legacy], ignore_index=True).reset_index()
 
     jobids = sorted(df["jobid"].dropna().unique().tolist())
     if not jobids:
