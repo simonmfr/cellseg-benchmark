@@ -62,6 +62,7 @@ def main():
     sample_name = sis_out.parent.parent.parent.name
     MIN_READS = 10
     concerning = (missing_reads >= MIN_READS).sum()
+    del adata.uns['cell_polygons'] #Not relevant, big object and probably redundant within spatialdata, as cell polygons are saved in boundaries
     logger.info(
         f"[{sample_name}] {len(missing)} missing total, {concerning} with >= {MIN_READS} reads"
     )
