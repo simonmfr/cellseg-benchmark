@@ -363,6 +363,7 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
 
     src = sopa.io.merscope(data_path)
     tx = src[list(src.points.keys())[0]]
+    images = src[list(src.images.keys())[0]]
     # boundaries and transcript columns share the um frame -> give the boundaries the
     # transcripts' transform so both map into "global" together
     transforms = get_transformation(tx, get_all=True)
@@ -377,6 +378,7 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
     try:
         for gdf, zarr in targets:
             sdata = sd.SpatialData(
+                images={"image": images},
                 points={"transcripts": tx},
                 shapes={"boundaries": ShapesModel.parse(gdf, transformations=dict(transforms))},
             )
@@ -386,9 +388,9 @@ def aggregate_tables(data_path: str, targets, gene_column: str = "gene",
             try:
                 sdata.write(tmp, overwrite=True)
                 sdata = sd.read_zarr(tmp)
-                sopa.aggregate(sdata, gene_column=gene_column, aggregate_channels=False,
-                               min_transcripts=min_transcripts, shapes_key="boundaries")
-                del sdata["transcripts"]
+                sopa.aggregate(sdata, gene_column=gene_column, aggregate_channels=True,
+                               min_transcripts=min_transcripts, shapes_key="boundaries", image_key="image")
+                del sdata["transcripts"], sdata['image']
                 sdata.write(str(zarr), overwrite=True)
             finally:
                 shutil.rmtree(tmp, ignore_errors=True)
