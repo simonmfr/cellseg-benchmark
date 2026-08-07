@@ -216,7 +216,7 @@ def plot_vsi_overview(
     for i, (x, y, w, h) in enumerate(boxes):
         ax = axs[1, i]
         ax.imshow(integrity_map, alpha=alpha, **plot_kwargs)
-        boundaries_aligned.plot(ax=ax, linewidth=0.5, **boundary_kwargs)
+        boundaries_aligned.plot(ax=ax, aspect="equal", linewidth=0.5, **boundary_kwargs)
         ax.set_xlim(x, x + w)
         ax.set_ylim(y, y + h)
         ax.set_title(f"Box {chr(65 + i)}")
