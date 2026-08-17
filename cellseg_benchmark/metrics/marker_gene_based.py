@@ -85,7 +85,7 @@ def compute_negative_markers_from_reference(
 
 
 def get_negative_markers(
-    cohort, vascular_subset=False, overwrite=False, base_path=_constants.BASE_PATH
+    cohort, vascular_subset=False, overwrite=False, base_path=_constants.BASE_PATH, data_path=None, **kwargs
 ):
     """Get or compute negative markers.
 
@@ -100,13 +100,15 @@ def get_negative_markers(
         pd.DataFrames neg_marker_mask and ratio_celltype with shape celltypes x genes,
         containing negative markers and ratio of cells expressing each gene within a celltype
     """
-    data_path = (
-        Path(base_path)
-        / "misc"
-        / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
-        / "negative_markers"
-    )
-    data_path.mkdir(parents=True, exist_ok=True)
+    if data_path is None:
+        data_path = (
+            Path(base_path)
+            / "misc"
+            / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
+            / "negative_markers"
+        )
+        data_path.mkdir(parents=True, exist_ok=True)
+    data_path = Path(data_path)
     marker_fname = (
         data_path
         / f"negative_markers_{cohort}_{'vascular_subset' if vascular_subset else 'all'}.csv"
@@ -260,7 +262,7 @@ def compute_positive_markers_from_reference(
 
 
 def get_positive_markers(
-    overwrite=False, base_path=_constants.BASE_PATH, subset_genes=None, subset_celltypes=None
+    overwrite=False, base_path=_constants.BASE_PATH, subset_genes=None, subset_celltypes=None, data_path=None, **kwargs
 ):
     """Get or compute positive markers.
 
@@ -276,14 +278,15 @@ def get_positive_markers(
     Returns:
         marker dictionary containing positive markers and ratio of cells expressing each gene within a celltype
     """
-    data_path = (
-        Path(base_path)
-        / "misc"
-        / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
-        / "positive_markers"
-    )
-    data_path.mkdir(parents=True, exist_ok=True)
-    marker_fname = data_path / "positive_markers_all.csv"
+    if data_path is None:
+        data_path = (
+            Path(base_path)
+            / "misc"
+            / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
+            / "positive_markers"
+        )
+        data_path.mkdir(parents=True, exist_ok=True)
+    marker_fname = Path(data_path) / "positive_markers_all.csv"
     if overwrite or not marker_fname.exists():
         # need to recompute markers
         print("Markers not found or overwrite set to True: computing positive markers")
@@ -417,7 +420,7 @@ def compute_MECR_score(
     if subset_vascular_celltypes:
         subset_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
     marker_gene_dict = get_positive_markers(
-        subset_genes=adata.var_names, subset_celltypes=subset_celltypes
+        subset_genes=adata.var_names, subset_celltypes=subset_celltypes, **kwargs
     )
     # process marker gene dict to gene-pair list
     # get gene-pair list for MECR
@@ -516,7 +519,7 @@ def compute_marker_F1_score(
     celltype_name = "merged_celltypes"
 
     marker_dict = get_positive_markers(
-        subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique()
+        subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique(), **kwargs
     )
 
     results = []
@@ -673,9 +676,8 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
 
 def compute_negative_marker_purity(
     adata,
-    neg_marker_mask_sc,
-    ratio_celltype_sc,
     celltype_name="cell_type_revised",
+    subset_celltypes=False,
     **kwargs,
 ):
     """Negative marker purity aims to measure read leakeage between cells in spatial datasets.
@@ -698,6 +700,9 @@ def compute_negative_marker_purity(
         Increase in proportion of positive cells assigned in spatial data to pairs of genes-celltyes with no/very low expression in scRNAseq
     """
     # Set threshold parameters - same as used in get_negative_markers
+    neg_marker_mask_sc, ratio_celltype_sc = get_negative_markers(
+        subset_genes=adata.var_names, subset_celltypes=subset_celltypes, **kwargs
+    )
     min_number_cells = 10  # minimum number of cells belonging to a cluster to consider it in the analysis
 
     shared_celltypes = list(
