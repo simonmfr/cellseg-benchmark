@@ -17,6 +17,7 @@ tifffile
 tqdm
 anndata
 scikit-image
+setuptools==80.0.0
 plotly
 pyvista
 ovrlpy
