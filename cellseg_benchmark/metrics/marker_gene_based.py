@@ -710,13 +710,19 @@ def compute_negative_marker_purity(
             adata.obs[celltype_name].unique()
         )
     )
+    shared_genes = list(
+        set(list(neg_marker_mask_sc.columns)).intersection(
+            adata.var_names
+        )
+    )
+
     # Filter cell types by minimum number of cells
     celltype_count = adata.obs[celltype_name].value_counts().loc[shared_celltypes]
     ct_filter = celltype_count >= min_number_cells
     celltypes = celltype_count.loc[ct_filter].index.tolist()
 
     # Filter cells to eligible cell types
-    adata = adata[adata.obs[celltype_name].isin(celltypes)]
+    adata = adata[adata.obs[celltype_name].isin(celltypes), adata.var_names.isin(shared_genes)]
 
     # get ratio of positive cells per cell type
     count_per_ct = sc.get.aggregate(
@@ -734,11 +740,11 @@ def compute_negative_marker_purity(
     )
 
     # ensure consistent celltypes
-    neg_marker_mask_sc = neg_marker_mask_sc.loc[ratio_celltype_sp.index]
-    ratio_celltype_sc = ratio_celltype_sc.loc[ratio_celltype_sp.index]
+    neg_marker_mask_sc = neg_marker_mask_sc.loc[ratio_celltype_sp.index, shared_genes]
+    ratio_celltype_sc = ratio_celltype_sc.loc[ratio_celltype_sp.index, shared_genes]
 
     # Get pos cell ratios in negative marker-cell type pairs
-    lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
+    #lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
     lowvals_sc = ratio_celltype_sc.values[neg_marker_mask_sc]
     lowvals_sp = ratio_celltype_sp.values[neg_marker_mask_sc]
 
