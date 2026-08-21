@@ -507,6 +507,9 @@ def calculate_volume(
         elif seg_method.startswith("Watershed_Merlin"):
             z_level_name = "ZIndex"
             cell_identifier = "cell_id"
+        elif seg_method == "SIS_DAPI_total_mrna":
+            z_level_name = "z_plane"
+            cell_identifier = "cell_id"
         if logger:
             logger.info(f"Collecting volume metadata for {seg_method}")
         global_z_min, global_z_max = (
