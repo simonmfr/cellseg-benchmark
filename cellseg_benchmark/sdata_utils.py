@@ -481,7 +481,9 @@ def add_statistical_data(
                 index_col=0,
             )
             ovrlpy_stats.index = ovrlpy_stats.index.astype(str)
-            adata.obsm[name] = ovrlpy_stats
+            ovrlpy_stats_reordered = ovrlpy_stats.loc[adata.obs_names]
+            assert len(ovrlpy_stats_reordered) == len(ovrlpy_stats)
+            adata.obsm[name] = ovrlpy_stats_reordered
     sdata_main[f"adata_{seg_method}"] = adata
     return sdata_main
 
