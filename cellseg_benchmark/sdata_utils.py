@@ -157,7 +157,7 @@ def integrate_segmentation_data(
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
     Args:
-        sdata_path: Path to dircetory of master sdata
+        sdata_path: Path to directory of master sdata
         seg_methods: List of segmentation methods to process
         sdata_main: Main spatial data object to update
         genotype: genotype of sample
@@ -481,7 +481,9 @@ def add_statistical_data(
                 index_col=0,
             )
             ovrlpy_stats.index = ovrlpy_stats.index.astype(str)
-            adata.obsm[name] = ovrlpy_stats
+            ovrlpy_stats_reordered = ovrlpy_stats.loc[adata.obs_names]
+            assert len(ovrlpy_stats_reordered) == len(ovrlpy_stats)
+            adata.obsm[name] = ovrlpy_stats_reordered
     sdata_main[f"adata_{seg_method}"] = adata
     return sdata_main
 
@@ -516,6 +518,13 @@ def calculate_volume(
             boundaries[z_level_name].min(),
             boundaries[z_level_name].max(),
         )
+        if boundaries.dtypes[z_level_name] != "int":
+            if logger is not None:
+                logger.warning(f"z-level data is not integer for {seg_method}. Converting to int")
+            if boundaries.dtypes[z_level_name] != "int":
+                if boundaries.dtypes[z_level_name] == "str" or boundaries.dtypes[z_level_name] == object:
+                    boundaries[z_level_name] = boundaries[z_level_name].astype(float)
+                boundaries[z_level_name] = boundaries[z_level_name].astype(int)
         try:
             grouped = boundaries.groupby(cell_identifier)
         except ValueError:
@@ -756,7 +765,7 @@ def get_2D_boundaries(
     Returns:
         assigned transcriptions to sdata.
     """
-    if method.startswith("vpt_3D") or method.startswith("Watershed_Merlin"):
+    if method.startswith("vpt_3D") or method.startswith("Watershed_Merlin") or method.startswith("SIS"):
         try:
             bound = org_sdata[boundary_key][["cell_id", "geometry"]].dissolve(
                 by="cell_id"
