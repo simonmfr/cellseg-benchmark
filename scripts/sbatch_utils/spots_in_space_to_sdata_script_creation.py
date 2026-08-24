@@ -32,8 +32,8 @@ image_paths = " ".join(image_paths)
 sbatch = f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 02:00:00
-#SBATCH --mem=64G
+#SBATCH -t 01:00:00
+#SBATCH --mem=128G
 #SBATCH -J SIS_to_sdata
 #SBATCH --array=0-{len(samples) - 1}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/SIS_to_sdata_%a.out

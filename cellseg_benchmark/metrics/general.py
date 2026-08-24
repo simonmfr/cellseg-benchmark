@@ -136,6 +136,7 @@ def extract_mem_and_time(
     adata,
     method: str,
     ref_file_path: str | Path=Path(_constants.BASE_PATH) / "misc/logs/run_log.tsv",
+    legacy_file_path: str | Path=Path(_constants.BASE_PATH) / "misc/logs/job_runs.tsv",
     metrics_dir: str | Path=Path(_constants.BASE_PATH) / "misc/extracted_job_stats",
     base_path=None,
     ignore_missing: bool=False,
@@ -179,10 +180,18 @@ def extract_mem_and_time(
             }
         ).reset_index(drop=True)
 
-    ref = pd.read_csv(ref_file_path, sep="\t", on_bad_lines="skip")
-    ref["_ref_order"] = range(len(ref))
-
+    ref = pd.read_csv(ref_file_path, sep="\t")
     ref["jobid"] = ref["jobid"].astype(str)
+
+    df_legacy = pd.read_csv(legacy_file_path, sep="\t")
+    df_legacy["jobid"] = df_legacy["jobid"].astype(str)
+    df_legacy = df_legacy[~df_legacy['jobid'].isin(ref["jobid"].unique())]
+    if len(df_legacy) > 0:
+        df_legacy['method'] = np.nan
+        df_legacy['params'] = np.nan
+        ref = pd.concat([ref, df_legacy], ignore_index=True).reset_index()
+
+    ref["_ref_order"] = range(len(ref))
     ref["jobname"] = ref["jobname"].astype(str)
     ref["sample"] = ref["key"].astype(str)
     ref["jobname_norm"] = ref["jobname"].apply(utils.normalize_jobname)
