@@ -157,7 +157,7 @@ def integrate_segmentation_data(
     """Integrate segmentation data from multiple methods into the main spatial data object.
 
     Args:
-        sdata_path: Path to dircetory of master sdata
+        sdata_path: Path to directory of master sdata
         seg_methods: List of segmentation methods to process
         sdata_main: Main spatial data object to update
         genotype: genotype of sample
@@ -516,6 +516,13 @@ def calculate_volume(
             boundaries[z_level_name].min(),
             boundaries[z_level_name].max(),
         )
+        if boundaries.dtypes[z_level_name] != "int":
+            if logger is not None:
+                logger.warning(f"z-level data is not integer for {seg_method}. Converting to int")
+            if boundaries.dtypes[z_level_name] != "int":
+                if boundaries.dtypes[z_level_name] == "str" or boundaries.dtypes[z_level_name] == object:
+                    boundaries[z_level_name] = boundaries[z_level_name].astype(float)
+                boundaries[z_level_name] = boundaries[z_level_name].astype(int)
         try:
             grouped = boundaries.groupby(cell_identifier)
         except ValueError:
