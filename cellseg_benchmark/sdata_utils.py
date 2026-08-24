@@ -149,6 +149,7 @@ def integrate_segmentation_data(
     slide: str = None,
     region: str = None,
     cohort: str = None,
+    control_genes: Optional[str] = "Blank",
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
@@ -230,9 +231,12 @@ def integrate_segmentation_data(
             if logger:
                 logger.info(f"Adding adata for {seg_method}...")
             if len(sdata.tables) == 1:
-                sdata_main[f"adata_{seg_method}"] = sdata[
+                adata = sdata[
                     list(sdata.tables.keys())[0]
                 ].copy()
+                if control_genes is not None:
+                    adata = adata[:, ~adata.var_names.str.startswith(control_genes)]
+                sdata_main[f"adata_{seg_method}"] = adata
                 transform_adata(sdata_main, seg_method, data_path=data_path)
 
                 if os.path.exists(
