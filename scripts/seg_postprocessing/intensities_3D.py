@@ -2,6 +2,7 @@
 import argparse
 import gzip
 import io
+import json
 import logging
 import os
 import pathlib
@@ -124,9 +125,7 @@ def main():
                     "This is not the Proseg 3D shapes file."
                 )
                 boundary_path = args.boundary_path
-            with gzip.open(boundary_path, "rt", encoding="utf-8") as f:
-                geojson_text = f.read()
-            boundaries = gpd.read_file(io.StringIO(geojson_text))
+            boundaries = gpd.GeoDataFrame.from_features(json.load(gzip.open(boundary_path, "rt", encoding="utf-8")))
             boundaries = boundaries.merge(
                 sdata["table"].obs[["cell", "cell_id"]], on="cell"
             )
