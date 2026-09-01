@@ -8,7 +8,7 @@ _LAZY_SUBMODULES = {
     "dea_utils",
     "ficture_utils",
     "sdata_utils",
-    "metrics",
+    "metrics"
 }
 
 __all__ = ["BASE_PATH", *_LAZY_SUBMODULES]
