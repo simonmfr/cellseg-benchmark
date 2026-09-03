@@ -1,196 +1,191 @@
 #!/usr/bin/env python
+"""Joint BANKSY spatial-domain clustering across all samples of one cohort.
+
+Two neighbourhood scales are clustered independently, because one clustering
+cannot resolve both macro domains and laminae: on a 25 um raster ``k_geom=15``
+is a ~55 um smoothing kernel, i.e. as wide as DG-sg itself.
+
+* ``coarse`` -> macro domains (CTX, BS, STR, fiber tracts, ...)
+* ``fine``   -> laminae (cortical layers, DG-sg, CA sp)
+
+Clusters are written back to ``.obs`` as ``banksy_{scale}_k{k}_res{res}``.
+Pick one column per scale from the plots, then label it with
+``brain_regions_from_banksy.py``.
+"""
+
 import argparse
-import datetime
 import logging
 import os
 import pathlib
+import re
 
-# Activate automatic converters (pandas <-> R, numpy <-> R)
 import pandas as pd
 import rpy2.rinterface_lib.callbacks as rcb
 import rpy2.robjects as ro
 import scanpy as sc
-import squidpy as sq
 from rpy2.robjects import default_converter, numpy2ri, pandas2ri
 from rpy2.robjects.conversion import localconverter
 
-today = datetime.date.today().strftime("%Y%m%d")
+from cellseg_benchmark.adata_utils import plot_spatial_multiplot
+
+# Feature-mixing weight. Banksy documents 0.2 for cell typing and 0.8 for spatial
+# domains; lambda = 1.0 drops own expression entirely, which washes out thin but
+# transcriptionally sharp structures (DG-sg, CA sp) into their surroundings.
+LAMBDA = 0.8
+
+# k_geom = c(k_mean, k_agf) spatial neighbours defining the smoothing kernel.
+SCALES = {
+    "coarse": {"k_geom": [15, 30], "k_neighbors": [50, 75], "resolution": [0.2, 0.4]},
+    "fine": {"k_geom": [6, 12], "k_neighbors": [15, 30], "resolution": [1.0, 1.5]},
+}
+
+R_SETUP = """
+suppressPackageStartupMessages({
+    library(Banksy)
+    library(SpatialExperiment)
+    library(SummarizedExperiment)
+})
+
+# One SpatialExperiment per sample. sample_id has to be set explicitly: without
+# it every object defaults to "sample01" and runBanksyPCA(group=) cannot align
+# the samples it is supposed to group by.
+build_se_list <- function(data, coords, key) {
+    data <- as(data, "sparseMatrix")
+    coords <- as.matrix(coords)
+    stopifnot(ncol(data) == length(key))
+    idx <- split(seq_along(key), key)
+    se_list <- lapply(names(idx), function(nm) {
+        SpatialExperiment(
+            assay = list(normalized = data[, idx[[nm]], drop = FALSE]),
+            spatialCoords = coords[idx[[nm]], , drop = FALSE],
+            sample_id = nm
+        )
+    })
+    names(se_list) <- names(idx)
+    se_list
+}
+
+# Neighbourhood features per sample, then joint PCA and Leiden over all samples.
+banksy_run <- function(se_list, k_geom, lambda, k_neighbors, resolution) {
+    se <- lapply(se_list, computeBanksy, assay_name = "normalized",
+                 compute_agf = TRUE, k_geom = k_geom)
+    se <- do.call(cbind, se)
+    invisible(gc())
+    se <- runBanksyPCA(se, use_agf = TRUE, lambda = lambda,
+                       group = "sample_id", seed = 1000)
+    se <- clusterBanksy(se, use_agf = TRUE, lambda = lambda,
+                        resolution = resolution, k_neighbors = k_neighbors,
+                        seed = 1000)
+    se <- connectClusters(se)
+    cd <- colData(se)
+    as.data.frame(cd[, grep("^clust", colnames(cd)), drop = FALSE])
+}
+"""
 
 
-def R(code: str):
-    """Run a multi-line R snippet safely via rpy2."""
-    return ro.r(code)
+def to_r(obj):
+    """Convert a pandas or numpy object to R.
+
+    Args:
+        obj: Object to convert.
+
+    Returns:
+        The corresponding R object.
+    """
+    with localconverter(default_converter + pandas2ri.converter + numpy2ri.converter):
+        return ro.conversion.py2rpy(obj)
 
 
-def r_to_pandas(obj):
-    # R object -> pandas DataFrame/Series/ndarray
+def to_pandas(obj):
+    """Convert an R object to pandas.
+
+    Args:
+        obj: R object to convert.
+
+    Returns:
+        The corresponding pandas object.
+    """
     with localconverter(default_converter + pandas2ri.converter + numpy2ri.converter):
         return ro.conversion.rpy2py(obj)
 
 
-def pandas_to_r(df):
-    # pandas / numpy -> R object
-    with localconverter(default_converter + pandas2ri.converter + numpy2ri.converter):
-        return ro.conversion.py2rpy(df)
-
-
-# Logger setup
-logger = logging.getLogger("vascular_subclustering")
+logger = logging.getLogger("banksy")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
-
-rcb.logger.setLevel(logging.ERROR)
 rcb.logger.handlers = logger.handlers
-rcb.logger.setLevel(logger.level)
+rcb.logger.setLevel(logging.ERROR)
 
-R("""
-suppressPackageStartupMessages({
-    library(Banksy)
-    library(SummarizedExperiment)
-    library(SpatialExperiment)
-    library(scuttle)
-    library(scater)
-    library(cowplot)
-    library(ggplot2)
-})
-""")
-
-parser = argparse.ArgumentParser(description="DEA")
-parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
-parser.add_argument(
-    "adata_path", help="Path to adata used for banksy clustering.",
-)
-parser.add_argument(
-    "save_folder", help="Folder to save adata with banksy clustering.",
-)
+parser = argparse.ArgumentParser(description="Joint BANKSY clustering per cohort.")
+parser.add_argument("cohort", help="Cohort name, e.g. 'foxf2'.")
+parser.add_argument("adata_path", help="Integrated adata of a raster segmentation.")
+parser.add_argument("save_folder", help="Folder for the clustered adata and plots.")
 args = parser.parse_args()
 
-base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-data_dir = os.path.abspath("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+save_folder = pathlib.Path(args.save_folder)
+(save_folder / "plots").mkdir(parents=True, exist_ok=True)
+
 if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])
-    print(sc.settings.n_jobs)
-logger.info("Loading integrated adata...")
+
+logger.info("Loading %s", args.adata_path)
 adata = sc.read_h5ad(args.adata_path)
-point_size_factor = 320000
-celltype_col = "cell_type_mmc_raw_revised"
-
-for cond, df in adata.obs.groupby("condition", observed=False):
-    samples = df["sample"].unique()
-    print(f"{cond}: {len(samples)} samples → {', '.join(samples)}")
-
-sc.pp.neighbors(adata, n_neighbors=20, n_pcs=50)
-resolutions = [0.25]
-for res in resolutions:
-    sc.tl.leiden(adata, key_added=f"leiden_res{res}".replace(".", "_"), resolution=res)
-
-R("""
-suppressPackageStartupMessages({
-    library(Banksy)
-    library(SummarizedExperiment)
-    library(SpatialExperiment)
-    library(scuttle)
-    library(scater)
-    library(cowplot)
-    library(ggplot2)
-})
-""")
-
-key_dict = adata.obs["sample"]
-cells = adata.obs_names
-genes = adata.var_names
-data = adata.layers[
-    "volume_log1p_norm"
-].T.toarray()  # see https://prabhakarlab.github.io/Banksy/articles/multi-sample.html
-# get coords
-coords = pd.DataFrame(adata.obsm["spatial"])
-coords.columns = ["x", "y"]
-coords.index = adata.obs.index
-ro.globalenv["coords"] = pandas_to_r(coords)
-ro.globalenv["genes"] = pandas_to_r(genes)
-ro.globalenv["cells"] = pandas_to_r(cells)
-ro.globalenv["data"] = pandas_to_r(data)
-ro.globalenv["key_dict"] = pandas_to_r(key_dict)
-
-R("""
-# move to R
-coords <- as.matrix(coords)
-rownames(data) = genes
-colnames(data) = cells
-data <- as(data, "sparseMatrix")
-# subset data matrix by sample
-stopifnot(dim(data)[2] == length(key_dict))
-index_list <- split(seq_along(key_dict), key_dict)
-data_subset_list <- lapply(index_list, function(cols) data[, cols, drop = FALSE])
-# subset coords by sample
-index_list <- split(rownames(coords), key_dict)
-coords_list <- lapply(index_list, function(rows) coords[rows, , drop = FALSE])
-# Create a list of SpatialExperiment objects per sample
-se_list <- lapply(names(data_subset_list), function(name) {
-  SpatialExperiment(assay = list(normalized = data_subset_list[[name]]), 
-                    spatialCoords = coords_list[[name]])
-})
-# Name list entries
-names(se_list) <- names(data_subset_list)
-
-rm(data)
-rm(data_subset_list)
-
-# First, compute BANKSY neighborhood feature matrices for each sample separately 
-compute_agf <- TRUE
-aname <- "normalized"
-k_geom <- c(15, 30) # selecting k_geom https://github.com/prabhakarlab/Banksy/issues/35; used c(15, 30) in clustering individual samples
-se_list <- lapply(se_list, computeBanksy, assay_name = aname, 
-                  compute_agf = compute_agf, k_geom = k_geom)
-
-# next, merge the samples to perform joint dimensional reduction and clustering
-se_joint <- do.call(cbind, se_list)
-rm(se_list)
-invisible(gc())
-lambda <- c(1.0) # can specify for multiple runs
-use_agf <- c(FALSE, TRUE)
-se_joint <- runBanksyPCA(se_joint, use_agf = use_agf, lambda = lambda, group = "sample_id", seed = 1000)
-# Run UMAP on the BANKSY embedding
-se_joint <- runBanksyUMAP(se_joint, use_agf = use_agf, lambda = lambda, seed = 1000)
-# obtain cluster labels for spots across all samples
-res <- c(0.2, 0.4)
-k_neigh <- c(30, 50, 60, 75)
-se_joint <- clusterBanksy(se_joint, use_agf = use_agf, lambda = lambda, resolution = res, seed = 1000, k_neighbors = k_neigh)
-se_joint <- connectClusters(se_joint)
-cnames <- colnames(colData(se_joint))
-cnames <- cnames[grep("^clust", cnames)]
-banksy_clusters <- colData(se_joint)[cnames]
-new_cnames <- gsub("^clust_", "banksy_joined_", cnames)
-new_cnames <- gsub("_lam0_", "_nonspatial_lam0_", new_cnames)
-new_cnames <- gsub("_lam0.2_", "_cell_typing_lam0.2_", new_cnames)
-new_cnames <- gsub("_lam0.8_", "_spatial_domains_lam0.8_", new_cnames)
-colnames(banksy_clusters) <- new_cnames
-""")
-
-r_obj = ro.globalenv["banksy_clusters"]
-as_df = ro.r["as.data.frame"]
-r_df = as_df(r_obj)
-
-# convert to pandas DataFrame
-with ro.conversion.localconverter(
-    ro.default_converter + pandas2ri.converter + numpy2ri.converter
-):
-    pd_df = ro.conversion.rpy2py(r_df)
-
-adata.obs = adata.obs.join(pd_df)
-for s in adata.obs["sample"].unique():
-    sq.pl.spatial_scatter(
-        adata[adata.obs["sample"] == s],
-        shape=None,
-        color=pd_df,
-        size=0.5,
-        library_id="spatial",
-        figsize=(7, 7),
-        wspace=0.25,
-        save=f"{args.save_folder}/Plots/banksy_align_{args.cohort}_{s}.png",
-    )
-adata.write(
-    f"{args.save_folder}/spatial_reg_adata_{args.cohort}.h5ad"
+logger.info(
+    "%d cells x %d genes, %d samples",
+    adata.n_obs,
+    adata.n_vars,
+    adata.obs["sample"].nunique(),
 )
+
+ro.r(R_SETUP)
+
+logger.info("Handing expression and coordinates to R...")
+coords = pd.DataFrame(adata.obsm["spatial"], columns=["x", "y"], index=adata.obs_names)
+dense = adata.layers["volume_log1p_norm"].T.toarray()
+ro.globalenv["data"] = to_r(dense)
+del dense
+ro.globalenv["coords"] = to_r(coords)
+ro.globalenv["genes"] = to_r(adata.var_names)
+ro.globalenv["cells"] = to_r(adata.obs_names)
+ro.globalenv["key"] = to_r(adata.obs["sample"].astype(str))
+ro.r("""
+rownames(data) <- genes
+colnames(data) <- cells
+se_list <- build_se_list(data, coords, key)
+rm(data, coords, genes, cells); invisible(gc())
+""")
+
+cluster_keys = []
+for scale, params in SCALES.items():
+    logger.info(
+        "BANKSY %s scale: k_geom=%s, lambda=%s", scale, params["k_geom"], LAMBDA
+    )
+    ro.globalenv["k_geom"] = ro.IntVector(params["k_geom"])
+    ro.globalenv["k_neighbors"] = ro.IntVector(params["k_neighbors"])
+    ro.globalenv["resolution"] = ro.FloatVector(params["resolution"])
+    ro.globalenv["lambda_"] = ro.FloatVector([LAMBDA])
+    ro.r("clusters <- banksy_run(se_list, k_geom, lambda_, k_neighbors, resolution)")
+
+    # colData is ordered by sample after cbind, so join on the index, never reassign it.
+    df = to_pandas(ro.globalenv["clusters"])
+    df.columns = [
+        re.sub(r"^clust_M\d+_lam[\d.]+_", f"banksy_{scale}_", c) for c in df.columns
+    ]
+    adata.obs = adata.obs.join(df)
+    for col in df.columns:
+        if adata.obs[col].isna().any():
+            raise RuntimeError(f"{col}: cells missing a cluster after join.")
+        adata.obs[col] = adata.obs[col].astype(str).astype("category")
+    cluster_keys += list(df.columns)
+    ro.r("rm(clusters); invisible(gc())")
+
+logger.info("Plotting %d cluster columns...", len(cluster_keys))
+for key in cluster_keys:
+    plot_spatial_multiplot(
+        adata, key, save_path=str(save_folder / "plots"), save_name=f"{key}.png"
+    )
+
+out = save_folder / f"spatial_reg_adata_{args.cohort}.h5ad"
+adata.write(out)
+logger.info("Wrote %s", out)

@@ -1871,17 +1871,17 @@ clean_method_names_format = {
 clean_method_names = {**clean_method_names, **clean_method_names_format}
 
 brain_regions_colors = {
-    "BS": "FF7080",
-    "CA3sp": "66A83D",
-    "CTX": "B0FFB8",
-    "DG-sg": "66A83D",
-    "HIP": "7ED04B",
-    "STR": "98D6F9",
-    "VS": "AAAAAA",
-    "fiber tracts": "CCCCCC",
-    "BS/STR": "CCA3BC",
-    "STR/CTX": "A4EAD8",
-    "Meninges": "480091",
+    "BS": "#FF7080",
+    "BS/STR": "#CCA3BC",
+    "CAsp": "#E07B39",
+    "CTX": "#FBB360",
+    "DG-sg": "#2C7A2C",
+    "HIP": "#7ED04B",
+    "Meninges": "#480091",
+    "STR": "#98D6F9",
+    "STR/CTX": "#A4EAD8",
+    "VS": "#C9C0E8",
+    "fiber_tracts": "#8C6D5D",
 }
 
 # merges neurons for marker-gene-based metrics

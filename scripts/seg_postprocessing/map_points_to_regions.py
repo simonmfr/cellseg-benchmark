@@ -33,7 +33,6 @@ def process_method(
         coord_key="spatial_microns",
         slide_key="sample",
         include_boundary=True,
-        dissolve=False,
         index_kind="name",
         return_df=True,
     )
