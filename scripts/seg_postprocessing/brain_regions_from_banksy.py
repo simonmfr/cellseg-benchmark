@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 """Turn joint BANKSY clusters into anatomical brain-region polygons.
 
-The clustering is joint across all samples of a cohort, so cluster k means the
-same thing in every section. The cluster -> region assignment is therefore one
-global table of ~20 entries in a YAML config, not one decision per polygon per
-sample. Per-sample exceptions stay possible but have to be written down.
+The clustering is joint across the cohort, so cluster k means the same thing in
+every section and the cluster -> region assignment is one global YAML table
+rather than one decision per polygon per sample. Exceptions stay possible but
+have to be written down.
 
-Two steps:
-
-1. ``--init`` writes a YAML skeleton plus, per cluster, a multi-sample plot and
-   a marker-expression table, i.e. the evidence needed to name the clusters.
-2. Without ``--init`` the filled-in YAML is applied and the region parquet
-   consumed by ``map_points_to_regions.py`` is written.
+    # 1. YAML skeleton + per-cluster plots and marker table to name them from
+    brain_regions_from_banksy.py aging adata.h5ad --cluster-key banksy_coarse_k75_res0.4 --init
+    # 2. apply the filled-in YAML, write the parquet map_points_to_regions.py reads
+    brain_regions_from_banksy.py aging adata.h5ad
 """
 
 import argparse
@@ -40,9 +38,10 @@ from cellseg_benchmark.spatial_mapping import (
 )
 
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+DEFAULT_CLEANUP = {"min_hole_area_um2": 150000.0, "min_island_area_um2": 60000.0}
 
-# Shown next to each cluster in --init so clusters are named from evidence
-# rather than from shape alone. Genes absent from the panel are skipped.
+# Shown per cluster by --init, so clusters are named from evidence, not shape
+# alone. Genes absent from the panel are skipped.
 MARKERS = {
     "DG-sg": ["Prox1", "Dock10"],
     "CAsp": ["Fibcd1", "Wfs1", "Neurod6"],
@@ -54,8 +53,6 @@ MARKERS = {
     "Meninges": ["Dcn", "Slc47a1"],
 }
 
-DEFAULT_CLEANUP = {"min_hole_area_um2": 150000.0, "min_island_area_um2": 60000.0}
-
 logger = logging.getLogger("brain_regions")
 logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()
@@ -63,48 +60,22 @@ _handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)
 logger.addHandler(_handler)
 
 
-def cluster_codes(adata, cluster_key):
-    """Factorize the cluster column once, so codes mean the same in every sample.
-
-    Args:
-        adata: AnnData holding all samples of the cohort.
-        cluster_key: `.obs` column with the BANKSY clusters.
-
-    Returns:
-        Mapping from integer code to cluster id. The codes are stored in
-        `.obs["_cluster_code"]`.
-    """
-    codes, uniques = pd.factorize(adata.obs[cluster_key].astype(str), sort=True)
-    adata.obs["_cluster_code"] = codes
-    return {i: str(u) for i, u in enumerate(uniques)}
-
-
 def write_skeleton(adata, cluster_key, config_path, plot_dir):
-    """Write a YAML skeleton and the per-cluster evidence needed to fill it in.
-
-    Args:
-        adata: AnnData holding all samples of the cohort.
-        cluster_key: `.obs` column with the BANKSY clusters.
-        config_path: Where to write the YAML skeleton.
-        plot_dir: Folder for the per-cluster plots and the marker table.
-    """
+    """Write a YAML skeleton plus the per-cluster evidence needed to fill it in."""
     plot_dir.mkdir(parents=True, exist_ok=True)
-    clusters = sorted(adata.obs[cluster_key].astype(str).unique(), key=_sort_key)
+    clusters = sorted(adata.obs[cluster_key].astype(str).unique(), key=int)
 
     genes = [g for gs in MARKERS.values() for g in gs if g in adata.var_names]
     if genes:
         expr = sc.get.obs_df(
             adata, keys=genes + [cluster_key], layer="volume_log1p_norm"
         )
-        table = expr.groupby(cluster_key, observed=True).mean().round(3)
-        table.to_csv(plot_dir / "cluster_markers.csv")
-        logger.info(
-            "Marker means for %d/%d genes -> cluster_markers.csv",
-            len(genes),
-            sum(map(len, MARKERS.values())),
+        expr.groupby(cluster_key, observed=True).mean().round(3).to_csv(
+            plot_dir / "cluster_markers.csv"
         )
+        logger.info("%d marker genes in the panel -> cluster_markers.csv", len(genes))
     else:
-        logger.warning("No marker genes of MARKERS are in the panel.")
+        logger.warning("None of the MARKERS genes are in the panel.")
 
     for c in clusters:
         adata.obs["_one"] = np.where(
@@ -121,45 +92,23 @@ def write_skeleton(adata, cluster_key, config_path, plot_dir):
     del adata.obs["_one"]
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    skeleton = {
-        "cluster_key": cluster_key,
-        "clusters": {c: None for c in clusters},
-        "sample_overrides": {},
-        "point_overrides": {},
-        "cleanup": {"default": dict(DEFAULT_CLEANUP)},
-    }
     with open(config_path, "w") as fh:
-        yaml.safe_dump(skeleton, fh, sort_keys=False, default_flow_style=False)
-    logger.info(
-        "Wrote %s: fill in one region per cluster, then rerun without --init.",
-        config_path,
-    )
-
-
-def _sort_key(c):
-    """Sort cluster ids numerically when possible.
-
-    Args:
-        c: Cluster id.
-
-    Returns:
-        A tuple ordering numeric ids before non-numeric ones.
-    """
-    return (0, int(c)) if str(c).isdigit() else (1, str(c))
+        yaml.safe_dump(
+            {
+                "cluster_key": cluster_key,
+                "clusters": {c: None for c in clusters},
+                "sample_overrides": {},
+                "point_overrides": {},
+                "cleanup": {"default": dict(DEFAULT_CLEANUP)},
+            },
+            fh,
+            sort_keys=False,
+        )
+    logger.info("Wrote %s: name every cluster, then rerun without --init.", config_path)
 
 
 def build_regions(adata, cfg, code_to_cluster, plot_dir):
-    """Clean the cluster raster per sample and label its connected components.
-
-    Args:
-        adata: AnnData holding all samples of the cohort.
-        cfg: Parsed YAML config.
-        code_to_cluster: Mapping from integer code to cluster id.
-        plot_dir: Folder for the per-sample QC figure.
-
-    Returns:
-        `{sample: {label: [Polygon, ...]}}`.
-    """
+    """Clean the cluster raster per sample and label its connected components."""
     mapping = {str(k): v for k, v in (cfg.get("clusters") or {}).items()}
     unnamed = [c for c, v in mapping.items() if not v]
     if unnamed:
@@ -188,7 +137,6 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
 
         regions = polygons_per_component_exact(clean, geo, value_map=code_to_cluster)
 
-        # cluster -> region label, with per-sample exceptions.
         overrides = {
             str(k): v
             for k, v in ((cfg.get("sample_overrides") or {}).get(sample) or {}).items()
@@ -196,13 +144,13 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
         for reg in regions:
             reg["label"] = overrides.get(reg["value"], mapping.get(reg["value"]))
 
-        # A cluster that is genuinely two anatomies inside one section is split by
-        # naming a point in the offending component, which survives re-runs.
+        # A cluster that is two anatomies inside one section is split by naming a
+        # point in the offending component; unlike an index this survives reruns.
         for x, y, label in (cfg.get("point_overrides") or {}).get(sample, []):
             hits = [r for r in regions if r["poly"].covers(Point(float(x), float(y)))]
             if not hits:
                 logger.warning(
-                    "%s: point override (%s, %s) hits no region.", sample, x, y
+                    "%s: point override (%s, %s) hits nothing.", sample, x, y
                 )
             for r in hits:
                 r["label"] = label
@@ -221,24 +169,21 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
 
 
 def _plot_region_grids(grids, plot_dir, n_cols=3):
-    """Render every sample's labelled raster as one multi-panel QC figure.
-
-    Args:
-        grids: Mapping from sample to `(clean_grid, geo, regions)`.
-        plot_dir: Folder to write the figure into.
-        n_cols: Panels per row.
-    """
+    """Render every sample's labelled raster as one multi-panel QC figure."""
     labels = sorted(
         {r["label"] for _, _, regs in grids.values() for r in regs if r["label"]}
     )
-    colors = [_color(lab, i) for i, lab in enumerate(labels)]
+    cmap = plt.get_cmap("tab20")
+    colors = [
+        brain_regions_colors.get(lab, cmap(i % 20)) for i, lab in enumerate(labels)
+    ]
     lut = {lab: i for i, lab in enumerate(labels)}
 
     n_rows = int(np.ceil(len(grids) / n_cols))
     fig, axs = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
     for ax, (sample, (clean, geo, regions)) in zip(np.ravel(axs), grids.items()):
-        # Colour per connected component, not per cluster code: a point override
-        # relabels one component only.
+        # Colour per component, not per cluster code: a point override relabels
+        # one component only.
         label_of = {(r["code"], r["comp_id"]): r["label"] for r in regions}
         img = np.full(clean.shape, np.nan)
         for code in np.unique(clean[clean >= 0]):
@@ -271,22 +216,9 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
     plt.close(fig)
 
 
-def _color(label, i):
-    """Look up a region colour, falling back to tab20.
-
-    Args:
-        label: Region label.
-        i: Position of the label, used for the fallback colour.
-
-    Returns:
-        A matplotlib colour.
-    """
-    return brain_regions_colors.get(label, plt.get_cmap("tab20")(i % 20))
-
-
 def main():
-    """Parse arguments and either write the YAML skeleton or the region parquet."""
-    parser = argparse.ArgumentParser(description=__doc__)
+    """Write the YAML skeleton, or apply it and write the region parquet."""
+    parser = argparse.ArgumentParser(description="BANKSY clusters -> brain regions.")
     parser.add_argument("cohort", help="Cohort name, e.g. 'aging'.")
     parser.add_argument("adata_path", help="Adata written by banksy_clustering.py.")
     parser.add_argument(
@@ -326,7 +258,11 @@ def main():
     cluster_key = args.cluster_key or cfg["cluster_key"]
     logger.info("Using %s from %s", cluster_key, config)
 
-    code_to_cluster = cluster_codes(adata, cluster_key)
+    # Factorize once, so a code means the same cluster in every sample.
+    codes, uniques = pd.factorize(adata.obs[cluster_key].astype(str), sort=True)
+    adata.obs["_cluster_code"] = codes
+    code_to_cluster = dict(enumerate(map(str, uniques)))
+
     regions_by_slide = build_regions(adata, cfg, code_to_cluster, plot_dir)
 
     out = pathlib.Path(

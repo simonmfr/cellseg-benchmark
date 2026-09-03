@@ -1,16 +1,10 @@
 #!/usr/bin/env python
 """Joint BANKSY spatial-domain clustering across all samples of one cohort.
 
-Two neighbourhood scales are clustered independently, because one clustering
-cannot resolve both macro domains and laminae: on a 25 um raster ``k_geom=15``
-is a ~55 um smoothing kernel, i.e. as wide as DG-sg itself.
-
-* ``coarse`` -> macro domains (CTX, BS, STR, fiber tracts, ...)
-* ``fine``   -> laminae (cortical layers, DG-sg, CA sp)
-
-Clusters are written back to ``.obs`` as ``banksy_{scale}_k{k}_res{res}``.
-Pick one column per scale from the plots, then label it with
-``brain_regions_from_banksy.py``.
+Two neighbourhood scales are clustered independently, because one kernel cannot
+resolve both macro domains (CTX, BS, STR) and laminae (cortical layers, DG-sg,
+CA sp). Clusters land in .obs as banksy_{scale}_k{k}_res{res}; pick one column
+per scale from the plots, then label it with brain_regions_from_banksy.py.
 """
 
 import argparse
@@ -28,16 +22,23 @@ from rpy2.robjects.conversion import localconverter
 
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 
-# Feature-mixing weight. Banksy documents 0.2 for cell typing and 0.8 for spatial
-# domains; lambda = 1.0 drops own expression entirely, which washes out thin but
-# transcriptionally sharp structures (DG-sg, CA sp) into their surroundings.
-LAMBDA = 0.8
+LAMBDA = 0.8  # 0.2 = cell typing, 0.8 = spatial domains (Banksy)
 
-# k_geom = c(k_mean, k_agf) spatial neighbours defining the smoothing kernel.
+# k_geom = c(k_mean, k_agf) spatial neighbours, i.e. the smoothing kernel.
 SCALES = {
-    "coarse": {"k_geom": [15, 30], "k_neighbors": [50, 75], "resolution": [0.2, 0.4]},
-    "fine": {"k_geom": [6, 12], "k_neighbors": [15, 30], "resolution": [1.0, 1.5]},
+    "coarse": {
+        "k_geom": "c(15, 30)",
+        "k_neighbors": "c(50, 75)",
+        "resolution": "c(0.2, 0.4)",
+    },
+    "fine": {
+        "k_geom": "c(6, 12)",
+        "k_neighbors": "c(15, 30)",
+        "resolution": "c(1.0, 1.5)",
+    },
 }
+
+CONVERTER = default_converter + pandas2ri.converter + numpy2ri.converter
 
 R_SETUP = """
 suppressPackageStartupMessages({
@@ -46,9 +47,8 @@ suppressPackageStartupMessages({
     library(SummarizedExperiment)
 })
 
-# One SpatialExperiment per sample. sample_id has to be set explicitly: without
-# it every object defaults to "sample01" and runBanksyPCA(group=) cannot align
-# the samples it is supposed to group by.
+# sample_id has to be set: it otherwise defaults to "sample01" for every sample,
+# and runBanksyPCA(group = "sample_id") can no longer tell them apart.
 build_se_list <- function(data, coords, key) {
     data <- as(data, "sparseMatrix")
     coords <- as.matrix(coords)
@@ -82,33 +82,6 @@ banksy_run <- function(se_list, k_geom, lambda, k_neighbors, resolution) {
 }
 """
 
-
-def to_r(obj):
-    """Convert a pandas or numpy object to R.
-
-    Args:
-        obj: Object to convert.
-
-    Returns:
-        The corresponding R object.
-    """
-    with localconverter(default_converter + pandas2ri.converter + numpy2ri.converter):
-        return ro.conversion.py2rpy(obj)
-
-
-def to_pandas(obj):
-    """Convert an R object to pandas.
-
-    Args:
-        obj: R object to convert.
-
-    Returns:
-        The corresponding pandas object.
-    """
-    with localconverter(default_converter + pandas2ri.converter + numpy2ri.converter):
-        return ro.conversion.rpy2py(obj)
-
-
 logger = logging.getLogger("banksy")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -132,23 +105,22 @@ if "SLURM_CPUS_PER_TASK" in os.environ:
 logger.info("Loading %s", args.adata_path)
 adata = sc.read_h5ad(args.adata_path)
 logger.info(
-    "%d cells x %d genes, %d samples",
+    "%d cells, %d genes, %d samples",
     adata.n_obs,
     adata.n_vars,
     adata.obs["sample"].nunique(),
 )
 
 ro.r(R_SETUP)
-
 logger.info("Handing expression and coordinates to R...")
-coords = pd.DataFrame(adata.obsm["spatial"], columns=["x", "y"], index=adata.obs_names)
-dense = adata.layers["volume_log1p_norm"].T.toarray()
-ro.globalenv["data"] = to_r(dense)
-del dense
-ro.globalenv["coords"] = to_r(coords)
-ro.globalenv["genes"] = to_r(adata.var_names)
-ro.globalenv["cells"] = to_r(adata.obs_names)
-ro.globalenv["key"] = to_r(adata.obs["sample"].astype(str))
+with localconverter(CONVERTER):
+    ro.globalenv["data"] = adata.layers["volume_log1p_norm"].T.toarray()
+    ro.globalenv["coords"] = pd.DataFrame(
+        adata.obsm["spatial"], columns=["x", "y"], index=adata.obs_names
+    )
+    ro.globalenv["genes"] = adata.var_names
+    ro.globalenv["cells"] = adata.obs_names
+    ro.globalenv["key"] = adata.obs["sample"].astype(str)
 ro.r("""
 rownames(data) <- genes
 colnames(data) <- cells
@@ -157,28 +129,25 @@ rm(data, coords, genes, cells); invisible(gc())
 """)
 
 cluster_keys = []
-for scale, params in SCALES.items():
-    logger.info(
-        "BANKSY %s scale: k_geom=%s, lambda=%s", scale, params["k_geom"], LAMBDA
-    )
-    ro.globalenv["k_geom"] = ro.IntVector(params["k_geom"])
-    ro.globalenv["k_neighbors"] = ro.IntVector(params["k_neighbors"])
-    ro.globalenv["resolution"] = ro.FloatVector(params["resolution"])
-    ro.globalenv["lambda_"] = ro.FloatVector([LAMBDA])
-    ro.r("clusters <- banksy_run(se_list, k_geom, lambda_, k_neighbors, resolution)")
+for scale, p in SCALES.items():
+    logger.info("BANKSY %s: k_geom=%s, lambda=%s", scale, p["k_geom"], LAMBDA)
+    with localconverter(CONVERTER):
+        df = ro.r(
+            f"banksy_run(se_list, {p['k_geom']}, {LAMBDA},"
+            f" {p['k_neighbors']}, {p['resolution']})"
+        )
 
-    # colData is ordered by sample after cbind, so join on the index, never reassign it.
-    df = to_pandas(ro.globalenv["clusters"])
     df.columns = [
         re.sub(r"^clust_M\d+_lam[\d.]+_", f"banksy_{scale}_", c) for c in df.columns
     ]
+    # colData is ordered by sample after cbind, so join on the index.
     adata.obs = adata.obs.join(df)
     for col in df.columns:
         if adata.obs[col].isna().any():
             raise RuntimeError(f"{col}: cells missing a cluster after join.")
         adata.obs[col] = adata.obs[col].astype(str).astype("category")
     cluster_keys += list(df.columns)
-    ro.r("rm(clusters); invisible(gc())")
+    ro.r("invisible(gc())")
 
 logger.info("Plotting %d cluster columns...", len(cluster_keys))
 for key in cluster_keys:
