@@ -169,6 +169,9 @@ def main():
                 boundaries.set_index("cell_label", drop=True, inplace=True)
             boundaries.rename(columns={"z_plane": "ZIndex"}, inplace=True)
             boundaries["ZIndex"] = boundaries["ZIndex"].astype(float).astype(int)
+        elif args.method.startswith("Baysor_3D"):
+            logger.debug("Loading baysor_boundaries for Baysor_3D by default key")
+            boundaries = sdata["baysor_boundaries"]
         else:
             raise NotImplementedError(
                 "Please either provide keys to the 3D boundaries in the sdata or an implemented method name."
