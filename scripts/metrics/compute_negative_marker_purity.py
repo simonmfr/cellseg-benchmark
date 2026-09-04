@@ -38,7 +38,6 @@ if __name__ == "__main__":
     # compute negative marker purity
     compute_metric_for_all_methods(
         compute_negative_marker_purity,
-        cohort = args.cohort,
         results_name=results_name,
         neg_marker_mask_sc=neg_marker_mask,
         ratio_celltype_sc=ratio_celltype,
