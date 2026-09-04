@@ -54,7 +54,7 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
 
-    path_toml = pathlib.Path(__file__).parents[2] / "configs" / "baysor_2D_config.toml"
+    path_toml = pathlib.Path(__file__).parents[2] / "configs" / "baysor_sopa.toml"
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence

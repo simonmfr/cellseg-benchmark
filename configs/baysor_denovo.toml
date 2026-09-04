@@ -1,0 +1,15 @@
+# Baysor without prior segmentation. 2D runs add --force-2d on top of this.
+[data]
+x = "x"
+y = "y"
+z = "z"
+gene = "gene"
+force_2d = false
+min_molecules_per_gene = 1
+min_molecules_per_cell = 10
+exclude_genes = "Blank*"
+
+[segmentation]
+scale = 5
+cluster_method = "mrf"
+n_clusters = 10
