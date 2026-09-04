@@ -66,6 +66,8 @@ def main(data_path, sample, dimension, z_start, z_step, keep_transcripts):
     cmd.append(str(transcripts))
     subprocess.run(cmd, check=True)
 
+    # run.log duplicates the sbatch .out; run_params.toml is kept as provenance.
+    (out / "run.log").unlink(missing_ok=True)
     if not keep_transcripts:
         transcripts.unlink()
 
