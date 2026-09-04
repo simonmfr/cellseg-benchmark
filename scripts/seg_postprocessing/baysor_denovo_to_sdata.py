@@ -44,13 +44,15 @@ def read_boundaries(path):
     """GeoParquet polygons -> GeoDataFrame indexed by cell_id.
 
     Baysor emits self-intersecting rings for sparse z layers (~11% of them),
-    which break unions and area computations downstream, so those are repaired.
+    which break unions and area computations downstream. Repaired with buffer(0);
+    a few collapse to zero area and are dropped.
     """
     gdf = geopandas.read_parquet(path).rename(columns={"cell": "cell_id"})
     invalid = ~gdf.geometry.is_valid
     if invalid.any():
         logger.info(f"repairing {invalid.sum()} invalid polygons in {path.name}")
         gdf.loc[invalid, "geometry"] = gdf.loc[invalid, "geometry"].buffer(0)
+    gdf = gdf[~gdf.geometry.is_empty]
     gdf.set_index("cell_id", drop=False, inplace=True)
     gdf.index = gdf.index.rename(None)
     return gdf
