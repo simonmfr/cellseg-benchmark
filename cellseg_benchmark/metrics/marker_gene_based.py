@@ -676,6 +676,7 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
 
 def compute_negative_marker_purity(
     adata,
+    cohort,
     celltype_name="cell_type_revised",
     subset_celltypes=False,
     **kwargs,
@@ -701,7 +702,7 @@ def compute_negative_marker_purity(
     """
     # Set threshold parameters - same as used in get_negative_markers
     neg_marker_mask_sc, ratio_celltype_sc = get_negative_markers(
-        subset_genes=adata.var_names, subset_celltypes=subset_celltypes, **kwargs
+        cohort, subset_genes=adata.var_names, subset_celltypes=subset_celltypes, **kwargs
     )
     min_number_cells = 10  # minimum number of cells belonging to a cluster to consider it in the analysis
 
