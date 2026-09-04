@@ -20,31 +20,10 @@ handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s
 logger.addHandler(handler)
 
 
-def read_table(baysor_out):
-    """feature_matrix.h5 (genes x cells, CSC) plus cells.parquet -> AnnData."""
-    with h5py.File(baysor_out / "feature_matrix.h5", "r") as f:
-        m = f["matrix"]
-        X = scipy.sparse.csc_matrix(
-            (m["data"][:], m["indices"][:], m["indptr"][:]), shape=tuple(m["shape"][:])
-        )
-        genes = m["features/name"][:].astype(str)
-        cells = m["barcodes"][:].astype(str)
-
-    obs = pd.read_parquet(baysor_out / "cells.parquet").set_index("cell")
-    obs = obs.loc[cells]
-    obs["cell_id"] = obs.index.astype(str)
-    obs.index = obs.index.rename(None)
-
-    return anndata.AnnData(
-        X=X.T.tocsr(), obs=obs, var=pd.DataFrame(index=pd.Index(genes, name=None))
-    )
-
-
 def read_boundaries(path):
     """GeoParquet polygons -> GeoDataFrame indexed by cell_id.
 
-    Baysor emits self-intersecting rings on sparse z layers, which break unions
-    and areas downstream. Those are repaired, and any that collapse are dropped.
+    Self-intersecting rings on sparse z layers are repaired, empty ones dropped.
     """
     gdf = geopandas.read_parquet(path).rename(columns={"cell": "cell_id"})
     invalid = ~gdf.geometry.is_valid
@@ -82,19 +61,31 @@ def main():
         cells_boundaries=False,
     )
 
-    logger.info("Loading boundaries and counts...")
+    logger.info("Loading boundaries...")
     boundaries = read_boundaries(baysor_out / "cell_boundaries_3d.parquet")
-    # layer holds the z position in microns; ZIndex is its rank among the planes.
+    # layer is the z position in microns
     boundaries["ZLevel"] = boundaries["layer"].astype(float)
     boundaries["ZIndex"] = boundaries["ZLevel"].rank(method="dense").astype(int) - 1
 
-    # Baysor estimates this from all of a cell's molecules, so it is wider than
-    # the union of the z layers. Used only for the per-cell intensity summary.
+    # estimated from all of a cell's molecules, wider than the union of z layers
     outlines = read_boundaries(baysor_out / "cell_boundaries.parquet")
     sdata["baysor_boundaries"] = spatialdata.models.ShapesModel.parse(boundaries)
     sdata["baysor_outlines"] = spatialdata.models.ShapesModel.parse(outlines)
 
-    adata = read_table(baysor_out)
+    logger.info("Loading counts...")
+    with h5py.File(baysor_out / "feature_matrix.h5", "r") as f:
+        m = f["matrix"]
+        counts = scipy.sparse.csc_matrix(
+            (m["data"][:], m["indices"][:], m["indptr"][:]), shape=tuple(m["shape"][:])
+        )
+        genes = m["features/name"][:].astype(str)
+        cells = m["barcodes"][:].astype(str)
+
+    obs = pd.read_parquet(baysor_out / "cells.parquet").set_index("cell").loc[cells]
+    obs["cell_id"] = obs.index.astype(str)
+    obs.index = obs.index.rename(None)
+
+    adata = anndata.AnnData(counts.T.tocsr(), obs=obs, var=pd.DataFrame(index=genes))
     adata = adata[adata.obs["cell_id"].isin(boundaries["cell_id"])].copy()
     adata.obs["region"] = pd.Categorical(["baysor_boundaries"] * adata.n_obs)
     sdata["table"] = spatialdata.models.TableModel.parse(
@@ -104,8 +95,7 @@ def main():
         instance_key="cell_id",
     )
 
-    # Per-cell summary for cross-method comparison; per z plane intensities come
-    # from intensities_3D.py, run after this.
+    # per z plane intensities come from intensities_3D.py, run after this
     logger.info("Aggregating channel intensities...")
     sdata["table"].obsm["intensities"] = pd.DataFrame(
         sopa.aggregation.aggregate_channels(sdata, shapes_key="baysor_outlines"),
