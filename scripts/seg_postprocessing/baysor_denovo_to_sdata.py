@@ -71,8 +71,10 @@ def main():
 
     logger.info("Loading boundaries and counts...")
     boundaries = read_boundaries(baysor_out / "cell_boundaries_3d.parquet")
-    boundaries["ZIndex"] = boundaries["layer"].astype(int)
-    boundaries["ZLevel"] = boundaries["ZIndex"].astype(float)
+    # layer holds the z position in microns; ZIndex is its rank among the planes.
+    boundaries["ZLevel"] = boundaries["layer"].astype(float)
+    levels = {v: i for i, v in enumerate(sorted(boundaries["ZLevel"].unique()))}
+    boundaries["ZIndex"] = boundaries["ZLevel"].map(levels).astype(int)
     boundaries_2d = read_boundaries(baysor_out / "cell_boundaries.parquet")
 
     sdata["baysor_boundaries"] = spatialdata.models.ShapesModel.parse(boundaries)
