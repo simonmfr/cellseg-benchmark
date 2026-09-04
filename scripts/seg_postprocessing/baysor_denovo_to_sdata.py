@@ -43,9 +43,8 @@ def read_table(baysor_out):
 def read_boundaries(path):
     """GeoParquet polygons -> GeoDataFrame indexed by cell_id.
 
-    Baysor emits self-intersecting rings for sparse z layers (~11% of them),
-    which break unions and area computations downstream. Repaired with buffer(0);
-    a few collapse to zero area and are dropped.
+    Baysor emits self-intersecting rings on sparse z layers, which break unions
+    and areas downstream. Those are repaired, and any that collapse are dropped.
     """
     gdf = geopandas.read_parquet(path).rename(columns={"cell": "cell_id"})
     invalid = ~gdf.geometry.is_valid
@@ -87,8 +86,7 @@ def main():
     boundaries = read_boundaries(baysor_out / "cell_boundaries_3d.parquet")
     # layer holds the z position in microns; ZIndex is its rank among the planes.
     boundaries["ZLevel"] = boundaries["layer"].astype(float)
-    levels = {v: i for i, v in enumerate(sorted(boundaries["ZLevel"].unique()))}
-    boundaries["ZIndex"] = boundaries["ZLevel"].map(levels).astype(int)
+    boundaries["ZIndex"] = boundaries["ZLevel"].rank(method="dense").astype(int) - 1
 
     # Baysor estimates this from all of a cell's molecules, so it is wider than
     # the union of the z layers. Used only for the per-cell intensity summary.
@@ -117,7 +115,7 @@ def main():
             )[1]
         ),
         index=sdata["baysor_outlines"].index.astype(str),
-    ).loc[sdata["table"].obs["cell_id"]]
+    ).reindex(sdata["table"].obs["cell_id"])
 
     for i in list(sdata.images.keys()):
         del sdata[i]

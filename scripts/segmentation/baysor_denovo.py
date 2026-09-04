@@ -7,13 +7,17 @@ import sys
 import pandas as pd
 
 parser = argparse.ArgumentParser(
-    description="Compute Baysor segmentation without prior, using the native Baysor CLI."
+    description="Compute Baysor segmentation without prior, native CLI."
 )
 parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("sample", help="sample name.")
 parser.add_argument("dimension", choices=["2D", "3D"], help="segmentation mode.")
-parser.add_argument("--z_step", type=float, default=1.5, help="micron spacing of z planes.")
-parser.add_argument("--z_start", type=float, default=1.5, help="micron position of plane 0.")
+parser.add_argument(
+    "--z_step", type=float, default=1.5, help="micron spacing of z planes."
+)
+parser.add_argument(
+    "--z_start", type=float, default=1.5, help="micron position of plane 0."
+)
 parser.add_argument("--keep_transcripts", action="store_true")
 args = parser.parse_args()
 
@@ -60,11 +64,10 @@ def main(data_path, sample, dimension, z_start, z_step, keep_transcripts):
     if not transcripts.exists():
         write_transcripts(data_path, transcripts, z_start, z_step)
 
-    cmd = [BAYSOR, "run", "-c", str(config), "--output-style", "parquet", "-o", str(out)]
+    cmd = [BAYSOR, "run", "-c", config, "--output-style", "parquet", "-o", out]
     if dimension == "2D":
         cmd.append("--force-2d")
-    cmd.append(str(transcripts))
-    subprocess.run(cmd, check=True)
+    subprocess.run([*cmd, transcripts], check=True)
 
     # run.log duplicates the sbatch .out; run_params.toml is kept as provenance.
     (out / "run.log").unlink(missing_ok=True)

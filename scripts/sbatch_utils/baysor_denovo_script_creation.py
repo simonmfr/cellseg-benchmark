@@ -8,7 +8,9 @@ parser = argparse.ArgumentParser(
     description="scripts for Baysor segmentation without prior (native CLI)."
 )
 parser.add_argument("dimension", choices=["2D", "3D"], help="segmentation mode.")
-parser.add_argument("--mem", default="90G", help="Memory per job. Serial caps at 100G per user.")
+parser.add_argument(
+    "--mem", default="90G", help="Memory per job. Serial caps at 100G per user."
+)
 parser.add_argument("--cluster", default="serial", help="SLURM cluster.")
 parser.add_argument("--partition", default="serial_std", help="SLURM partition.")
 parser.add_argument("--time", default="24:00:00", help="Walltime per job.")
