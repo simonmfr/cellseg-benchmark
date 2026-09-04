@@ -52,14 +52,15 @@ def main(data_path, sample, dimension, z_start, z_step, keep_transcripts):
         "results",
         f"Baysor_{dimension}_denovo",
     )
-    path.mkdir(parents=True, exist_ok=True)
+    out = path / "baysor_out"
+    out.mkdir(parents=True, exist_ok=True)
     config = pathlib.Path(__file__).parents[2] / "configs" / "baysor_denovo.toml"
-    transcripts = path / "transcripts.csv"
+    transcripts = out / "transcripts.csv"
 
     if not transcripts.exists():
         write_transcripts(data_path, transcripts, z_start, z_step)
 
-    cmd = [BAYSOR, "run", "-c", str(config), "--output-style", "parquet", "-o", str(path)]
+    cmd = [BAYSOR, "run", "-c", str(config), "--output-style", "parquet", "-o", str(out)]
     if dimension == "2D":
         cmd.append("--force-2d")
     cmd.append(str(transcripts))
