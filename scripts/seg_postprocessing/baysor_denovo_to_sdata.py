@@ -90,9 +90,11 @@ def main():
     levels = {v: i for i, v in enumerate(sorted(boundaries["ZLevel"].unique()))}
     boundaries["ZIndex"] = boundaries["ZLevel"].map(levels).astype(int)
 
-    boundaries_2d = read_boundaries(baysor_out / "cell_boundaries.parquet")
+    # Baysor estimates this from all of a cell's molecules, so it is wider than
+    # the union of the z layers. Used only for the per-cell intensity summary.
+    outlines = read_boundaries(baysor_out / "cell_boundaries.parquet")
     sdata["baysor_boundaries"] = spatialdata.models.ShapesModel.parse(boundaries)
-    sdata["baysor_boundaries_2d"] = spatialdata.models.ShapesModel.parse(boundaries_2d)
+    sdata["baysor_outlines"] = spatialdata.models.ShapesModel.parse(outlines)
 
     adata = read_table(baysor_out)
     adata = adata[adata.obs["cell_id"].isin(boundaries["cell_id"])].copy()
@@ -108,18 +110,18 @@ def main():
     # from intensities_3D.py, run after this.
     logger.info("Aggregating channel intensities...")
     sdata["table"].obsm["intensities"] = pd.DataFrame(
-        sopa.aggregation.aggregate_channels(sdata, shapes_key="baysor_boundaries_2d"),
+        sopa.aggregation.aggregate_channels(sdata, shapes_key="baysor_outlines"),
         columns=sopa.utils.validated_channel_names(
             sopa.utils.get_spatial_image(
                 sdata, list(sdata.images.keys())[0], return_key=True
             )[1]
         ),
-        index=sdata["baysor_boundaries_2d"].index.astype(str),
+        index=sdata["baysor_outlines"].index.astype(str),
     ).loc[sdata["table"].obs["cell_id"]]
 
     for i in list(sdata.images.keys()):
         del sdata[i]
-    del sdata["baysor_boundaries_2d"]
+    del sdata["baysor_outlines"]
 
     logger.info("Saving data...")
     sdata.write(str(save_path / "sdata.zarr"), overwrite=True)
