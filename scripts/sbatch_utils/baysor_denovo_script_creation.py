@@ -8,7 +8,9 @@ parser = argparse.ArgumentParser(
     description="scripts for Baysor segmentation without prior (native CLI)."
 )
 parser.add_argument("dimension", choices=["2D", "3D"], help="segmentation mode.")
-parser.add_argument("--mem", default="200G", help="Memory per job.")
+parser.add_argument("--mem", default="90G", help="Memory per job. Serial caps at 100G per user.")
+parser.add_argument("--cluster", default="serial", help="SLURM cluster.")
+parser.add_argument("--partition", default="serial_long", help="SLURM partition.")
 parser.add_argument("--time", default="4-00:00:00", help="Walltime per job.")
 parser.add_argument("--cpus", default="8", help="Cores per job.")
 args = parser.parse_args()
@@ -26,8 +28,8 @@ pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}").mkdir(
 for key, value in data.items():
     with open(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}/{key}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
-#SBATCH --clusters=serial
-#SBATCH --partition=serial_long
+#SBATCH --clusters={args.cluster}
+#SBATCH --partition={args.partition}
 #SBATCH -t {args.time}
 #SBATCH --mem={args.mem}
 #SBATCH --cpus-per-task={args.cpus}
