@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Creates the micromamba environment used by baysor_denovo.py and builds the
-# pinned native Baysor C++ CLI into it. Required on the LRZ Linux Cluster, which
+# Creates the micromamba environment used by the baysor_denovo scripts and builds
+# the pinned native Baysor C++ CLI into it. Required on the LRZ Linux Cluster, which
 # has no enroot image. Thread count is set by OMP_NUM_THREADS. Run once.
 
 set -euo pipefail
@@ -12,7 +12,7 @@ WORK="${HOME}/.cache/baysor-build"
 TAG="cpp-0.8.3"
 
 [[ -d "${ENVDIR}" ]] || micromamba create -y -r "${ROOT}" -n "${ENV}" -c conda-forge \
-  python=3.12 pandas cxx-compiler cmake ninja pkg-config \
+  python=3.12 pandas pyyaml cxx-compiler cmake ninja pkg-config \
   eigen spdlog cgal-cpp libarrow libparquet hdf5 nlohmann_json libtiff
 
 rm -rf "${WORK}"
