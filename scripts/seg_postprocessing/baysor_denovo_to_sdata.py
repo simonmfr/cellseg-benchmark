@@ -50,9 +50,13 @@ def read_boundaries(path):
     gdf = geopandas.read_parquet(path).rename(columns={"cell": "cell_id"})
     invalid = ~gdf.geometry.is_valid
     if invalid.any():
-        logger.info(f"repairing {invalid.sum()} invalid polygons in {path.name}")
         gdf.loc[invalid, "geometry"] = gdf.loc[invalid, "geometry"].buffer(0)
-    gdf = gdf[~gdf.geometry.is_empty]
+    empty = gdf.geometry.is_empty
+    logger.info(
+        f"{path.name}: {len(gdf)} polygons, {invalid.sum()} repaired, "
+        f"{empty.sum()} dropped as empty"
+    )
+    gdf = gdf[~empty]
     gdf.set_index("cell_id", drop=False, inplace=True)
     gdf.index = gdf.index.rename(None)
     return gdf
