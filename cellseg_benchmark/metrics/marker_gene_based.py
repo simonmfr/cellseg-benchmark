@@ -443,18 +443,6 @@ def compute_MECR_score(
     return results
 
 
-def _read_MECR_summary(results_file):
-    """Read the per-sample summary rows (gene1 = gene2 = "all") from a MECR results csv."""
-    results_df = pd.read_csv(results_file, index_col=0)
-    summary = results_df[results_df["gene1"] == "all"]
-    if summary.empty:
-        raise ValueError(
-            f"No summary rows in {results_file}. These are written by compute_MECR_score, "
-            "so recompute the scores with --overwrite."
-        )
-    return summary[["method", "sample", "MECR"]]
-
-
 def plot_MECR_score(cohort, results_suffix, show=False):
     """Plot boxplot of MECR scores, one point per sample.
 
@@ -472,10 +460,13 @@ def plot_MECR_score(cohort, results_suffix, show=False):
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
 
-    median_results = _read_MECR_summary(results_file)
-    # order methods by their mean across samples
+    results_df = pd.read_csv(results_file, index_col=0)
+    # keep the per-sample summary rows, then order methods by their mean across samples
+    median_results = results_df[results_df["gene1"] == "all"]
     method_order = median_results.groupby("method")["MECR"].mean().sort_values().index
-    custom_palette = {method: _constants.method_colors[method] for method in method_order}
+    custom_palette = {
+        method: _constants.method_colors[method] for method in method_order
+    }
 
     fig = plt.figure(figsize=(5, 8), dpi=300)
     plt.grid(True, alpha=0.3, zorder=0)
@@ -537,8 +528,9 @@ def plot_MECR_vs_sensitivity(cohort, results_suffix, show=False):
     plot_path = mecr_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
 
-    # specificity: per-sample MECR summary, averaged over samples
-    mecr = _read_MECR_summary(mecr_file).groupby("method")["MECR"].mean()
+    # specificity: per-sample MECR summary rows, averaged over samples
+    mecr_df = pd.read_csv(mecr_file, index_col=0)
+    mecr = mecr_df[mecr_df["gene1"] == "all"].groupby("method")["MECR"].mean()
     # sensitivity: fraction of detected transcripts assigned to a cell, pooled per method
     assigned = pd.read_csv(assigned_file, index_col=0)
     totals = assigned.groupby("method")[["assigned_count_qced", "total_count"]].sum()
