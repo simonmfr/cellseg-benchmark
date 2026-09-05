@@ -20,6 +20,17 @@ BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 REPO = pathlib.Path("/dss/dsshome1/0C/ra98gaq/git/cellseg-benchmark")
 METHOD = f"Baysor_{args.dimension}_denovo"
 
+# Samples too large for serial_std (24 h wall, 100 G per user).
+LARGE = {
+    "ABCAtlas_s5_r0": {
+        "cluster": "inter",
+        "partition": "teramem_inter",
+        "time": "3-00:00:00",
+        "mem": "250G",
+        "cpus": "16",
+    }
+}
+
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
@@ -28,13 +39,20 @@ pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}").mkdir(
 )
 
 for key, value in data.items():
+    job = {
+        "cluster": args.cluster,
+        "partition": args.partition,
+        "time": args.time,
+        "mem": args.mem,
+        "cpus": args.cpus,
+    } | LARGE.get(key, {})
     with open(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}/{key}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
-#SBATCH --clusters={args.cluster}
-#SBATCH --partition={args.partition}
-#SBATCH -t {args.time}
-#SBATCH --mem={args.mem}
-#SBATCH --cpus-per-task={args.cpus}
+#SBATCH --clusters={job["cluster"]}
+#SBATCH --partition={job["partition"]}
+#SBATCH -t {job["time"]}
+#SBATCH --mem={job["mem"]}
+#SBATCH --cpus-per-task={job["cpus"]}
 #SBATCH -J {METHOD}_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/{METHOD}_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/{METHOD}_{key}.err
