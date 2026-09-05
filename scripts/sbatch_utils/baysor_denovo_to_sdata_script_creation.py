@@ -13,6 +13,7 @@ BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 # DSS checkout, shared by both clusters. Switch to $HOME/gitrepos once merged.
 REPO = pathlib.Path("/dss/dsshome1/0C/ra98gaq/git/cellseg-benchmark")
 METHOD = f"Baysor_{args.dimension}_denovo"
+EXPLORER = " --explorer" if args.dimension == "2D" else ""
 
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
@@ -37,6 +38,6 @@ for key, value in data.items():
 
 mamba activate segmentation
 python {REPO}/scripts/seg_postprocessing/baysor_denovo_to_sdata.py {value["path"]} \
- {BASE_PATH}/samples/{key}/results/{METHOD}
+ {BASE_PATH}/samples/{key}/results/{METHOD}{EXPLORER}
 """)
     f.close()
