@@ -20,14 +20,15 @@ BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 REPO = pathlib.Path("/dss/dsshome1/0C/ra98gaq/git/cellseg-benchmark")
 METHOD = f"Baysor_{args.dimension}_denovo"
 
-# Samples too large for serial_std (24 h wall, 100 G per user).
+# Samples too large for serial_std (24 h wall, 100 G per user). cm4 lifts the
+# memory cap and the extra cores bring the run back under its 24 h limit.
 LARGE = {
     "ABCAtlas_s5_r0": {
-        "cluster": "inter",
-        "partition": "teramem_inter",
-        "time": "3-00:00:00",
+        "cluster": "cm4",
+        "partition": "cm4_tiny",
+        "qos": "cm4_tiny",
         "mem": "250G",
-        "cpus": "16",
+        "cpus": "32",
     }
 }
 
@@ -46,11 +47,12 @@ for key, value in data.items():
         "mem": args.mem,
         "cpus": args.cpus,
     } | LARGE.get(key, {})
+    qos = f"#SBATCH --qos={job['qos']}\n" if "qos" in job else ""
     with open(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}/{key}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH --clusters={job["cluster"]}
 #SBATCH --partition={job["partition"]}
-#SBATCH -t {job["time"]}
+{qos}#SBATCH -t {job["time"]}
 #SBATCH --mem={job["mem"]}
 #SBATCH --cpus-per-task={job["cpus"]}
 #SBATCH -J {METHOD}_{key}
