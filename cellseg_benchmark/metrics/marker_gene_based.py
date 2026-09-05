@@ -380,7 +380,8 @@ def _MECR_score(adata, gene_pairs, layer=None):
         List of tuples representing gene pairs to evaluate.
 
     Returns:
-    - results DataFrame
+    - results DataFrame, with one row per sample and gene pair plus a per-sample
+      summary row (median over gene pairs) marked with gene1 = gene2 = "all"
     """
     results = []
     for sample in adata.obs["sample"].unique():
@@ -399,7 +400,12 @@ def _MECR_score(adata, gene_pairs, layer=None):
             results.append(
                 {"sample": sample, "gene1": gene1, "gene2": gene2, "MECR": mecr}
             )
-    return pd.DataFrame(results)
+    results = pd.DataFrame(results)
+    # add one summary row per sample, marked with gene1 = gene2 = "all"
+    summary = results.groupby("sample", as_index=False)["MECR"].median()
+    summary["gene1"] = "all"
+    summary["gene2"] = "all"
+    return pd.concat([results, summary[results.columns]], ignore_index=True)
 
 
 def compute_MECR_score(
@@ -437,13 +443,24 @@ def compute_MECR_score(
     return results
 
 
+def _read_MECR_summary(results_file):
+    """Read the per-sample summary rows (gene1 = gene2 = "all") from a MECR results csv."""
+    results_df = pd.read_csv(results_file, index_col=0)
+    summary = results_df[results_df["gene1"] == "all"]
+    if summary.empty:
+        raise ValueError(
+            f"No summary rows in {results_file}. These are written by compute_MECR_score, "
+            "so recompute the scores with --overwrite."
+        )
+    return summary[["method", "sample", "MECR"]]
+
+
 def plot_MECR_score(cohort, results_suffix, show=False):
     """Plot boxplot of MECR scores, one point per sample.
 
-    Gene pairs are first summarised to one median per method and sample, matching the
-    aggregation pattern of plot_marker_F1_score. The plotted spread therefore reflects
-    sample-to-sample variability rather than gene-panel heterogeneity, and no outlier
-    trimming is needed because the per-sample median is already robust.
+    Uses the per-sample summary rows (gene1 = gene2 = "all") written by compute_MECR_score,
+    so the plotted spread reflects sample-to-sample variability rather than gene-panel
+    heterogeneity, and no outlier trimming is needed.
     """
     results_file = (
         Path(_constants.BASE_PATH)
@@ -455,12 +472,8 @@ def plot_MECR_score(cohort, results_suffix, show=False):
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
 
-    results_df = pd.read_csv(results_file, index_col=0)
-
-    # one value per method and sample, then order methods by their mean across samples
-    median_results = (
-        results_df.groupby(["method", "sample"])["MECR"].median().reset_index()
-    )
+    median_results = _read_MECR_summary(results_file)
+    # order methods by their mean across samples
     method_order = median_results.groupby("method")["MECR"].mean().sort_values().index
     custom_palette = {method: _constants.method_colors[method] for method in method_order}
 
@@ -524,14 +537,8 @@ def plot_MECR_vs_sensitivity(cohort, results_suffix, show=False):
     plot_path = mecr_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
 
-    # specificity: median MECR per sample, averaged over samples
-    mecr = (
-        pd.read_csv(mecr_file, index_col=0)
-        .groupby(["method", "sample"])["MECR"]
-        .median()
-        .groupby("method")
-        .mean()
-    )
+    # specificity: per-sample MECR summary, averaged over samples
+    mecr = _read_MECR_summary(mecr_file).groupby("method")["MECR"].mean()
     # sensitivity: fraction of detected transcripts assigned to a cell, pooled per method
     assigned = pd.read_csv(assigned_file, index_col=0)
     totals = assigned.groupby("method")[["assigned_count_qced", "total_count"]].sum()
