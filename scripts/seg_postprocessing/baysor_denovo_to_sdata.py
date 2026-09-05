@@ -152,6 +152,8 @@ def main():
             pixel_size=1 / translation.iloc[0, 0],
         )
         subprocess.run(["rm", "-r", str(zarr_path / "images")])
+
+    subprocess.run(["rm", "-r", str(baysor_out)])
     logger.info("Done.")
 
 
