@@ -12,6 +12,7 @@ from .marker_gene_based import (
     get_positive_markers,
     plot_marker_F1_score,
     plot_MECR_score,
+    plot_MECR_vs_sensitivity,
 )
 from .utils import (
     compute_metric,
@@ -49,6 +50,7 @@ __all__ = [
     "plot_marker_F1_score",
     "compute_MECR_score",
     "plot_MECR_score",
+    "plot_MECR_vs_sensitivity",
     "compute_negative_marker_purity",
     "get_negative_markers",
     "get_positive_markers",

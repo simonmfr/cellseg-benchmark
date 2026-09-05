@@ -5,6 +5,7 @@ from cellseg_benchmark.metrics import (
     compute_MECR_score,
     compute_metric_for_all_methods,
     plot_MECR_score,
+    plot_MECR_vs_sensitivity,
 )
 
 if __name__ == "__main__":
@@ -35,3 +36,4 @@ if __name__ == "__main__":
         compute_MECR_score, results_name=results_name, **vars(args)
     )
     plot_MECR_score(args.cohort, suffix, show=False)
+    plot_MECR_vs_sensitivity(args.cohort, suffix, show=False)

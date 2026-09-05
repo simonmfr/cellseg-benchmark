@@ -437,8 +437,14 @@ def compute_MECR_score(
     return results
 
 
-def plot_MECR_score(cohort, results_suffix, percentile=97, show=False):
-    """Plot violin plot of MECR scores."""
+def plot_MECR_score(cohort, results_suffix, show=False):
+    """Plot boxplot of MECR scores, one point per sample.
+
+    Gene pairs are first summarised to one median per method and sample, matching the
+    aggregation pattern of plot_marker_F1_score. The plotted spread therefore reflects
+    sample-to-sample variability rather than gene-panel heterogeneity, and no outlier
+    trimming is needed because the per-sample median is already robust.
+    """
     results_file = (
         Path(_constants.BASE_PATH)
         / "metrics"
@@ -451,46 +457,115 @@ def plot_MECR_score(cohort, results_suffix, percentile=97, show=False):
 
     results_df = pd.read_csv(results_file, index_col=0)
 
-    # Remove outliers per method and prepare for plotting
-    filtered = []
-    for method, df in results_df.groupby("method"):
-        threshold = np.percentile(df["MECR"], percentile)
-        filtered.append(df[df["MECR"] <= threshold])
-    results_df_filtered = pd.concat(filtered)
-
-    # Order datasets by median MECR value
-    method_order = (
-        results_df_filtered.groupby("method")["MECR"].median().sort_values().index
+    # one value per method and sample, then order methods by their mean across samples
+    median_results = (
+        results_df.groupby(["method", "sample"])["MECR"].median().reset_index()
     )
-
-    # Create custom palette matching the dataset order
+    method_order = median_results.groupby("method")["MECR"].mean().sort_values().index
     custom_palette = {method: _constants.method_colors[method] for method in method_order}
 
-    fig = plt.figure(figsize=(3.5, 8), dpi=300)
+    fig = plt.figure(figsize=(5, 8), dpi=300)
     plt.grid(True, alpha=0.3, zorder=0)
 
-    # Create violin plot with quartile lines and custom colors
-    sns.violinplot(
+    sns.boxplot(
+        data=median_results,
         y="method",
         x="MECR",
-        data=results_df_filtered,
+        hue="method",
         order=method_order,
-        inner="quartile",
-        linewidth=0.7,
-        zorder=2,
-        palette=custom_palette,  # Use the custom palette instead of hue
+        palette=custom_palette,
         legend=False,
+        linewidth=0.7,
+        showfliers=False,
+        zorder=2,
     )
-    plt.xlim(right=0.41)
+    # show the individual samples on top of the boxes
+    sns.stripplot(
+        data=median_results,
+        y="method",
+        x="MECR",
+        order=method_order,
+        color="black",
+        size=2,
+        alpha=0.6,
+        zorder=3,
+    )
     plt.yticks(rotation=0, va="center")
     plt.ylabel("")
-    plt.xlabel("MECR Score")
+    plt.xlabel("MECR score (per-sample median)")
     plt.tight_layout()
 
     if show:
         plt.show()
     fig.savefig(plot_path / f"MECR_score_{results_suffix}.png", bbox_inches="tight")
-    plt.show()
+    plt.close(fig)
+
+
+def plot_MECR_vs_sensitivity(cohort, results_suffix, show=False):
+    """Scatter MECR (specificity) against assigned transcripts (sensitivity) per method.
+
+    MECR on its own rewards conservative segmentation: assigning fewer transcripts per
+    cell lowers co-expression regardless of segmentation quality, which is why small
+    rastered negative controls score well. Plotting it against a sensitivity axis makes
+    that trade-off visible, as in Hartman & Satija 2024 (eLife 96949), Figure 3e.
+
+    Requires assigned_transcript_counts.csv from compute_assigned_transcripts.
+    """
+    metrics_path = Path(_constants.BASE_PATH) / "metrics" / cohort
+    mecr_file = (
+        metrics_path / "marker_gene_metrics" / f"MECR_score_{results_suffix}.csv"
+    )
+    assigned_file = (
+        metrics_path / "assigned_transcripts" / "assigned_transcript_counts.csv"
+    )
+    if not assigned_file.exists():
+        print(f"{assigned_file} not found, skipping MECR vs sensitivity plot.")
+        return
+    plot_path = mecr_file.parent / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
+    # specificity: median MECR per sample, averaged over samples
+    mecr = (
+        pd.read_csv(mecr_file, index_col=0)
+        .groupby(["method", "sample"])["MECR"]
+        .median()
+        .groupby("method")
+        .mean()
+    )
+    # sensitivity: fraction of detected transcripts assigned to a cell, pooled per method
+    assigned = pd.read_csv(assigned_file, index_col=0)
+    totals = assigned.groupby("method")[["assigned_count_qced", "total_count"]].sum()
+    pct_assigned = 100 * totals["assigned_count_qced"] / totals["total_count"]
+
+    df = pd.concat([mecr, pct_assigned.rename("pct_assigned")], axis=1).dropna()
+
+    fig, ax = plt.subplots(figsize=(7, 6), dpi=300)
+    ax.grid(True, alpha=0.3, zorder=0)
+    for method, row in df.iterrows():
+        ax.scatter(
+            row["MECR"],
+            row["pct_assigned"],
+            color=_constants.method_colors[method],
+            s=45,
+            zorder=2,
+        )
+        ax.annotate(
+            _constants.clean_method_names.get(method, method),
+            (row["MECR"], row["pct_assigned"]),
+            fontsize=5,
+            xytext=(3, 3),
+            textcoords="offset points",
+        )
+    ax.set_xlabel("MECR score (per-sample median) - lower is more specific")
+    ax.set_ylabel("Transcripts assigned to a cell [%] - higher is more sensitive")
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+    fig.savefig(
+        plot_path / f"MECR_vs_sensitivity_{results_suffix}.png", bbox_inches="tight"
+    )
+    plt.close(fig)
 
 
 def compute_marker_F1_score(
