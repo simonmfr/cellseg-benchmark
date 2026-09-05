@@ -10,6 +10,8 @@ parser = argparse.ArgumentParser(
 parser.add_argument("dimension", choices=["2D", "3D"], help="segmentation mode.")
 args = parser.parse_args()
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+# DSS checkout, shared by both clusters. Switch to $HOME/gitrepos once merged.
+REPO = pathlib.Path("/dss/dsshome1/0C/ra98gaq/git/cellseg-benchmark")
 METHOD = f"Baysor_{args.dimension}_denovo"
 
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
@@ -34,7 +36,7 @@ for key, value in data.items():
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 mamba activate segmentation
-python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/baysor_denovo_to_sdata.py {value["path"]} \
+python {REPO}/scripts/seg_postprocessing/baysor_denovo_to_sdata.py {value["path"]} \
  {BASE_PATH}/samples/{key}/results/{METHOD}
 """)
     f.close()
