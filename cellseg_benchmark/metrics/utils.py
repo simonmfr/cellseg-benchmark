@@ -239,6 +239,11 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
     j = normalize_jobname(jobname)
     k = str(key)
 
+    # --- Baysor without prior: Baysor_<dim>_denovo_<key>
+    m = re.match(rf"^Baysor_(?P<dim>2D|3D)_denovo_{re.escape(k)}$", j)
+    if m:
+        return f"Baysor_{m.group('dim')}_denovo"
+
     # --- Baysor with optional qualifier before key
     m = re.match(
         rf"^Baysor_(?:(?P<qualifier>.+?)_)?{re.escape(k)}_CP(?P<cp>\d+)_(?P<stain>[^_]+)_(?P<conf>.+)$",

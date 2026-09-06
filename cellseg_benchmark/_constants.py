@@ -1787,6 +1787,8 @@ cell_type_colors = {
 
 method_colors = {
     # Baysor variants (red palette)
+    "Baysor_2D_denovo": "#5c0010",
+    "Baysor_3D_denovo": "#7a0012",
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2": "#9a0013",
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8": "#a71423",
     "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2": "#b32833",
