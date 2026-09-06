@@ -8,29 +8,17 @@ parser = argparse.ArgumentParser(
     description="scripts for Baysor segmentation without prior (native CLI)."
 )
 parser.add_argument("dimension", choices=["2D", "3D"], help="segmentation mode.")
-parser.add_argument(
-    "--mem", default="90G", help="Memory per job. Serial caps at 100G per user."
-)
-parser.add_argument("--cluster", default="serial", help="SLURM cluster.")
-parser.add_argument("--partition", default="serial_std", help="SLURM partition.")
-parser.add_argument("--time", default="24:00:00", help="Walltime per job.")
+parser.add_argument("--mem", default="90G", help="Memory per job.")
+parser.add_argument("--time", default="48:00:00", help="Walltime per job.")
 parser.add_argument("--cpus", default="8", help="Cores per job.")
 args = parser.parse_args()
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+# DSS checkout, shared by both clusters. Switch to $HOME/gitrepos once merged.
 REPO = pathlib.Path("/dss/dsshome1/0C/ra98gaq/git/cellseg-benchmark")
 METHOD = f"Baysor_{args.dimension}_denovo"
 
-# Samples too large for serial_std (24 h wall, 100 G per user). cm4 lifts the
-# memory cap and the extra cores bring the run back under its 24 h limit.
-LARGE = {
-    "ABCAtlas_s5_r0": {
-        "cluster": "cm4",
-        "partition": "cm4_tiny",
-        "qos": "cm4_tiny",
-        "mem": "250G",
-        "cpus": "32",
-    }
-}
+# holds about four times the molecules of a typical sample
+LARGE = {"ABCAtlas_s5_r0": "250G"}
 
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
@@ -40,26 +28,17 @@ pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}").mkdir(
 )
 
 for key, value in data.items():
-    job = {
-        "cluster": args.cluster,
-        "partition": args.partition,
-        "time": args.time,
-        "mem": args.mem,
-        "cpus": args.cpus,
-    } | LARGE.get(key, {})
-    qos = f"#SBATCH --qos={job['qos']}\n" if "qos" in job else ""
     with open(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}/{key}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
-#SBATCH --clusters={job["cluster"]}
-#SBATCH --partition={job["partition"]}
-{qos}#SBATCH -t {job["time"]}
-#SBATCH --mem={job["mem"]}
-#SBATCH --cpus-per-task={job["cpus"]}
+#SBATCH -p lrz-cpu
+#SBATCH --qos=cpu
+#SBATCH -t {args.time}
+#SBATCH --mem={LARGE.get(key, args.mem)}
+#SBATCH --cpus-per-task={args.cpus}
 #SBATCH -J {METHOD}_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/{METHOD}_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/{METHOD}_{key}.err
-#SBATCH --get-user-env
-#SBATCH --export=NONE
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 source {REPO}/scripts/sbatch_utils/run_log.sh
@@ -72,11 +51,11 @@ PARAMS="baysor=cpp-0.8.3,scale=5,n_clusters=10,mrf,no_prior"
 CMD="python {REPO}/scripts/segmentation/baysor_denovo.py \\"${{INPUT_PATH}}\\" ${{KEY}} ${{DIMENSION}}"
 start_run_log
 
+mamba activate segmentation
 export OMP_NUM_THREADS="${{SLURM_CPUS_PER_TASK}}"
-PYTHON="/dss/dsshome1/0C/ra98gaq/micromamba/envs/baysor_denovo/bin/python"
 
 mkdir -p "${{RESULT_DIR}}"
-"${{PYTHON}}" {REPO}/scripts/segmentation/baysor_denovo.py \\
+python {REPO}/scripts/segmentation/baysor_denovo.py \\
   "${{INPUT_PATH}}" \\
   "${{KEY}}" \\
   "${{DIMENSION}}"
