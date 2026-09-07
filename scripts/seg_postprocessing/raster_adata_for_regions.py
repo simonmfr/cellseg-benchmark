@@ -12,6 +12,7 @@ import logging
 import pathlib
 import warnings
 
+import scanpy as sc
 import spatialdata as sd
 import yaml
 
@@ -73,6 +74,13 @@ adata = adata_utils.filter_spatial_outlier_cells(
     logger=logger,
 )
 adata = adata_utils.filter_genes(adata, save_path=save_path / "plots", logger=logger)
+
+# Empty bins are background inside the bounding box, and leave the volume
+# normalisation undefined. Everything with at least one transcript is kept.
+n_before = adata.n_obs
+sc.pp.filter_cells(adata, min_counts=1)
+logger.info("Dropped %d empty bins, %d remain", n_before - adata.n_obs, adata.n_obs)
+
 adata = adata_utils.normalize_counts(
     adata,
     save_path=save_path / "plots",
