@@ -30,7 +30,7 @@ parser.add_argument("--seg_method", default="Negative_Control_Rastered_25")
 args = parser.parse_args()
 
 base_path = pathlib.Path(_constants.BASE_PATH)
-save_path = base_path / "analysis" / args.cohort / args.seg_method
+save_path = base_path / "misc" / "brain_regions" / args.cohort
 (save_path / "plots").mkdir(parents=True, exist_ok=True)
 
 sample_metadata_file, excluded = (

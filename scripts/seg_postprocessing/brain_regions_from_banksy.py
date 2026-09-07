@@ -242,7 +242,7 @@ def main():
     config = pathlib.Path(
         args.config or repo / "configs" / "brain_regions" / f"{args.cohort}.yaml"
     )
-    plot_dir = pathlib.Path(args.adata_path).parent / "plots" / "brain_regions"
+    plot_dir = pathlib.Path(args.adata_path).parent / "plots"
 
     logger.info("Loading %s", args.adata_path)
     adata = sc.read_h5ad(args.adata_path)

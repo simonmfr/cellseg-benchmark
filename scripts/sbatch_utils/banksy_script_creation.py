@@ -26,7 +26,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 repo = pathlib.Path(args.repo).expanduser().resolve()
-method_dir = BASE_PATH / "analysis" / args.cohort / args.seg_method
+regions_dir = BASE_PATH / "misc" / "brain_regions" / args.cohort
 sbatch_dir = BASE_PATH / "misc" / "sbatches" / "sbatch_banksy"
 sbatch_dir.mkdir(parents=True, exist_ok=True)
 
@@ -63,7 +63,7 @@ jobs = {
         "time": "12:00:00",
         "env": args.banksy_env,
         "cmd": f"python {repo}/scripts/seg_postprocessing/banksy_clustering.py"
-        f" {args.cohort} {method_dir}/adatas/adata_regions.h5ad.gz {method_dir}",
+        f" {args.cohort} {regions_dir}/adatas/adata_regions.h5ad.gz {regions_dir}",
     },
 }
 
