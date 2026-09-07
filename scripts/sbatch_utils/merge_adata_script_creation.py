@@ -43,6 +43,7 @@ methods = [
     "Negative_Control_Rastered_10",
     "Negative_Control_Rastered_25",
     "Negative_Control_Voronoi",
+    "Negative_Control_Visium",
     "vpt_2D_DAPI_PolyT",
     "vpt_2D_DAPI_nuclei",
     "vpt_2D_DAPI_PolyT_nuclei",
