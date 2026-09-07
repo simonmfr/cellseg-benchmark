@@ -36,7 +36,12 @@ def compute_negative_markers_from_reference(
     max_ratio_cells = 0.005  # maximum ratio of cells expressing a marker to call it a negative marker gene-ct pair
 
     # Subset adata to genes of interest (measured in spatial data)
-    adata = adata[:, genes]
+    genes_copy = genes.copy()
+    genes_subset = genes_copy[genes_copy.isin(adata.var_names)]
+    if len(genes_subset) != len(genes_copy):
+        print("The following genes are not present in the adata.var_names:\n"
+              f"{', '.join(set(genes_copy)-set(genes_subset))}")
+    adata = adata[:, genes_subset]
     # Get cell types that we find in both modalities
     shared_celltypes = list(
         set(celltypes).intersection(adata.obs[celltype_name].unique())
