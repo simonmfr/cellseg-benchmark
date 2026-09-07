@@ -12,22 +12,19 @@ parser.add_argument("--mem", default="90G", help="Memory per job.")
 parser.add_argument("--time", default="48:00:00", help="Walltime per job.")
 parser.add_argument("--cpus", default="8", help="Cores per job.")
 args = parser.parse_args()
+
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-REPO = BASE_PATH
 METHOD = f"Baysor_{args.dimension}_denovo"
 
-# holds about four times the molecules of a typical sample
 LARGE = {"ABCAtlas_s5_r0": "250G"}
 
-with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
+with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
-pathlib.Path(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}").mkdir(
-    parents=False, exist_ok=True
-)
+(BASE_PATH / f"misc/sbatches/sbatch_{METHOD}").mkdir(parents=False, exist_ok=True)
 
 for key, value in data.items():
-    with open(f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}/{key}.sbatch", "w") as f:
+    with open(BASE_PATH / f"misc/sbatches/sbatch_{METHOD}/{key}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
@@ -40,21 +37,21 @@ for key, value in data.items():
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
-source {REPO}/scripts/sbatch_utils/run_log.sh
+source "$HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh"
 
 KEY="{key}"
 DIMENSION="{args.dimension}"
 INPUT_PATH="{value["path"]}"
 RESULT_DIR="{BASE_PATH}/samples/{key}/results/{METHOD}"
 PARAMS="baysor=cpp-0.8.3,scale=5,n_clusters=10,mrf,no_prior"
-CMD="python {REPO}/scripts/segmentation/baysor_denovo.py \\"${{INPUT_PATH}}\\" ${{KEY}} ${{DIMENSION}}"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_denovo.py \\"${{INPUT_PATH}}\\" ${{KEY}} ${{DIMENSION}}"
 start_run_log
 
 mamba activate segmentation
 export OMP_NUM_THREADS="${{SLURM_CPUS_PER_TASK}}"
 
 mkdir -p "${{RESULT_DIR}}"
-python {REPO}/scripts/segmentation/baysor_denovo.py \\
+python "$HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_denovo.py" \\
   "${{INPUT_PATH}}" \\
   "${{KEY}}" \\
   "${{DIMENSION}}"

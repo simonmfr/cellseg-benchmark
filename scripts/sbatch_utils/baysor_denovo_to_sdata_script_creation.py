@@ -9,23 +9,23 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("dimension", choices=["2D", "3D"], help="segmentation mode.")
 args = parser.parse_args()
+
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-# DSS checkout, shared by both clusters. Switch to $HOME/gitrepos once merged.
-REPO = pathlib.Path("/dss/dsshome1/0C/ra98gaq/git/cellseg-benchmark")
 METHOD = f"Baysor_{args.dimension}_denovo"
 EXPLORER = " --explorer" if args.dimension == "2D" else ""
 
-with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
+with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
 (BASE_PATH / f"misc/sbatches/sbatch_{METHOD}_to_sdata").mkdir(
     parents=False, exist_ok=True
 )
+
 for key, value in data.items():
-    f = open(
-        f"{BASE_PATH}/misc/sbatches/sbatch_{METHOD}_to_sdata/{key}.sbatch", "w"
-    )
-    f.write(f"""#!/bin/bash
+    with open(
+        BASE_PATH / f"misc/sbatches/sbatch_{METHOD}_to_sdata/{key}.sbatch", "w"
+    ) as f:
+        f.write(f"""#!/bin/bash
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
@@ -36,8 +36,10 @@ for key, value in data.items():
 #SBATCH -e {BASE_PATH}/misc/logs/errors/{METHOD}_to_sdata_{key}.err
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
+set -euo pipefail
+
 mamba activate segmentation
-python {REPO}/scripts/seg_postprocessing/baysor_denovo_to_sdata.py {value["path"]} \
- {BASE_PATH}/samples/{key}/results/{METHOD}{EXPLORER}
+python "$HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/baysor_denovo_to_sdata.py" \\
+  "{value["path"]}" \\
+  "{BASE_PATH}/samples/{key}/results/{METHOD}"{EXPLORER}
 """)
-    f.close()
