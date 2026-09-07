@@ -13,8 +13,7 @@ parser.add_argument("--time", default="48:00:00", help="Walltime per job.")
 parser.add_argument("--cpus", default="8", help="Cores per job.")
 args = parser.parse_args()
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-# DSS checkout, shared by both clusters. Switch to $HOME/gitrepos once merged.
-REPO = pathlib.Path("/dss/dsshome1/0C/ra98gaq/git/cellseg-benchmark")
+REPO = BASE_PATH
 METHOD = f"Baysor_{args.dimension}_denovo"
 
 # holds about four times the molecules of a typical sample
