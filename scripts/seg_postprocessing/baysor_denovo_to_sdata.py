@@ -58,8 +58,11 @@ def main():
     save_path = pathlib.Path(args.save_path)
     data_path = pathlib.Path(args.data_path)
     baysor_out = save_path / "baysor_out"
-    assert (baysor_out / "feature_matrix.h5").exists(), "not correctly computed"
-
+    feature_matrix = baysor_out / "feature_matrix.h5"
+    if not feature_matrix.exists():
+        raise FileNotFoundError(
+            f"Missing {feature_matrix}; Baysor output not correctly computed"
+        )
     logger.info("Loading images...")
     sdata = spatialdata_io.merscope(
         data_path,
