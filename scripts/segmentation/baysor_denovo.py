@@ -22,7 +22,7 @@ parser.add_argument("--keep_transcripts", action="store_true")
 args = parser.parse_args()
 
 # CLI built into the micromamba env by baysor_denovo_build.sh (see that file for setup).
-BAYSOR = "/dss/dsshome1/0C/ra98gaq/micromamba/envs/baysor_denovo/bin/baysor"
+BAYSOR = "/opt/baysor-cpp/bin/baysor"
 COLS = ["global_x", "global_y", "global_z", "gene"]
 
 

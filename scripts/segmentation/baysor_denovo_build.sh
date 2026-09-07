@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Creates the micromamba environment used by the baysor_denovo scripts and builds
-# the pinned native Baysor C++ CLI into it. Required on the LRZ Linux Cluster, which
-# has no enroot image. Thread count is set by OMP_NUM_THREADS. Run once.
+# Builds the pinned native Baysor C++ CLI in a micromamba environment and packs it
+# into a copy of the enroot image, under /opt/baysor-cpp, so the segmentation
+# environment and its older Baysor stay untouched. Run once on the AI Systems cluster.
 
 set -euo pipefail
 
@@ -39,4 +39,18 @@ micromamba run -r "${ROOT}" -n "${ENV}" cmake --build "${WORK}/build" --target b
 micromamba run -r "${ROOT}" -n "${ENV}" cmake --install "${WORK}/build"
 
 rm -rf "${WORK}"
-echo "installed Baysor ${TAG}"
+
+IMG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images"
+export ENROOT_DATA_PATH="${IMG}/enroot_data"
+mkdir -p "${ENROOT_DATA_PATH}"
+enroot create -n baysor_image "${IMG}/benchmark_new.sqsh"
+
+PREFIX="${ENROOT_DATA_PATH}/baysor_image/opt/baysor-cpp"
+mkdir -p "${PREFIX}/bin" "${PREFIX}/lib"
+cp -L "${ENVDIR}/bin/baysor" "${PREFIX}/bin/"
+ldd "${ENVDIR}/bin/baysor" | awk '/=> \/dss/ {print $3}' | sort -u \
+  | xargs -I{} cp -L {} "${PREFIX}/lib/"
+
+enroot export -o "${IMG}/benchmark_baysor.sqsh" baysor_image
+enroot remove -f baysor_image
+echo "installed Baysor ${TAG} in ${IMG}/benchmark_baysor.sqsh"
