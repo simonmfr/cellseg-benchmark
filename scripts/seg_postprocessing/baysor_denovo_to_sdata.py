@@ -154,9 +154,9 @@ def main():
             ram_threshold_gb=4,
             pixel_size=1 / translation.iloc[0, 0],
         )
-        subprocess.run(["rm", "-r", str(zarr_path / "images")])
+        subprocess.run(["rm", "-r", str(zarr_path / "images")], check=True)
 
-    subprocess.run(["rm", "-r", str(baysor_out)])
+    subprocess.run(["rm", "-r", str(baysor_out)], check=True)
     logger.info("Done.")
 
 
