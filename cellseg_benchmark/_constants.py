@@ -1816,14 +1816,13 @@ method_colors = {
     "Cellpose_1_Merlin": "#31a354",
     "Cellpose_2_DAPI_PolyT": "#74c476",
     "Cellpose_2_DAPI_Transcripts": "#9cd8a2",
-    # Proseg variants (purple palette)
-    # TODO: add 3D models
-    "Proseg_pure": "#4a1486",
-    "Proseg_Cellpose_1_DAPI_PolyT": "#5a0876",
-    "Proseg_Cellpose_1_DAPI_Transcripts": "#6a1894",
-    "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
-    "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
-    "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
+    # Proseg variants (outdated)
+#    "Proseg_pure": "#4a1486",
+#    "Proseg_Cellpose_1_DAPI_PolyT": "#5a0876",
+#    "Proseg_Cellpose_1_DAPI_Transcripts": "#6a1894",
+#    "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
+#    "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
+#    "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
     # Proseg 3D variants (yellow palette)
     "Proseg_3D_Cellpose_1_DAPI_PolyT": "#f5f0df",
     "Proseg_3D_Cellpose_1_DAPI_Transcripts": "#f3e4bf",
@@ -1842,6 +1841,9 @@ method_colors = {
     "ComSeg": "#d7f035",
     "SIS_DAPI_total_mrna": "#9cb01c",
     "Watershed_Merlin": "#8a9159",
+    # Ficture based
+    'Ficture_segments_dapi': "#5a0876",
+    'Ficture_segments': "#7d3db3"
 }
 
 clean_method_names = {
