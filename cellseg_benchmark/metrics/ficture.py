@@ -234,6 +234,12 @@ def plot_ficture_f1(
         celltype_plots = False,
         show = True
 ):
+    """Plot ficture F1 scores.
+
+    Plots one plot per method showing cell-type specific F1 scores (if celltype_plots = True),
+    one plot summarising micro and macro scores for each method, and one plot showing cell-type
+    specific F1 scores across methods.
+    """
     results_file = (
             pathlib.Path(_constants.BASE_PATH)
             / "metrics"

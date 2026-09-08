@@ -837,6 +837,10 @@ def compute_negative_marker_purity(
     return pd.DataFrame({"negative_marker_purity": [negative_marker_purity]})
 
 def plot_negative_marker_purity(cohort, results_suffix, show=False):
+    """Plot negative marker purity scores.
+
+    Plots maker purity scores as bar plot
+    """
     results_file = (
             Path(_constants.BASE_PATH)
             / "metrics"
