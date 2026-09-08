@@ -75,11 +75,12 @@ adata = adata_utils.filter_spatial_outlier_cells(
 )
 adata = adata_utils.filter_genes(adata, save_path=save_path / "plots", logger=logger)
 
-# Empty bins are background inside the bounding box, and leave the volume
-# normalisation undefined. Everything with at least one transcript is kept.
+# min_counts=10 drops background speckle without opening holes in real tissue.
 n_before = adata.n_obs
-sc.pp.filter_cells(adata, min_counts=1)
-logger.info("Dropped %d empty bins, %d remain", n_before - adata.n_obs, adata.n_obs)
+sc.pp.filter_cells(adata, min_counts=10)
+logger.info(
+    "Dropped %d low-count/empty bins, %d remain", n_before - adata.n_obs, adata.n_obs
+)
 
 adata = adata_utils.normalize_counts(
     adata,
