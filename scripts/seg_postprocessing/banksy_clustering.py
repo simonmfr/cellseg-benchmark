@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 """Joint BANKSY spatial-domain clustering across all samples of one cohort.
 
-Two neighbourhood scales are clustered independently, because one kernel cannot
-resolve both macro domains (CTX, BS, STR) and laminae (cortical layers, DG-sg,
-CA sp). Clusters land in .obs as banksy_{scale}_k{k}_res{res}; pick one column
-per scale from the plots, then label it with brain_regions_from_banksy.py.
+Confirmed combo: coarse, k_neighbors=50, resolution=0.4. Lands in .obs as
+banksy_coarse_k50_res0.4, consumed by brain_regions_from_banksy.py.
 """
 
 import argparse
@@ -28,13 +26,8 @@ LAMBDA = 0.8  # 0.2 = cell typing, 0.8 = spatial domains (Banksy)
 SCALES = {
     "coarse": {
         "k_geom": "c(15, 30)",
-        "k_neighbors": "c(50, 75)",
-        "resolution": "c(0.2, 0.4)",
-    },
-    "fine": {
-        "k_geom": "c(6, 12)",
-        "k_neighbors": "c(15, 30)",
-        "resolution": "c(1.0, 1.5)",
+        "k_neighbors": "50",
+        "resolution": "0.4",
     },
 }
 
