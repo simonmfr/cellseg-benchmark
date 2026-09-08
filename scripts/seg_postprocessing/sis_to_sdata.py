@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 import argparse
-from gettext import translation
 import logging
 import pathlib
-
-from shapely.coordinates import transform
 
 import anndata as ad
 import geopandas as gpd
@@ -51,6 +48,7 @@ def main():
             adata.obs["cell_id"].astype(str),
         )
     )
+
     boundaries["cell_id"] = boundaries["id"].astype(str).map(spot_id_to_label)
     boundaries = boundaries.dropna(subset=["cell_id", "geometry"]).copy()
     boundaries["geometry"] = boundaries.geometry.make_valid()
@@ -65,18 +63,24 @@ def main():
     sample_name = sis_out.parent.parent.parent.name
     MIN_READS = 10
     concerning = (missing_reads >= MIN_READS).sum()
-    del adata.uns['cell_polygons'] #Not relevant, big object and probably redundant within spatialdata, as cell polygons are saved in boundaries
+
+    del adata.uns["cell_polygons"]
+
     logger.info(
-        f"[{sample_name}] {len(missing)} missing total, {concerning} with >= {MIN_READS} reads"
+        f"[{sample_name}] {len(missing)} missing total, "
+        f"{concerning} with >= {MIN_READS} reads"
     )
 
     if concerning / adata.n_obs > 0.05:
         raise ValueError(
-            f"[{sample_name}] {concerning}/{adata.n_obs} adata cells with >= {MIN_READS} reads have no boundary (>5%)"
+            f"[{sample_name}] {concerning}/{adata.n_obs} adata cells with "
+            f">= {MIN_READS} reads have no boundary (>5%)"
         )
+
     if len(missing):
         logger.warning(
-            f"[{sample_name}] {len(missing)} adata cells have no boundary, dropping from table"
+            f"[{sample_name}] {len(missing)} adata cells have no boundary, "
+            "dropping from table"
         )
         adata = adata[adata.obs_names.isin(boundaries.index)].copy()
     else:
@@ -110,6 +114,14 @@ def main():
         sdata[key] = sdata_tmp[key]
     del sdata_tmp
 
+    translation = pd.read_csv(
+        pathlib.Path(args.image_path)
+        / "images"
+        / "micron_to_mosaic_pixel_transform.csv",
+        sep=" ",
+        header=None,
+    )
+
     transform = sd.transformations.Affine(
         translation.to_numpy(),
         input_axes=("x", "y"),
@@ -121,24 +133,32 @@ def main():
         transform,
     )
 
-    boundaries = sdata['boundaries_3D'].copy()
+    boundaries = sdata["boundaries_3D"].copy()
     boundaries_2d = boundaries[["cell_id", "geometry"]].dissolve(by="cell_id")
     boundaries_2d.index = boundaries_2d.index.rename(None)
+
     sdata["boundaries_2D"] = sd.models.ShapesModel.parse(boundaries_2d)
-    sd.transformations.set_transformation(sdata["boundaries_2D"], transform)
+    sd.transformations.set_transformation(
+        sdata["boundaries_2D"],
+        transform,
+    )
 
     intensities = pd.DataFrame(
         sopa.aggregation.aggregate_channels(
-            sdata, shapes_key="boundaries_2D"
+            sdata,
+            shapes_key="boundaries_2D",
         ),
         columns=sopa.utils.validated_channel_names(
             sopa.utils.get_spatial_image(
-                sdata, list(sdata.images.keys())[0], return_key=True
+                sdata,
+                list(sdata.images.keys())[0],
+                return_key=True,
             )[1]
         ),
         index=sdata["boundaries_2D"].index.astype(str),
     )
-    intensities = intensities.loc[sdata['table'].obs_names]
+
+    intensities = intensities.loc[sdata["table"].obs_names]
     sdata["table"].obsm["intensities"] = intensities
     del sdata["boundaries_2D"]
 
@@ -146,7 +166,3 @@ def main():
     logger.info(f"Writing to {out_path}")
     sdata.write(out_path, overwrite=True)
     logger.info("Done.")
-
-
-if __name__ == "__main__":
-    main()
