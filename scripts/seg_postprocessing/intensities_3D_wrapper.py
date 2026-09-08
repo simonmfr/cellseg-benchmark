@@ -33,7 +33,7 @@ def main():
     args = parser.parse_args()
 
     BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-    methods_3D = ["Proseg_3D", "vpt_3D", "Watershed_Merlin", "SIS"]
+    methods_3D = ["Proseg_3D", "vpt_3D", "Watershed_Merlin", "SIS", "Baysor_3D"]
     sample_path = pathlib.Path(BASE_PATH) / "samples" / args.sample
 
     methods = []
