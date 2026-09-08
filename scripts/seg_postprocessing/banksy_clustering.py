@@ -136,8 +136,7 @@ for scale, p in SCALES.items():
     df.columns = [
         re.sub(r"^clust_M\d+_lam[\d.]+_", f"banksy_{scale}_", c) for c in df.columns
     ]
-    # colData is ordered by sample after cbind, so join on the index. Drop any
-    # same-named column first, so rerunning one combo overwrites, not errors.
+    # colData is ordered by sample after cbind, so join on the index.
     adata.obs = adata.obs.drop(columns=df.columns, errors="ignore").join(df)
     for col in df.columns:
         if adata.obs[col].isna().any():
@@ -152,8 +151,6 @@ for key in cluster_keys:
         adata, key, save_path=str(save_folder / "plots"), save_name=f"{key}.png"
     )
 
-# Write beside the original, then swap in: a crash mid-write leaves the
-# previous columns intact instead of a half-written file.
 tmp = tempfile.NamedTemporaryFile(
     dir=pathlib.Path(args.adata_path).parent, suffix=".h5ad", delete=False
 )
