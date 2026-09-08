@@ -26,7 +26,7 @@ from matplotlib.patches import Patch
 from shapely.geometry import Point
 from skimage.measure import label as cc_label
 
-from cellseg_benchmark._constants import brain_regions_colors
+from cellseg_benchmark._constants import brain_region_markers, brain_regions_colors
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import (
     _extent_from_geo,
@@ -40,19 +40,6 @@ from cellseg_benchmark.spatial_mapping import (
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 DEFAULT_CLEANUP = {"min_hole_area_um2": 300000.0, "min_island_area_um2": 30000.0}
 
-# Shown per cluster by --init, so clusters are named from evidence, not shape
-# alone. Genes absent from the panel are skipped.
-MARKERS = {
-    "DG-sg": ["Prox1", "Dock10"],
-    "CAsp": ["Fibcd1", "Wfs1", "Neurod6"],
-    "CTX": ["Cux2", "Rorb", "Foxp2", "Bcl11b"],
-    "STR": ["Ppp1r1b", "Drd1", "Adora2a"],
-    "BS": ["Tcf7l2", "Slc17a6"],
-    "fiber_tracts": ["Mbp", "Plp1", "Mog"],
-    "VS": ["Ttr", "Foxj1"],
-    "Meninges": ["Dcn", "Slc47a1"],
-}
-
 logger = logging.getLogger("brain_regions")
 logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()
@@ -65,7 +52,9 @@ def write_skeleton(adata, cluster_key, config_path, plot_dir):
     plot_dir.mkdir(parents=True, exist_ok=True)
     clusters = sorted(adata.obs[cluster_key].astype(str).unique(), key=int)
 
-    genes = [g for gs in MARKERS.values() for g in gs if g in adata.var_names]
+    genes = [
+        g for gs in brain_region_markers.values() for g in gs if g in adata.var_names
+    ]
     if genes:
         expr = sc.get.obs_df(
             adata, keys=genes + [cluster_key], layer="volume_log1p_norm"
@@ -75,7 +64,7 @@ def write_skeleton(adata, cluster_key, config_path, plot_dir):
         )
         logger.info("%d marker genes in the panel -> cluster_markers.csv", len(genes))
     else:
-        logger.warning("None of the MARKERS genes are in the panel.")
+        logger.warning("None of the marker genes are in the panel.")
 
     for c in clusters:
         adata.obs["_one"] = np.where(
