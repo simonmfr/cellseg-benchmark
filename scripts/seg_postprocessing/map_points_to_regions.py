@@ -12,6 +12,7 @@ import scanpy as sc
 import tqdm
 from joblib import Parallel, delayed
 
+from cellseg_benchmark._constants import brain_regions_colors
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 
@@ -42,18 +43,19 @@ def process_method(
     df_all = df_all.set_index("obs_id").reindex(adata_points.obs_names)
 
     # Add to AnnData
-    adata_points.obs["region_mapped"] = df_all["label"].values
-    adata_points.obs["region_poly_index"] = df_all["poly_index"].values
+    adata_points.obs["brain_region"] = df_all["label"].values
+    adata_points.obs["brain_region_poly_index"] = df_all["poly_index"].values
 
     # Save CSV
-    df_all.to_csv(method_dir / "spatial_registration.csv")
+    df_all.to_csv(method_dir / "brain_regions.csv")
 
     # Produce plot
     plot_spatial_multiplot(
         adata_points,
-        "region_mapped",
+        "brain_region",
         save_path=method_dir / "plots",
-        save_name="spatial_registration.png",
+        save_name="brain_regions.png",
+        palette=brain_regions_colors,
     )
 
 
@@ -124,7 +126,7 @@ logger.info(
 )
 results = Parallel(n_jobs=n_jobs)(
     delayed(_process_method_wrapper)(m, args.cohort, anatom_annot, data_path)
-    for m in tqdm.tqdm(seg_methods, desc="spatial registration")
+    for m in tqdm.tqdm(seg_methods, desc="brain regions")
 )
 for m, status in results:
     if status != "ok":

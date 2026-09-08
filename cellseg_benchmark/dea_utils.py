@@ -328,7 +328,7 @@ def subset_by_brain_region(
     """Subset AnnData by brain region.
 
     Subset may be alias (cortex/hippocampus/white_matter/grey_matter)
-    or comma-separated raw labels from spatial_registration.csv.
+    or comma-separated raw labels from brain_regions.csv.
     """
     if not subset:
         return adata, None
@@ -349,7 +349,7 @@ def subset_by_brain_region(
         "hippocampus": ["HIP", "DG-sg", "CAsp"],
     }
 
-    reg_csv = method_path / "spatial_registration.csv"
+    reg_csv = method_path / "brain_regions.csv"
     try:
         region_df = pd.read_csv(reg_csv, index_col=0)
     except FileNotFoundError:
