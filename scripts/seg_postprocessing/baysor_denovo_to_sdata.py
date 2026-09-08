@@ -64,6 +64,7 @@ def main():
         raise FileNotFoundError(
             f"Missing {feature_matrix}; Baysor output not correctly computed"
         )
+
     logger.info("Loading images...")
     sdata = spatialdata_io.merscope(
         data_path,
@@ -92,6 +93,24 @@ def main():
     sdata["baysor_boundaries"] = spatialdata.models.ShapesModel.parse(boundaries)
     if outlines is not None:
         sdata["baysor_outlines"] = spatialdata.models.ShapesModel.parse(outlines)
+
+    translation = pd.read_csv(
+        data_path / "images" / "micron_to_mosaic_pixel_transform.csv",
+        sep=" ",
+        header=None,
+    )
+    transform = spatialdata.transformations.Affine(
+        translation.to_numpy(),
+        input_axes=("x", "y"),
+        output_axes=("x", "y"),
+    )
+    spatialdata.transformations.set_transformation(
+        sdata["baysor_boundaries"], transform
+    )
+    if outlines is not None:
+        spatialdata.transformations.set_transformation(
+            sdata["baysor_outlines"], transform
+        )
 
     logger.info("Loading counts...")
     with h5py.File(baysor_out / "feature_matrix.h5", "r") as f:
@@ -139,24 +158,10 @@ def main():
 
     logger.info("Saving data...")
     zarr_path = save_path / "sdata.zarr"
-    spatialdata.transformations.set_transformation(
-        sdata["baysor_boundaries"],
-        transform,
-    )
     sdata.write(str(zarr_path), overwrite=True)
 
     if args.explorer and not is_3d:
         sdata = spatialdata.read_zarr(str(zarr_path))
-        translation = pd.read_csv(
-            data_path / "images" / "micron_to_mosaic_pixel_transform.csv",
-            sep=" ",
-            header=None,
-        )
-        transform = spatialdata.transformations.Affine(
-            translation.to_numpy(),
-            input_axes=("x", "y"),
-            output_axes=("x", "y"),
-        )
         sopa.io.explorer.write(
             str(save_path / "sdata.explorer"),
             sdata,
