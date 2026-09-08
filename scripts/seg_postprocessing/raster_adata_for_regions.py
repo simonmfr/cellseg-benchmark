@@ -90,7 +90,7 @@ adata = adata_utils.normalize_counts(
     logger=logger,
 )
 
-out = save_path / "adatas" / "adata_regions.h5ad.gz"
+out = save_path / "adata_regions.h5ad.gz"
 out.parent.mkdir(parents=True, exist_ok=True)
 adata.write(out, compression="gzip")
 logger.info(

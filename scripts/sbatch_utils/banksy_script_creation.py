@@ -63,7 +63,7 @@ jobs = {
         "time": "05:00:00",
         "env": args.banksy_env,
         "cmd": f"python {repo}/scripts/seg_postprocessing/banksy_clustering.py"
-        f" {args.cohort} {regions_dir}/adatas/adata_regions.h5ad.gz {regions_dir}",
+        f" {args.cohort} {regions_dir}/adata_regions.h5ad.gz {regions_dir}",
     },
 }
 

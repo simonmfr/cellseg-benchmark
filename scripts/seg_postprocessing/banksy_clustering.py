@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 """Joint BANKSY spatial-domain clustering across all samples of one cohort.
 
-Confirmed combo: coarse, k_neighbors=50, resolution=0.4. Lands in .obs as
-banksy_coarse_k50_res0.4, consumed by brain_regions_from_banksy.py.
+Confirmed combo: coarse, k_neighbors=50, resolution=0.4. Adds banksy_coarse_k50_res0.4
+to adata_path in place, so rerunning with a different combo keeps earlier columns;
+rerunning the same combo overwrites just that column. Consumed by
+brain_regions_from_banksy.py.
 """
 
 import argparse
@@ -10,6 +12,7 @@ import logging
 import os
 import pathlib
 import re
+import tempfile
 
 import pandas as pd
 import rpy2.rinterface_lib.callbacks as rcb
@@ -85,8 +88,8 @@ rcb.logger.setLevel(logging.ERROR)
 
 parser = argparse.ArgumentParser(description="Joint BANKSY clustering per cohort.")
 parser.add_argument("cohort", help="Cohort name, e.g. 'foxf2'.")
-parser.add_argument("adata_path", help="Integrated adata of a raster segmentation.")
-parser.add_argument("save_folder", help="Folder for the clustered adata and plots.")
+parser.add_argument("adata_path", help="Adata to cluster; updated in place.")
+parser.add_argument("save_folder", help="Folder for the cluster plots.")
 args = parser.parse_args()
 
 save_folder = pathlib.Path(args.save_folder)
@@ -133,8 +136,9 @@ for scale, p in SCALES.items():
     df.columns = [
         re.sub(r"^clust_M\d+_lam[\d.]+_", f"banksy_{scale}_", c) for c in df.columns
     ]
-    # colData is ordered by sample after cbind, so join on the index.
-    adata.obs = adata.obs.join(df)
+    # colData is ordered by sample after cbind, so join on the index. Drop any
+    # same-named column first, so rerunning one combo overwrites, not errors.
+    adata.obs = adata.obs.drop(columns=df.columns, errors="ignore").join(df)
     for col in df.columns:
         if adata.obs[col].isna().any():
             raise RuntimeError(f"{col}: cells missing a cluster after join.")
@@ -148,6 +152,12 @@ for key in cluster_keys:
         adata, key, save_path=str(save_folder / "plots"), save_name=f"{key}.png"
     )
 
-out = save_folder / f"spatial_reg_adata_{args.cohort}.h5ad"
-adata.write(out)
-logger.info("Wrote %s", out)
+# Write beside the original, then swap in: a crash mid-write leaves the
+# previous columns intact instead of a half-written file.
+tmp = tempfile.NamedTemporaryFile(
+    dir=pathlib.Path(args.adata_path).parent, suffix=".h5ad", delete=False
+)
+tmp.close()
+adata.write(tmp.name, compression="gzip")
+os.replace(tmp.name, args.adata_path)
+logger.info("Wrote %s", args.adata_path)
