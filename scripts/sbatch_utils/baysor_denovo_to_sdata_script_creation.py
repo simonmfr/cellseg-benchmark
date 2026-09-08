@@ -29,7 +29,7 @@ for key, value in data.items():
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 01:00:00
+#SBATCH -t 03:00:00
 #SBATCH --mem=150G
 #SBATCH -J {METHOD}_to_sdata_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/{METHOD}_to_sdata_{key}.out
