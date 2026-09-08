@@ -339,6 +339,18 @@ def plot_cleanup_pipeline(
 ):
     """Show one sample raw, cleaned and with borders, to tune the cleanup thresholds.
 
+    Args:
+        adata: AnnData with spatial coords in obsm["spatial_microns"].
+        sample: Value in adata.obs["sample"] to plot.
+        label_key: obs column with the cluster/region code per bin.
+        min_hole_area_um2: Fill enclosed gaps inside a region up to this size.
+        min_island_area_um2: Remove isolated specks of a region up to this size.
+            None skips this step.
+        connectivity: Pixel neighborhood for connected components (1 = 4-way, 2 = 8-way).
+        value_map: Optional dict mapping cluster code -> display label.
+        save: Optional path to save the figure instead of showing it.
+        cmap: Colormap for the label grid.
+
     Returns the cleaned grid, the regions and geo.
     """
     sub = adata[adata.obs["sample"] == sample]
