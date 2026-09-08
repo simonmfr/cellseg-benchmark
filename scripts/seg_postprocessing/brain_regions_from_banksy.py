@@ -38,7 +38,7 @@ from cellseg_benchmark.spatial_mapping import (
 )
 
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-DEFAULT_CLEANUP = {"min_hole_area_um2": 150000.0, "min_island_area_um2": 60000.0}
+DEFAULT_CLEANUP = {"min_hole_area_um2": 300000.0, "min_island_area_um2": 30000.0}
 
 # Shown per cluster by --init, so clusters are named from evidence, not shape
 # alone. Genes absent from the panel are skipped.
