@@ -21,7 +21,7 @@ parser.add_argument(
 )
 parser.add_argument("--env", default="seg_postprocessing", help="env for step 1")
 parser.add_argument(
-    "--banksy_env", default="seg_postprocessing", help="env with rpy2 and R Banksy"
+    "--banksy_env", default="banksy", help="env with rpy2 and R Banksy"
 )
 args = parser.parse_args()
 
@@ -60,7 +60,7 @@ jobs = {
     },
     f"{args.cohort}_banksy": {
         "mem": "150G",
-        "time": "12:00:00",
+        "time": "05:00:00",
         "env": args.banksy_env,
         "cmd": f"python {repo}/scripts/seg_postprocessing/banksy_clustering.py"
         f" {args.cohort} {regions_dir}/adatas/adata_regions.h5ad.gz {regions_dir}",
