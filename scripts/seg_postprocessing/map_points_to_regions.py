@@ -12,6 +12,7 @@ import scanpy as sc
 import tqdm
 from joblib import Parallel, delayed
 
+from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 
@@ -100,7 +101,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-data_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+data_path = pathlib.Path(BASE_PATH)
 if args.seg_methods is not None:
     seg_methods = args.seg_methods
 else:

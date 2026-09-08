@@ -9,6 +9,8 @@ import sopa
 from spatialdata import read_zarr
 from spatialdata_io import merscope
 
+from cellseg_benchmark import BASE_PATH
+
 parser = argparse.ArgumentParser(
     description="Compute ProSeg segmentation without any prior segmentation."
 )
@@ -28,7 +30,7 @@ proseg_flags = " ".join(args.proseg_flags)
 def main(data_path, sample, proseg_flags, base_segmentation):
     """Proseg 3D with vpt 3D segmentation."""
     vpt_path = (
-        pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples")
+        pathlib.Path(BASE_PATH, "samples")
         / sample
         / "results"
         / base_segmentation
@@ -38,7 +40,7 @@ def main(data_path, sample, proseg_flags, base_segmentation):
         base_segmentation.split("_")[1:]
     )
     save_path = (
-        pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples")
+        pathlib.Path(BASE_PATH, "samples")
         / sample
         / "results"
         / dir_name

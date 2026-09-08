@@ -8,6 +8,8 @@ import pandas as pd
 import sopa
 from spatialdata import read_zarr
 
+from cellseg_benchmark import BASE_PATH
+
 parser = argparse.ArgumentParser(
     description="Compute ProSeg 3D segmentation without any prior segmentation."
 )
@@ -27,7 +29,7 @@ proseg_flags = " ".join(args.proseg_flags)
 def main(data_path, sample, base_segmentation, proseg_flags):
     """ComSeg algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)  # to read in the images and points
-    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
+    path = f"{BASE_PATH}/samples/{sample}/results"
     sdata = read_zarr(
         pathlib.Path(path, base_segmentation, "sdata.zarr")
     )  # enthält keine Bilder oder transcripte

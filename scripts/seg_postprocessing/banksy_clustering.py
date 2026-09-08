@@ -14,6 +14,8 @@ import squidpy as sq
 from rpy2.robjects import default_converter, numpy2ri, pandas2ri
 from rpy2.robjects.conversion import localconverter
 
+from cellseg_benchmark import BASE_PATH
+
 today = datetime.date.today().strftime("%Y%m%d")
 
 
@@ -67,8 +69,8 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-data_dir = os.path.abspath("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+base_path = pathlib.Path(BASE_PATH)
+data_dir = os.path.abspath(BASE_PATH)
 if "SLURM_CPUS_PER_TASK" in os.environ:
     sc.settings.n_jobs = int(os.environ["SLURM_CPUS_PER_TASK"])
     print(sc.settings.n_jobs)

@@ -6,6 +6,8 @@ import sys
 
 import pandas as pd
 
+from cellseg_benchmark import BASE_PATH
+
 parser = argparse.ArgumentParser(
     description="Compute Baysor segmentation without prior, native CLI."
 )
@@ -51,7 +53,8 @@ def write_transcripts(data_path, out_csv, z_start, z_step):
 def main(data_path, sample, dimension, z_start, z_step, keep_transcripts):
     """Baysor without prior segmentation, native CLI, parquet output."""
     path = pathlib.Path(
-        "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples",
+        BASE_PATH,
+        "samples",
         sample,
         "results",
         f"Baysor_{dimension}_denovo",

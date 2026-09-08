@@ -42,7 +42,7 @@ def main():
     parser.add_argument(
         "--base-path",
         type=pathlib.Path,
-        default=pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"),
+        default=pathlib.Path(_constants.BASE_PATH),
     )
     args = parser.parse_args()
 

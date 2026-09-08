@@ -357,8 +357,8 @@ def find_latest_job_data_tsv(metrics_dir):
 
 
 def export_job_metrics_tsv(
-    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/run_log.tsv",
-    out_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
+    ref_file_path=f"{_constants.BASE_PATH}/misc/logs/run_log.tsv",
+    out_dir=f"{_constants.BASE_PATH}/misc/extracted_job_stats",
 ):
     """Export aggregated Slurm job metrics for all jobids in ref_file_path to:
     <out_dir>/YYYYMMDD_job_data.tsv.

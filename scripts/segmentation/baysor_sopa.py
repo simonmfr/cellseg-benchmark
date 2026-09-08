@@ -8,6 +8,8 @@ import sopa
 import toml
 from spatialdata import read_zarr
 
+from cellseg_benchmark import BASE_PATH
+
 parser = argparse.ArgumentParser(description="Compute Baysor segmentation.")
 parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument(
@@ -22,7 +24,7 @@ args = parser.parse_args()
 def main(data_path, base_segmentation, confidence, sample, keep_cache):
     """Baysor algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)
-    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
+    path = f"{BASE_PATH}/samples/{sample}/results"
     sdata = read_zarr(pathlib.Path(path, base_segmentation, "sdata.zarr"))
     sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
         list(sdata_tmp.images.keys())[0]
