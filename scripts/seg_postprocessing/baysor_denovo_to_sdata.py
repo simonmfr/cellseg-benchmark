@@ -14,6 +14,7 @@ import sopa.io.explorer
 import sopa.utils
 import spatialdata
 import spatialdata.models
+import spatialdata.transformations
 import spatialdata_io
 
 logger = logging.getLogger("baysor_denovo_to_sdata")
@@ -138,6 +139,10 @@ def main():
 
     logger.info("Saving data...")
     zarr_path = save_path / "sdata.zarr"
+    spatialdata.transformations.set_transformation(
+        sdata["baysor_boundaries"],
+        transform,
+    )
     sdata.write(str(zarr_path), overwrite=True)
 
     if args.explorer and not is_3d:
@@ -146,6 +151,11 @@ def main():
             data_path / "images" / "micron_to_mosaic_pixel_transform.csv",
             sep=" ",
             header=None,
+        )
+        transform = spatialdata.transformations.Affine(
+            translation.to_numpy(),
+            input_axes=("x", "y"),
+            output_axes=("x", "y"),
         )
         sopa.io.explorer.write(
             str(save_path / "sdata.explorer"),

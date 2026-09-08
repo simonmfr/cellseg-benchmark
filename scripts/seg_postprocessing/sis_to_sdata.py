@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 import argparse
+from gettext import translation
 import logging
 import pathlib
+
+from shapely.coordinates import transform
 
 import anndata as ad
 import geopandas as gpd
@@ -107,10 +110,22 @@ def main():
         sdata[key] = sdata_tmp[key]
     del sdata_tmp
 
+    transform = sd.transformations.Affine(
+        translation.to_numpy(),
+        input_axes=("x", "y"),
+        output_axes=("x", "y"),
+    )
+
+    sd.transformations.set_transformation(
+        sdata["boundaries_3D"],
+        transform,
+    )
+
     boundaries = sdata['boundaries_3D'].copy()
     boundaries_2d = boundaries[["cell_id", "geometry"]].dissolve(by="cell_id")
     boundaries_2d.index = boundaries_2d.index.rename(None)
     sdata["boundaries_2D"] = sd.models.ShapesModel.parse(boundaries_2d)
+    sd.transformations.set_transformation(sdata["boundaries_2D"], transform)
 
     intensities = pd.DataFrame(
         sopa.aggregation.aggregate_channels(
