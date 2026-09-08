@@ -835,3 +835,44 @@ def compute_negative_marker_purity(
         negative_marker_purity -= mean_sp_low_ratio - mean_sc_low_ratio
 
     return pd.DataFrame({"negative_marker_purity": [negative_marker_purity]})
+
+def plot_negative_marker_purity(cohort, results_suffix, show=False):
+    results_file = (
+            Path(_constants.BASE_PATH)
+            / "metrics"
+            / cohort
+            / "marker_gene_metrics"
+            / f"negative_marker_purity_{results_suffix}.csv"
+    )
+    plot_path = results_file.parent / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
+    scores_df = pd.read_csv(results_file, index_col=0)
+
+    order = scores_df.set_index("method")["negative_marker_purity"].sort_values().index
+    pal = {m: _constants.method_colors[m] for m in order}
+    method_order = [x for x in _constants.method_colors.keys() if x in scores_df['method'].unique()]
+    scores_df['method'] = pd.Categorical(scores_df['method'], categories=method_order, ordered=True)
+
+    fig = plt.figure(figsize=(14, 6))
+    ax = sns.barplot(
+        data=scores_df,
+        x="method",
+        y="negative_marker_purity",
+        hue="method",
+        palette=pal,
+        legend=True,
+        order=order,
+    )
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.xticks(rotation=45, ha="right")
+    plt.ylabel("Negative Marker Purity")
+    plt.ylim(0, 1)
+    plt.title("Negative Marker Purity")
+    plt.tight_layout()
+    if show:
+        plt.show()
+    plt.savefig(
+        plot_path / f"negative_marker_purity_{results_suffix}.png", bbox_inches="tight"
+    )
+    plt.show()
