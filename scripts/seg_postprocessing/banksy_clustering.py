@@ -72,7 +72,10 @@ banksy_run <- function(se_list, k_geom, lambda, k_neighbors, resolution) {
     se <- clusterBanksy(se, use_agf = TRUE, lambda = lambda,
                         resolution = resolution, k_neighbors = k_neighbors,
                         seed = 1000)
-    se <- connectClusters(se)
+    # connectClusters reconciles labels across multiple clust_* columns; it
+    # errors out with only one, and there is nothing to reconcile anyway.
+    clust_cols <- grep("^clust", colnames(colData(se)))
+    if (length(clust_cols) > 1) se <- connectClusters(se)
     cd <- colData(se)
     as.data.frame(cd[, grep("^clust", colnames(cd)), drop = FALSE])
 }
