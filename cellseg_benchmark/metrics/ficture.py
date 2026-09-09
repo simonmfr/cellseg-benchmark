@@ -9,7 +9,9 @@ import joblib
 import numpy as np
 import pandas as pd
 import scipy.spatial as ss
+import seaborn as sns
 import spatialdata as sd
+from matplotlib import pyplot as plt
 
 from .. import _constants
 from .. import ficture_utils as fu
@@ -226,3 +228,169 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
     del transcripts
     gc.collect()
     return sample, labels
+
+def plot_ficture_f1(
+        cohort,
+        celltype_plots = False,
+        show = True
+):
+    """Plot ficture F1 scores.
+
+    Plots one plot per method showing cell-type specific F1 scores (if celltype_plots = True),
+    one plot summarising micro and macro scores for each method, and one plot showing cell-type
+    specific F1 scores across methods.
+    """
+    results_file = (
+            pathlib.Path(_constants.BASE_PATH)
+            / "metrics"
+            / cohort
+            / "ficture"
+            / f"ficture_f1.csv"
+    )
+
+    plot_path = results_file.parent / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
+    scores_df = pd.read_csv(results_file, index_col=0)
+
+    if celltype_plots:
+        scores_df_short = scores_df[scores_df['sample'] != "all_samples"]
+        for method, results in scores_df_short.groupby("method"):
+            results = results[results['cell_type'].isin(_constants.cell_type_colors.keys())]
+            mean_results = (
+                results.groupby(["sample", "cell_type"])
+                .mean("f1")
+                .reset_index()
+            )
+            order = (
+                mean_results.groupby("cell_type")["f1"].mean().sort_values().index
+            )
+            pal = {ct: _constants.cell_type_colors[ct] for ct in order}
+            fig = plt.figure(figsize=(10, 5))
+            ax = sns.boxplot(
+                data=mean_results,
+                x="cell_type",
+                y="f1",
+                hue="cell_type",
+                palette=pal,
+                legend=True,
+                order=order
+            )
+            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+            plt.xticks(rotation=45, ha="right")
+            plt.ylabel("F1 Score")
+            plt.ylim(0, 1)
+            plt.title(f"Ficture F1 Score Distribution per Cell Type for {method}")
+            plt.tight_layout()
+
+            if show:
+                plt.show()
+            fig.savefig(
+                plot_path / f"ficture_f1_{method}_cell_type_distribution.png",
+                bbox_inches="tight",
+            )
+            plt.show()
+
+    results = scores_df[(scores_df['sample'] != "all_samples") & (scores_df['cell_type'] == "f1_macro_all")]
+    mean_results = (
+        results.groupby(["sample", "method"])
+        .mean("f1")
+        .reset_index()
+    )
+    order = (
+        mean_results.groupby("method")["f1"].mean().sort_values().index
+    )
+    pal = {ct: _constants.method_colors[ct] for ct in order}
+    fig = plt.figure(figsize=(10, 5))
+    ax = sns.boxplot(
+        data=mean_results,
+        x="method",
+        y="f1",
+        hue="method",
+        palette=pal,
+        legend=True,
+        order=order
+    )
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.xticks(rotation=45, ha="right")
+    plt.ylabel("F1 Score")
+    plt.ylim(0, 1)
+    plt.title(f"Ficture macro F1 Score Distribution")
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+    fig.savefig(
+        plot_path / f"ficture_f1_macro_score.png",
+        bbox_inches="tight",
+    )
+    plt.show()
+
+    results = scores_df[(scores_df['sample'] != "all_samples") & (scores_df['cell_type'] == "f1_micro_all")]
+    mean_results = (
+        results.groupby(["sample", "method"])
+        .mean("f1")
+        .reset_index()
+    )
+    order = (
+        mean_results.groupby("method")["f1"].mean().sort_values().index
+    )
+    pal = {ct: _constants.method_colors[ct] for ct in order}
+    fig = plt.figure(figsize=(10, 5))
+    ax = sns.boxplot(
+        data=mean_results,
+        x="method",
+        y="f1",
+        hue="method",
+        palette=pal,
+        legend=True,
+        order=order
+    )
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.xticks(rotation=45, ha="right")
+    plt.ylabel("F1 Score")
+    plt.ylim(0, 1)
+    plt.title(f"Ficture micro F1 Score Distribution")
+    plt.tight_layout()
+    if show:
+        plt.show()
+    fig.savefig(
+        plot_path / f"ficture_f1_micro_score.png",
+        bbox_inches="tight",
+    )
+    plt.show()
+
+    results = scores_df[
+        (scores_df['sample'] == "all_samples") & (scores_df['cell_type'].isin(_constants.cell_type_colors.keys()))]
+    mean_results = (
+        results.groupby(["method", "cell_type"])
+        .mean("f1")
+        .reset_index()
+    )
+    order = (
+        mean_results.groupby("cell_type")["f1"].mean().sort_values().index
+    )
+    pal = {ct: _constants.cell_type_colors[ct] for ct in order}
+    fig = plt.figure(figsize=(10, 5))
+    ax = sns.boxplot(
+        data=mean_results,
+        x="cell_type",
+        y="f1",
+        hue="cell_type",
+        palette=pal,
+        legend=True,
+        order=order
+    )
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.xticks(rotation=45, ha="right")
+    plt.ylabel("F1 Score")
+    plt.ylim(0, 1)
+    plt.title(f"Ficture F1 Score Distribution per Cell Type for all methods")
+    plt.tight_layout()
+    if show:
+        plt.show()
+    fig.savefig(
+        plot_path / f"ficture_f1_all_cell_type_distribution.png",
+        bbox_inches="tight",
+    )
+    plt.show()
