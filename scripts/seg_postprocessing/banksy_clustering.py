@@ -34,7 +34,7 @@ SCALES = {
     },
 }
 
-CONVERTER = default_converter + pandas2ri.converter + numpy2ri.converter
+CONVERTER = default_converter + numpy2ri.converter + pandas2ri.converter
 
 R_SETUP = """
 suppressPackageStartupMessages({
