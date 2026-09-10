@@ -179,7 +179,7 @@ def extract_mem_and_time(
     ref = pd.read_csv(ref_file_path, sep="\t")
     ref["_ref_order"] = range(len(ref))
 
-    ref["jobid"] = ref["jobid"].astype(str)
+    ref["jobid"] = ref["jobid"].astype(int)
     ref["jobname"] = ref["jobname"].astype(str)
     ref["sample"] = ref["key"].astype(str)
     ref["jobname_norm"] = ref["jobname"].apply(normalize_jobname)
@@ -198,11 +198,7 @@ def extract_mem_and_time(
         )
 
     latest_metrics_file = find_latest_job_data_tsv(metrics_dir)
-
-    sacct = pd.read_csv(latest_metrics_file, sep="\t")
-    if sacct.empty:
-        raise ValueError(f"Latest metrics file is empty: {latest_metrics_file}")
-
+    sacct = pd.concat([pd.read_csv(p, sep="\t") for p in metrics_dir.glob("*_job_data.tsv") if p.is_file()])
     required_cols = {
         "jobid",
         "sacct_state",
@@ -217,66 +213,27 @@ def extract_mem_and_time(
             f"Metrics file {latest_metrics_file} is missing columns: {sorted(missing)}"
         )
 
-    sacct["jobid"] = sacct["jobid"].astype(str)
+    sacct_succ = sacct[sacct['sacct_state'] == "COMPLETED"]
+    ref_merge = ref.merge(sacct_succ, on="jobid", suffixes=("", "_sacct"))
 
-    # avoid collisions with columns from ref file
-    sacct = sacct[
-        [
-            "jobid",
-            "sacct_state",
-            "sacct_exitcode",
-            "elapsed_s",
-            "alloccpus",
-            "maxrss_gb",
-        ]
-    ].rename(
-        columns={
-            "elapsed_s": "elapsed_s_sacct",
-            "alloccpus": "alloccpus_sacct",
-            "maxrss_gb": "maxrss_gb_sacct",
-        }
+    res = (
+        ref_merge
+        .groupby("jobid", sort=False, group_keys=False)
+        .apply(lambda g: g[g['maxrss_gb'].notna()].tail(1) if g['maxrss_gb'].notna().any() else g.tail(1))
+        .reset_index(drop=True)
     )
-
-    df = ref.merge(sacct, on="jobid", how="left")
-
-    ok = (df["sacct_state"] == "COMPLETED") & (df["sacct_exitcode"] == "0:0")
-    if "rc" in df.columns:
-        ok = ok & (pd.to_numeric(df["rc"], errors="coerce") == 0)
-
-    df_ok = df.loc[ok].copy()
-    if df_ok.empty:
-        if ignore_missing:
-            samples = (
-                ref.sort_values("_ref_order")["sample"]
-                .drop_duplicates()
-                .tolist()
-            )
-            return _missing_result(samples)
-        raise LookupError(
-            f"No successful runs found for method {method!r} "
-            f"in latest metrics file: {latest_metrics_file.name}"
-        )
-
-    # ref file is appended -> keep the last successful run per sample+method
-    df_ok = (
-        df_ok.sort_values("_ref_order")
+    res = (
+        res
+        .sort_values(by=["end_iso", "start_iso"])
         .drop_duplicates(subset=["sample", "method_with_flavor"], keep="last")
         .copy()
     )
 
-    df_ok["elapsed_h"] = (
-        pd.to_numeric(df_ok["elapsed_s_sacct"], errors="coerce") / 3600.0
+    res["elapsed_h"] = (
+        pd.to_numeric(res["elapsed_s_sacct"], errors="coerce") / 3600.0
     )
 
-    out = df_ok[["sample", "maxrss_gb_sacct", "elapsed_h", "alloccpus_sacct"]].copy()
-
-    out = out.rename(
-        columns={
-            "maxrss_gb_sacct": "maxrss_gb",
-            "alloccpus_sacct": "alloccpus",
-        }
-    )
-
+    out = res[["sample", "maxrss_gb", "elapsed_h", "alloccpus"]].copy()
     out = out.reset_index(drop=True)
     return out
 
