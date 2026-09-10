@@ -231,12 +231,9 @@ def integrate_segmentation_data(
             if logger:
                 logger.info(f"Adding adata for {seg_method}...")
             if len(sdata.tables) == 1:
-                adata = sdata[
+                sdata_main[f"adata_{seg_method}"] = sdata[
                     list(sdata.tables.keys())[0]
                 ].copy()
-                if control_genes is not None:
-                    adata = adata[:, ~adata.var_names.str.startswith(control_genes)]
-                sdata_main[f"adata_{seg_method}"] = adata
                 transform_adata(sdata_main, seg_method, data_path=data_path)
 
                 if os.path.exists(
@@ -276,12 +273,25 @@ def integrate_segmentation_data(
                         n_planes_2d=n_planes_2d,
                         logger=logger,
                     )
-                if os.path.exists(
-                    join(sdata_path, "results", seg_method, "Ovrlpy_stats")
-                ):
+                if not any([seg_method.startswith(x) for x in _constants.methods_3D]):
+                    if os.path.exists(
+                        join(sdata_path, "results", seg_method, "Ovrlpy_stats")
+                    ):
+                        if logger:
+                            logger.info(
+                                "Adding Ovrlpy stats to {}...".format(seg_method)
+                            )
+                        add_statistical_data(sdata_main, seg_method, sdata_path)
+                    elif logger:
+                        logger.warning(
+                            "No Ovrlpy_stats files found for {}. Skipping.".format(
+                                seg_method
+                            )
+                        )
+                else:
                     if logger:
-                        logger.info(
-                            "Adding Ovrlpy stats to {}...".format(seg_method)
+                        logger.warning(
+                            "{} is a 3D method. Ovrlpy stats are irrelevant.".format(seg_method)
                         )
                     add_statistical_data(sdata_main, seg_method, sdata_path)
                 elif logger:
