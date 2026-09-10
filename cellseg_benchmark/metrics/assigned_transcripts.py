@@ -158,113 +158,157 @@ def _assigned_transcripts(
     
     return df
 
-def plot_assigned_transcripts(cohort: str, boxplot: bool = False, show: bool = True):
-    """
-    Plot assigned transcript percentages per segmentation method.
-
-    Args:
-        cohort: Cohort name used to locate the results CSV.
-        boxplot: If True, draw boxplots; otherwise draw bars.
-        show: If True, display the figure.
-    """
+def plot_assigned_transcripts(
+    cohort: str,
+    boxplot: bool = False,
+    show: bool = True,
+    exclude_regex: str | None = None,
+    horizontal: bool = False,
+):
     results_file = (
         pathlib.Path(_constants.BASE_PATH)
-        / "metrics"
-        / cohort
-        / "assigned_transcripts"
+        / "metrics" / cohort / "assigned_transcripts"
         / "assigned_transcript_counts.csv"
     )
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_csv(results_file, index_col=0)
-    df = (
-        df.groupby(["sample", "method"], as_index=False)[
-            ["assigned_count_qced", "assigned_count_raw", "total_count"]
-        ]
-        .sum()
-    )
-    df["pct_assigned_raw"] = df["assigned_count_raw"] / df["total_count"]
-    df["pct_assigned_qced"] = df["assigned_count_qced"] / df["total_count"]
+    df = df.groupby(["sample", "method"], as_index=False)[
+        ["assigned_count_qced", "assigned_count_raw", "total_count"]
+    ].sum()
+
+    df["pct_assigned_raw"] = df.assigned_count_raw / df.total_count
+    df["pct_assigned_qced"] = df.assigned_count_qced / df.total_count
 
     for old, new in _constants.clean_method_names.items():
-        df["method"] = df["method"].str.replace(old, new, regex=False)
+        df["method"] = df.method.str.replace(old, new, regex=False)
 
-    # bars: ratio of sums per method
-    agg = (
-        df.groupby("method", as_index=True)[
-            ["assigned_count_raw", "assigned_count_qced", "total_count"]
-        ]
-        .sum()
-    )
-    pct_raw = agg["assigned_count_raw"] / agg["total_count"]
-    pct_qc  = agg["assigned_count_qced"] / agg["total_count"]
+    if exclude_regex:
+        df = df[~df.method.str.contains(exclude_regex, regex=True, na=False)]
 
-    order    = pct_raw.sort_values().index
-    qc_avail = pct_qc.index.intersection(order)
+    agg = df.groupby("method")[
+        ["assigned_count_raw", "assigned_count_qced", "total_count"]
+    ].sum()
 
-    x = np.arange(len(order))
+    pct_raw = agg.assigned_count_raw / agg.total_count
+    pct_qc = agg.assigned_count_qced / agg.total_count
+
+    order = pct_raw.sort_values().index
+    p = np.arange(len(order))
     w = 0.38
+    idx = pd.Series(p, index=order)
 
-    plt.figure(figsize=(6 + 0.2 * len(order), 4))
+    figsize = (5.2, max(2, 0.22 * len(order))) if horizontal \
+        else (6 + 0.2 * len(order), 4)
+    fig, ax = plt.subplots(figsize=figsize)
+
+    raw_pct = df.pct_assigned_raw * 100
+    qc_pct = df.pct_assigned_qced * 100
+    pos = df.method.map(idx)
 
     if boxplot:
-        raw_data = [df[df["method"] == m]["pct_assigned_raw"].values * 100 for m in order]
-        qc_data  = [df[df["method"] == m]["pct_assigned_qced"].values * 100 for m in order]
-        bp_kw = dict(widths=w, patch_artist=True, manage_ticks=False,
-                     medianprops=dict(color="black"), showfliers=False)
-        plt.boxplot(raw_data, positions=x - w / 2,
-                    boxprops=dict(facecolor="steelblue"), **bp_kw)
-        plt.boxplot(qc_data,  positions=x + w / 2,
-                    boxprops=dict(facecolor="lightsteelblue"), **bp_kw)
-        h_raw = mpatches.Patch(color="steelblue",      label="All cells (per sample)")
-        h_qc  = mpatches.Patch(color="lightsteelblue", label="QCed cells (per sample)")
-        plt.xlim(-0.5, len(order) - 0.5)
+        raw = [df.loc[df.method == m, "pct_assigned_raw"].values * 100 for m in order]
+        qc = [df.loc[df.method == m, "pct_assigned_qced"].values * 100 for m in order]
+
+        if horizontal:
+            raw, qc = [-v for v in raw], [-v for v in qc]
+
+        kw = dict(
+            widths=w, patch_artist=True, manage_ticks=False,
+            medianprops=dict(color="black"), showfliers=False,
+            vert=not horizontal,
+        )
+        ax.boxplot(raw, positions=p - w / 2,
+                   boxprops=dict(facecolor="steelblue"), **kw)
+        ax.boxplot(qc, positions=p + w / 2,
+                   boxprops=dict(facecolor="lightsteelblue"), **kw)
+
+        h_raw = mpatches.Patch(color="steelblue", label="All cells (per sample)")
+        h_qc = mpatches.Patch(color="lightsteelblue", label="QCed cells (per sample)")
+
+    elif horizontal:
+        h_raw = ax.barh(
+            p - w / 2, -pct_raw[order] * 100, height=w,
+            color="steelblue", label="All cells (pooled)"
+        )
+        h_qc = ax.barh(
+            p + w / 2, -pct_qc[order] * 100, height=w,
+            color="lightsteelblue", label="QCed cells (pooled)"
+        )
+
     else:
-        h_raw = plt.bar(x - w / 2, pct_raw[order] * 100, width=w,
-                        color="steelblue", label="All cells (pooled)", zorder=1)
-        h_qc  = plt.bar(x[order.get_indexer(qc_avail)] + w / 2, pct_qc[qc_avail] * 100,
-                        width=w, color="lightsteelblue", label="QCed cells (pooled)", zorder=1)
+        h_raw = ax.bar(
+            p - w / 2, pct_raw[order] * 100, width=w,
+            color="steelblue", label="All cells (pooled)"
+        )
+        h_qc = ax.bar(
+            p + w / 2, pct_qc[order] * 100, width=w,
+            color="lightsteelblue", label="QCed cells (pooled)"
+        )
 
-    idx = pd.Series(x, index=order)
+    if horizontal:
+        ax.scatter(-raw_pct, pos - w / 2, s=4, c="k", alpha=.2,
+                   zorder=3, clip_on=False)
+        ax.scatter(-qc_pct, pos + w / 2, s=4, c="k", alpha=.2,
+                   zorder=3, clip_on=False)
 
-    plt.scatter(
-        df["method"].map(idx) - w / 2,
-        df["pct_assigned_raw"] * 100,
-        s=4,
-        color="k",
-        alpha=0.2,
-        zorder=3,
-    )
-    plt.scatter(
-        df["method"].map(idx) + w / 2,
-        df["pct_assigned_qced"] * 100,
-        s=4,
-        color="k",
-        alpha=0.2,
-        zorder=3,
-    )
+        lim = np.ceil(max(raw_pct.max(), qc_pct.max()) / 10) * 10
+        ax.set_xlim(-lim * 1.025, lim * 1.025)
+        ax.set_ylim(-.5, len(order) - .5)
+
+        ticks = np.linspace(-lim, 0, 5)
+        ax.set_xticks(ticks, [f"{abs(t):.0f}" for t in ticks])
+
+        ax.xaxis.tick_top()
+        ax.xaxis.set_label_position("top")
+        ax.tick_params(axis="x", bottom=False, labelbottom=False, pad=2)
+        ax.set_xlabel("Transcript assignment (%)", labelpad=4)
+
+        ax.set_yticks([])
+        for y, label in zip(p, order):
+            ax.text(lim * .025, y, label, ha="left", va="center", fontsize=9)
+
+        ax.axvline(0, color="black", lw=.6)
+
+    else:
+        ax.scatter(pos - w / 2, raw_pct, s=4, c="k", alpha=.2, zorder=3)
+        ax.scatter(pos + w / 2, qc_pct, s=4, c="k", alpha=.2, zorder=3)
+
+        ax.set_xticks(p, order, rotation=-45, ha="left", va="top")
+        ax.set_ylabel("Transcript assignment (%)")
+        ax.set_xlim(-.5, len(order) - .5)
+
+    for spine in ax.spines.values():
+        spine.set_visible(False)
 
     sample_h = plt.Line2D(
-        [0], [0],
-        marker="o",
-        color="black",
-        linestyle="none",
-        markersize=6,
-        alpha=0.6,
+        [0], [0], marker="o", color="black",
+        linestyle="none", markersize=7, alpha=.6
     )
 
-    plt.xticks(x, order, rotation=-45, ha="left", va="top")
-    plt.ylabel("Assigned Transcripts (%)")
-    plt.margins(x=0.02)
-    plt.tight_layout()
-    plt.legend([h_raw, h_qc, sample_h],
-               [h_raw.get_label(), h_qc.get_label(), "Sample"])
+    ax.legend(
+        [h_raw, h_qc, sample_h],
+        [h_raw.get_label(), h_qc.get_label(), "Sample"],
+        ncols=1,
+        loc="lower left" if horizontal else "upper left",
+        borderaxespad=.3,
+        fontsize=9,
+        frameon=False,
+        handlelength=1,
+        handletextpad=.5,
+        labelspacing=.4,
+    )
+
+    fig.tight_layout(pad=.15)
 
     out_file = plot_path / "assigned_transcripts_plot.png"
-    plt.savefig(out_file, dpi=300)
+    fig.savefig(out_file, dpi=300, bbox_inches="tight", pad_inches=.02)
+
     if show:
         plt.show()
+    else:
+        plt.close(fig)
 
 def plot_assigned_transcripts_heatmap(
     cohort: str,
