@@ -149,7 +149,6 @@ def integrate_segmentation_data(
     slide: str = None,
     region: str = None,
     cohort: str = None,
-    control_genes: Optional[str] = "Blank",
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
@@ -293,13 +292,21 @@ def integrate_segmentation_data(
                         logger.warning(
                             "{} is a 3D method. Ovrlpy stats are irrelevant.".format(seg_method)
                         )
-                    add_statistical_data(sdata_main, seg_method, sdata_path)
-                elif logger:
-                    logger.warning(
-                        "No Ovrlpy_stats files found for {}. Skipping.".format(
-                            seg_method
+                        
+                    if os.path.exists(
+                        join(sdata_path, "results", seg_method, "Intensities_3D")
+                    ):
+                        if logger:
+                            logger.info(
+                                "Adding Intensities_3D stats to {}...".format(seg_method)
+                            )
+                        add_intensities_3D_data(sdata_main, seg_method, sdata_path)
+                    elif logger:
+                        logger.warning(
+                            "No Intensities_3D files found for {}. Skipping.".format(
+                                seg_method
+                            )
                         )
-                    )
 
                 adata = sdata_main[f"adata_{seg_method}"]
 
@@ -498,6 +505,25 @@ def add_statistical_data(
             ovrlpy_stats_reordered = ovrlpy_stats.loc[adata.obs_names]
             assert len(ovrlpy_stats_reordered) == len(ovrlpy_stats)
             adata.obsm[name] = ovrlpy_stats_reordered
+    sdata_main[f"adata_{seg_method}"] = adata
+    return sdata_main
+
+
+def add_intensities_3D_data(
+    sdata_main: sd.SpatialData, seg_method: str, sdata_path: str
+) -> sd.SpatialData:
+    """Add ovrlpy information to sdata_main."""
+    adata = sdata_main[f"adata_{seg_method}"]
+    for file in os.listdir(join(sdata_path, "results", seg_method, "Intensities_3D")):
+        if file.endswith(".csv"):
+            intensities_3D = pd.read_csv(
+                join(sdata_path, "results", seg_method, "Intensities_3D", file),
+                index_col=0,
+            )
+            intensities_3D.index = intensities_3D.index.astype(str)
+            intensities_3D_reordered = intensities_3D.loc[adata.obs_names]
+            assert len(intensities_3D_reordered) == len(intensities_3D)
+            adata.obsm['intensities'] = intensities_3D_reordered
     sdata_main[f"adata_{seg_method}"] = adata
     return sdata_main
 
