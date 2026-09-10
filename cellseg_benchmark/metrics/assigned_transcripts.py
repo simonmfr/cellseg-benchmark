@@ -165,6 +165,16 @@ def plot_assigned_transcripts(
     exclude_regex: str | None = None,
     horizontal: bool = False,
 ):
+    """
+    Plot assigned transcript percentages per segmentation method.
+
+    Args:
+        cohort: Cohort name used to locate the results CSV.
+        boxplot: If True, draw boxplots; otherwise bars.
+        show: If True, display the figure.
+        exclude_regex: Regex matching methods to exclude.
+        horizontal: If True, plot horizontal instead of vertical.
+    """
     results_file = (
         pathlib.Path(_constants.BASE_PATH)
         / "metrics" / cohort / "assigned_transcripts"
