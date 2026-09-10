@@ -1856,6 +1856,9 @@ clean_method_names = {
     "vpt_3D_P": "Cellpose_1P_3D_VPT",
     "vpt_2D_P": "Cellpose_1P_2D_VPT",
     "1_Merlin": "1_Merscope",
+    "Proseg_3D_vpt_3D_P": "Proseg_3D_P_3D_VPT",
+    "Proseg_3D_vpt3D_DAPI_nuclei": "Proseg_3D_n_3D_VPT",
+    "Proseg_3D_vpt3D_P_nuclei": "Proseg_3D_nP_3D_VPT",
 }
 
 clean_method_names_format = {
