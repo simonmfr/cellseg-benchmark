@@ -307,8 +307,8 @@ def plot_mem_and_time(cohort, metric=None, show: bool = False):
     elif isinstance(metric, list):
         if not all([x in ["memory", "cpus", "duration"] for x in metric]):
             raise ValueError(f"Metric {metric!r} is not supported. Choose subset of memory, cpus or duration.")
-        if metric is None:
-            metric = ["memory", "cpus", "duration"]
+    if metric is None:
+        metric = ["memory", "cpus", "duration"]
 
     column_mapping = {
         "memory": "maxrss_gb",
