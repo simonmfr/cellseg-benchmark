@@ -1802,13 +1802,9 @@ method_colors = {
     "vpt_2D_DAPI_PolyT": "#08306b",
     "vpt_2D_DAPI_PolyT_nuclei": "#08519c",
     "vpt_2D_DAPI_nuclei": "#2171b5",
-    "vpt_2D_DAPI_watershed": "#4292c6",
     "vpt_3D_DAPI_PolyT": "#6baed6",
     "vpt_3D_DAPI_PolyT_nuclei": "#9ecae1",
     "vpt_3D_DAPI_nuclei": "#a9d5f1",
-    "vpt_p3D_watershed_DAPI_PolyT": "#8cc9e9",
-    "vpt_p3D_watershed_DAPI_PolyT_gaussian": "#70bde1",
-    "vpt_watershed_DAPI_PolyT_z3": "#52b3da",
     # Cellpose core methods (green palette)
     "Cellpose_1_nuclei_model": "#00441b",
     "Cellpose_1_DAPI_PolyT": "#006d2c",
