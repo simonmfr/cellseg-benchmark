@@ -1,3 +1,53 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cellseg_benchmark"
+version = "0.2.1"
+description = "Tools for assessing the quality of spatial segmentations with focus on vascular cells in the brain."
+authors = [{ name = "LMU Munich" }]
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "anndata>=0.12.0",
+    "dask",
+    "geopandas",
+    "harmonypy",
+    "igraph",
+    "IProgress",
+    "joblib",
+    "leidenalg",
+    "numpy",
+    "ovrlpy",
+    "pandas",
+    "plotly",
+    "rasterio",
+    "rtree",
+    "scanpy",
+    "scikit-image",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "shapely>=2",
+    "sopa==2.0.6",
+    "spatialdata<0.6.0",
+    "spatialdata-io>=0.1.5",
+    "tifffile",
+    "tqdm",
+    "xarray",
+]
+
+[project.optional-dependencies]
+# only used by notebooks/what_is_this
+viz3d = ["pyvista"]
+
+[tool.setuptools.packages.find]
+include = ["cellseg_benchmark*"]
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
