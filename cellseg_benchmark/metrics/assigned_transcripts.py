@@ -1,5 +1,4 @@
 import pathlib
-import functools
 import warnings
 
 import numpy as np
@@ -10,6 +9,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.patches as mpatches
 
 from .. import _constants
+from .utils import clean_method_name
 
 def compute_assigned_transcripts(
     adata,
@@ -172,7 +172,7 @@ def plot_assigned_transcripts(
         cohort: Cohort name used to locate the results CSV.
         boxplot: If True, draw boxplots; otherwise bars.
         show: If True, display the figure.
-        exclude_regex: Regex matching methods to exclude.
+        exclude_regex: Regex matching raw method names to exclude.
         horizontal: If True, plot horizontal instead of vertical.
     """
     results_file = (
@@ -191,11 +191,10 @@ def plot_assigned_transcripts(
     df["pct_assigned_raw"] = df.assigned_count_raw / df.total_count
     df["pct_assigned_qced"] = df.assigned_count_qced / df.total_count
 
-    for old, new in _constants.clean_method_names.items():
-        df["method"] = df.method.str.replace(old, new, regex=False)
-
     if exclude_regex:
         df = df[~df.method.str.contains(exclude_regex, regex=True, na=False)]
+
+    df["method"] = df["method"].map(clean_method_name)
 
     agg = df.groupby("method")[
         ["assigned_count_raw", "assigned_count_qced", "total_count"]
@@ -409,8 +408,7 @@ def plot_assigned_transcripts_heatmap(
     ax.set_yticklabels(ordered_genes, fontsize=7)
     ax.set_xticks(np.arange(n_methods))
     ax.set_xticklabels(
-        [functools.reduce(lambda n, kv: n.replace(*kv), _constants.clean_method_names.items(), m)
-         for m in display_methods],
+        [clean_method_name(m) for m in display_methods],
         fontsize=7, rotation=-45, ha="left", va="top", rotation_mode="anchor",
     )
 
@@ -439,10 +437,7 @@ def plot_assigned_transcripts_heatmap(
     ])
 
     metric = "qc" if use_qc else "raw"
-    mtag = (
-        functools.reduce(lambda n, kv: n.replace(*kv), _constants.clean_method_names.items(), display_methods[0])
-        if len(display_methods) == 1 else f"{n_methods}methods"
-    )
+    mtag = display_methods[0] if len(display_methods) == 1 else f"{n_methods}methods"
     out_file = plot_path / f"gene_pct_assigned_heatmap_{mtag}_{metric}.png"
     if save:
         fig.savefig(out_file, dpi=300, bbox_inches="tight", pad_inches=0.05)

@@ -5,6 +5,7 @@ import subprocess
 import datetime
 import io
 import pathlib
+import warnings
 from typing import Union, Optional
 
 import pandas as pd
@@ -232,6 +233,13 @@ def parse_slurm_mem_to_gb(x: str) -> float:
         "P": 1024**5,
     }[unit]
     return (val * mult) / (1024**3)
+
+
+def clean_method_name(name: str) -> str:
+    """Return the figure label for a results directory name."""
+    if name not in _constants.method_names:
+        warnings.warn(f"no figure label for method {name!r}")
+    return _constants.method_names.get(name, name.replace("_", " "))
 
 
 def method_with_flavor_from_row(jobname: str, key: str) -> str:

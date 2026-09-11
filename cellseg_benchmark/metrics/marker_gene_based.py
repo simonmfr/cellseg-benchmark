@@ -554,7 +554,7 @@ def plot_MECR_vs_sensitivity(cohort, results_suffix, show=False):
             zorder=2,
         )
         ax.annotate(
-            _constants.clean_method_names.get(method, method),
+            utils.clean_method_name(method),
             (row["MECR"], row["pct_assigned"]),
             fontsize=5,
             xytext=(3, 3),

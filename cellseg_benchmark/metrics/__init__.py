@@ -16,6 +16,7 @@ from .marker_gene_based import (
     plot_negative_marker_purity,
 )
 from .utils import (
+    clean_method_name,
     compute_metric,
     compute_metric_for_all_methods,
     read_ABCAtlas,
@@ -55,6 +56,7 @@ __all__ = [
     "compute_negative_marker_purity",
     "get_negative_markers",
     "get_positive_markers",
+    "clean_method_name",
     "compute_metric",
     "compute_metric_for_all_methods",
     "read_ABCAtlas",

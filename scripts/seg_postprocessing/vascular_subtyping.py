@@ -9,6 +9,7 @@ import pandas as pd
 import scanpy as sc
 
 import cellseg_benchmark._constants as _constants
+import cellseg_benchmark._markers as _markers
 import cellseg_benchmark.adata_utils as adata_utils
 import cellseg_benchmark.cell_annotation_utils as cell_annotation_utils
 
@@ -78,7 +79,7 @@ def main():
     logger.info("Filter out contaminated cells...")
     sub = cell_annotation_utils.flag_contamination(
         sub,
-        _constants.contamination_markers,
+        _markers.contamination_markers,
         layer="volume_log1p_norm",
         absolute_min=1,
         z_threshold=2,
@@ -142,12 +143,12 @@ def main():
     logger.info("Score EC zonation subtypes...")
     # Step 1: score marker genes
     sub = cell_annotation_utils.score_cell_types(
-        sub, _constants.selected_EC_subtypes, top_n_genes=10, layer="volume_log1p_norm"
+        sub, _markers.selected_EC_subtypes, top_n_genes=10, layer="volume_log1p_norm"
     )
     # Step 2: assign each cell by max scoring subtype
     sub = cell_annotation_utils.annotate_cells_by_score(
         sub,
-        _constants.selected_EC_subtypes,
+        _markers.selected_EC_subtypes,
         out_col="ec_zonation",
         score_threshold=0.15,
     )
