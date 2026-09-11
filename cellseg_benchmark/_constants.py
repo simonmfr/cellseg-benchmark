@@ -1833,10 +1833,11 @@ method_colors = {
     "Proseg_3D_vpt3D_DAPI_PolyT": "#eaad28",
     "Proseg_3D_vpt3D_DAPI_PolyT_nuclei": "#e8a20a",
     # Negative controls (grey palette)
-    "Negative_Control_Rastered_5": "#252525",
-    "Negative_Control_Rastered_10": "#525252",
-    "Negative_Control_Rastered_25": "#737373",
-    "Negative_Control_Voronoi": "#969696",
+    "Negative_Control_Rastered_5": "#101010",
+    "Negative_Control_Rastered_10": "#424141",
+    "Negative_Control_Rastered_25": "#5A5A5A",
+    "Negative_Control_Voronoi": "#797878",
+    "Negative_Control_Visium": "#969696",
     # ComSeg standalone (dark purple)
     "ComSeg": "#d7f035",
     "SIS_DAPI_total_mrna": "#9cb01c",
