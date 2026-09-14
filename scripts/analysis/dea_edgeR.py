@@ -19,7 +19,7 @@ from rpy2.rinterface_lib.embedded import RRuntimeError
 from rpy2.robjects.conversion import localconverter
 
 import cellseg_benchmark as csb
-from cellseg_benchmark._constants import cell_type_colors
+from cellseg_benchmark._constants import BASE_PATH, cell_type_colors
 from cellseg_benchmark.adata_utils import plot_pseudobulk_pca
 from cellseg_benchmark.dea_utils import (
     add_ensembl_id,
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     ro.r["source"](str(importlib.resources.files(csb) / "dea_utils.r"))
     edgeR_loop = ro.globalenv["edgeR_loop"]
 
-    base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+    base_path = pathlib.Path(BASE_PATH)
     method_path = base_path / "analysis" / args.cohort / args.seg_method
     output_dir = method_path / "dea"
     output_dir.mkdir(parents=True, exist_ok=True)

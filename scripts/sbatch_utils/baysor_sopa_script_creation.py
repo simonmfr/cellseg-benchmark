@@ -54,13 +54,13 @@ STAINING="{args.staining}"
 CONFIDENCE="{args.confidence}"
 INPUT_PATH="{value["path"]}"
 RESULT_DIR="{BASE_PATH}/samples/{key}/results/{result_dir_name}"
-CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \\"${{INPUT_PATH}}\\" {model_token_log} ${{CONFIDENCE}} ${{KEY}}"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_sopa.py \\"${{INPUT_PATH}}\\" {model_token_log} ${{CONFIDENCE}} ${{KEY}}"
 start_run_log
 
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_sopa.py \
   "${{INPUT_PATH}}" \
   {model_token_cmd} \
   "${{CONFIDENCE}}" \

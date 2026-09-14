@@ -8,6 +8,7 @@ import seaborn as sns
 import sklearn.metrics
 
 from .. import _constants
+from .utils import clean_method_name
 
 
 def compute_clustering_scores(
@@ -90,8 +91,7 @@ def plot_clustering_scores(cohort, results_suffix, show=False):
 
     scores_df = pd.read_csv(results_file, index_col=0)
     # clean method names for plotting
-    for old, new in _constants.clean_method_names.items():
-        scores_df["method"] = scores_df["method"].str.replace(old, new, regex=False)
+    scores_df["method"] = scores_df["method"].map(clean_method_name)
     # remove sample all from scores
     scores_df = scores_df[scores_df["sample"] != "all"]
 

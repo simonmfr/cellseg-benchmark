@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark.metrics.ovrl import (
     compute_mean_vsi_per_polygon,
     compute_ovrl,
@@ -38,9 +39,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-sample_path = pathlib.Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark", "samples", args.sample
-)
+sample_path = pathlib.Path(BASE_PATH, "samples", args.sample)
 results_path = pathlib.Path(
     sample_path,
     "results",

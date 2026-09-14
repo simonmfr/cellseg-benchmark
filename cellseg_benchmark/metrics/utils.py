@@ -5,6 +5,7 @@ import subprocess
 import datetime
 import io
 import pathlib
+import warnings
 from typing import Union, Optional
 
 import pandas as pd
@@ -234,6 +235,13 @@ def parse_slurm_mem_to_gb(x: str) -> float:
     return (val * mult) / (1024**3)
 
 
+def clean_method_name(name: str) -> str:
+    """Return the figure label for a results directory name."""
+    if name not in _constants.method_names:
+        warnings.warn(f"no figure label for method {name!r}")
+    return _constants.method_names.get(name, name.replace("_", " "))
+
+
 def method_with_flavor_from_row(jobname: str, key: str) -> str:
     """Create a canonical method string."""
     j = normalize_jobname(jobname)
@@ -357,8 +365,8 @@ def find_latest_job_data_tsv(metrics_dir):
 
 
 def export_job_metrics_tsv(
-    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/run_log.tsv",
-    out_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
+    ref_file_path=f"{_constants.BASE_PATH}/misc/logs/run_log.tsv",
+    out_dir=f"{_constants.BASE_PATH}/misc/extracted_job_stats",
 ):
     """Export aggregated Slurm job metrics for all jobids in ref_file_path to:
     <out_dir>/YYYYMMDD_job_data.tsv.

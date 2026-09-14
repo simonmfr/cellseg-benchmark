@@ -6,6 +6,8 @@ import pathlib
 import subprocess
 import sys
 
+from cellseg_benchmark import BASE_PATH
+
 logger = logging.getLogger("intensities_3D_wrapper")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -32,8 +34,6 @@ def main():
     )
     args = parser.parse_args()
 
-    BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
-    methods_3D = ["Proseg_3D", "vpt_3D", "Watershed_Merlin", "SIS"]
     sample_path = pathlib.Path(BASE_PATH) / "samples" / args.sample
 
     methods = []
@@ -41,9 +41,9 @@ def main():
         logger.info("Check existence of provided methods")
         assert args.method is not None, "Method names are not provided."
         for method_name in args.method:
-            assert any(method_name.startswith(x) for x in methods_3D), (
+            assert any(method_name.startswith(x) for x in _constants.methods_3D), (
                 f"{method_name} doesn't seem to be a 3D method. "
-                "Check the spelling and methods_3D in this script"
+                "Check the spelling and _constants.methods_3D"
             )
             if not os.path.exists(sample_path / "results" / method_name / "sdata.zarr"):
                 logger.error(
@@ -57,15 +57,15 @@ def main():
                 if os.path.exists(
                     sample_path / "results" / method_name / "sdata.zarr"
                 ) and any(
-                    [method_name.startswith(x) for x in methods_3D]
+                    [method_name.startswith(x) for x in _constants.methods_3D]
                 ) and not os.path.exists(
                     sample_path / "results" / method_name / "Intensities_3D" / "Intensities_3D.csv"
                 ):
                     logger.info(f"Method {method_name} identified for computation.")
                     methods.append(method_name)
         else:
-            assert set(args.method).issubset(methods_3D), (
-                "All Algorithms must be part of ['Proseg_3D', 'vpt_3D', 'Watershed_Merlin', 'SIS']"
+            assert set(args.method).issubset(_constants.methods_3D), (
+                f"All algorithms must be one of {_constants.methods_3D}"
             )
             for method_name in os.listdir(sample_path / "results"):
                 if os.path.exists(
