@@ -647,7 +647,7 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
     )
 
     if any([seg_method.startswith(method) for method in _constants.image_based]):
-        if seg_method == "Cellpose_1_Merlin":
+        if seg_method == "Cellpose_1_Merlin" or seg_method == "Negative_Control_Visium":
             sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron"
             )
