@@ -23,13 +23,16 @@ import logging
 import os
 
 import dask
+import sys
 
 dask.config.set({"dataframe.query-planning": False})  # required before spatialdata import
 
-import anndata as ad  # noqa: E402
+import anndata as ad
 
-from cellseg_benchmark import _constants  # noqa: E402
-from cellseg_benchmark.ficture_utils import (  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
+
+from cellseg_benchmark import _constants
+from cellseg_benchmark.ficture_utils import (
     aggregate_tables,
     build_factor_raster,
     plot_qc,

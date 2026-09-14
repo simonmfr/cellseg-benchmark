@@ -3,12 +3,15 @@ import argparse
 import logging
 import os
 import pathlib
+import sys
 import warnings
 
 import dask
 import numpy as np
 import pandas as pd
 import tqdm
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark.metrics.ovrl import (

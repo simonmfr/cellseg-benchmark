@@ -6,7 +6,7 @@ import yaml
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--res", type=float, default=1.5, help="grid size in um")
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
@@ -29,7 +29,7 @@ for key, value in data.items():
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 mamba activate seg_postprocessing
-pip install --quiet --no-deps -e $HOME/gitrepos/cellseg-benchmark
+
 pip install --quiet rasterio joblib
 python $HOME/gitrepos/cellseg-benchmark/scripts/ficture/ficture_segments_to_sdata.py \\
  {key} --res {args.res} --data-path {value["path"]}

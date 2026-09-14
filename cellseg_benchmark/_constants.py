@@ -1,4 +1,6 @@
-BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+from pathlib import Path
+
+BASE_PATH = str((Path(__file__).parents[1] / "data").resolve())
 
 # WT samples from the aging cohort used as additional controls for the htra1 cohort
 htra1_aging_controls = [

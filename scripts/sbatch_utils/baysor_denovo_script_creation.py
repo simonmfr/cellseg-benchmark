@@ -13,7 +13,7 @@ parser.add_argument("--time", default="48:00:00", help="Walltime per job.")
 parser.add_argument("--cpus", default="8", help="Cores per job.")
 args = parser.parse_args()
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 METHOD = f"Baysor_{args.dimension}_denovo"
 
 LARGE = {"ABCAtlas_s5_r0": "250G"}

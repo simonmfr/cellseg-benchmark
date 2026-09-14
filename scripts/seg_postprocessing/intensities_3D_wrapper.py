@@ -6,7 +6,7 @@ import pathlib
 import subprocess
 import sys
 
-from cellseg_benchmark import BASE_PATH
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 logger = logging.getLogger("intensities_3D_wrapper")
 logger.setLevel(logging.INFO)

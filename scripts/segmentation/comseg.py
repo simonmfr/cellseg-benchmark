@@ -8,7 +8,7 @@ import pandas as pd
 import sopa
 from spatialdata import read_zarr
 
-from cellseg_benchmark import BASE_PATH
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 parser = argparse.ArgumentParser(description="Run ComSeg segmentation.")
 parser.add_argument("data_path", help="Path to merfish output folder.")

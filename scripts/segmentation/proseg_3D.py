@@ -8,7 +8,7 @@ import pandas as pd
 import sopa
 from spatialdata import read_zarr
 
-from cellseg_benchmark import BASE_PATH
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 parser = argparse.ArgumentParser(
     description="Compute ProSeg 3D segmentation without any prior segmentation."

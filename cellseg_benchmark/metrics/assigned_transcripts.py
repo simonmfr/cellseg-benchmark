@@ -45,7 +45,7 @@ def compute_assigned_transcripts(
     if df_assigned["gene"].nunique() != df_total["gene"].nunique():
         genes_unassigned = (set(df_total[~df_total["gene"].str.contains("Blank", case=False, na=False)]['gene'].unique()) -
                             set(df_assigned[~df_assigned["gene"].str.contains("Blank", case=False, na=False)]['gene'].unique()))
-        warnings.warn(f"These genes were never assigned: {",".join(genes_unassigned)}")
+        warnings.warn(f"These genes were never assigned: {','.join(genes_unassigned)}")
 
     df = df_assigned.merge(df_total, on=["sample", "gene"], how="inner")
     #assert len(df) == len(df_assigned), (

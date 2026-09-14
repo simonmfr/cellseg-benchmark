@@ -4,6 +4,7 @@ import importlib.resources
 import logging
 import pathlib
 import re
+import sys
 import warnings
 
 import anndata as ad
@@ -17,6 +18,8 @@ import rpy2.robjects as ro
 import scanpy as sc
 from rpy2.rinterface_lib.embedded import RRuntimeError
 from rpy2.robjects.conversion import localconverter
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 import cellseg_benchmark as csb
 from cellseg_benchmark._constants import BASE_PATH, cell_type_colors

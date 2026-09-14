@@ -8,7 +8,7 @@ parser.add_argument(
     "--recompute", action="store_true", help="Consider genotype differentiation"
 )
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 with open(
     f"{BASE_PATH}/misc/sample_metadata.yaml"

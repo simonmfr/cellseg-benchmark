@@ -4,6 +4,7 @@ import logging
 import multiprocessing
 import os
 import pathlib
+import sys
 import typing
 
 import geopandas as gpd
@@ -11,6 +12,8 @@ import pandas as pd
 import scanpy as sc
 import tqdm
 from joblib import Parallel, delayed
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot

@@ -6,7 +6,7 @@ import sys
 
 import pandas as pd
 
-from cellseg_benchmark import BASE_PATH
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 parser = argparse.ArgumentParser(
     description="Compute Baysor segmentation without prior, native CLI."

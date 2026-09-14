@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
 
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_dea_edgeR"
 
 if args.cohort == "foxf2":
