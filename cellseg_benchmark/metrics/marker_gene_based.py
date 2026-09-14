@@ -554,7 +554,7 @@ def plot_MECR_vs_sensitivity(cohort, results_suffix, show=False):
             zorder=2,
         )
         ax.annotate(
-            utils.clean_method_name(method),
+            _constants.clean_method_names.get(method, method),
             (row["MECR"], row["pct_assigned"]),
             fontsize=5,
             xytext=(3, 3),
@@ -781,6 +781,62 @@ def compute_negative_marker_purity(
         Increase in proportion of positive cells assigned in spatial data to pairs of genes-celltyes with no/very low expression in scRNAseq
     """
     min_number_cells = 10  # minimum number of cells belonging to a cluster to consider it in the analysis
+    data = []
+
+    for sample in adata.obs['sample'].unique():
+        adata_sub = adata[adata.obs['sample'] == sample]
+
+        shared_celltypes = list(
+            set(list(neg_marker_mask_sc.index)).intersection(
+                adata_sub.obs[celltype_name].unique()
+            )
+        )
+        shared_genes = list(
+            set(list(neg_marker_mask_sc.columns)).intersection(
+                adata_sub.var_names
+            )
+        )
+        celltype_count = adata_sub.obs[celltype_name].value_counts().loc[shared_celltypes]
+        ct_filter = celltype_count >= min_number_cells
+        celltypes = celltype_count.loc[ct_filter].index.tolist()
+
+        # Filter cells to eligible cell types
+        adata_sub = adata_sub[adata_sub.obs[celltype_name].isin(celltypes), adata_sub.var_names.isin(shared_genes)]
+
+        # get ratio of positive cells per cell type
+        count_per_ct = sc.get.aggregate(
+            adata_sub, celltype_name, "count_nonzero", layer="counts"
+        )
+        count_per_ct.obs["count"] = adata_sub.obs[celltype_name].value_counts()
+        ratio_celltype_sp = (
+                count_per_ct.layers["count_nonzero"]
+                / np.array(count_per_ct.obs["count"])[:, np.newaxis]
+        )
+        ratio_celltype_sp = pd.DataFrame(
+            data=ratio_celltype_sp,
+            index=count_per_ct.obs[celltype_name],
+            columns=count_per_ct.var_names,
+        )
+
+        # ensure consistent celltypes
+        neg_marker_mask_sc_filtered = neg_marker_mask_sc.loc[ratio_celltype_sp.index, shared_genes]
+        ratio_celltype_sc_filtered = ratio_celltype_sc.loc[ratio_celltype_sp.index, shared_genes]
+
+        # Get pos cell ratios in negative marker-cell type pairs
+        # lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
+        lowvals_sc = ratio_celltype_sc_filtered.values[neg_marker_mask_sc_filtered]
+        lowvals_sp = ratio_celltype_sp.values[neg_marker_mask_sc_filtered]
+
+        # Take the mean over the normalized expressions of the genes' negative cell types
+        mean_sc_low_ratio = np.nanmean(lowvals_sc)
+        mean_sp_low_ratio = np.nanmean(lowvals_sp)
+
+        # Calculate summary metric
+        negative_marker_purity = 1
+        if mean_sp_low_ratio > mean_sc_low_ratio:
+            negative_marker_purity -= mean_sp_low_ratio - mean_sc_low_ratio
+
+        data.append(pd.DataFrame({"sample": sample, "negative_marker_purity": [negative_marker_purity]}))
 
     shared_celltypes = list(
         set(list(neg_marker_mask_sc.index)).intersection(
@@ -834,7 +890,8 @@ def compute_negative_marker_purity(
     if mean_sp_low_ratio > mean_sc_low_ratio:
         negative_marker_purity -= mean_sp_low_ratio - mean_sc_low_ratio
 
-    return pd.DataFrame({"negative_marker_purity": [negative_marker_purity]})
+    data.append(pd.DataFrame({"sample": "all", "negative_marker_purity": [negative_marker_purity]}))
+    return pd.concat(data, ignore_index=True)
 
 def plot_negative_marker_purity(cohort, results_suffix, show=False):
     """Plot negative marker purity scores.
