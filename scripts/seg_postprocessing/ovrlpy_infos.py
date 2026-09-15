@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import tqdm
 
-from cellseg_benchmark import BASE_PATH
+from cellseg_benchmark import BASE_PATH, _constants
 from cellseg_benchmark.metrics.ovrl import (
     compute_mean_vsi_per_polygon,
     compute_ovrl,
@@ -48,7 +48,8 @@ results_path = pathlib.Path(
 logger.info("Check Segementations for prior ovrlpy results.")
 compute_ovrlpy = []
 for method in os.listdir(results_path):
-    if os.path.exists(pathlib.Path(results_path, method, "sdata.zarr")):
+    if (os.path.exists(pathlib.Path(results_path, method, "sdata.zarr")) and
+            not any([method.startswith(x) for x in _constants.methods_3D])):
         if args.recompute:
             compute_ovrlpy.append(method)
         elif not os.path.exists(pathlib.Path(results_path, method, "Ovrlpy_stats", "Ovrlpy_stats.csv")):
