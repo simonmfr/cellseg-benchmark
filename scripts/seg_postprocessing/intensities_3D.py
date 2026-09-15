@@ -59,7 +59,7 @@ def main():
                     sample_path / "results" / method_name / "sdata.zarr"
                 ) and any(
                     [method_name.startswith(x) for x in _constants.methods_3D]
-                ) and os.path.exists(
+                ) and not os.path.exists(
                     sample_path / "results" / method_name / "Intensities_3D" / "Intensities_3D.csv"
                 ):
                     logger.info(f"Method {method_name} identified for computation.")
