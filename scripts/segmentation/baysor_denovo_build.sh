@@ -12,6 +12,7 @@ WORK="${HOME}/.cache/baysor-build"
 TAG="cpp-0.8.3"
 RUN=("${MAMBA}" run -r "${ROOT}" -n "${ENV}")
 IMG="$(realpath -m "$(dirname "${BASH_SOURCE[0]}")/../../data")/misc/enroot_images"
+OUT="${IMG}/benchmark_baysor.sqsh"
 # Scratch lives next to the images, so it needs no local disk; squashfs cannot
 # store the GPFS ACL xattrs found there, so skip them instead of warning per file.
 export ENROOT_DATA_PATH="${IMG}/enroot_data"
@@ -20,7 +21,7 @@ export ENROOT_SQUASH_OPTIONS="-no-xattrs -processors ${SLURM_CPUS_PER_TASK:-8}"
 cleanup() {
   rm -rf "${WORK}"
   enroot remove -f baysor_image 2>/dev/null || true
-  rmdir "${ENROOT_DATA_PATH}" 2>/dev/null || true
+  rm -rf "${ENROOT_DATA_PATH}" "${OUT}.tmp"
 }
 trap cleanup EXIT
 
@@ -55,9 +56,10 @@ mkdir -p "${PREFIX}/bin" "${PREFIX}/lib"
 cp -L "${ENVDIR}/bin/baysor" "${PREFIX}/bin/"
 ldd "${ENVDIR}/bin/baysor" | awk -v d="${ENVDIR}/" '$3 ~ "^" d {print $3}' | sort -u \
   | xargs -I{} cp -L {} "${PREFIX}/lib/"
-enroot export -o "${IMG}/benchmark_baysor.sqsh" baysor_image
+enroot export -o "${OUT}.tmp" baysor_image
+mv -f "${OUT}.tmp" "${OUT}"
 
 # Only on success: the environment is a build artifact, kept on failure for retries
 "${MAMBA}" env remove -y -r "${ROOT}" -n "${ENV}"
 "${MAMBA}" clean -y -a
-echo "installed Baysor ${TAG} in ${IMG}/benchmark_baysor.sqsh"
+echo "installed Baysor ${TAG} in ${OUT}"
