@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Builds the pinned native Baysor C++ CLI in a micromamba environment and packs it
 # into a copy of the enroot image, under /opt/baysor-cpp, so the segmentation
-# environment and its older Baysor stay untouched. Run once, in a job with enroot
-# and >=64G (the CGAL units are memory hungry; raise JOBS only with more memory).
+# environment and its older Baysor stay untouched. Submit with sbatch (needs enroot,
+# >=64G, ~2h); raise JOBS only with more memory.
 set -euo pipefail
 MAMBA="${MAMBA_EXE:-micromamba}"
 ROOT="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
@@ -11,6 +11,19 @@ ENVDIR="${ROOT}/envs/${ENV}"
 WORK="${HOME}/.cache/baysor-build"
 TAG="cpp-0.8.3"
 RUN=("${MAMBA}" run -r "${ROOT}" -n "${ENV}")
+IMG="$(realpath -m "$(dirname "${BASH_SOURCE[0]}")/../../data")/misc/enroot_images"
+# Scratch lives next to the images, so it needs no local disk; squashfs cannot
+# store the GPFS ACL xattrs found there, so skip them instead of warning per file.
+export ENROOT_DATA_PATH="${IMG}/enroot_data"
+export ENROOT_SQUASH_OPTIONS="-no-xattrs -processors ${SLURM_CPUS_PER_TASK:-8}"
+
+cleanup() {
+  rm -rf "${WORK}"
+  enroot remove -f baysor_image 2>/dev/null || true
+  rmdir "${ENROOT_DATA_PATH}" 2>/dev/null || true
+}
+trap cleanup EXIT
+
 [[ -d "${ENVDIR}" ]] || "${MAMBA}" create -y -r "${ROOT}" -n "${ENV}" -c conda-forge \
   python=3.12 pandas pyyaml cxx-compiler cmake ninja pkg-config \
   eigen spdlog cgal-cpp libarrow libparquet hdf5 nlohmann_json libtiff
@@ -34,9 +47,7 @@ EOF
   -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
 "${RUN[@]}" cmake --build "${WORK}/build" --target baysor --parallel "${JOBS:-4}"
 "${RUN[@]}" cmake --install "${WORK}/build"
-rm -rf "${WORK}"
-IMG="$(realpath -m "$(dirname "${BASH_SOURCE[0]}")/../../data")/misc/enroot_images"
-export ENROOT_DATA_PATH="${IMG}/enroot_data"
+
 mkdir -p "${ENROOT_DATA_PATH}"
 enroot create -n baysor_image "${IMG}/benchmark_new.sqsh"
 PREFIX="${ENROOT_DATA_PATH}/baysor_image/opt/baysor-cpp"
@@ -45,5 +56,8 @@ cp -L "${ENVDIR}/bin/baysor" "${PREFIX}/bin/"
 ldd "${ENVDIR}/bin/baysor" | awk -v d="${ENVDIR}/" '$3 ~ "^" d {print $3}' | sort -u \
   | xargs -I{} cp -L {} "${PREFIX}/lib/"
 enroot export -o "${IMG}/benchmark_baysor.sqsh" baysor_image
-enroot remove -f baysor_image
+
+# Only on success: the environment is a build artifact, kept on failure for retries
+"${MAMBA}" env remove -y -r "${ROOT}" -n "${ENV}"
+"${MAMBA}" clean -y -a
 echo "installed Baysor ${TAG} in ${IMG}/benchmark_baysor.sqsh"
