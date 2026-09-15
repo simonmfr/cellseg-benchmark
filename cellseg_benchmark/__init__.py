@@ -9,6 +9,7 @@ _LAZY_SUBMODULES = {
     "ficture_utils",
     "sdata_utils",
     "metrics",
+    "intensities_3D"
 }
 
 __all__ = ["BASE_PATH", *_LAZY_SUBMODULES]
