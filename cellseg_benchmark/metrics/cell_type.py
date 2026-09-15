@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from .. import _constants
+from .utils import clean_method_name
 
 
 def compute_cell_type_distribution(adata, celltype_name, **kwargs):
@@ -55,8 +56,7 @@ def plot_cell_type_distribution(cohort, results_suffix, show=False):
     )
     results_df = pd.read_csv(results_file, index_col=0)
     # clean method names for plotting
-    for old, new in _constants.clean_method_names.items():
-        results_df["method"] = results_df["method"].str.replace(old, new, regex=False)
+    results_df["method"] = results_df["method"].map(clean_method_name)
     results_df = (
         results_df[results_df["sample"] == "all"]
         .drop(columns=["sample"])

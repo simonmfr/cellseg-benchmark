@@ -8,6 +8,8 @@ import pandas as pd
 import sopa
 from spatialdata import read_zarr
 
+from cellseg_benchmark import BASE_PATH
+
 parser = argparse.ArgumentParser(description="Compute Cellpose 2 segmentation.")
 parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("save_path", help="Path to output folder.")
@@ -39,7 +41,8 @@ def main(data_path, save_path, staining):
         sdata,
         channels=[staining, "DAPI"],
         pretrained_model=pathlib.Path(
-            "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/cellpose_custom_models",
+            BASE_PATH,
+            "misc/cellpose_custom_models",
             f"CP_DAPI_{staining}",
         ),
         diameter=89,

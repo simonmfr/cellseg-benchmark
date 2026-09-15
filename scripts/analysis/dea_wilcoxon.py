@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 
+from cellseg_benchmark._constants import BASE_PATH
 from cellseg_benchmark.dea_utils import (
     add_ensembl_id,
     add_group_sample_counts,
@@ -80,7 +81,7 @@ if __name__ == "__main__":
         logger.setLevel(logging.INFO)
         logger.propagate = False
 
-    base_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+    base_path = pathlib.Path(BASE_PATH)
     method_path = base_path / "analysis" / args.cohort / args.seg_method
     output_dir = method_path / "dea"
     output_dir.mkdir(parents=True, exist_ok=True)

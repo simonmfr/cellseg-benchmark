@@ -37,10 +37,20 @@ def compute_ovrl(
     ):
         coords_df = pd.read_csv(
             os.path.join(data_dir, "detected_transcripts.csv"), index_col=0
-        )[["gene", "x", "y", "global_z"]].rename(columns={"global_z": "z"})
+        )
+        if "global_x" in coords_df.columns and "global_y" in coords_df.columns:
+            if logger is not None:
+                logger.info("Basing ovrlpy on global_x, global_y and global_z columns.")
+            coords_df = coords_df[["gene", "global_x", "global_y", "global_z"]].rename(
+                columns={"global_x": "x", "global_y": "y", "global_z": "z"}
+            )
+        else:
+            if logger is not None:
+                logger.info("Basing ovrlpy on x, y and global_z columns.")
+            coords_df = coords_df[["gene", "x", "y", "global_z"]].rename(columns={"global_z": "z"})
         run_ovrlpy(sample, coords_df, sample_dir)
     else:
-        if logger:
+        if logger is not None:
             logger.warning(f"Ovrlpy output exists, skipping ovrlpy run for {sample}")
         else:
             print("Ovrlpy output exists, skipping ovrlpy run.")
@@ -206,7 +216,7 @@ def plot_vsi_overview(
     for i, (x, y, w, h) in enumerate(boxes):
         ax = axs[1, i]
         ax.imshow(integrity_map, alpha=alpha, **plot_kwargs)
-        boundaries_aligned.plot(ax=ax, linewidth=0.5, **boundary_kwargs)
+        boundaries_aligned.plot(ax=ax, aspect="equal", linewidth=0.5, **boundary_kwargs)
         ax.set_xlim(x, x + w)
         ax.set_ylim(y, y + h)
         ax.set_title(f"Box {chr(65 + i)}")

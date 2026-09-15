@@ -9,6 +9,8 @@ import pandas as pd
 import sopa
 from spatialdata import read_zarr
 
+from cellseg_benchmark import BASE_PATH
+
 data_path = sys.argv[1]
 sample = sys.argv[2]
 base_segmentation = sys.argv[3]
@@ -21,7 +23,7 @@ def main(data_path, sample, base_segmentation):
     sdata_tmp = sopa.io.merscope(data_path)  # to read in the images and points
     print(f"Reading done in {time.time() - start:.1f}s")
 
-    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
+    path = f"{BASE_PATH}/samples/{sample}/results"
 
     print("Loading base segmentation...")
     sdata = read_zarr(
@@ -80,7 +82,7 @@ def main(data_path, sample, base_segmentation):
     sopa.settings.dask_client_kwargs["timeout"] = "600000"
 
     print("Running ComSeg segmentation...")
-    path_json = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/comseg.json"
+    path_json = f"{BASE_PATH}/misc/comseg.json"
     start = time.time()
     sopa.segmentation.comseg(sdata, config=path_json, min_area=10, delete_cache=False)
     print(f"Segmentation done in {time.time() - start:.1f}s")

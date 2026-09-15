@@ -1,4 +1,6 @@
 # Fixes runtime error (seg_postprocessing)
+import json
+
 import dask
 dask.config.set({'dataframe.query-planning': False})
 
@@ -399,9 +401,7 @@ def build_shapes(
             "0",
             "cell-polygons-layers.geojson.gz",  # 3D boundaries
         )
-        with gzip.open(path, "rt", encoding="utf-8") as f:
-            geojson_text = f.read()
-        gdf = gpd.read_file(io.StringIO(geojson_text))
+        gdf = gpd.GeoDataFrame.from_features(json.load(gzip.open(path, "rt", encoding="utf-8")))
         gdf = gdf.merge(sdata["table"].obs[["cell", "cell_id"]], on="cell")
         obj = sd.models.ShapesModel.parse(gdf)
 
@@ -690,7 +690,7 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
     )
 
     if any([seg_method.startswith(method) for method in _constants.image_based]):
-        if seg_method == "Cellpose_1_Merlin":
+        if seg_method == "Cellpose_1_Merlin" or seg_method == "Negative_Control_Visium":
             sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron"
             )

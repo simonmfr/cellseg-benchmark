@@ -36,7 +36,12 @@ def compute_negative_markers_from_reference(
     max_ratio_cells = 0.005  # maximum ratio of cells expressing a marker to call it a negative marker gene-ct pair
 
     # Subset adata to genes of interest (measured in spatial data)
-    adata = adata[:, genes]
+    genes_copy = genes.copy()
+    genes_subset = genes_copy[genes_copy.isin(adata.var_names)]
+    if len(genes_subset) != len(genes_copy):
+        print("The following genes are not present in the adata.var_names:\n"
+              f"{', '.join(set(genes_copy)-set(genes_subset))}")
+    adata = adata[:, genes_subset]
     # Get cell types that we find in both modalities
     shared_celltypes = list(
         set(celltypes).intersection(adata.obs[celltype_name].unique())
@@ -85,7 +90,7 @@ def compute_negative_markers_from_reference(
 
 
 def get_negative_markers(
-    cohort, vascular_subset=False, overwrite=False, base_path=_constants.BASE_PATH
+    cohort, vascular_subset=False, overwrite=False, base_path=_constants.BASE_PATH, data_path=None, **kwargs
 ):
     """Get or compute negative markers.
 
@@ -100,13 +105,15 @@ def get_negative_markers(
         pd.DataFrames neg_marker_mask and ratio_celltype with shape celltypes x genes,
         containing negative markers and ratio of cells expressing each gene within a celltype
     """
-    data_path = (
-        Path(base_path)
-        / "misc"
-        / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
-        / "negative_markers"
-    )
-    data_path.mkdir(parents=True, exist_ok=True)
+    if data_path is None:
+        data_path = (
+            Path(base_path)
+            / "misc"
+            / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
+            / "negative_markers"
+        )
+        data_path.mkdir(parents=True, exist_ok=True)
+    data_path = Path(data_path)
     marker_fname = (
         data_path
         / f"negative_markers_{cohort}_{'vascular_subset' if vascular_subset else 'all'}.csv"
@@ -260,7 +267,7 @@ def compute_positive_markers_from_reference(
 
 
 def get_positive_markers(
-    overwrite=False, base_path=_constants.BASE_PATH, subset_genes=None, subset_celltypes=None
+    overwrite=False, base_path=_constants.BASE_PATH, subset_genes=None, subset_celltypes=None, data_path=None, **kwargs
 ):
     """Get or compute positive markers.
 
@@ -276,14 +283,15 @@ def get_positive_markers(
     Returns:
         marker dictionary containing positive markers and ratio of cells expressing each gene within a celltype
     """
-    data_path = (
-        Path(base_path)
-        / "misc"
-        / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
-        / "positive_markers"
-    )
-    data_path.mkdir(parents=True, exist_ok=True)
-    marker_fname = data_path / "positive_markers_all.csv"
+    if data_path is None:
+        data_path = (
+            Path(base_path)
+            / "misc"
+            / "scRNAseq_ref_ABCAtlas_Yao2023Nature"
+            / "positive_markers"
+        )
+        data_path.mkdir(parents=True, exist_ok=True)
+    marker_fname = Path(data_path) / "positive_markers_all.csv"
     if overwrite or not marker_fname.exists():
         # need to recompute markers
         print("Markers not found or overwrite set to True: computing positive markers")
@@ -377,7 +385,8 @@ def _MECR_score(adata, gene_pairs, layer=None):
         List of tuples representing gene pairs to evaluate.
 
     Returns:
-    - results DataFrame
+    - results DataFrame, with one row per sample and gene pair plus a per-sample
+      summary row (median over gene pairs) marked with gene1 = gene2 = "all"
     """
     results = []
     for sample in adata.obs["sample"].unique():
@@ -396,7 +405,12 @@ def _MECR_score(adata, gene_pairs, layer=None):
             results.append(
                 {"sample": sample, "gene1": gene1, "gene2": gene2, "MECR": mecr}
             )
-    return pd.DataFrame(results)
+    results = pd.DataFrame(results)
+    # add one summary row per sample, marked with gene1 = gene2 = "all"
+    summary = results.groupby("sample", as_index=False)["MECR"].median()
+    summary["gene1"] = "all"
+    summary["gene2"] = "all"
+    return pd.concat([results, summary[results.columns]], ignore_index=True)
 
 
 def compute_MECR_score(
@@ -417,7 +431,7 @@ def compute_MECR_score(
     if subset_vascular_celltypes:
         subset_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
     marker_gene_dict = get_positive_markers(
-        subset_genes=adata.var_names, subset_celltypes=subset_celltypes
+        subset_genes=adata.var_names, subset_celltypes=subset_celltypes, **kwargs
     )
     # process marker gene dict to gene-pair list
     # get gene-pair list for MECR
@@ -434,8 +448,13 @@ def compute_MECR_score(
     return results
 
 
-def plot_MECR_score(cohort, results_suffix, percentile=97, show=False):
-    """Plot violin plot of MECR scores."""
+def plot_MECR_score(cohort, results_suffix, show=False):
+    """Plot boxplot of MECR scores, one point per sample.
+
+    Uses the per-sample summary rows (gene1 = gene2 = "all") written by compute_MECR_score,
+    so the plotted spread reflects sample-to-sample variability rather than gene-panel
+    heterogeneity, and no outlier trimming is needed.
+    """
     results_file = (
         Path(_constants.BASE_PATH)
         / "metrics"
@@ -447,47 +466,110 @@ def plot_MECR_score(cohort, results_suffix, percentile=97, show=False):
     plot_path.mkdir(parents=True, exist_ok=True)
 
     results_df = pd.read_csv(results_file, index_col=0)
+    # keep the per-sample summary rows, then order methods by their mean across samples
+    median_results = results_df[results_df["gene1"] == "all"]
+    method_order = median_results.groupby("method")["MECR"].mean().sort_values().index
+    custom_palette = {
+        method: _constants.method_colors[method] for method in method_order
+    }
 
-    # Remove outliers per method and prepare for plotting
-    filtered = []
-    for method, df in results_df.groupby("method"):
-        threshold = np.percentile(df["MECR"], percentile)
-        filtered.append(df[df["MECR"] <= threshold])
-    results_df_filtered = pd.concat(filtered)
-
-    # Order datasets by median MECR value
-    method_order = (
-        results_df_filtered.groupby("method")["MECR"].median().sort_values().index
-    )
-
-    # Create custom palette matching the dataset order
-    custom_palette = {method: _constants.method_colors[method] for method in method_order}
-
-    fig = plt.figure(figsize=(3.5, 8), dpi=300)
+    fig = plt.figure(figsize=(5, 8), dpi=300)
     plt.grid(True, alpha=0.3, zorder=0)
 
-    # Create violin plot with quartile lines and custom colors
-    sns.violinplot(
+    sns.boxplot(
+        data=median_results,
         y="method",
         x="MECR",
-        data=results_df_filtered,
+        hue="method",
         order=method_order,
-        inner="quartile",
-        linewidth=0.7,
-        zorder=2,
-        palette=custom_palette,  # Use the custom palette instead of hue
+        palette=custom_palette,
         legend=False,
+        linewidth=0.7,
+        showfliers=False,
+        zorder=2,
     )
-    plt.xlim(right=0.41)
+    # show the individual samples on top of the boxes
+    sns.stripplot(
+        data=median_results,
+        y="method",
+        x="MECR",
+        order=method_order,
+        color="black",
+        size=2,
+        alpha=0.6,
+        zorder=3,
+    )
     plt.yticks(rotation=0, va="center")
     plt.ylabel("")
-    plt.xlabel("MECR Score")
+    plt.xlabel("MECR score (per-sample median)")
     plt.tight_layout()
 
     if show:
         plt.show()
     fig.savefig(plot_path / f"MECR_score_{results_suffix}.png", bbox_inches="tight")
-    plt.show()
+    plt.close(fig)
+
+
+def plot_MECR_vs_sensitivity(cohort, results_suffix, show=False):
+    """Scatter MECR (specificity) against assigned transcripts (sensitivity) per method.
+
+    MECR on its own rewards conservative segmentation: assigning fewer transcripts per
+    cell lowers co-expression regardless of segmentation quality, which is why small
+    rastered negative controls score well. Plotting it against a sensitivity axis makes
+    that trade-off visible, as in Hartman & Satija 2024 (eLife 96949), Figure 3e.
+
+    Requires assigned_transcript_counts.csv from compute_assigned_transcripts.
+    """
+    metrics_path = Path(_constants.BASE_PATH) / "metrics" / cohort
+    mecr_file = (
+        metrics_path / "marker_gene_metrics" / f"MECR_score_{results_suffix}.csv"
+    )
+    assigned_file = (
+        metrics_path / "assigned_transcripts" / "assigned_transcript_counts.csv"
+    )
+    if not assigned_file.exists():
+        print(f"{assigned_file} not found, skipping MECR vs sensitivity plot.")
+        return
+    plot_path = mecr_file.parent / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
+    # specificity: per-sample MECR summary rows, averaged over samples
+    mecr_df = pd.read_csv(mecr_file, index_col=0)
+    mecr = mecr_df[mecr_df["gene1"] == "all"].groupby("method")["MECR"].mean()
+    # sensitivity: fraction of detected transcripts assigned to a cell, pooled per method
+    assigned = pd.read_csv(assigned_file, index_col=0)
+    totals = assigned.groupby("method")[["assigned_count_qced", "total_count"]].sum()
+    pct_assigned = 100 * totals["assigned_count_qced"] / totals["total_count"]
+
+    df = pd.concat([mecr, pct_assigned.rename("pct_assigned")], axis=1).dropna()
+
+    fig, ax = plt.subplots(figsize=(7, 6), dpi=300)
+    ax.grid(True, alpha=0.3, zorder=0)
+    for method, row in df.iterrows():
+        ax.scatter(
+            row["MECR"],
+            row["pct_assigned"],
+            color=_constants.method_colors[method],
+            s=45,
+            zorder=2,
+        )
+        ax.annotate(
+            _constants.clean_method_names.get(method, method),
+            (row["MECR"], row["pct_assigned"]),
+            fontsize=5,
+            xytext=(3, 3),
+            textcoords="offset points",
+        )
+    ax.set_xlabel("MECR score (per-sample median) - lower is more specific")
+    ax.set_ylabel("Transcripts assigned to a cell [%] - higher is more sensitive")
+    plt.tight_layout()
+
+    if show:
+        plt.show()
+    fig.savefig(
+        plot_path / f"MECR_vs_sensitivity_{results_suffix}.png", bbox_inches="tight"
+    )
+    plt.close(fig)
 
 
 def compute_marker_F1_score(
@@ -516,7 +598,7 @@ def compute_marker_F1_score(
     celltype_name = "merged_celltypes"
 
     marker_dict = get_positive_markers(
-        subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique()
+        subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique(), **kwargs
     )
 
     results = []
@@ -676,6 +758,7 @@ def compute_negative_marker_purity(
     neg_marker_mask_sc,
     ratio_celltype_sc,
     celltype_name="cell_type_revised",
+    subset_celltypes=False,
     **kwargs,
 ):
     """Negative marker purity aims to measure read leakeage between cells in spatial datasets.
@@ -697,21 +780,82 @@ def compute_negative_marker_purity(
     negative marker purity:
         Increase in proportion of positive cells assigned in spatial data to pairs of genes-celltyes with no/very low expression in scRNAseq
     """
-    # Set threshold parameters - same as used in get_negative_markers
     min_number_cells = 10  # minimum number of cells belonging to a cluster to consider it in the analysis
+    data = []
+
+    for sample in adata.obs['sample'].unique():
+        adata_sub = adata[adata.obs['sample'] == sample]
+
+        shared_celltypes = list(
+            set(list(neg_marker_mask_sc.index)).intersection(
+                adata_sub.obs[celltype_name].unique()
+            )
+        )
+        shared_genes = list(
+            set(list(neg_marker_mask_sc.columns)).intersection(
+                adata_sub.var_names
+            )
+        )
+        celltype_count = adata_sub.obs[celltype_name].value_counts().loc[shared_celltypes]
+        ct_filter = celltype_count >= min_number_cells
+        celltypes = celltype_count.loc[ct_filter].index.tolist()
+
+        # Filter cells to eligible cell types
+        adata_sub = adata_sub[adata_sub.obs[celltype_name].isin(celltypes), adata_sub.var_names.isin(shared_genes)]
+
+        # get ratio of positive cells per cell type
+        count_per_ct = sc.get.aggregate(
+            adata_sub, celltype_name, "count_nonzero", layer="counts"
+        )
+        count_per_ct.obs["count"] = adata_sub.obs[celltype_name].value_counts()
+        ratio_celltype_sp = (
+                count_per_ct.layers["count_nonzero"]
+                / np.array(count_per_ct.obs["count"])[:, np.newaxis]
+        )
+        ratio_celltype_sp = pd.DataFrame(
+            data=ratio_celltype_sp,
+            index=count_per_ct.obs[celltype_name],
+            columns=count_per_ct.var_names,
+        )
+
+        # ensure consistent celltypes
+        neg_marker_mask_sc_filtered = neg_marker_mask_sc.loc[ratio_celltype_sp.index, shared_genes]
+        ratio_celltype_sc_filtered = ratio_celltype_sc.loc[ratio_celltype_sp.index, shared_genes]
+
+        # Get pos cell ratios in negative marker-cell type pairs
+        # lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
+        lowvals_sc = ratio_celltype_sc_filtered.values[neg_marker_mask_sc_filtered]
+        lowvals_sp = ratio_celltype_sp.values[neg_marker_mask_sc_filtered]
+
+        # Take the mean over the normalized expressions of the genes' negative cell types
+        mean_sc_low_ratio = np.nanmean(lowvals_sc)
+        mean_sp_low_ratio = np.nanmean(lowvals_sp)
+
+        # Calculate summary metric
+        negative_marker_purity = 1
+        if mean_sp_low_ratio > mean_sc_low_ratio:
+            negative_marker_purity -= mean_sp_low_ratio - mean_sc_low_ratio
+
+        data.append(pd.DataFrame({"sample": sample, "negative_marker_purity": [negative_marker_purity]}))
 
     shared_celltypes = list(
         set(list(neg_marker_mask_sc.index)).intersection(
             adata.obs[celltype_name].unique()
         )
     )
+    shared_genes = list(
+        set(list(neg_marker_mask_sc.columns)).intersection(
+            adata.var_names
+        )
+    )
+
     # Filter cell types by minimum number of cells
     celltype_count = adata.obs[celltype_name].value_counts().loc[shared_celltypes]
     ct_filter = celltype_count >= min_number_cells
     celltypes = celltype_count.loc[ct_filter].index.tolist()
 
     # Filter cells to eligible cell types
-    adata = adata[adata.obs[celltype_name].isin(celltypes)]
+    adata = adata[adata.obs[celltype_name].isin(celltypes), adata.var_names.isin(shared_genes)]
 
     # get ratio of positive cells per cell type
     count_per_ct = sc.get.aggregate(
@@ -729,11 +873,11 @@ def compute_negative_marker_purity(
     )
 
     # ensure consistent celltypes
-    neg_marker_mask_sc = neg_marker_mask_sc.loc[ratio_celltype_sp.index]
-    ratio_celltype_sc = ratio_celltype_sc.loc[ratio_celltype_sp.index]
+    neg_marker_mask_sc = neg_marker_mask_sc.loc[ratio_celltype_sp.index, shared_genes]
+    ratio_celltype_sc = ratio_celltype_sc.loc[ratio_celltype_sp.index, shared_genes]
 
     # Get pos cell ratios in negative marker-cell type pairs
-    lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
+    #lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
     lowvals_sc = ratio_celltype_sc.values[neg_marker_mask_sc]
     lowvals_sp = ratio_celltype_sp.values[neg_marker_mask_sc]
 
@@ -746,4 +890,50 @@ def compute_negative_marker_purity(
     if mean_sp_low_ratio > mean_sc_low_ratio:
         negative_marker_purity -= mean_sp_low_ratio - mean_sc_low_ratio
 
-    return pd.DataFrame({"negative_marker_purity": [negative_marker_purity]})
+    data.append(pd.DataFrame({"sample": "all", "negative_marker_purity": [negative_marker_purity]}))
+    return pd.concat(data, ignore_index=True)
+
+def plot_negative_marker_purity(cohort, results_suffix, show=False):
+    """Plot negative marker purity scores.
+
+    Plots maker purity scores as bar plot
+    """
+    results_file = (
+            Path(_constants.BASE_PATH)
+            / "metrics"
+            / cohort
+            / "marker_gene_metrics"
+            / f"negative_marker_purity_{results_suffix}.csv"
+    )
+    plot_path = results_file.parent / "plots"
+    plot_path.mkdir(parents=True, exist_ok=True)
+
+    scores_df = pd.read_csv(results_file, index_col=0)
+
+    order = scores_df.set_index("method")["negative_marker_purity"].sort_values().index
+    pal = {m: _constants.method_colors[m] for m in order}
+    method_order = [x for x in _constants.method_colors.keys() if x in scores_df['method'].unique()]
+    scores_df['method'] = pd.Categorical(scores_df['method'], categories=method_order, ordered=True)
+
+    fig = plt.figure(figsize=(14, 6))
+    ax = sns.barplot(
+        data=scores_df,
+        x="method",
+        y="negative_marker_purity",
+        hue="method",
+        palette=pal,
+        legend=True,
+        order=order,
+    )
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.xticks(rotation=45, ha="right")
+    plt.ylabel("Negative Marker Purity")
+    plt.ylim(0, 1)
+    plt.title("Negative Marker Purity")
+    plt.tight_layout()
+    if show:
+        plt.show()
+    plt.savefig(
+        plot_path / f"negative_marker_purity_{results_suffix}.png", bbox_inches="tight"
+    )
+    plt.show()

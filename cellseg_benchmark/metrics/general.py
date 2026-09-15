@@ -31,17 +31,28 @@ def _extract_stats(df, columns, celltype_name="cell_type_revised"):
         .groupby(["sample", celltype_name], observed=True)
         .mean()
     )
+    counts = (
+        df[["sample", celltype_name] + columns]
+        .groupby(["sample", celltype_name], observed=True)
+        .size()
+    )
+    results = pd.concat([results, counts], axis=1)
     # compute for all cells together
     df_all = df[["sample"] + columns].groupby("sample", observed=True).mean()
+    counts = df[["sample"] + columns].groupby("sample", observed=True).size()
+    df_all = pd.concat([df_all, counts], axis=1)
     df_all[celltype_name] = "all"
     df_all = df_all.reset_index().set_index(["sample", celltype_name])
     results = pd.concat([results, df_all])
     # compute for only vascular subset
     df_vasc = df[df[celltype_name].isin(vascular_celltypes)][["sample"] + columns]
+    counts = df_vasc.groupby("sample", observed=True).size()
     df_vasc = df_vasc.groupby("sample", observed=True).mean()
+    df_vasc = pd.concat([df_vasc, counts], axis=1)
     df_vasc[celltype_name] = "vascular_subset"
     df_vasc = df_vasc.reset_index().set_index(["sample", celltype_name])
     results = pd.concat([results, df_vasc])
+    results.rename({0: "n_cells"}, axis=1, inplace=True)
     return results.reset_index()
 
 
@@ -179,10 +190,14 @@ def extract_mem_and_time(
             }
         ).reset_index(drop=True)
 
-    ref = pd.read_csv(ref_file_path, sep="\t", on_bad_lines="skip")
-    ref["_ref_order"] = range(len(ref))
+    legacy = Path(ref_file_path).parent / "job_runs.tsv"
+    if legacy.exists():
+        raise FileNotFoundError(f"Obsolete {legacy} must be merged into run_log.tsv and deleted.")
 
+    ref = pd.read_csv(ref_file_path, sep="\t")
     ref["jobid"] = ref["jobid"].astype(str)
+
+    ref["_ref_order"] = range(len(ref))
     ref["jobname"] = ref["jobname"].astype(str)
     ref["sample"] = ref["key"].astype(str)
     ref["jobname_norm"] = ref["jobname"].apply(utils.normalize_jobname)
@@ -292,8 +307,8 @@ def plot_mem_and_time(cohort, metric=None, show: bool = False):
     elif isinstance(metric, list):
         if not all([x in ["memory", "cpus", "duration"] for x in metric]):
             raise ValueError(f"Metric {metric!r} is not supported. Choose subset of memory, cpus or duration.")
-        if metric is None:
-            metric = ["memory", "cpus", "duration"]
+    if metric is None:
+        metric = ["memory", "cpus", "duration"]
 
     column_mapping = {
         "memory": "maxrss_gb",

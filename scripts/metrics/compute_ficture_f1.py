@@ -7,7 +7,7 @@ Results are written to ``metrics/<cohort>/ficture/ficture_f1.csv`` with one row 
 
 import argparse
 
-from cellseg_benchmark.metrics import compute_ficture_f1
+from cellseg_benchmark.metrics import compute_ficture_f1, plot_ficture_f1
 from cellseg_benchmark.metrics.utils import compute_metric_for_all_methods
 
 if __name__ == "__main__":
@@ -36,3 +36,4 @@ if __name__ == "__main__":
         n_jobs=args.n_jobs,
         overwrite=args.overwrite,
     )
+    plot_ficture_f1(args.cohort, show=False)

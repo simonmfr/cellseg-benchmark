@@ -24,6 +24,7 @@ def merge_adatas(
     adatas_list: List[Tuple[str, ad.AnnData]],
     seg_method: str,
     cell_type_col: str = "cell_type_revised",
+    control_genes: str = "Blank",
     logger: logging.Logger = None,
     plot_qc_stats: bool = False,
     save_path=None,
@@ -82,6 +83,9 @@ def merge_adatas(
                 )
 
     adata = ad.concat(adatas, join="outer", merge="first")
+    if any(adata.var_names.str.startswith(control_genes)):
+        logger.warning(f"At least one sample adata contained control genes ({control_genes}). Filtering…")
+        adata = adata[:, ~adata.var_names.str.startswith(control_genes)]
 
     for col in {"cell_id", "cell_id_x", "cell_id_y"} & set(adata.obs.columns):
         del adata.obs[col]

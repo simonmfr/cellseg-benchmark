@@ -8,6 +8,8 @@ import pandas as pd
 import sopa
 from spatialdata import read_zarr
 
+from cellseg_benchmark import BASE_PATH
+
 parser = argparse.ArgumentParser(description="Run ComSeg segmentation.")
 parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("sample", help="Sample name.")
@@ -21,7 +23,7 @@ def main(data_path, sample, base_segmentation):
     """ComSeg algorithm by sopa with dask backend parallelized."""
     print("Reading raw MERSCOPE data...")
     sdata_tmp = sopa.io.merscope(data_path)  # to read in the images and points
-    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
+    path = f"{BASE_PATH}/samples/{sample}/results"
 
     print("Loading base segmentation...")
     sdata = read_zarr(pathlib.Path(path, base_segmentation, "sdata.zarr"))
@@ -78,7 +80,7 @@ def main(data_path, sample, base_segmentation):
     # sopa.settings.dask_client_kwargs["timeout"] = "600000"
 
     print("Running ComSeg segmentation...")
-    path_json = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/comseg.json"
+    path_json = f"{BASE_PATH}/misc/comseg.json"
     start = time.time()
     try:
         sopa.segmentation.comseg(
