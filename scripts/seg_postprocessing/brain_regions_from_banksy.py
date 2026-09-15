@@ -190,6 +190,10 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
             vmax=len(labels) - 0.5,
             interpolation="nearest",
         )
+        # Centroid coords for point_overrides: pick the wrong blob here, drop its (x, y) in.
+        for reg in regions:
+            c = reg["poly"].centroid
+            ax.annotate(f"{c.x:.0f},{c.y:.0f}", (c.x, c.y), ha="center", va="center", fontsize=4)
         ax.set_title(sample)
         ax.set_aspect("equal")
         ax.axis("off")

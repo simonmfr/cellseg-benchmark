@@ -23,7 +23,7 @@ from rpy2.robjects.conversion import localconverter
 
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 
-LAMBDA = 0.8  # 0.2 = cell typing, 0.8 = spatial domains (Banksy)
+LAMBDA = 1.0
 
 # k_geom = c(k_mean, k_agf) spatial neighbours, i.e. the smoothing kernel.
 SCALES = {
