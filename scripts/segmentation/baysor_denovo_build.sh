@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Builds the pinned native Baysor C++ CLI in a micromamba environment and packs it
 # into a copy of the enroot image, under /opt/baysor-cpp, so the segmentation
-# environment and its older Baysor stay untouched. Run once on the AI Systems cluster.
+# environment and its older Baysor stay untouched. Run once, in a job with enroot
+# and >=64G (the CGAL units are memory hungry; raise JOBS only with more memory).
 set -euo pipefail
+MAMBA="${MAMBA_EXE:-micromamba}"
 ROOT="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
 ENV="baysor_denovo"
 ENVDIR="${ROOT}/envs/${ENV}"
 WORK="${HOME}/.cache/baysor-build"
 TAG="cpp-0.8.3"
-[[ -d "${ENVDIR}" ]] || micromamba create -y -r "${ROOT}" -n "${ENV}" -c conda-forge \
+RUN=("${MAMBA}" run -r "${ROOT}" -n "${ENV}")
+[[ -d "${ENVDIR}" ]] || "${MAMBA}" create -y -r "${ROOT}" -n "${ENV}" -c conda-forge \
   python=3.12 pandas pyyaml cxx-compiler cmake ninja pkg-config \
   eigen spdlog cgal-cpp libarrow libparquet hdf5 nlohmann_json libtiff
 rm -rf "${WORK}"
@@ -24,13 +27,13 @@ set_target_properties(TIFF::TIFF PROPERTIES
 set(TIFF_FOUND TRUE)
 EOF
 # RPATH lets the installed binary run without activating the environment
-micromamba run -r "${ROOT}" -n "${ENV}" cmake -S "${WORK}/src" -B "${WORK}/build" -G Ninja \
+"${RUN[@]}" cmake -S "${WORK}/src" -B "${WORK}/build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DBAYSOR_WITH_TESTS=OFF \
   -DCMAKE_INSTALL_PREFIX="${ENVDIR}" -DCMAKE_PREFIX_PATH="${ENVDIR}" \
   -DCMAKE_MODULE_PATH="${WORK}/cmake" \
   -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
-micromamba run -r "${ROOT}" -n "${ENV}" cmake --build "${WORK}/build" --target baysor
-micromamba run -r "${ROOT}" -n "${ENV}" cmake --install "${WORK}/build"
+"${RUN[@]}" cmake --build "${WORK}/build" --target baysor --parallel "${JOBS:-4}"
+"${RUN[@]}" cmake --install "${WORK}/build"
 rm -rf "${WORK}"
 IMG="$(realpath -m "$(dirname "${BASH_SOURCE[0]}")/../../data")/misc/enroot_images"
 export ENROOT_DATA_PATH="${IMG}/enroot_data"
