@@ -79,7 +79,6 @@ for seg_method in methods:
 
 set -eu
 cd $HOME/gitrepos/cellseg-benchmark
-git pull -q
 
 python scripts/seg_postprocessing/vascular_subtyping.py {args.cohort} {seg_method} --condition-col {condition_col}
 """)

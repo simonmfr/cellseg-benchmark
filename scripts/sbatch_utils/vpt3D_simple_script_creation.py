@@ -41,7 +41,6 @@ for key, value in data.items():
 
 set -euo pipefail
 
-git -C {JOB_REPO_PATH} pull -q
 source {RUN_LOG_PATH}
 
 RESULT_DIR="{res_path}"

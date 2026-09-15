@@ -46,9 +46,6 @@ set -eu
 cd $HOME/gitrepos/spatialdata
 git pull -q
 cd $HOME/gitrepos/cellseg-benchmark
-git pull -q
-
-set -eu
 
 mamba activate sopa
 
