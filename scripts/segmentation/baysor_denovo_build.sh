@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
-# Builds the pinned native Baysor C++ CLI in a micromamba environment and packs it
-# into a copy of the enroot image, under /opt/baysor-cpp, so the segmentation
-# environment and its older Baysor stay untouched. Submit with sbatch (needs enroot,
-# >=64G, ~2h); raise JOBS only with more memory.
+# Builds the pinned native Baysor C++ CLI in a micromamba environment and appends it
+# to the enroot image under /opt/baysor-cpp. Submit with sbatch (>=64G, ~1h);
+# raise JOBS only with more memory.
+# The image is appended to, never unpacked: on GPFS, unsquashfs creates each file
+# with its mode and the inherited ACL masks it, which silently strips the exec bit
+# from every file in the image.
 set -euo pipefail
 MAMBA="${MAMBA_EXE:-micromamba}"
 ROOT="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
 ENV="baysor_denovo"
 ENVDIR="${ROOT}/envs/${ENV}"
 WORK="${HOME}/.cache/baysor-build"
+STAGE="${WORK}/stage"
 TAG="cpp-0.8.3"
 RUN=("${MAMBA}" run -r "${ROOT}" -n "${ENV}")
 IMG="$(realpath -m "$(dirname "${BASH_SOURCE[0]}")/../../data")/misc/enroot_images"
-OUT="${IMG}/benchmark_baysor.sqsh"
-# Scratch lives next to the images, so it needs no local disk; squashfs cannot
-# store the GPFS ACL xattrs found there, so skip them instead of warning per file.
-export ENROOT_DATA_PATH="${IMG}/enroot_data"
-export ENROOT_SQUASH_OPTIONS="-no-xattrs -processors ${SLURM_CPUS_PER_TASK:-8}"
+OUT="${IMG}/benchmark_new.sqsh"
 
-cleanup() {
-  rm -rf "${WORK}"
-  enroot remove -f baysor_image 2>/dev/null || true
-  rm -rf "${ENROOT_DATA_PATH}" "${OUT}.tmp"
-}
+cleanup() { rm -rf "${WORK}" "${OUT}.tmp"; }
 trap cleanup EXIT
+
+if unsquashfs -ll "${OUT}" | grep -q 'opt/baysor-cpp'; then
+  echo "${OUT} already carries /opt/baysor-cpp; restore ${OUT}.bak first" >&2
+  exit 1
+fi
 
 [[ -d "${ENVDIR}" ]] || "${MAMBA}" create -y -r "${ROOT}" -n "${ENV}" -c conda-forge \
   python=3.12 pandas pyyaml cxx-compiler cmake ninja pkg-config \
@@ -49,17 +49,26 @@ EOF
 "${RUN[@]}" cmake --build "${WORK}/build" --target baysor --parallel "${JOBS:-4}"
 "${RUN[@]}" cmake --install "${WORK}/build"
 
-mkdir -p "${ENROOT_DATA_PATH}"
-enroot create -n baysor_image "${IMG}/benchmark_new.sqsh"
-PREFIX="${ENROOT_DATA_PATH}/baysor_image/opt/baysor-cpp"
-mkdir -p "${PREFIX}/bin" "${PREFIX}/lib"
-cp -L "${ENVDIR}/bin/baysor" "${PREFIX}/bin/"
+mkdir -p "${STAGE}/opt/baysor-cpp/bin" "${STAGE}/opt/baysor-cpp/lib"
+cp -L "${ENVDIR}/bin/baysor" "${STAGE}/opt/baysor-cpp/bin/"
 ldd "${ENVDIR}/bin/baysor" | awk -v d="${ENVDIR}/" '$3 ~ "^" d {print $3}' | sort -u \
-  | xargs -I{} cp -L {} "${PREFIX}/lib/"
-enroot export -o "${OUT}.tmp" baysor_image
+  | xargs -I{} cp -L {} "${STAGE}/opt/baysor-cpp/lib/"
+chmod -R a+rX,u+w "${STAGE}"
+chmod 755 "${STAGE}/opt/baysor-cpp/bin/baysor"
+
+cp "${OUT}" "${OUT}.tmp"
+mksquashfs "${STAGE}" "${OUT}.tmp" -all-root
+if ! unsquashfs -ll "${OUT}.tmp" | grep -qE '^-rwxr-xr-x .*squashfs-root/usr/bin/bash$'; then
+  echo "/usr/bin/bash lost its exec bit, not promoting ${OUT}.tmp" >&2
+  exit 1
+fi
+if ! unsquashfs -ll "${OUT}.tmp" | grep -qE '^-rwxr-xr-x .*squashfs-root/opt/baysor-cpp/bin/baysor$'; then
+  echo "baysor missing or not executable, not promoting ${OUT}.tmp" >&2
+  exit 1
+fi
+mv -f "${OUT}" "${OUT}.bak"
 mv -f "${OUT}.tmp" "${OUT}"
 
-# Only on success: the environment is a build artifact, kept on failure for retries
 "${MAMBA}" env remove -y -r "${ROOT}" -n "${ENV}"
 "${MAMBA}" clean -y -a
-echo "installed Baysor ${TAG} in ${OUT}"
+echo "appended Baysor ${TAG} to ${OUT} (previous image at ${OUT}.bak)"
