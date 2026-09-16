@@ -28,7 +28,7 @@ for key, value in data.items():
 #SBATCH -e {BASE_PATH}/misc/logs/errors/intensities_3D_{key}.err
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
             
-mamba activate segmentation
+mamba activate seg_postprocessing
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/intensities_3D.py {key} {value["path"]}
 """)
     f.close()
