@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("dimension", choices=["2D", "3D"], help="segmentation mode.")
 args = parser.parse_args()
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 METHOD = f"Baysor_{args.dimension}_denovo"
 EXPLORER = " --explorer" if args.dimension == "2D" else ""
 

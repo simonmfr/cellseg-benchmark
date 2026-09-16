@@ -9,7 +9,7 @@ import sopa
 from spatialdata import read_zarr
 from spatialdata_io import merscope
 
-from cellseg_benchmark import BASE_PATH
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 parser = argparse.ArgumentParser(
     description="Compute ProSeg segmentation without any prior segmentation."

@@ -3,12 +3,15 @@ import argparse
 import logging
 import pathlib
 import re
+import sys
 
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from cellseg_benchmark._constants import BASE_PATH
 from cellseg_benchmark.dea_utils import (

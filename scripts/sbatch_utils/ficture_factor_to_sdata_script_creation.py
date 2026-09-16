@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser(
     description="Create SLURM jobs to convert Ficture factor x gene counts to sdatas."
 )
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 with open(f"{BASE_PATH}/misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)

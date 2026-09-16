@@ -2,11 +2,14 @@
 import argparse
 import logging
 import pathlib
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 import cellseg_benchmark._constants as _constants
 import cellseg_benchmark._markers as _markers

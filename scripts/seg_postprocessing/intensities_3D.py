@@ -6,6 +6,8 @@ import pathlib
 import subprocess
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
+
 import cellseg_benchmark.intensities_3D as intensities_3D
 import cellseg_benchmark._constants as _constants
 
@@ -35,7 +37,7 @@ def main():
     )
     args = parser.parse_args()
 
-    BASE_PATH = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
+    BASE_PATH = _constants.BASE_PATH
     sample_path = pathlib.Path(BASE_PATH) / "samples" / args.sample
 
     methods = []

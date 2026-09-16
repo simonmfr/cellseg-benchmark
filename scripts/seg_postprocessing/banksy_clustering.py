@@ -14,7 +14,7 @@ import squidpy as sq
 from rpy2.robjects import default_converter, numpy2ri, pandas2ri
 from rpy2.robjects.conversion import localconverter
 
-from cellseg_benchmark import BASE_PATH
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 today = datetime.date.today().strftime("%Y%m%d")
 

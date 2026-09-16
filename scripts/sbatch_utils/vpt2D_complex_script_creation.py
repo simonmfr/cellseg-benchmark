@@ -8,15 +8,15 @@ parser = argparse.ArgumentParser(description="Prepare scripts for vpt pipeline."
 parser.add_argument("staining1", help="Name of cytoplasm staining (e.g. PolyT).")
 parser.add_argument("staining2", help="Name of nucleus staining (e.g. nuclei).")
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
-REPO_PATH = "$HOME/gitrepos/cellseg-benchmark"
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
+JOB_REPO_PATH = "$HOME/gitrepos/cellseg-benchmark"
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vpt_2D_complex"
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
 
-EXPERIMENT_JSON_PATH = f"{REPO_PATH}/configs/vpt_2D_{args.staining1}_{args.staining2}.json"
-RUN_LOG_PATH = f"{REPO_PATH}/scripts/sbatch_utils/run_log.sh"
+EXPERIMENT_JSON_PATH = f"{JOB_REPO_PATH}/configs/vpt_2D_{args.staining1}_{args.staining2}.json"
+RUN_LOG_PATH = f"{JOB_REPO_PATH}/scripts/sbatch_utils/run_log.sh"
 
 SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
@@ -39,10 +39,9 @@ for key, value in data.items():
 
 set -euo pipefail
 
-git -C {REPO_PATH} pull -q
 source {RUN_LOG_PATH}
 
-RES_PATH="{res_path}"
+RESULT_DIR="{res_path}"
 EXPERIMENT_JSON="{EXPERIMENT_JSON_PATH}"
 INPUT_IMAGES="{pathlib.Path(value["path"], "images")}"
 INPUT_TRANSFORM="{pathlib.Path(value["path"], "images/micron_to_mosaic_pixel_transform.csv")}"
@@ -59,13 +58,12 @@ TMP_PATH="{pathlib.Path(res_path, "tmp")}"
 KEY="{key}"
 STAINING="{args.staining1}+{args.staining2}"
 INPUT_PATH="${{INPUT_IMAGES}}"
-RESULT_DIR="${{RES_PATH}}"
 CMD="vpt run-segmentation + partition-transcripts + derive-entity-metadata + update-vzg"
 start_run_log
 
 mamba activate vpt
 
-mkdir -p "${{RES_PATH}}"
+mkdir -p "${{RESULT_DIR}}"
 
 vpt --verbose --processes 40 run-segmentation \\
   --segmentation-algorithm "${{EXPERIMENT_JSON}}" \\

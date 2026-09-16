@@ -13,7 +13,7 @@ parser.add_argument("--time", default="48:00:00", help="Walltime per job.")
 parser.add_argument("--cpus", default="8", help="Cores per job.")
 args = parser.parse_args()
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 METHOD = f"Baysor_{args.dimension}_denovo"
 
 LARGE = {"ABCAtlas_s5_r0": "250G"}
@@ -34,7 +34,7 @@ for key, value in data.items():
 #SBATCH -J {METHOD}_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/{METHOD}_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/{METHOD}_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_baysor.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 source "$HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh"

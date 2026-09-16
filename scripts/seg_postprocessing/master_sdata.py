@@ -2,8 +2,11 @@
 import argparse
 import logging
 import pathlib
+import sys
 
 import spatialdata as sd
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 import cellseg_benchmark.sdata_utils as sdata_utils
 
