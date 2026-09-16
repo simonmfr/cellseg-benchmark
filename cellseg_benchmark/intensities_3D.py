@@ -152,6 +152,12 @@ def compute_3D_intensities(
                 boundaries.set_index("cell_label", drop=True, inplace=True)
             boundaries.rename(columns={"z_plane": "ZIndex"}, inplace=True)
             boundaries["ZIndex"] = boundaries["ZIndex"].astype(float).astype(int)
+        elif method.startswith("Baysor_3D"):
+            if "baysor_boundaries" in sdata.shapes.keys():
+                logger.debug("Loading baysor_boundaries for Baysor_3D by default key")
+                boundaries = sdata["baysor_boundaries"]
+            else:
+                raise ValueError("sdata is not as expected. Please double check.")
         else:
             raise NotImplementedError(
                 "Please either provide keys to the 3D boundaries in the sdata or an implemented method name."
