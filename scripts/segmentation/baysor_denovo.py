@@ -6,7 +6,7 @@ import sys
 
 import pandas as pd
 
-BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
+from cellseg_benchmark import BASE_PATH
 
 parser = argparse.ArgumentParser(
     description="Compute Baysor segmentation without prior, native CLI."
@@ -24,7 +24,7 @@ parser.add_argument("--keep_transcripts", action="store_true")
 args = parser.parse_args()
 
 # CLI built into the micromamba env by baysor_denovo_build.sh (see that file for setup).
-BAYSOR = "/opt/baysor-cpp/bin/baysor"
+BAYSOR = "/baysor-cpp/bin/baysor"
 COLS = ["global_x", "global_y", "global_z", "gene"]
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the pinned native Baysor C++ CLI in a micromamba environment and appends it
-# to the enroot image under /opt/baysor-cpp. Submit with sbatch (>=64G, ~1h);
+# to the enroot image under /baysor-cpp. Submit with sbatch (>=64G, ~1h);
 # raise JOBS only with more memory.
 # The image is appended to, never unpacked: on GPFS, unsquashfs creates each file
 # with its mode and the inherited ACL masks it, which silently strips the exec bit
@@ -16,12 +16,14 @@ TAG="cpp-0.8.3"
 RUN=("${MAMBA}" run -r "${ROOT}" -n "${ENV}")
 IMG="$(realpath -m "$(dirname "${BASH_SOURCE[0]}")/../../data")/misc/enroot_images"
 OUT="${IMG}/benchmark_new.sqsh"
+LL="${WORK}.ll"
 
-cleanup() { rm -rf "${WORK}" "${OUT}.tmp"; }
+cleanup() { rm -rf "${WORK}" "${LL}" "${OUT}.tmp"; }
 trap cleanup EXIT
 
-if unsquashfs -ll "${OUT}" | grep -q 'opt/baysor-cpp'; then
-  echo "${OUT} already carries /opt/baysor-cpp; restore ${OUT}.bak first" >&2
+unsquashfs -ll "${OUT}" > "${LL}"
+if grep -q 'squashfs-root/baysor-cpp' "${LL}"; then
+  echo "${OUT} already carries /baysor-cpp; restore ${OUT}.bak first" >&2
   exit 1
 fi
 
@@ -49,20 +51,21 @@ EOF
 "${RUN[@]}" cmake --build "${WORK}/build" --target baysor --parallel "${JOBS:-4}"
 "${RUN[@]}" cmake --install "${WORK}/build"
 
-mkdir -p "${STAGE}/opt/baysor-cpp/bin" "${STAGE}/opt/baysor-cpp/lib"
-cp -L "${ENVDIR}/bin/baysor" "${STAGE}/opt/baysor-cpp/bin/"
+mkdir -p "${STAGE}/baysor-cpp/bin" "${STAGE}/baysor-cpp/lib"
+cp -L "${ENVDIR}/bin/baysor" "${STAGE}/baysor-cpp/bin/"
 ldd "${ENVDIR}/bin/baysor" | awk -v d="${ENVDIR}/" '$3 ~ "^" d {print $3}' | sort -u \
-  | xargs -I{} cp -L {} "${STAGE}/opt/baysor-cpp/lib/"
+  | xargs -I{} cp -L {} "${STAGE}/baysor-cpp/lib/"
 chmod -R a+rX,u+w "${STAGE}"
-chmod 755 "${STAGE}/opt/baysor-cpp/bin/baysor"
+chmod 755 "${STAGE}/baysor-cpp/bin/baysor"
 
 cp "${OUT}" "${OUT}.tmp"
 mksquashfs "${STAGE}" "${OUT}.tmp" -all-root
-if ! unsquashfs -ll "${OUT}.tmp" | grep -qE '^-rwxr-xr-x .*squashfs-root/usr/bin/bash$'; then
+unsquashfs -ll "${OUT}.tmp" > "${LL}"
+if ! grep -qE '^-rwxr-xr-x .*squashfs-root/usr/bin/bash$' "${LL}"; then
   echo "/usr/bin/bash lost its exec bit, not promoting ${OUT}.tmp" >&2
   exit 1
 fi
-if ! unsquashfs -ll "${OUT}.tmp" | grep -qE '^-rwxr-xr-x .*squashfs-root/opt/baysor-cpp/bin/baysor$'; then
+if ! grep -qE '^-rwxr-xr-x .*squashfs-root/baysor-cpp/bin/baysor$' "${LL}"; then
   echo "baysor missing or not executable, not promoting ${OUT}.tmp" >&2
   exit 1
 fi
