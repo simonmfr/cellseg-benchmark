@@ -5,6 +5,7 @@ import io
 import logging
 import os
 import pathlib
+from typing import Optional
 
 import geopandas as gpd
 import pandas as pd
@@ -20,10 +21,10 @@ def determine_image(sdata, idx):
 
 
 def compute_3D_intensities(
-        sdata_path: str | Path,
-        data_path: str | Path,
+        sdata_path: str | pathlib.Path,
+        data_path: str | pathlib.Path,
         method: Optional[str] = None,
-        boundary_path: Optional[str|Path]=None,
+        boundary_path: Optional[str|pathlib.Path]=None,
         boundary_key: Optional[str]=None,
         logger: Optional[logging.Logger]=None) -> None:
     """Computation of 3D intensities for 3D methods
@@ -35,11 +36,11 @@ def compute_3D_intensities(
         handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
         logger.addHandler(handler)
 
-    sdata_path = pathlib.Path(args.sdata_path)
+    sdata_path = pathlib.Path(sdata_path)
 
     logger.info("Loading images…")
     tmp_sdata = spatialdata_io.merscope(
-        args.data_path,
+        data_path,
         transcripts=True,
         mosaic_images=True,
         cells_boundaries=False,
@@ -58,29 +59,29 @@ def compute_3D_intensities(
 
     logger.info("Loading boundaries…")
     logger.debug(
-        f"boundary_key: {args.boundary_key}, method: {args.method}, boundary_path: {args.boundary_path}"
+        f"boundary_key: {boundary_key}, method: {method}, boundary_path: {boundary_path}"
     )
-    if args.boundary_key is not None:
-        boundaries = sdata[args.boundary_key]
-    elif args.method is not None:
-        if args.method.startswith("vpt_3D"):
+    if boundary_key is not None:
+        boundaries = sdata[boundary_key]
+    elif method is not None:
+        if method.startswith("vpt_3D"):
             if "boundaries_vpt_3D" in sdata.shapes.keys():
                 logger.debug("Loading boundaries_vpt_3D for vpt_3D by default key")
                 boundaries = sdata["boundaries_vpt_3D"]
             else:
                 logger.debug("Loading boundaries for vpt_3D by path")
-                assert args.boundary_path.endswith(".parquet"), (
+                assert boundary_path.endswith(".parquet"), (
                     "vpt_3D shape files end with .parquet"
                 )
                 boundaries = gpd.read_parquet(
-                    args.boundary_path,
+                    boundary_path,
                     columns=("ID", "EntityID", "ZIndex", "ZLevel", "Geometry"),
                 )
                 boundaries.rename(columns={"EntityID": "cell_id"}, inplace=True)
                 boundaries.rename_geometry("geometry", inplace=True)
                 boundaries.set_index("cell_id", drop=False, inplace=True)
                 boundaries.index = boundaries.index.rename(None)
-        elif args.method.startswith("Proseg_3D"):
+        elif method.startswith("Proseg_3D"):
             logger.debug("Loading boundaries for Proseg_3D by path")
             if os.path.exists(
                 sdata_path
@@ -99,12 +100,12 @@ def compute_3D_intensities(
                     / "cell-polygons-layers.geojson.gz"
                 )
             else:
-                assert args.boundary_path.endswith(
+                assert boundary_path.endswith(
                     ".geojson.gz"
-                ) or args.boundary_path.endswith(".geojson"), (
+                ) or boundary_path.endswith(".geojson"), (
                     "This is not the Proseg 3D shapes file."
                 )
-                boundary_path = args.boundary_path
+                boundary_path = boundary_path
             with gzip.open(boundary_path, "rt", encoding="utf-8") as f:
                 geojson_text = f.read()
             boundaries = gpd.read_file(io.StringIO(geojson_text))
@@ -114,7 +115,7 @@ def compute_3D_intensities(
             boundaries.rename(columns={"layer": "ZIndex"}, inplace=True)
             boundaries.set_index("cell_id", drop=False, inplace=True)
             boundaries.index = boundaries.index.rename(None)
-        elif args.method == "Watershed_Merlin":
+        elif method == "Watershed_Merlin":
             if "boundaries_vpt_3D" in sdata.shapes.keys():
                 logger.debug(
                     "Loading boundaries_vpt_3D for Watershed_Merlin by default key"
@@ -126,25 +127,25 @@ def compute_3D_intensities(
                     "If multiple boundaries are available, always the first ones are used."
                 )
                 sdata_tmp = spatialdata_io.merscope(
-                    args.data_path,
+                    data_path,
                     transcripts=False,
                     mosaic_images=False,
                     cells_boundaries=True,
                 )
                 boundaries = sdata_tmp[list(sdata_tmp.shapes.keys())[0]]
                 del sdata_tmp
-        elif args.method.startswith("SIS"):
+        elif method.startswith("SIS"):
             if "boundaries_3D" in sdata.shapes.keys():
                 logger.debug("Loading boundaries_3D for SIS by default key")
                 boundaries = sdata["boundaries_3D"]
             else:
                 logger.debug("Loading boundaries for SIS by path")
-                assert args.boundary_path.endswith(
+                assert boundary_path.endswith(
                     ".geojson.gz"
-                ) or args.boundary_path.endswith(".geojson"), (
+                ) or boundary_path.endswith(".geojson"), (
                     "This is not the SIS shapes file."
                 )
-                boundary_path = args.boundary_path
+                boundary_path = boundary_path
                 with gzip.open(boundary_path, "rt", encoding="utf-8") as f:
                     geojson_text = f.read()
                 boundaries = gpd.read_file(io.StringIO(geojson_text))
