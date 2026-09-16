@@ -39,7 +39,7 @@ for key, value in samples.items():
 #SBATCH -J CellSAM_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/CellSAM_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/CellSAM_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_bbc.sqsh"
 
 set -euo pipefail
 source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
@@ -51,7 +51,8 @@ RESULT_DIR="{result_dir}"
 CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/cellsam.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\" {POLYT_FLAG}--block_size {args.block_size} --patch_width {args.patch_width}"
 start_run_log
 
-mamba activate cellsam
+export DEEPCELL_ACCESS_TOKEN=$(tr -d '[:space:]' < {BASE_PATH}/misc/deepcell_token.txt)
+mamba activate segmentation
 mkdir -p "${{RESULT_DIR}}"
 
 eval "${{CMD}}"
