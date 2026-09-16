@@ -16,7 +16,7 @@ parser.add_argument("save_path", help="Path to output folder.")
 parser.add_argument(
     "--use_polyt", action="store_true", help="Use DAPI + PolyT instead of DAPI only."
 )
-parser.add_argument("--block_size", type=int, default=512, help="CellSAM block size.")
+parser.add_argument("--block_size", type=int, default=1024, help="CellSAM block size.")
 parser.add_argument("--patch_width", type=int, default=8192, help="Sopa patch width.")
 parser.add_argument(
     "--patch_overlap", type=int, default=200, help="Sopa patch overlap."
@@ -25,7 +25,7 @@ parser.add_argument("--min_area", type=int, default=2000, help="Minimum cell are
 args = parser.parse_args()
 
 
-def cellsam_for_sopa(image, block_size=512, use_polyt=False):
+def cellsam_for_sopa(image, block_size=1024, use_polyt=False):
     """Run cellsam_pipeline on a sopa patch and return an integer label mask."""
     if use_polyt:
         blank = np.zeros_like(image[0:1])
