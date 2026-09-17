@@ -1880,7 +1880,8 @@ brain_regions_colors = {
     "MEN": "#480091",
     "STR_PAL": "#98D6F9",
     "STR/CTX": "#A4EAD8",
-    "VS": "#C9C0E8",
+    "VL": "#C9C0E8",
+    "V3": "#8F7FC8",
     "FT": "#8C6D5D",
 }
 
