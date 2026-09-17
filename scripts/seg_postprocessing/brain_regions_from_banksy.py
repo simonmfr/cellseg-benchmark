@@ -48,13 +48,6 @@ _handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)
 logger.addHandler(_handler)
 
 
-def _natural_key(s):
-    """Sort 'aging_s10_r0' after 'aging_s1_r1', not before -- plain string
-    sort puts '_' (95) ahead of '0' (48), so 's10' < 's1' lexicographically.
-    """
-    return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s)]
-
-
 def write_skeleton(adata, cluster_key, config_path, plot_dir):
     """Write a YAML skeleton plus the per-cluster evidence needed to fill it in."""
     plot_dir.mkdir(parents=True, exist_ok=True)
@@ -115,7 +108,14 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
     default_cleanup = {**DEFAULT_CLEANUP, **(cleanup.get("default") or {})}
 
     out, grids = {}, {}
-    for sample in sorted(adata.obs["sample"].astype(str).unique(), key=_natural_key):
+    # Natural sort: plain sorted() puts 'aging_s10_r0' before 'aging_s1_r1'
+    # ('_' > '0' in ASCII), scrambling the panel order banksy_clustering.py
+    # produces from the adata's categorical order.
+    samples = sorted(
+        adata.obs["sample"].astype(str).unique(),
+        key=lambda s: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s)],
+    )
+    for sample in samples:
         sub = adata[adata.obs["sample"].astype(str) == sample]
         grid, geo = gridify(sub, "_cluster_code")
         _, _, dx, dy = geo
