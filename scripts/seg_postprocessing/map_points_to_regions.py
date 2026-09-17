@@ -17,9 +17,6 @@ from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 
 
-# ---------------------------------------------------------------------
-# Worker function for one segmentation method
-# ---------------------------------------------------------------------
 def process_method(
     method: str, cohort: str, anatom_annot: dict, data_path: pathlib.Path
 ) -> None:
@@ -27,7 +24,6 @@ def process_method(
     method_dir = data_path / "analysis" / cohort / method
     adata_points = sc.read_h5ad(method_dir / "adatas" / "adata_integrated.h5ad.gz")
 
-    # Map points to regions
     results = map_points_to_regions_from_anndata(
         adata_points,
         regions_by_slide=anatom_annot,
@@ -38,23 +34,18 @@ def process_method(
         return_df=True,
     )
 
-    # Combine results into a single DataFrame
     df_all = pd.concat([v["df"] for v in results.values()], ignore_index=True)
     df_all = df_all.set_index("obs_id").reindex(adata_points.obs_names)
-
     df_all["label_broad"] = df_all["label"].map(
         lambda lab: brain_regions_broad.get(lab, lab)
     )
 
-    # Add to AnnData
     adata_points.obs["brain_region"] = df_all["label"].values
     adata_points.obs["brain_region_broad"] = df_all["label_broad"].values
     adata_points.obs["brain_region_poly_index"] = df_all["poly_index"].values
 
-    # Save CSV
     df_all.to_csv(method_dir / "brain_regions.csv")
 
-    # Produce plot
     plot_spatial_multiplot(
         adata_points,
         "brain_region",
@@ -75,9 +66,6 @@ def _process_method_wrapper(
         return method, f"error: {e}"
 
 
-# ---------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------
 logger = logging.getLogger("annotation")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
@@ -85,9 +73,6 @@ handler.setLevel(logging.INFO)
 handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(handler)
 
-# ---------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------
 parser = argparse.ArgumentParser(description="Map points to brain regions.")
 parser.add_argument("cohort", help="cohort name")
 parser.add_argument(
