@@ -28,7 +28,11 @@ from shapely.geometry import Point
 from skimage.measure import label as cc_label
 from skimage.segmentation import find_boundaries
 
-from cellseg_benchmark._constants import brain_region_markers, brain_regions_colors
+from cellseg_benchmark._constants import (
+    brain_region_markers,
+    brain_regions_broad,
+    brain_regions_colors,
+)
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import (
     _extent_from_geo,
@@ -175,11 +179,12 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
     lut = {lab: i for i, lab in enumerate(labels)}
 
     n_rows = int(np.ceil(len(grids) / n_cols))
-    fig, axs = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+    fig_final, axs_final = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+    fig_qc, axs_qc = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
     coord_rows = []
-    for ax, (sample, (clean, geo, regions)) in zip(np.ravel(axs), grids.items()):
-        # Colour per component, not per cluster code: a point override relabels
-        # one component only.
+    for ax_final, ax_qc, (sample, (clean, geo, regions)) in zip(
+        np.ravel(axs_final), np.ravel(axs_qc), grids.items()
+    ):
         label_of = {(r["code"], r["comp_id"]): r["label"] for r in regions}
         img = np.full(clean.shape, np.nan)
         comp_ids = np.full(clean.shape, -1, dtype=int)
@@ -192,25 +197,30 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
                     img[cc == cid] = lut[label]
                     comp_ids[cc == cid] = next_id
                     next_id += 1
-        ax.imshow(
-            img,
-            origin="upper",
-            extent=_extent_from_geo(clean, geo),
-            cmap=ListedColormap(colors),
-            vmin=-0.5,
-            vmax=len(labels) - 0.5,
-            interpolation="nearest",
-        )
+
+        extent = _extent_from_geo(clean, geo)
+        for ax in (ax_final, ax_qc):
+            ax.imshow(
+                img,
+                origin="upper",
+                extent=extent,
+                cmap=ListedColormap(colors),
+                vmin=-0.5,
+                vmax=len(labels) - 0.5,
+                interpolation="nearest",
+            )
+            ax.set_title(sample)
+            ax.set_aspect("equal")
+            ax.axis("off")
+
         boundary = find_boundaries(comp_ids, mode="outer")
         overlay = np.zeros((*clean.shape, 4))
         overlay[boundary] = (0, 0, 0, 0.5)
-        ax.imshow(
-            overlay, origin="upper", extent=_extent_from_geo(clean, geo)
-        )
+        ax_qc.imshow(overlay, origin="upper", extent=extent)
         for i, reg in enumerate(regions):
             c = reg["poly"].representative_point()
             if reg["label"]:
-                ax.annotate(
+                ax_qc.annotate(
                     str(i),
                     (c.x, c.y),
                     ha="center",
@@ -229,20 +239,19 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
                     "label": reg["label"],
                 }
             )
-        ax.set_title(sample)
-        ax.set_aspect("equal")
-        ax.axis("off")
-    for ax in np.ravel(axs)[len(grids) :]:
+    for ax in [*np.ravel(axs_final)[len(grids) :], *np.ravel(axs_qc)[len(grids) :]]:
         ax.axis("off")
 
-    fig.legend(
-        handles=[Patch(facecolor=c, label=lab) for lab, c in zip(labels, colors)],
-        loc="center right",
-    )
+    legend_handles = [Patch(facecolor=c, label=lab) for lab, c in zip(labels, colors)]
+    fig_final.legend(handles=legend_handles, loc="center right")
+    fig_qc.legend(handles=legend_handles, loc="center right")
+
     plot_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(plot_dir / "brain_regions.png", dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    pd.DataFrame(coord_rows).to_csv(plot_dir / "component_coords.csv", index=False)
+    fig_final.savefig(plot_dir / "brain_regions.png", dpi=150, bbox_inches="tight")
+    fig_qc.savefig(plot_dir / "components.png", dpi=150, bbox_inches="tight")
+    plt.close(fig_final)
+    plt.close(fig_qc)
+    pd.DataFrame(coord_rows).to_csv(plot_dir / "components.csv", index=False)
 
 
 def main():
@@ -299,7 +308,9 @@ def main():
         or BASE_PATH / "misc" / "brain_regions" / f"{args.cohort}_brain_regions.parquet"
     )
     out.parent.mkdir(parents=True, exist_ok=True)
-    to_gdf(regions_by_slide).to_parquet(out)
+    gdf = to_gdf(regions_by_slide)
+    gdf["label_broad"] = gdf["label"].map(lambda lab: brain_regions_broad.get(lab, lab))
+    gdf.to_parquet(out)
     logger.info("Wrote %s", out)
 
 

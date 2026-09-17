@@ -12,7 +12,7 @@ import scanpy as sc
 import tqdm
 from joblib import Parallel, delayed
 
-from cellseg_benchmark._constants import brain_regions_colors
+from cellseg_benchmark._constants import brain_regions_broad, brain_regions_colors
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 
@@ -42,8 +42,13 @@ def process_method(
     df_all = pd.concat([v["df"] for v in results.values()], ignore_index=True)
     df_all = df_all.set_index("obs_id").reindex(adata_points.obs_names)
 
+    df_all["label_broad"] = df_all["label"].map(
+        lambda lab: brain_regions_broad.get(lab, lab)
+    )
+
     # Add to AnnData
     adata_points.obs["brain_region"] = df_all["label"].values
+    adata_points.obs["brain_region_broad"] = df_all["label_broad"].values
     adata_points.obs["brain_region_poly_index"] = df_all["poly_index"].values
 
     # Save CSV
