@@ -340,7 +340,7 @@ def subset_by_brain_region(
             "HIP",
             "CAsp",
             "DG-sg",
-            "STR",
+            "STR_PAL",
             "BS",
             "MEN",
         ],
