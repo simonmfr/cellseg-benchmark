@@ -21,7 +21,7 @@ from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
 
 
 def process_method(
-    method: str, cohort: str, anatom_annot: dict, data_path: pathlib.Path
+    method: str, cohort: str, anatom_annot: dict, data_path: pathlib.Path, title_keys
 ) -> None:
     """Process a single segmentation method: read, map, save CSV & plot."""
     method_dir = data_path / "analysis" / cohort / method
@@ -56,15 +56,16 @@ def process_method(
         save_path=method_dir / "plots",
         save_name="brain_regions.png",
         palette=brain_regions_colors,
+        title_keys=title_keys,
     )
 
 
 def _process_method_wrapper(
-    method: str, cohort: str, anatom_annot: dict, data_path: pathlib.Path
+    method: str, cohort: str, anatom_annot: dict, data_path: pathlib.Path, title_keys
 ) -> typing.Tuple[str, str]:
     """Small wrapper so we see failures per method instead of crashing everything."""
     try:
-        process_method(method, cohort, anatom_annot, data_path)
+        process_method(method, cohort, anatom_annot, data_path, title_keys)
         return method, "ok"
     except Exception as e:
         return method, f"error: {e}"
@@ -91,6 +92,12 @@ parser.add_argument(
     default=-1,
     help="Number of parallel jobs for segmentation methods (-1 = all cores).",
 )
+parser.add_argument(
+    "--title_keys",
+    nargs="+",
+    default=["sample"],
+    help="obs column(s) for panel titles, e.g. --title_keys sample age.",
+)
 args = parser.parse_args()
 
 data_path = pathlib.Path(BASE_PATH)
@@ -113,7 +120,9 @@ logger.info(
     f"n_jobs={args.n_jobs}"
 )
 results = Parallel(n_jobs=args.n_jobs)(
-    delayed(_process_method_wrapper)(m, args.cohort, anatom_annot, data_path)
+    delayed(_process_method_wrapper)(
+        m, args.cohort, anatom_annot, data_path, args.title_keys
+    )
     for m in tqdm.tqdm(seg_methods, desc="brain regions")
 )
 for m, status in results:
