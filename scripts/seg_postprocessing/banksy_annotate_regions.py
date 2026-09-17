@@ -225,7 +225,7 @@ def _plot_region_grids(grids, plot_dir, sample_titles, n_cols=3):
                 interpolation="nearest",
             )
             ax.set_title(sample_titles[sample])
-            ax.set_aspect("equal")
+            ax.set_aspect("equal", adjustable="datalim")
             ax.axis("off")
 
         boundary = find_boundaries(comp_ids, mode="outer")
