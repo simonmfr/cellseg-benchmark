@@ -8,7 +8,8 @@
 #   STAINING, CP_VERSION, CONFIDENCE, PARAMS (default NA)
 # Override RUN_LOG via env if needed.
 
-RUN_LOG="${RUN_LOG:-/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/run_log.tsv}"
+BASE_PATH="$(realpath -m "$(dirname "${BASH_SOURCE[0]}")/../../data")"
+RUN_LOG="${RUN_LOG:-${BASE_PATH}/misc/logs/run_log.tsv}"
 LOCK_FILE="${RUN_LOG}.lock"
 RUN_LOG_HEADER=$'start_iso\tend_iso\telapsed_s\trc\tjobid\tjobname\tkey\tmethod\tcp_version\tstaining\tconfidence\tparams\tinput_path\tresult_dir\thost\tnodelist\tsubmit_dir\tcmd'
 

@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+import sys
 
 import sopa.aggregation.transcripts as tr
 from scipy.sparse import coo_matrix as _coo
 from sopa import aggregate
 from sopa.io import merscope
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from cellseg_benchmark.sdata_utils import add_visium_boundaries
 

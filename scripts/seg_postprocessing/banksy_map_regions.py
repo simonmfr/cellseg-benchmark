@@ -3,6 +3,7 @@ import argparse
 import logging
 import os
 import pathlib
+import sys
 import typing
 
 import geopandas as gpd
@@ -11,6 +12,9 @@ import scanpy as sc
 import tqdm
 from joblib import Parallel, delayed
 
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
+
+from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark._constants import brain_regions_broad, brain_regions_colors
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import map_points_to_regions_from_anndata
@@ -89,7 +93,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-data_path = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+data_path = pathlib.Path(BASE_PATH)
 if args.seg_methods is not None:
     seg_methods = args.seg_methods
 else:

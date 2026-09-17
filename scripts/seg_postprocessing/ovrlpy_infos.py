@@ -3,6 +3,7 @@ import argparse
 import logging
 import os
 import pathlib
+import sys
 import warnings
 
 import dask
@@ -10,6 +11,9 @@ import numpy as np
 import pandas as pd
 import tqdm
 
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
+
+from cellseg_benchmark import BASE_PATH, _constants
 from cellseg_benchmark.metrics.ovrl import (
     compute_mean_vsi_per_polygon,
     compute_ovrl,
@@ -38,9 +42,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-sample_path = pathlib.Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark", "samples", args.sample
-)
+sample_path = pathlib.Path(BASE_PATH, "samples", args.sample)
 results_path = pathlib.Path(
     sample_path,
     "results",
@@ -49,7 +51,8 @@ results_path = pathlib.Path(
 logger.info("Check Segementations for prior ovrlpy results.")
 compute_ovrlpy = []
 for method in os.listdir(results_path):
-    if os.path.exists(pathlib.Path(results_path, method, "sdata.zarr")):
+    if (os.path.exists(pathlib.Path(results_path, method, "sdata.zarr")) and
+            not any([method.startswith(x) for x in _constants.methods_3D])):
         if args.recompute:
             compute_ovrlpy.append(method)
         elif not os.path.exists(pathlib.Path(results_path, method, "Ovrlpy_stats", "Ovrlpy_stats.csv")):

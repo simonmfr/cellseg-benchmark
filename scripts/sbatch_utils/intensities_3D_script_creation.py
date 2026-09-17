@@ -2,7 +2,7 @@
 import pathlib
 import yaml
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 with open(
     f"{BASE_PATH}/misc/sample_metadata.yaml"
@@ -28,7 +28,7 @@ for key, value in data.items():
 #SBATCH -e {BASE_PATH}/misc/logs/errors/intensities_3D_{key}.err
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
             
-mamba activate segmentation
-python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/intensities_3D_wrapper.py {key} {value["path"]}
+mamba activate seg_postprocessing
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/intensities_3D.py {key} {value["path"]}
 """)
     f.close()

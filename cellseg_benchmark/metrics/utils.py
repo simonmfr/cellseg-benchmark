@@ -5,9 +5,9 @@ import subprocess
 import datetime
 import io
 import pathlib
+import warnings
 from typing import Union, Optional
 
-import numpy as np
 import pandas as pd
 import scanpy as sc
 
@@ -235,10 +235,22 @@ def parse_slurm_mem_to_gb(x: str) -> float:
     return (val * mult) / (1024**3)
 
 
+def clean_method_name(name: str) -> str:
+    """Return the figure label for a results directory name."""
+    if name not in _constants.method_names:
+        warnings.warn(f"no figure label for method {name!r}")
+    return _constants.method_names.get(name, name.replace("_", " "))
+
+
 def method_with_flavor_from_row(jobname: str, key: str) -> str:
     """Create a canonical method string."""
     j = normalize_jobname(jobname)
     k = str(key)
+
+    # --- Baysor without prior: Baysor_<dim>_denovo_<key>
+    m = re.match(rf"^Baysor_(?P<dim>2D|3D)_denovo_{re.escape(k)}$", j)
+    if m:
+        return f"Baysor_{m.group('dim')}_denovo"
 
     # --- Baysor with optional qualifier before key
     m = re.match(
@@ -353,23 +365,18 @@ def find_latest_job_data_tsv(metrics_dir):
 
 
 def export_job_metrics_tsv(
-    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/run_log.tsv",
-    legacy_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
-    out_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
+    ref_file_path=f"{_constants.BASE_PATH}/misc/logs/run_log.tsv",
+    out_dir=f"{_constants.BASE_PATH}/misc/extracted_job_stats",
 ):
     """Export aggregated Slurm job metrics for all jobids in ref_file_path to:
     <out_dir>/YYYYMMDD_job_data.tsv.
     """
+    legacy = pathlib.Path(ref_file_path).parent / "job_runs.tsv"
+    if legacy.exists():
+        raise FileNotFoundError(f"Obsolete {legacy} must be merged into run_log.tsv and deleted.")
+
     df = pd.read_csv(ref_file_path, sep="\t")
     df["jobid"] = df["jobid"].astype(str)
-
-    df_legacy = pd.read_csv(legacy_file_path, sep="\t")
-    df_legacy["jobid"] = df_legacy["jobid"].astype(str)
-    df_legacy = df_legacy[~df_legacy['jobid'].isin(df["jobid"].unique())]
-    if len(df_legacy) > 0:
-        df_legacy['method'] = np.nan
-        df_legacy['params'] = np.nan
-        df = pd.concat([df, df_legacy], ignore_index=True).reset_index()
 
     jobids = sorted(df["jobid"].dropna().unique().tolist())
     if not jobids:

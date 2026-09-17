@@ -8,7 +8,7 @@ parser.add_argument("staining", help="Staining of prior cellpose segmentation.")
 parser.add_argument("CP_version", help="Cellpose version of prior  segmentation.")
 parser.add_argument("confidence", help="Confidence of prior cellpose segmentation.")
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 with open(
     f"{BASE_PATH}/misc/sample_metadata.yaml"
@@ -54,13 +54,13 @@ STAINING="{args.staining}"
 CONFIDENCE="{args.confidence}"
 INPUT_PATH="{value["path"]}"
 RESULT_DIR="{BASE_PATH}/samples/{key}/results/{result_dir_name}"
-CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \\"${{INPUT_PATH}}\\" {model_token_log} ${{CONFIDENCE}} ${{KEY}}"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_sopa.py \\"${{INPUT_PATH}}\\" {model_token_log} ${{CONFIDENCE}} ${{KEY}}"
 start_run_log
 
 mamba activate segmentation
 
 mkdir -p "${{RESULT_DIR}}"
-python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor.py \
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_sopa.py \
   "${{INPUT_PATH}}" \
   {model_token_cmd} \
   "${{CONFIDENCE}}" \

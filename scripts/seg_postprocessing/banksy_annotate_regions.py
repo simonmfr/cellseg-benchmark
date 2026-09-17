@@ -29,6 +29,7 @@ import argparse
 import logging
 import pathlib
 import re
+import sys
 
 import numpy as np
 import pandas as pd
@@ -41,11 +42,11 @@ from shapely.geometry import Point
 from skimage.measure import label as cc_label
 from skimage.segmentation import find_boundaries
 
-from cellseg_benchmark._constants import (
-    brain_region_markers,
-    brain_regions_broad,
-    brain_regions_colors,
-)
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
+
+from cellseg_benchmark import BASE_PATH
+from cellseg_benchmark._constants import brain_regions_broad, brain_regions_colors
+from cellseg_benchmark._markers import brain_region_markers
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
 from cellseg_benchmark.spatial_mapping import (
     _extent_from_geo,
@@ -56,7 +57,7 @@ from cellseg_benchmark.spatial_mapping import (
     to_gdf,
 )
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = pathlib.Path(BASE_PATH)
 DEFAULT_CLEANUP = {"min_hole_area_um2": 300000.0, "min_island_area_um2": 30000.0}
 
 logger = logging.getLogger("brain_regions")

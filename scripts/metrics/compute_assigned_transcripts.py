@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 import argparse
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from cellseg_benchmark.metrics import (
     compute_metric_for_all_methods,

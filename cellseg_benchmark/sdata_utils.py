@@ -274,20 +274,41 @@ def integrate_segmentation_data(
                         n_planes_2d=n_planes_2d,
                         logger=logger,
                     )
-                if os.path.exists(
-                    join(sdata_path, "results", seg_method, "Ovrlpy_stats")
-                ):
+                if not any([seg_method.startswith(x) for x in _constants.methods_3D]):
+                    if os.path.exists(
+                        join(sdata_path, "results", seg_method, "Ovrlpy_stats")
+                    ):
+                        if logger:
+                            logger.info(
+                                "Adding Ovrlpy stats to {}...".format(seg_method)
+                            )
+                        add_statistical_data(sdata_main, seg_method, sdata_path)
+                    elif logger:
+                        logger.warning(
+                            "No Ovrlpy_stats files found for {}. Skipping.".format(
+                                seg_method
+                            )
+                        )
+                else:
                     if logger:
-                        logger.info(
-                            "Adding Ovrlpy stats to {}...".format(seg_method)
+                        logger.warning(
+                            "{} is a 3D method. Ovrlpy stats are irrelevant.".format(seg_method)
                         )
-                    add_statistical_data(sdata_main, seg_method, sdata_path)
-                elif logger:
-                    logger.warning(
-                        "No Ovrlpy_stats files found for {}. Skipping.".format(
-                            seg_method
+                        
+                    if os.path.exists(
+                        join(sdata_path, "results", seg_method, "Intensities_3D")
+                    ):
+                        if logger:
+                            logger.info(
+                                "Adding Intensities_3D stats to {}...".format(seg_method)
+                            )
+                        add_intensities_3D_data(sdata_main, seg_method, sdata_path)
+                    elif logger:
+                        logger.warning(
+                            "No Intensities_3D files found for {}. Skipping.".format(
+                                seg_method
+                            )
                         )
-                    )
 
                 adata = sdata_main[f"adata_{seg_method}"]
 
@@ -488,6 +509,25 @@ def add_statistical_data(
     return sdata_main
 
 
+def add_intensities_3D_data(
+    sdata_main: sd.SpatialData, seg_method: str, sdata_path: str
+) -> sd.SpatialData:
+    """Add ovrlpy information to sdata_main."""
+    adata = sdata_main[f"adata_{seg_method}"]
+    for file in os.listdir(join(sdata_path, "results", seg_method, "Intensities_3D")):
+        if file.endswith(".csv"):
+            intensities_3D = pd.read_csv(
+                join(sdata_path, "results", seg_method, "Intensities_3D", file),
+                index_col=0,
+            )
+            intensities_3D.index = intensities_3D.index.astype(str)
+            intensities_3D_reordered = intensities_3D.loc[adata.obs_names]
+            assert len(intensities_3D_reordered) == len(intensities_3D)
+            adata.obsm['intensities'] = intensities_3D_reordered
+    sdata_main[f"adata_{seg_method}"] = adata
+    return sdata_main
+
+
 def calculate_volume(
     seg_method: str,
     sdata_main: sd.SpatialData,
@@ -511,6 +551,9 @@ def calculate_volume(
             cell_identifier = "cell_id"
         elif seg_method == "SIS_DAPI_total_mrna":
             z_level_name = "z_plane"
+            cell_identifier = "cell_id"
+        elif seg_method.startswith("Baysor_3D"):
+            z_level_name = "ZIndex"
             cell_identifier = "cell_id"
         if logger:
             logger.info(f"Collecting volume metadata for {seg_method}")
@@ -647,7 +690,7 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
     )
 
     if any([seg_method.startswith(method) for method in _constants.image_based]):
-        if seg_method == "Cellpose_1_Merlin":
+        if seg_method == "Cellpose_1_Merlin" or seg_method == "Negative_Control_Visium":
             sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron"
             )

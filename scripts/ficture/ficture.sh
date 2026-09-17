@@ -35,7 +35,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORMAT_VIZGEN_SCRIPT="${FORMAT_VIZGEN_SCRIPT:-${SCRIPT_DIR}/format_vizgen.py}"
 [ -f "$FORMAT_VIZGEN_SCRIPT" ] || { echo "ERROR: format_vizgen.py not found: $FORMAT_VIZGEN_SCRIPT"; exit 1; }
 
-RESOURCES_DIR="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc"
+BASE_PATH="$(realpath -m "${SCRIPT_DIR}/../../data")"
+RESOURCES_DIR="${BASE_PATH}/misc"
 AGGREGATED_COUNTS="${RESOURCES_DIR}/scRNAseq_ref_ABCAtlas_Yao2023Nature/pseudobulk_celltype_for_ficture.norm.tsv.gz"
 
 train_width=6
@@ -45,7 +46,7 @@ key="Count"
 major_axis="X"
 min_ct_per_feature=20
 
-BASE_OUT="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples"
+BASE_OUT="${BASE_PATH}/samples"
 RUN_ROOT="${BASE_OUT}/${SAMPLE_ID}/results/Ficture/output"
 figure_path="${RUN_ROOT}/figure"
 path="${RUN_ROOT}/tmp"                             # intermediates, deleted after a successful run

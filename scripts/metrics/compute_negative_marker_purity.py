@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 import argparse
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from cellseg_benchmark.metrics import (
     compute_metric_for_all_methods,
     compute_negative_marker_purity,
     get_negative_markers,
+    plot_negative_marker_purity
 )
 
 if __name__ == "__main__":
@@ -43,4 +48,4 @@ if __name__ == "__main__":
         ratio_celltype_sc=ratio_celltype,
         **vars(args),
     )
-    # plot_MECR_score(args.cohort, suffix, show=False)
+    plot_negative_marker_purity(args.cohort, suffix, show=False)

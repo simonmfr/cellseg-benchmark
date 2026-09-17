@@ -2,7 +2,7 @@
 import pathlib
 import yaml
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 YAML = BASE_PATH / "misc/sample_metadata.yaml"
 SBATCH_DIR = f"{BASE_PATH}/misc/sbatches/sbatch_voronoi"
 OUT_DIR = f"{BASE_PATH}/samples/{{k}}/results/Negative_Control_Voronoi"

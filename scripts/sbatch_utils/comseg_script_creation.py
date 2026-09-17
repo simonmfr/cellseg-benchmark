@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser(description="Generate ComSeg sbatch scripts.")
 parser.add_argument("staining", help="Staining of prior cellpose segmentation.")
 parser.add_argument("CP_version", help="Cellpose version to use.")
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 with open(
     f"{BASE_PATH}/misc/sample_metadata.yaml"
@@ -46,9 +46,6 @@ set -eu
 cd $HOME/gitrepos/spatialdata
 git pull -q
 cd $HOME/gitrepos/cellseg-benchmark
-git pull -q
-
-set -eu
 
 mamba activate sopa
 

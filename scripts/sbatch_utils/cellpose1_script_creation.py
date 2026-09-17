@@ -6,7 +6,7 @@ import yaml
 parser = argparse.ArgumentParser(description="scripts for Cellpose 1 segmentation.")
 parser.add_argument("staining", help="Staining of prior cellpose segmentation.")
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 with open(
     f"{BASE_PATH}/misc/sample_metadata.yaml"

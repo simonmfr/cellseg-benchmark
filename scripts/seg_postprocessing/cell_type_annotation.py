@@ -23,6 +23,7 @@ import json
 import logging
 import math
 import os
+import sys
 import warnings
 
 import matplotlib.font_manager as fm
@@ -33,6 +34,8 @@ import scanpy as sc
 import scipy.sparse as sp
 import seaborn as sns
 from spatialdata import read_zarr
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 import cellseg_benchmark.cell_annotation_utils as anno_utils
 from cellseg_benchmark._constants import cell_type_colors

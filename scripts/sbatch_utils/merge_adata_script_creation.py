@@ -11,7 +11,7 @@ parser.add_argument(
     "--genotype", action="store_true", help="Consider genotype differentiation"
 )
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_merge_adata"
 methods = [
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
@@ -43,6 +43,7 @@ methods = [
     "Negative_Control_Rastered_10",
     "Negative_Control_Rastered_25",
     "Negative_Control_Voronoi",
+    "Negative_Control_Visium",
     "vpt_2D_DAPI_PolyT",
     "vpt_2D_DAPI_nuclei",
     "vpt_2D_DAPI_PolyT_nuclei",

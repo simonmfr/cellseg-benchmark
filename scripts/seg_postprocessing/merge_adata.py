@@ -5,6 +5,7 @@ import functools
 import logging
 import os
 import pathlib
+import sys
 import typing
 import warnings
 
@@ -12,6 +13,8 @@ import anndata
 import scanpy as sc
 import spatialdata as sd
 import yaml
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from cellseg_benchmark import _constants, adata_utils
 

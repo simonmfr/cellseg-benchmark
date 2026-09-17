@@ -8,7 +8,7 @@ parser.add_argument(
     "cohort", help="Cohort name (filters samples by metadata key prefix)."
 )
 args = parser.parse_args()
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 runtime = "08:00:00" if args.cohort in ("VizgenMouseBrain", "ABCAtlas") else "04:00:00"
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_Ficture"
 SBATCH_DIR.mkdir(parents=True, exist_ok=True)

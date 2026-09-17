@@ -8,6 +8,8 @@ import sopa
 import toml
 from spatialdata import read_zarr
 
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
+
 parser = argparse.ArgumentParser(description="Compute Baysor segmentation.")
 parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument(
@@ -22,7 +24,7 @@ args = parser.parse_args()
 def main(data_path, base_segmentation, confidence, sample, keep_cache):
     """Baysor algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)
-    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
+    path = f"{BASE_PATH}/samples/{sample}/results"
     sdata = read_zarr(pathlib.Path(path, base_segmentation, "sdata.zarr"))
     sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
         list(sdata_tmp.images.keys())[0]
@@ -54,7 +56,7 @@ def main(data_path, base_segmentation, confidence, sample, keep_cache):
         os.getenv("SLURM_JOB_NUM_NODES", 1)
     ) * int(os.getenv("SLURM_NTASKS_PER_NODE", 1))
 
-    path_toml = pathlib.Path(__file__).parents[2] / "configs" / "baysor_2D_config.toml"
+    path_toml = pathlib.Path(__file__).parents[2] / "configs" / "baysor_sopa.toml"
     with open(path_toml, "r") as f:
         config = toml.load(f)
     config["segmentation"]["prior_segmentation_confidence"] = confidence

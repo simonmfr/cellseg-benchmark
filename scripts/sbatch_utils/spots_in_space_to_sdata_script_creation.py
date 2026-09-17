@@ -4,7 +4,7 @@
 import pathlib
 import yaml
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 samples = sorted(
     [
         p.parent

@@ -2,13 +2,17 @@
 import argparse
 import logging
 import pathlib
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
 
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
+
 import cellseg_benchmark._constants as _constants
+import cellseg_benchmark._markers as _markers
 import cellseg_benchmark.adata_utils as adata_utils
 import cellseg_benchmark.cell_annotation_utils as cell_annotation_utils
 
@@ -42,7 +46,7 @@ def main():
     parser.add_argument(
         "--base-path",
         type=pathlib.Path,
-        default=pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"),
+        default=pathlib.Path(_constants.BASE_PATH),
     )
     args = parser.parse_args()
 
@@ -78,7 +82,7 @@ def main():
     logger.info("Filter out contaminated cells...")
     sub = cell_annotation_utils.flag_contamination(
         sub,
-        _constants.contamination_markers,
+        _markers.contamination_markers,
         layer="volume_log1p_norm",
         absolute_min=1,
         z_threshold=2,
@@ -142,12 +146,12 @@ def main():
     logger.info("Score EC zonation subtypes...")
     # Step 1: score marker genes
     sub = cell_annotation_utils.score_cell_types(
-        sub, _constants.selected_EC_subtypes, top_n_genes=10, layer="volume_log1p_norm"
+        sub, _markers.selected_EC_subtypes, top_n_genes=10, layer="volume_log1p_norm"
     )
     # Step 2: assign each cell by max scoring subtype
     sub = cell_annotation_utils.annotate_cells_by_score(
         sub,
-        _constants.selected_EC_subtypes,
+        _markers.selected_EC_subtypes,
         out_col="ec_zonation",
         score_threshold=0.15,
     )
