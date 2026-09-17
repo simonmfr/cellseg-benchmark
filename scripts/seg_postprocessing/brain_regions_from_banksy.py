@@ -26,6 +26,7 @@ from matplotlib.colors import ListedColormap
 from matplotlib.patches import Patch
 from shapely.geometry import Point
 from skimage.measure import label as cc_label
+from skimage.segmentation import find_boundaries
 
 from cellseg_benchmark._constants import brain_region_markers, brain_regions_colors
 from cellseg_benchmark.adata_utils import plot_spatial_multiplot
@@ -108,7 +109,7 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
     default_cleanup = {**DEFAULT_CLEANUP, **(cleanup.get("default") or {})}
 
     out, grids = {}, {}
-    samples = sorted(  # natural sort: 'aging_s10_r0' else sorts before 'aging_s1_r1'
+    samples = sorted(
         adata.obs["sample"].astype(str).unique(),
         key=lambda s: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s)],
     )
@@ -181,12 +182,16 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
         # one component only.
         label_of = {(r["code"], r["comp_id"]): r["label"] for r in regions}
         img = np.full(clean.shape, np.nan)
+        comp_ids = np.full(clean.shape, -1, dtype=int)
+        next_id = 0
         for code in np.unique(clean[clean >= 0]):
             cc = cc_label(clean == code, connectivity=1)
             for cid in range(1, cc.max() + 1):
                 label = label_of.get((int(code), cid - 1))
                 if label:
                     img[cc == cid] = lut[label]
+                    comp_ids[cc == cid] = next_id
+                    next_id += 1
         ax.imshow(
             img,
             origin="upper",
@@ -195,6 +200,12 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
             vmin=-0.5,
             vmax=len(labels) - 0.5,
             interpolation="nearest",
+        )
+        boundary = find_boundaries(comp_ids, mode="outer")
+        overlay = np.zeros((*clean.shape, 4))
+        overlay[boundary] = (0, 0, 0, 0.5)
+        ax.imshow(
+            overlay, origin="upper", extent=_extent_from_geo(clean, geo)
         )
         for i, reg in enumerate(regions):
             c = reg["poly"].representative_point()
