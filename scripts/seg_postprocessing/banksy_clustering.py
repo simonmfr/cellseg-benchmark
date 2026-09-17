@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 """Joint BANKSY spatial-domain clustering across all samples of one cohort.
 
-Confirmed combo: coarse, k_neighbors=50, resolution=0.4. Adds banksy_coarse_k50_res0.4
-to adata_path in place, so rerunning with a different combo keeps earlier columns;
-rerunning the same combo overwrites just that column. Consumed by
-brain_regions_from_banksy.py.
+Step 2 of the brain-region pipeline -- see brain_regions_from_banksy.py's
+docstring for the full order. Input: raster_adata_for_regions.py's output.
 """
 
 import argparse

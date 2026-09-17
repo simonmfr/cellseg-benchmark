@@ -1871,18 +1871,18 @@ clean_method_names_format = {
 clean_method_names = {**clean_method_names, **clean_method_names_format}
 
 brain_regions_colors = {
-    "BS": "#FF7080",
-    "CAsp": "#E07B39",
+    "MEN": "#A9DDD0",
     "CTX_1": "#66C2A5",
     "CTX_2": "#1B7A5E",
-    "DG-sg": "#2C7A2C",
     "HIP": "#7ED04B",
-    "MEN": "#A9DDD0",
+    "DG-sg": "#2C7A2C",
+    "CAsp": "#E07B39",
     "STR_PAL": "#98D6F9",
-    "STR/CTX": "#C9BFE0",
+    "BS": "#FF7080",
+    "FT": "#A8A8A0",
     "VL": "#D4D4D4",
     "V3": "#787878",
-    "FT": "#A8A8A0",
+    "STR/CTX": "#C9BFE0",
 }
 
 brain_regions_broad = {

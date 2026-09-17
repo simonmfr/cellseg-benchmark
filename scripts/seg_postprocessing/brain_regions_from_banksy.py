@@ -1,15 +1,27 @@
 #!/usr/bin/env python
-"""Turn joint BANKSY clusters into anatomical brain-region polygons.
+"""BANKSY joint clustering -> anatomical brain-region polygons -> per-cell labels.
 
-The clustering is joint across the cohort, so cluster k means the same thing in
-every section and the cluster -> region assignment is one global YAML table
-rather than one decision per polygon per sample. Exceptions stay possible but
-have to be written down.
+Full cohort pipeline, in order:
+    1. raster_adata_for_regions.py {cohort}          -> tissue-covering reference adata
+    2. banksy_clustering.py {cohort} <adata> <dir>    -> joint BANKSY clusters
+       (steps 1+2 together: sbatch_utils/banksy_script_creation.py {cohort})
+    3. this script --init                             -> YAML skeleton + per-cluster evidence
+    4. fill in configs/brain_regions/{cohort}.yaml, rerun this script without --init
+    5. map_points_to_regions.py {cohort}               -> per-cell region labels
+
+Clusters are shared across the whole cohort, so one YAML table names every
+cluster once. Per-sample exceptions go in sample_overrides/point_overrides
+instead.
+
+Writes, per run: {plot_dir}/brain_regions.png (final render), components.png
++ components.csv (QC: per-component id/coords for point_overrides), and the
+region parquet with both a fine `label` and coarse `label_broad` column
+(cellseg_benchmark._constants.brain_regions_broad).
 
     # 1. YAML skeleton + per-cluster plots and marker table to name them from
-    brain_regions_from_banksy.py aging adata.h5ad --cluster-key banksy_coarse_k75_res0.4 --init
-    # 2. apply the filled-in YAML, write the parquet map_points_to_regions.py reads
-    brain_regions_from_banksy.py aging adata.h5ad
+    brain_regions_from_banksy.py aging adata_regions.h5ad.gz --cluster-key banksy_coarse_k50_res0.4 --init
+    # 2. apply the filled-in YAML: cleans holes/islands, writes the region parquet
+    brain_regions_from_banksy.py aging adata_regions.h5ad.gz
 """
 
 import argparse
@@ -169,9 +181,9 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
 
 def _plot_region_grids(grids, plot_dir, n_cols=3):
     """Render every sample's labelled raster as one multi-panel QC figure."""
-    labels = sorted(
-        {r["label"] for _, _, regs in grids.values() for r in regs if r["label"]}
-    )
+    present = {r["label"] for _, _, regs in grids.values() for r in regs if r["label"]}
+    labels = [lab for lab in brain_regions_colors if lab in present]
+    labels += sorted(present.difference(labels))
     cmap = plt.get_cmap("tab20")
     colors = [
         brain_regions_colors.get(lab, cmap(i % 20)) for i, lab in enumerate(labels)
@@ -243,8 +255,8 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
         ax.axis("off")
 
     legend_handles = [Patch(facecolor=c, label=lab) for lab, c in zip(labels, colors)]
-    fig_final.legend(handles=legend_handles, loc="center right")
-    fig_qc.legend(handles=legend_handles, loc="center right")
+    fig_final.legend(handles=legend_handles, loc="center right", title="Brain region")
+    fig_qc.legend(handles=legend_handles, loc="center right", title="Brain region")
 
     plot_dir.mkdir(parents=True, exist_ok=True)
     fig_qc.savefig(plot_dir / "components.png", dpi=150, bbox_inches="tight")
