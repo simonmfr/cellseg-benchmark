@@ -57,6 +57,7 @@ def process_method(
         save_name="brain_regions.png",
         palette=brain_regions_colors,
         title_keys=title_keys,
+        legend_title="Brain region",
     )
 
 

@@ -258,8 +258,12 @@ def _plot_region_grids(grids, plot_dir, sample_titles, n_cols=3):
         ax.axis("off")
 
     legend_handles = [Patch(facecolor=c, label=lab) for lab, c in zip(labels, colors)]
-    fig_final.legend(handles=legend_handles, loc="center right", title="Brain region")
-    fig_qc.legend(handles=legend_handles, loc="center right", title="Brain region")
+    fig_final.legend(
+        handles=legend_handles, loc="center right", title="Brain region", frameon=False
+    )
+    fig_qc.legend(
+        handles=legend_handles, loc="center right", title="Brain region", frameon=False
+    )
 
     plot_dir.mkdir(parents=True, exist_ok=True)
     fig_qc.savefig(plot_dir / "components.png", dpi=150, bbox_inches="tight")
