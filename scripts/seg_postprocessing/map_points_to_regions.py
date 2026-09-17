@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import logging
-import multiprocessing
 import os
 import pathlib
 import typing
@@ -67,12 +66,10 @@ def _process_method_wrapper(
         return method, f"error: {e}"
 
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s"
+)
 logger = logging.getLogger("annotation")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
-handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
-logger.addHandler(handler)
 
 parser = argparse.ArgumentParser(description="Map points to brain regions.")
 parser.add_argument("cohort", help="cohort name")
@@ -107,15 +104,11 @@ anatom_annot = {}
 for (sample, label), sub in gdf.groupby(["sample", "label"]):
     anatom_annot.setdefault(sample, {})[label] = list(sub.geometry)
 
-if args.n_jobs == -1:
-    n_jobs = multiprocessing.cpu_count()
-else:
-    n_jobs = args.n_jobs
-
 logger.info(
-    f"Starting parallel processing of {len(seg_methods)} methods with n_jobs={n_jobs}"
+    f"Starting parallel processing of {len(seg_methods)} methods with "
+    f"n_jobs={args.n_jobs}"
 )
-results = Parallel(n_jobs=n_jobs)(
+results = Parallel(n_jobs=args.n_jobs)(
     delayed(_process_method_wrapper)(m, args.cohort, anatom_annot, data_path)
     for m in tqdm.tqdm(seg_methods, desc="brain regions")
 )
