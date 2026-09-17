@@ -95,7 +95,7 @@ parser.add_argument(
 parser.add_argument(
     "--title_keys",
     nargs="+",
-    default=["sample"],
+    default=["sample", "age_months"],
     help="obs column(s) for panel titles, e.g. --title_keys sample age.",
 )
 args = parser.parse_args()
