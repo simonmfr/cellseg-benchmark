@@ -116,7 +116,7 @@ def write_skeleton(adata, cluster_key, config_path, plot_dir):
     logger.info("Wrote %s: name every cluster, then rerun without --init.", config_path)
 
 
-def build_regions(adata, cfg, code_to_cluster, plot_dir):
+def build_regions(adata, cfg, code_to_cluster, plot_dir, title_keys=("sample",)):
     """Clean the cluster raster per sample and label its connected components."""
     mapping = {str(k): v for k, v in (cfg.get("clusters") or {}).items()}
     unnamed = [c for c, v in mapping.items() if not v]
@@ -126,13 +126,14 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
     cleanup = cfg.get("cleanup") or {}
     default_cleanup = {**DEFAULT_CLEANUP, **(cleanup.get("default") or {})}
 
-    out, grids = {}, {}
+    out, grids, sample_titles = {}, {}, {}
     samples = sorted(
         adata.obs["sample"].astype(str).unique(),
         key=lambda s: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s)],
     )
     for sample in samples:
         sub = adata[adata.obs["sample"].astype(str) == sample]
+        sample_titles[sample] = " · ".join(str(sub.obs[k].iloc[0]) for k in title_keys)
         grid, geo = gridify(sub, "_cluster_code")
         _, _, dx, dy = geo
         thresholds = {**default_cleanup, **(cleanup.get(sample) or {})}
@@ -177,11 +178,11 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
             "%s: %d components -> %d regions", sample, len(regions), len(out[sample])
         )
 
-    _plot_region_grids(grids, plot_dir)
+    _plot_region_grids(grids, plot_dir, sample_titles)
     return out
 
 
-def _plot_region_grids(grids, plot_dir, n_cols=3):
+def _plot_region_grids(grids, plot_dir, sample_titles, n_cols=3):
     """Render every sample's labelled raster as one multi-panel QC figure."""
     present = {r["label"] for _, _, regs in grids.values() for r in regs if r["label"]}
     labels = [lab for lab in brain_regions_colors if lab in present]
@@ -223,7 +224,7 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
                 vmax=len(labels) - 0.5,
                 interpolation="nearest",
             )
-            ax.set_title(sample)
+            ax.set_title(sample_titles[sample])
             ax.set_aspect("equal")
             ax.axis("off")
 
@@ -288,6 +289,12 @@ def main():
         action="store_true",
         help="Write a YAML skeleton and per-cluster evidence instead of the parquet.",
     )
+    parser.add_argument(
+        "--title_keys",
+        nargs="+",
+        default=["sample"],
+        help="obs column(s) for panel titles, e.g. --title_keys sample age_months.",
+    )
     args = parser.parse_args()
 
     repo = pathlib.Path(__file__).resolve().parents[2]
@@ -315,7 +322,9 @@ def main():
     adata.obs["_cluster_code"] = codes
     code_to_cluster = dict(enumerate(map(str, uniques)))
 
-    regions_by_slide = build_regions(adata, cfg, code_to_cluster, plot_dir)
+    regions_by_slide = build_regions(
+        adata, cfg, code_to_cluster, plot_dir, args.title_keys
+    )
 
     out = pathlib.Path(
         args.out
