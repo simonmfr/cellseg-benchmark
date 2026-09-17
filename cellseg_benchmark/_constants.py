@@ -1873,16 +1873,16 @@ clean_method_names = {**clean_method_names, **clean_method_names_format}
 brain_regions_colors = {
     "BS": "#FF7080",
     "CAsp": "#E07B39",
-    "CTX_1": "#5FA9A0",
-    "CTX_2": "#2E7268",
+    "CTX_1": "#66C2A5",
+    "CTX_2": "#1B7A5E",
     "DG-sg": "#2C7A2C",
     "HIP": "#7ED04B",
-    "MEN": "#E3F0EC",
+    "MEN": "#DCF2EA",
     "STR_PAL": "#98D6F9",
     "STR/CTX": "#A4EAD8",
     "VL": "#C8C8C8",
     "V3": "#888888",
-    "FT": "#8C6D5D",
+    "FT": "#ADA69A",
 }
 
 # Shown per cluster by brain_regions_from_banksy.py --init, so clusters are
