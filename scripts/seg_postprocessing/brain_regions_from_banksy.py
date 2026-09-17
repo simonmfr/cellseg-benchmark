@@ -193,8 +193,11 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
         )
         # Short index per blob, not raw coords: keeps labels legible when blobs
         # sit close together. Look up the actual (x, y) in component_coords.csv.
-        for i, reg in enumerate(regions):
-            c = reg["poly"].centroid
+        # Unlabeled components (dropped cluster) aren't drawn, so skip numbering
+        # them too; representative_point (not centroid) stays inside concave/
+        # multi-part shapes like the hippocampal C.
+        for i, reg in enumerate(r for r in regions if r["label"]):
+            c = reg["poly"].representative_point()
             ax.annotate(
                 str(i),
                 (c.x, c.y),
