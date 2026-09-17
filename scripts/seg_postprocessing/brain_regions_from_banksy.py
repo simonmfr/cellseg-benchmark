@@ -170,6 +170,7 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
 
     n_rows = int(np.ceil(len(grids) / n_cols))
     fig, axs = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+    coord_rows = []
     for ax, (sample, (clean, geo, regions)) in zip(np.ravel(axs), grids.items()):
         # Colour per component, not per cluster code: a point override relabels
         # one component only.
@@ -190,10 +191,27 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
             vmax=len(labels) - 0.5,
             interpolation="nearest",
         )
-        # Centroid coords for point_overrides: pick the wrong blob here, drop its (x, y) in.
-        for reg in regions:
+        # Short index per blob, not raw coords: keeps labels legible when blobs
+        # sit close together. Look up the actual (x, y) in component_coords.csv.
+        for i, reg in enumerate(regions):
             c = reg["poly"].centroid
-            ax.annotate(f"{c.x:.0f},{c.y:.0f}", (c.x, c.y), ha="center", va="center", fontsize=4)
+            ax.annotate(
+                str(i),
+                (c.x, c.y),
+                ha="center",
+                va="center",
+                fontsize=6,
+                bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.7),
+            )
+            coord_rows.append(
+                {
+                    "sample": sample,
+                    "id": i,
+                    "x": round(c.x),
+                    "y": round(c.y),
+                    "label": reg["label"],
+                }
+            )
         ax.set_title(sample)
         ax.set_aspect("equal")
         ax.axis("off")
@@ -207,6 +225,7 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
     plot_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(plot_dir / "brain_regions.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
+    pd.DataFrame(coord_rows).to_csv(plot_dir / "component_coords.csv", index=False)
 
 
 def main():

@@ -335,8 +335,8 @@ def subset_by_brain_region(
 
     REGION_MAP = {
         "grey_matter": [
-            "CTX",
-            "CTXdp",
+            "CTX_1",
+            "CTX_2",
             "HIP",
             "CAsp",
             "DG-sg",
@@ -344,8 +344,8 @@ def subset_by_brain_region(
             "BS",
             "MEN",
         ],
-        "white_matter": ["fiber_tracts"],
-        "cortex": ["CTX", "CTXdp"],
+        "white_matter": ["FT"],
+        "cortex": ["CTX_1", "CTX_2"],
         "hippocampus": ["HIP", "DG-sg", "CAsp"],
     }
 
