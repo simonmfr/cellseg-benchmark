@@ -15,6 +15,7 @@ have to be written down.
 import argparse
 import logging
 import pathlib
+import re
 
 import numpy as np
 import pandas as pd
@@ -45,6 +46,13 @@ logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()
 _handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(_handler)
+
+
+def _natural_key(s):
+    """Sort 'aging_s10_r0' after 'aging_s1_r1', not before -- plain string
+    sort puts '_' (95) ahead of '0' (48), so 's10' < 's1' lexicographically.
+    """
+    return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s)]
 
 
 def write_skeleton(adata, cluster_key, config_path, plot_dir):
@@ -107,7 +115,7 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
     default_cleanup = {**DEFAULT_CLEANUP, **(cleanup.get("default") or {})}
 
     out, grids = {}, {}
-    for sample in sorted(adata.obs["sample"].astype(str).unique()):
+    for sample in sorted(adata.obs["sample"].astype(str).unique(), key=_natural_key):
         sub = adata[adata.obs["sample"].astype(str) == sample]
         grid, geo = gridify(sub, "_cluster_code")
         _, _, dx, dy = geo
