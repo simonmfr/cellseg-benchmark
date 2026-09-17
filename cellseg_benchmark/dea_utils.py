@@ -355,12 +355,12 @@ def subset_by_brain_region(
     except FileNotFoundError:
         logger.warning(f"--brain_region_subset ignored (missing {reg_csv}).")
         return adata, None
-    if "label" not in region_df.columns:
-        logger.warning("--brain_region_subset ignored (no 'label' column).")
+    if "brain_region" not in region_df.columns:
+        logger.warning("--brain_region_subset ignored (no 'brain_region' column).")
         return adata, None
 
     adata.obs["brain_region"] = (
-        region_df["label"].reindex(adata.obs_names).astype("string")
+        region_df["brain_region"].reindex(adata.obs_names).astype("string")
     )
 
     key = subset.strip()
