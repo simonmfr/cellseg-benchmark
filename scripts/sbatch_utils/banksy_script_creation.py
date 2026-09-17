@@ -8,6 +8,8 @@ expanded here rather than inside the job, because the container overrides HOME.
 import argparse
 import pathlib
 
+import yaml
+
 BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
 
 parser = argparse.ArgumentParser(
@@ -24,6 +26,12 @@ parser.add_argument(
     "--banksy_env", default="banksy", help="env with rpy2 and R Banksy"
 )
 args = parser.parse_args()
+
+with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
+    metadata = yaml.safe_load(f)
+if not any(key.split("_")[0] == args.cohort for key in metadata):
+    print(f"No samples found for cohort '{args.cohort}'.")
+    exit(0)
 
 repo = pathlib.Path(args.repo).expanduser().resolve()
 regions_dir = BASE_PATH / "misc" / "brain_regions" / args.cohort
