@@ -2,12 +2,13 @@
 """BANKSY joint clustering -> anatomical brain-region polygons -> per-cell labels.
 
 Full cohort pipeline, in order:
-    1. banksy_prep_raster.py {cohort}                 -> tissue-covering reference adata
+    1. banksy_prep_raster.py {cohort}                 -> reference adata (rastered 25um bins)
     2. banksy_clustering.py {cohort} <adata> <dir>    -> joint BANKSY clusters
        (steps 1+2 together: sbatch_utils/banksy_script_creation.py {cohort})
     3. this script --init                             -> YAML skeleton + per-cluster evidence
     4. fill in configs/brain_regions/{cohort}.yaml, rerun this script without --init
-    5. banksy_map_regions.py {cohort}                 -> per-cell region labels
+    5. banksy_map_regions.py {cohort}                 -> per-cell labels, one method's
+       adatas/adata_integrated.h5ad.gz at a time
 
 Clusters are shared across the whole cohort, so one YAML table names every
 cluster once. Per-sample exceptions go in sample_overrides/point_overrides
