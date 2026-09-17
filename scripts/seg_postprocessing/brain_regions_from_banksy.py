@@ -247,11 +247,11 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
     fig_qc.legend(handles=legend_handles, loc="center right")
 
     plot_dir.mkdir(parents=True, exist_ok=True)
-    fig_final.savefig(plot_dir / "brain_regions.png", dpi=150, bbox_inches="tight")
     fig_qc.savefig(plot_dir / "components.png", dpi=150, bbox_inches="tight")
-    plt.close(fig_final)
     plt.close(fig_qc)
     pd.DataFrame(coord_rows).to_csv(plot_dir / "components.csv", index=False)
+    fig_final.savefig(plot_dir / "brain_regions.png", dpi=150, bbox_inches="tight")
+    plt.close(fig_final)
 
 
 def main():

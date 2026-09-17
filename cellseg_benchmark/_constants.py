@@ -1877,12 +1877,12 @@ brain_regions_colors = {
     "CTX_2": "#1B7A5E",
     "DG-sg": "#2C7A2C",
     "HIP": "#7ED04B",
-    "MEN": "#DCF2EA",
+    "MEN": "#A9DDD0",
     "STR_PAL": "#98D6F9",
-    "STR/CTX": "#A4EAD8",
-    "VL": "#C8C8C8",
-    "V3": "#888888",
-    "FT": "#ADA69A",
+    "STR/CTX": "#C9BFE0",
+    "VL": "#D4D4D4",
+    "V3": "#787878",
+    "FT": "#A8A8A0",
 }
 
 brain_regions_broad = {
