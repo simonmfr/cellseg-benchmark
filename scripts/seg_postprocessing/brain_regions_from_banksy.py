@@ -196,16 +196,19 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
             vmax=len(labels) - 0.5,
             interpolation="nearest",
         )
-        for i, reg in enumerate(r for r in regions if r["label"]):
+        for i, reg in enumerate(regions):
             c = reg["poly"].representative_point()
-            ax.annotate(
-                str(i),
-                (c.x, c.y),
-                ha="center",
-                va="center",
-                fontsize=6,
-                bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.7),
-            )
+            if reg["label"]:
+                ax.annotate(
+                    str(i),
+                    (c.x, c.y),
+                    ha="center",
+                    va="center",
+                    fontsize=6,
+                    bbox=dict(
+                        boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.7
+                    ),
+                )
             coord_rows.append(
                 {
                     "sample": sample,
