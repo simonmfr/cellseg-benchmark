@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Joint BANKSY spatial-domain clustering across all samples of one cohort.
 
-Step 2 of the brain-region pipeline -- see brain_regions_from_banksy.py's
-docstring for the full order. Input: raster_adata_for_regions.py's output.
+Step 2 of the brain-region pipeline -- see banksy_annotate_regions.py's
+docstring for the full order. Input: banksy_prep_raster.py's output.
 """
 
 import argparse

@@ -2,12 +2,12 @@
 """BANKSY joint clustering -> anatomical brain-region polygons -> per-cell labels.
 
 Full cohort pipeline, in order:
-    1. raster_adata_for_regions.py {cohort}          -> tissue-covering reference adata
+    1. banksy_prep_raster.py {cohort}                 -> tissue-covering reference adata
     2. banksy_clustering.py {cohort} <adata> <dir>    -> joint BANKSY clusters
        (steps 1+2 together: sbatch_utils/banksy_script_creation.py {cohort})
     3. this script --init                             -> YAML skeleton + per-cluster evidence
     4. fill in configs/brain_regions/{cohort}.yaml, rerun this script without --init
-    5. map_points_to_regions.py {cohort}               -> per-cell region labels
+    5. banksy_map_regions.py {cohort}                 -> per-cell region labels
 
 Clusters are shared across the whole cohort, so one YAML table names every
 cluster once. Per-sample exceptions go in sample_overrides/point_overrides
@@ -19,9 +19,9 @@ region parquet with both a fine `label` and coarse `label_broad` column
 (cellseg_benchmark._constants.brain_regions_broad).
 
     # 1. YAML skeleton + per-cluster plots and marker table to name them from
-    brain_regions_from_banksy.py aging adata_regions.h5ad.gz --cluster-key banksy_coarse_k50_res0.4 --init
+    banksy_annotate_regions.py aging adata_regions.h5ad.gz --cluster-key banksy_coarse_k50_res0.4 --init
     # 2. apply the filled-in YAML: cleans holes/islands, writes the region parquet
-    brain_regions_from_banksy.py aging adata_regions.h5ad.gz
+    banksy_annotate_regions.py aging adata_regions.h5ad.gz
 """
 
 import argparse

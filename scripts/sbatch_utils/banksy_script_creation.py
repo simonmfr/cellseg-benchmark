@@ -55,7 +55,7 @@ jobs = {
         "mem": "150G",
         "time": "04:00:00",
         "env": args.env,
-        "cmd": f"python {repo}/scripts/seg_postprocessing/raster_adata_for_regions.py"
+        "cmd": f"python {repo}/scripts/seg_postprocessing/banksy_prep_raster.py"
         f" {args.cohort} --seg_method {args.seg_method}",
     },
     f"{args.cohort}_banksy": {

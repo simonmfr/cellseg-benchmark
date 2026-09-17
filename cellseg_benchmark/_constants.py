@@ -1893,7 +1893,7 @@ brain_regions_broad = {
     "V3": "VS",
 }
 
-# Shown per cluster by brain_regions_from_banksy.py --init, so clusters are
+# Shown per cluster by banksy_annotate_regions.py --init, so clusters are
 # named from evidence, not shape alone. Genes absent from the panel are skipped.
 brain_region_markers = {
     "DG-sg": ["Prox1", "Dock10"],
