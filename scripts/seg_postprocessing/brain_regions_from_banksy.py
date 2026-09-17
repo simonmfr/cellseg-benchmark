@@ -108,10 +108,7 @@ def build_regions(adata, cfg, code_to_cluster, plot_dir):
     default_cleanup = {**DEFAULT_CLEANUP, **(cleanup.get("default") or {})}
 
     out, grids = {}, {}
-    # Natural sort: plain sorted() puts 'aging_s10_r0' before 'aging_s1_r1'
-    # ('_' > '0' in ASCII), scrambling the panel order banksy_clustering.py
-    # produces from the adata's categorical order.
-    samples = sorted(
+    samples = sorted(  # natural sort: 'aging_s10_r0' else sorts before 'aging_s1_r1'
         adata.obs["sample"].astype(str).unique(),
         key=lambda s: [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", s)],
     )
@@ -199,11 +196,6 @@ def _plot_region_grids(grids, plot_dir, n_cols=3):
             vmax=len(labels) - 0.5,
             interpolation="nearest",
         )
-        # Short index per blob, not raw coords: keeps labels legible when blobs
-        # sit close together. Look up the actual (x, y) in component_coords.csv.
-        # Unlabeled components (dropped cluster) aren't drawn, so skip numbering
-        # them too; representative_point (not centroid) stays inside concave/
-        # multi-part shapes like the hippocampal C.
         for i, reg in enumerate(r for r in regions if r["label"]):
             c = reg["poly"].representative_point()
             ax.annotate(
