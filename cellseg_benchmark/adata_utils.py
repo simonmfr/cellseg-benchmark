@@ -832,6 +832,7 @@ def plot_spatial_multiplot(
     return_fig: bool = False,
     sort: bool = False,
     title_keys: str | list[str] | None = "sample",
+    legend_title: str | None = None,
 ):
     """Plot multi-panel spatial scatter plots per sample.
 
@@ -844,12 +845,14 @@ def plot_spatial_multiplot(
         title: Global title for the figure.
         save_name: Filename if saving (requires `save_path`).
         palette: Mapping from category → color. If None, uses AnnData or tab20.
+            If given, its key order also sets the legend order.
         figsize_per_ax: Size (in inches) of each subplot axis.
         add_legend: Whether to add a legend outside the plot.
         size: Marker size override.
         return_fig: Return the figure instead of closing.
         sort: Sort samples alphabetically.
         title_keys: `.obs` column(s) to use for subpanel titles.
+        legend_title: Title shown above the legend.
     """
     from os.path import join
 
@@ -866,6 +869,10 @@ def plot_spatial_multiplot(
         else:
             base = sc.plotting.palettes.default_20
         palette = dict(zip(categories, base[: len(categories)]))
+    else:
+        present = set(categories)
+        categories = [cat for cat in palette if cat in present]
+        categories += sorted(present.difference(categories))
 
     def _get_color(v):
         return palette.get(v, "#bdbdbd")
@@ -940,7 +947,12 @@ def plot_spatial_multiplot(
             for cat in categories
         ]
         fig.legend(
-            handles=handles, loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=8
+            handles=handles,
+            loc="center left",
+            bbox_to_anchor=(1.02, 0.5),
+            fontsize=8,
+            title=legend_title,
+            frameon=False,
         )
         fig.subplots_adjust(right=0.8)
 
