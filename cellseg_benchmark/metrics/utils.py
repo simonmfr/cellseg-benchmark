@@ -293,7 +293,7 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         return "Baysor_3D_denovo"
     if j.startswith("SIS"):
         return "SIS_DAPI_total_mrna"
-    if k.startswith("CellSAM"):
+    if j.startswith("CellSAM"):
         return "CellSAM"
 
     # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
