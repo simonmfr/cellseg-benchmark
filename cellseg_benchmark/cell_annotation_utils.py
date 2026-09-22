@@ -13,41 +13,90 @@ import scanpy as sc
 import seaborn as sns
 from matplotlib.pyplot import rc_context
 from scipy import stats
-from scipy.stats import median_abs_deviation
 
 from cellseg_benchmark.adata_utils import normalize_counts
 
 
+def _lower_mad(x, scale=1.0):
+    """Compute MAD_low of the doubleMAD: spread of the at-or-below-median half of the data.
+
+    One half of the two-sided doubleMAD (Leys et al. 2013), which is robust for skewed
+    distributions where a symmetric MAD over-flags the long tail. SCALPEL uses exactly
+    this for MapMyCells QC: cells with an average correlation below
+    `median - 3 * MAD_low` are discarded.
+
+    `scale=1.0` matches scipy's default, i.e. the raw median deviation with no
+    normal-consistency constant, so thresholds stay comparable to earlier runs.
+
+    Args:
+        x (array-like): Values; NaNs are ignored.
+        scale (float): Divisor applied to the result. Default 1.0.
+
+    Returns:
+        float: MAD_low, or NaN if no finite values are present.
+    """
+    x = np.asarray(x, dtype=float)
+    x = x[~np.isnan(x)]
+    if x.size == 0:
+        return np.nan
+    median = np.median(x)
+    return np.median(np.abs(x[x <= median] - median)) / scale
+
+
 def assign_cell_types_to_clusters(
-    adata, leiden_col, cell_type_col="cell_type_mapmycells", min_cells=100
+    adata,
+    leiden_col,
+    cell_type_col="cell_type_mapmycells",
+    min_cells=100,
+    min_share=0.0,
 ):
-    """Assign cell type labels to leiden clusters based on majority vote of MapMyCells results."""
-    cluster_cell_type_crosstab = pd.crosstab(
-        adata.obs[leiden_col],
-        adata.obs[cell_type_col],
-        margins=True,
-        margins_name="Total",
-    )
+    """Assign a cell type to each Leiden cluster by enrichment over background frequency.
+
+    MapMyCells scores every cell independently, so its labels are noisy at single-cell
+    level in a targeted panel. Taking a consensus over a fine Leiden cluster denoises
+    them. That consensus is an *enrichment* argmax, not a majority vote: each cluster
+    gets the cell type whose frequency within the cluster is highest relative to its
+    frequency across the whole sample (observed / expected). This is deliberate, since a
+    rare type such as Tanycytes would never win a majority vote against an abundant one.
+
+    Ranking is unchanged from the previous implementation, which divided the crosstab by
+    the per-cell-type totals. That gives count[i,j] / N_j, which for a fixed cluster i
+    orders the cell types identically to (share within cluster) / (share in sample); only
+    the framing and the returned diagnostic changed.
+
+    Args:
+        adata (AnnData): Annotated data matrix.
+        leiden_col (str): Column in adata.obs containing Leiden cluster IDs.
+        cell_type_col (str): Column in adata.obs containing per-cell labels.
+        min_cells (int): Cell types with fewer than this many cells in the whole sample
+            do not compete. Default 100.
+        min_share (float): A cell type must also make up at least this fraction of the
+            cluster to compete. 0.0 reproduces the previous behaviour exactly; raising it
+            stops a small minority from taking a cluster off its majority type while
+            still letting a genuinely concentrated rare type win. If no cell type clears
+            the floor, the cluster falls back to its majority type. Default 0.0.
+
+    Returns:
+        assigned_cell_type_dict (dict): Cluster ID -> cell type.
+        within_cluster_share (pd.DataFrame): Fraction of each cluster made up by each
+            cell type, i.e. the cluster's composition.
+    """
+    counts = pd.crosstab(adata.obs[leiden_col], adata.obs[cell_type_col])
 
     # Exclude cell types with fewer than the minimum number of cells
-    cluster_cell_type_crosstab = cluster_cell_type_crosstab.loc[
-        :, cluster_cell_type_crosstab.loc["Total"] >= min_cells
-    ]
+    counts = counts.loc[:, counts.sum(axis=0) >= min_cells]
 
-    # Normalize column-wise to get percentages
-    normalized_percentage = (
-        cluster_cell_type_crosstab.div(cluster_cell_type_crosstab.loc["Total"], axis=1)
-        * 100
+    within_cluster_share = counts.div(counts.sum(axis=1), axis=0)
+    overall_share = counts.sum(axis=0) / counts.to_numpy().sum()
+    enrichment = within_cluster_share.div(overall_share, axis=1).where(
+        within_cluster_share >= min_share
     )
 
-    # Identify the most frequent cell type for each cluster (maximum percentage)
-    assigned_cell_type_dict = (
-        normalized_percentage.drop(index="Total", columns="Total")
-        .idxmax(axis=1)
-        .to_dict()
-    )
+    assigned = within_cluster_share.idxmax(axis=1)  # majority fallback
+    has_candidate = enrichment.notna().any(axis=1)
+    assigned[has_candidate] = enrichment[has_candidate].idxmax(axis=1)
 
-    return assigned_cell_type_dict, normalized_percentage
+    return assigned.to_dict(), within_cluster_share
 
 
 def assign_final_cell_types(
@@ -64,28 +113,39 @@ def assign_final_cell_types(
     """
     Assign final cell types based on cluster-mean marker gene scores.
 
-        - If highest_score ≥ score_high_threshold → reassign to top-scoring cell type
-          (only if ≥ score_delta higher than current MMC label)
+    The cluster label from `assign_cell_types_to_clusters()` is itself a MapMyCells
+    product, so it is checked against marker gene expression before being accepted:
+
+        - If highest_score ≥ score_high_threshold AND it beats the reference score by
+          more than score_delta → reassign to the top-scoring cell type
         - If all scores < score_low_threshold → mark as 'Undefined'
-        - Otherwise → keep MMC label (no change)
+        - Otherwise → keep the cluster's MMC label (no change)
+
+    The reference score is the cluster's current label's own marker score. Labels such as
+    'Undefined', 'Mixed' and anything absent from the marker table have no score of their
+    own; for those the reference is the *runner-up* cell type's score instead, so the
+    score_delta guard still applies. Previously the difference evaluated to NaN in that
+    case and the guard was skipped entirely, which silently overrode every upstream
+    low-quality and mixed flag as soon as any cell type cleared score_high_threshold.
 
     Args:
         adata (AnnData): Annotated data matrix.
-        cluster_labels_dict (dict): Mapping from Leiden cluster ID to MMC-assigned cell type (majority vote).
+        cluster_labels_dict (dict): Mapping from Leiden cluster ID to MMC-assigned cell type.
         mmc_to_score_dict (dict): Mapping from MMC cell type names to score column suffixes.
         leiden_col (str): Column in adata.obs containing Leiden cluster IDs.
         out_col (str): Column name for the final assigned cell type. Default "cell_type_final".
-        score_high_threshold (float): Minimum score to confidently reassign a cluster to the top-scoring cell type. Default 0.7.
+        score_high_threshold (float): Minimum score to confidently reassign a cluster to the top-scoring cell type. Default 0.5.
         score_low_threshold (float): If all scores are below this, cluster is set to 'Undefined'. Default 0.25.
         score_delta (float): Minimum score difference required to justify reassignment. Default 0.2.
         logger (logging.Logger, optional): Logger instance.
-    
+
     Returns:
         adata (AnnData): Updated AnnData with new column adata.obs[out_col].
         undefined_reasons (dict): Reasons for why clusters were marked as 'Undefined'.
         cluster_score_matrix (pd.DataFrame): Mean score per cluster and cell type.
     """
-    adata.obs[out_col] = np.nan
+    # Object dtype, not np.nan: a float64 column raises on string assignment in pandas 3
+    adata.obs[out_col] = pd.Series(pd.NA, index=adata.obs.index, dtype=object)
     undefined_reasons = {}
     clusters = list(adata.obs[leiden_col].unique())
     cell_types = list(mmc_to_score_dict.keys())
@@ -111,27 +171,37 @@ def assign_final_cell_types(
             adata.obs.loc[mask, out_col] = "Undefined"
             continue
 
-        highest_cell_type = max(valid_scores, key=valid_scores.get)
-        highest_score = valid_scores[highest_cell_type]
+        ranked = sorted(valid_scores.items(), key=lambda kv: kv[1], reverse=True)
+        highest_cell_type, highest_score = ranked[0]
+        runner_up_score = ranked[1][1] if len(ranked) > 1 else -np.inf
         assigned_score = valid_scores.get(assigned_cell_type, np.nan)
+
+        # Reference the reassignment has to beat. The cluster's own label when it has a
+        # marker score; the runner-up cell type when it does not ('Undefined', 'Mixed',
+        # anything absent from the marker table), so the guard is never skipped.
+        reference_score = (
+            assigned_score if not np.isnan(assigned_score) else runner_up_score
+        )
 
         # Decision logic
         if highest_score >= score_high_threshold:
-            delta = (
-                (highest_score - assigned_score)
-                if not np.isnan(assigned_score)
-                else np.nan
-            )
+            delta = highest_score - reference_score
 
-            if np.isnan(delta) or delta > score_delta:
+            if delta > score_delta:
                 # confident reassignment (only if delta > score_delta)
                 if highest_cell_type != assigned_cell_type and logger:
                     logger.info(
                         f"    Cluster {cluster}: Reassigned {assigned_cell_type} → {highest_cell_type} "
-                        f"(scores {assigned_score:.2f} → {highest_score:.2f}, Δ={delta:.2f})"
+                        f"(reference {reference_score:.2f} → {highest_score:.2f}, Δ={delta:.2f})"
                     )
                 adata.obs.loc[mask, out_col] = highest_cell_type
             else:
+                if np.isnan(assigned_score) and logger:
+                    logger.info(
+                        f"    Cluster {cluster}: Kept {assigned_cell_type} "
+                        f"({highest_cell_type}={highest_score:.2f} does not clear the "
+                        f"runner-up by Δ={score_delta})"
+                    )
                 adata.obs.loc[mask, out_col] = assigned_cell_type
 
         elif all(v < score_low_threshold for v in valid_scores.values()):
@@ -262,21 +332,40 @@ def group_cell_types(metadata_col):
     return result
 
 
-def mark_low_quality_mappings(metadata, target_column, mad_factor, level):
-    """Add new column for low-quality mappings marked as "Undefined" based on correlation MAD threshold as suggested by Allen Institute."""
+def mark_low_quality_mappings(
+    metadata, target_column, mad_factor, level, min_group_cells=10
+):
+    """Add new column for low-quality mappings marked as "Undefined" based on a correlation MAD threshold.
+
+    Within each group at the given taxonomy level, cells whose average correlation falls
+    below `median - mad_factor * MAD_low` are flagged. `MAD_low` is the lower half of the
+    doubleMAD (see `_lower_mad`), following SCALPEL; the previous symmetric
+    `scipy.stats.median_abs_deviation` over-flags the long lower tail of a skewed
+    correlation distribution.
+
+    Args:
+        metadata (pd.DataFrame): Per-cell MapMyCells metrics; modified in place.
+        target_column (str): Column prefix, e.g. "allen" or "allen_runner_up_1".
+        mad_factor (float): Multiple of MAD_low defining the threshold.
+        level (str): Taxonomy level, e.g. "CLAS", "SUBC", "SUPT", "CLUS".
+        min_group_cells (int): Groups smaller than this are left unflagged, as are groups
+            with MAD_low == 0, which would otherwise flag everything below the median.
+    """
     level_key = f"{target_column}_{level}"
     cor_key = f"{target_column}_cor_{level}"
     out_key = f"{target_column}_{level}_incl_low_quality"
 
+    def _flag(x):
+        mad = _lower_mad(x)
+        if x.notna().sum() < min_group_cells or not np.isfinite(mad) or mad == 0:
+            return pd.Series(False, index=x.index)
+        return x < (x.median() - mad_factor * mad)
+
     # Calculate the low-quality mask
-    low_quality_mask = metadata.groupby(level_key)[cor_key].transform(
-        lambda x: (
-            x < (x.median() - mad_factor * median_abs_deviation(x, nan_policy="omit"))
-        )
-    )
+    low_quality_mask = metadata.groupby(level_key)[cor_key].transform(_flag)
 
     # Fill NaN values with False
-    low_quality_mask = low_quality_mask.fillna(False)
+    low_quality_mask = low_quality_mask.fillna(False).astype(bool)
 
     # Create new column with either "Undefined" or original value
     metadata[out_key] = metadata[level_key]
@@ -301,12 +390,12 @@ def plot_mad_thresholds(
         name (str): Output filename stem. Default "mad_threshold".
         group_column (str): Column name for grouping. Default "allen_CLUS".
         value_column (str): Column name for the values. Default "allen_cor_CLUS".
-        mad_factor (int): Factor for excluding outliers based on MAD. Default 3.
+        mad_factor (int): Factor for excluding outliers based on MAD_low. Default 3.
         figsize (tuple): Figure size. Default (13, 7).
     """
-    # Compute MAD within each cluster
+    # Compute MAD_low within each group, matching mark_low_quality_mappings()
     grouped_mad = Allen_MMC_metadata.groupby(group_column)[value_column].apply(
-        median_abs_deviation
+        _lower_mad
     )
     unique_groups = Allen_MMC_metadata[group_column].unique()
 
@@ -543,21 +632,32 @@ def revise_annotations(
     score_high_threshold=0.5,
     score_low_threshold=0.25,
     score_delta=0.2,
+    min_share=0.0,
     top_n_genes=50,
     ABCAtlas_marker_df_path=None,
     logger=None,
 ):
     """
-    De-noise MapMyCells annotations by assigning cell types to Leiden clusters based on majority vote, plus revise annotations based on marker gene expression. Wrapper for score_cell_types(), assign_cell_types_to_clusters(), assign_final_cell_types().
+    De-noise per-cell MapMyCells annotations by taking a consensus label per Leiden cluster, then revising that label against marker gene expression. Wrapper for score_cell_types(), assign_cell_types_to_clusters(), assign_final_cell_types().
 
     Args:
         adata (AnnData): Annotated data matrix with gene expression and metadata.
+        leiden_res (float): Resolution used if leiden_col has to be computed. Default 10.0.
         leiden_col (str): Column containing leiden clusters.
         cell_type_colors (dict): Dictionary mapping cell types to colors.
-        score_threshold (float): Threshold for cell type score to be considered valid. Default 0.5.
+        score_high_threshold (float): Minimum cluster-mean marker score to reassign. Default 0.5.
+        score_low_threshold (float): If all scores are below this, the cluster is set to 'Undefined'. Default 0.25.
+        score_delta (float): Minimum score margin required to justify reassignment. Default 0.2.
+        min_share (float): Minimum within-cluster share for a cell type to compete for the
+            cluster label; see assign_cell_types_to_clusters(). Default 0.0.
         top_n_genes (int): Number of top marker genes to use for scoring. Default 50.
+        ABCAtlas_marker_df_path (str): Path to the ABC Atlas marker gene table.
         logger (logging.Logger, optional): Logger instance.
 
+    Returns:
+        adata (AnnData): Updated AnnData with one "<key>_revised" column per annotation variant.
+        annotation_results (dict): Per-variant summary statistics.
+        cluster_composition (dict): Per-variant within-cluster cell type shares.
     """
     # Check if leiden clustering exists, run if not present
     if leiden_col not in adata.obs.columns:
@@ -591,16 +691,29 @@ def revise_annotations(
         logger=logger,
     )
 
+    # Score column name -> MMC label, where the marker table and group_cell_types() differ
+    score_to_mmc_name = {"Neurons-Dopa-Gaba": "Neurons-Dopa"}
+
     scored_types = [
-        c.replace("score_", "") for c in adata.obs.columns if c.startswith("score_")
+        c.replace("score_", "", 1) for c in adata.obs.columns if c.startswith("score_")
     ]
-    mmc_to_score_dict = {ct: ct for ct in scored_types}
-    # mmc-to-score cell type name matching (if not identical)
-    mmc_to_score_dict.update(
-        {
-            "Neurons-Dopa": "Neurons-Dopa-Gaba",
-        }
-    )
+    # Keys are MMC labels, values the score column suffix. Aliased names are renamed
+    # rather than added alongside the original, so the argmax in assign_final_cell_types()
+    # can never return a marker-table-only name such as "Neurons-Dopa-Gaba", which is
+    # absent from cell_type_colors and would be silently turned into NaN by the
+    # Categorical cast below.
+    mmc_to_score_dict = {score_to_mmc_name.get(ct, ct): ct for ct in scored_types}
+
+    if cell_type_colors is not None:
+        unmapped = sorted(set(mmc_to_score_dict) - set(cell_type_colors))
+        if unmapped:
+            if logger:
+                logger.warning(
+                    "Scored cell types absent from cell_type_colors, dropped so they "
+                    f"cannot be assigned: {unmapped}"
+                )
+            for ct in unmapped:
+                del mmc_to_score_dict[ct]
 
     # Process each cell type annotation key
     annotation_keys = [
@@ -609,14 +722,16 @@ def revise_annotations(
         "cell_type_mmc_incl_low_quality",
     ]
     annotation_results = {}
+    cluster_composition = {}
 
     for key in annotation_keys:
         logger.info(f"--> Processing {key}")
 
-        logger.info("Assigning cell types to Leiden clusters using majority vote...")
-        assigned_cell_type_dict, normalized_percentage = assign_cell_types_to_clusters(
-            adata, leiden_col=leiden_col, cell_type_col=key
+        logger.info("Assigning a consensus cell type to each Leiden cluster...")
+        assigned_cell_type_dict, within_cluster_share = assign_cell_types_to_clusters(
+            adata, leiden_col=leiden_col, cell_type_col=key, min_share=min_share
         )
+        cluster_composition[key] = within_cluster_share
 
         # Add to adata.obs
         adata.obs[f"{key}_clusters"] = adata.obs[leiden_col].map(
@@ -661,6 +776,15 @@ def revise_annotations(
 
         # Update categorical values if colors are provided
         if cell_type_colors is not None:
+            unknown_labels = sorted(
+                set(adata.obs[f"{key}_revised"].dropna().unique())
+                - set(cell_type_colors)
+            )
+            if unknown_labels:
+                logger.warning(
+                    f"{key}: labels absent from cell_type_colors will become NaN and be "
+                    f"filled as 'Low-Read-Cells' downstream: {unknown_labels}"
+                )
             adata.obs[f"{key}_revised"] = pd.Categorical(
                 adata.obs[f"{key}_revised"], categories=list(cell_type_colors.keys())
             )
@@ -679,7 +803,10 @@ def revise_annotations(
             "undefined_reasons": undefined_reasons,
         }
 
-    return adata, annotation_results, normalized_percentage
+    # One frame for all variants; previously only the last loop iteration was returned
+    cluster_composition = pd.concat(cluster_composition, names=["variant", leiden_col])
+
+    return adata, annotation_results, cluster_composition
 
 
 def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):

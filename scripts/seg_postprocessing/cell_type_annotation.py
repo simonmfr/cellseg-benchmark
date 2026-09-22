@@ -6,14 +6,22 @@ import pathlib
 
 1. Load adata from sdata.zarr
 2. Run MapMyCells against ABC mouse brain reference atlas; parse per-cell labels/scores
-3. QC MapMyCells output: plot distributions; mark low-correlation cells as Undefined (MAD-based per group,as suggested by Allen Institute); group fine types
+3. QC MapMyCells output: plot distributions; mark low-correlation cells as Undefined
+   (per taxonomy group, correlation < median - mad_factor * MAD_low, the doubleMAD rule
+   used by SCALPEL); group fine types
 4. Sensitivity: annotate "mixed" cells (runner-up probability gap) and low_quality cells (MAD rule); saved as "*_mixed" and "*_low_quality"
-5. Leiden clustering; assign cluster labels by MMC majority vote (from MMC-Leiden crosstab)
-6. Score marker genes (ABCAtlas via sc.tl.score) and refine cluster labels using thresholds:
-   - Reassign if some cell type’s cluster-mean marker-gene score ≥ 0.5 (high_threshold)
-     AND it exceeds the MMC majority label’s marker-gene score by ≥ 0.25 (delta)
-   - Set to "Undefined" if all cell types’ scores are < 0.5 (low_threshold)
-   - Otherwise keep the MMC majority label
+5. Leiden clustering; give each cluster a consensus MMC label. MapMyCells scores cells
+   independently, so this denoises it. The consensus is an enrichment argmax: the cell
+   type whose within-cluster frequency is highest relative to its sample-wide frequency,
+   which lets rare types win clusters they concentrate in. --min_share sets a floor on
+   the within-cluster share a type needs to compete.
+6. Score marker genes (ABCAtlas via sc.tl.score_genes) and revise the cluster label:
+   - Reassign if some cell type's cluster-mean marker-gene score >= high_threshold AND it
+     exceeds the reference score by > delta. The reference is the cluster label's own
+     marker score, or the runner-up cell type's score when the label has none
+     ("Undefined", "Mixed")
+   - Set to "Undefined" if all cell types' scores are < low_threshold
+   - Otherwise keep the cluster's MMC label
 7. Plot UMAP and spatial plots (mixed/low-quality, annotations)
 8. Export CSVs (adata_obs.csv including cell type labels).
 """
@@ -72,15 +80,27 @@ parser.add_argument(
     "--mad_factor",
     default=3,
     type=float,
-    help="MAD factor (>0) for removing outlier annotations",
+    help="MAD_low factor (>0) for removing outlier annotations. SCALPEL uses 3.",
 )
 parser.add_argument(
     "--leiden_res", default=10.0, type=float, help="Leiden clustering resolution"
+)
+parser.add_argument(
+    "--min_share",
+    default=0.0,
+    type=float,
+    help=(
+        "Minimum fraction of a Leiden cluster a cell type must make up to compete for "
+        "the cluster label. 0.0 (default) keeps the previous behaviour; raising it stops "
+        "a small minority from taking a cluster off its majority type."
+    ),
 )
 args = parser.parse_args()
 
 if args.mad_factor <= 0:
     parser.error("--mad_factor must be positive")
+if not 0.0 <= args.min_share < 1.0:
+    parser.error("--min_share must be in [0, 1)")
 
 method_path = pathlib.Path(
     args.data_dir, "samples", args.sample_name, "results", args.seg_method
@@ -313,8 +333,13 @@ adata, annotation_results, mmc_leiden_crosstab = anno_utils.revise_annotations(
     leiden_col=leiden_col,
     cell_type_colors=cell_type_colors,
     score_high_threshold=0.5,
+    # NOTE: equal to score_high_threshold, which makes the "keep the cluster's MMC label"
+    # branch of assign_final_cell_types() unreachable: every cluster is either reassigned
+    # or set to Undefined. Lower it (the function default is 0.25) to re-enable that
+    # branch; this is a results change, so it is left as-is here.
     score_low_threshold=0.5,
     score_delta=0.25,
+    min_share=args.min_share,
     top_n_genes=50,
     ABCAtlas_marker_df_path=pathlib.Path(
         args.data_dir,
