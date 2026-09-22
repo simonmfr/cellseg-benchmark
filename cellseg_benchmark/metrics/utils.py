@@ -287,6 +287,15 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         if j == f"vpt{dim}_{k}":
             return f"vpt_{dim}"
 
+    if j.startswith("Baysor_2D_denovo"):
+        return "Baysor_2D_denovo"
+    if j.startswith("Baysor_3D_denovo"):
+        return "Baysor_3D_denovo"
+    if j.startswith("SIS"):
+        return "SIS_DAPI_total_mrna"
+    if k.startswith("CellSAM"):
+        return "CellSAM"
+
     # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
     prefix_3d = f"Proseg_3D_{k}_"
     if j.startswith(prefix_3d) and "_vpt" in j:
@@ -309,19 +318,6 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
             return f"Proseg_3D_Cellpose_{cp}_DAPI_{stain}"
         return f"Proseg_3D_{re.sub(r'_vxl_.+$', '', rest)}"
 
-    # --- Proseg (2D) CP: Proseg_<key>_CP2_PolyT_vxl_7
-    prefix_2d = f"Proseg_{k}_"
-    if j.startswith(prefix_2d) and "_CP" in j:
-        rest = j[len(prefix_2d):]
-        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)(?:_vxl_.+)?$", rest)
-        if m:
-            cp = m.group("cp")
-            stain = m.group("stain")
-            if stain == "nuclei":
-                return f"Proseg_2D_Cellpose_{cp}_nuclei_model"
-            return f"Proseg_2D_Cellpose_{cp}_DAPI_{stain}"
-        return f"Proseg_{re.sub(r'_vxl_.+$', '', rest)}"
-
     # --- Cellpose jobs: CP1_<key>_<stain> / CP2_<key>_<stain>
     prefix = f"CP1_{k}_"
     if j.startswith(prefix):
@@ -342,8 +338,6 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
     # --- Simple methods
     if j == f"voronoi_{k}":
         return "Negative_Control_Voronoi"
-    if j == f"nuclei_{k}":
-        return "Negative_Control_Nuclei"
     if j == f"merscope_{k}":
         return "MERSCOPE"
     if j == f"transcript_tif_{k}":
@@ -367,8 +361,8 @@ def find_latest_job_data_tsv(metrics_dir):
 
 
 def export_job_metrics_tsv(
-    ref_file_path="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv",
-    out_dir="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/extracted_job_stats",
+    ref_file_path=Path(BASE_PATH) / "misc/logs/job_runs.tsv",
+    out_dir=Path(BASE_PATH) / "misc/extracted_job_stats",
 ):
     """Export aggregated Slurm job metrics for all jobids in ref_file_path to:
     <out_dir>/YYYYMMDD_job_data.tsv.
