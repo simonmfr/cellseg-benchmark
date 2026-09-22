@@ -294,15 +294,24 @@ cell_type_colors = {
 }  # Updated method-to-color mapping with distinct, moderately saturated shades
 
 brain_regions_colors = {
-    "BS": "FF7080",
-    "CA3sp": "66A83D",
-    "CTX": "B0FFB8",
-    "DG-sg": "66A83D",
-    "HIP": "7ED04B",
-    "STR": "98D6F9",
-    "VS": "AAAAAA",
-    "fiber tracts": "CCCCCC",
-    "BS/STR": "CCA3BC",
-    "STR/CTX": "A4EAD8",
-    "Meninges": "480091",
+    "MEN": "#A9DDD0",
+    "CTX_1": "#66C2A5",
+    "CTX_2": "#1B7A5E",
+    "HIP": "#7ED04B",
+    "DG-sg": "#2C7A2C",
+    "CAsp": "#E07B39",
+    "STR_PAL": "#98D6F9",
+    "BS": "#FF7080",
+    "FT": "#A8A8A0",
+    "VL": "#D4D4D4",
+    "V3": "#787878",
+    "STR/CTX": "#C9BFE0",
+}
+
+brain_regions_broad = {
+    "MEN": "CTX",
+    "CTX_1": "CTX",
+    "CTX_2": "CTX",
+    "VL": "VS",
+    "V3": "VS",
 }
