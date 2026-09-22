@@ -361,7 +361,7 @@ def find_latest_job_data_tsv(metrics_dir):
 
 
 def export_job_metrics_tsv(
-    ref_file_path=Path(BASE_PATH) / "misc/logs/job_runs.tsv",
+    ref_file_path=Path(BASE_PATH) / "misc/logs/run_log.tsv",
     out_dir=Path(BASE_PATH) / "misc/extracted_job_stats",
 ):
     """Export aggregated Slurm job metrics for all jobids in ref_file_path to:

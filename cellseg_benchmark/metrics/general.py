@@ -141,7 +141,7 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
 def extract_mem_and_time(
     adata,
     method,
-    ref_file_path=Path(BASE_PATH) / "misc/logs/job_runs.tsv",
+    ref_file_path=Path(BASE_PATH) / "misc/logs/run_log.tsv",
     metrics_dir=Path(BASE_PATH) / "misc/extracted_job_stats",
     base_path=None,
     ignore_missing=False,
