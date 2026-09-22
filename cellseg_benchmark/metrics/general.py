@@ -197,7 +197,6 @@ def extract_mem_and_time(
             f"Method {method!r} not found in job file or not yet recorded."
         )
 
-    latest_metrics_file = find_latest_job_data_tsv(metrics_dir)
     sacct = pd.concat([pd.read_csv(p, sep="\t") for p in metrics_dir.glob("*_job_data.tsv") if p.is_file()])
     required_cols = {
         "jobid",
@@ -210,7 +209,7 @@ def extract_mem_and_time(
     missing = required_cols.difference(sacct.columns)
     if missing:
         raise ValueError(
-            f"Metrics file {latest_metrics_file} is missing columns: {sorted(missing)}"
+            f"files in metrics dir {metrics_dir} is missing columns: {sorted(missing)}"
         )
 
     sacct_succ = sacct[sacct['sacct_state'] == "COMPLETED"]

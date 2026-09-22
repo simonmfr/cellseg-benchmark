@@ -303,7 +303,7 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         rest = re.sub(r"_vxl_.+$", "", rest)  # ignore voxel size
         m = re.match(r"^vpt(?P<dim>2D|3D)_(?P<flavor>.+)$", rest)
         if m:
-            return f"Proseg_3D_vpt_{m.group('dim')}_DAPI_{m.group('flavor')}"
+            return f"Proseg_3D_vpt{m.group('dim')}_DAPI_{m.group('flavor')}"
         return f"Proseg_3D_{rest}"
 
     # --- Proseg_3D CP: Proseg_3D_<key>_CP2_PolyT_vxl_7
