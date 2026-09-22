@@ -129,6 +129,13 @@ def main():
     adata = anndata.AnnData(counts.T.tocsr(), obs=obs, var=var)
     adata = adata[adata.obs["cell_id"].isin(boundaries["cell_id"])].copy()
     adata.obs["region"] = pd.Categorical(["baysor_boundaries"] * adata.n_obs)
+    centroids = sdata[intensity_shapes_key].geometry.centroid
+    adata.obsm["spatial"] = (
+        centroids.get_coordinates()
+        .set_axis(sdata[intensity_shapes_key].index.astype(str))
+        .loc[adata.obs["cell_id"]]
+        .to_numpy()
+    )
     sdata["table"] = spatialdata.models.TableModel.parse(
         adata,
         region="baysor_boundaries",
