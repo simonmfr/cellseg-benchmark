@@ -349,7 +349,7 @@ def process_mapmycells_output(json_results):
     return pd.DataFrame.from_dict(results, orient="index")
 
 
-def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
+def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir, normalization="raw"):
     """Run MapMyCells API for cell annotations.
 
     Args:
@@ -358,6 +358,7 @@ def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
         method_name: name of method
         annotation_path: path for saving annotations
         data_dir: base directory
+        normalization: "raw" for counts, "log2CPM" for log2(1 + CPM) input
 
     """
     today = date.today().strftime("%Y%m%d")
@@ -404,7 +405,7 @@ def run_mapmycells(adata, sample_name, method_name, annotation_path, data_dir):
         "--precomputed_stats.path",
         os.path.join(ref_path, "precomputed_stats_ABC_revision_230821.h5"),
         "--type_assignment.normalization",
-        "raw",
+        normalization,
         "--type_assignment.n_processors",
         "4",
     ]
