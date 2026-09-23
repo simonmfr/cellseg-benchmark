@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from . import utils
+from scripts.seg_postprocessing.cell_type_annotation import palette
+from .utils import clean_method_name
 from .. import _constants
 
 def _extract_stats(df, columns, celltype_name="cell_type_revised"):
@@ -110,6 +111,9 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
     results_df = pd.read_csv(results_file, index_col=0)
     # select those with selected celltype
     results_df = results_df[results_df["cell_type_revised"] == celltype]
+    results_df['method'] = results_df['method'].map(clean_method_name)
+
+    palette = {clean_method_name[key]: value for key, value in _constants.method_colors.items()}
 
     # Remove nan
     results_df = results_df[~results_df[metric].isna()]
@@ -128,7 +132,7 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
         x=metric,
         hue="method",
         order=dataset_order,
-        palette=_constants.method_colors,
+        palette=palette,
         inner="quartile",
         linewidth=0.7,
         zorder=2,
