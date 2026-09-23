@@ -112,7 +112,7 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
     results_df = results_df[results_df["cell_type_revised"] == celltype]
     results_df['method'] = results_df['method'].map(utils.clean_method_name)
 
-    palette = {utils.clean_method_name[key]: value for key, value in _constants.method_colors.items()}
+    palette = {utils.clean_method_name(key): value for key, value in _constants.method_colors.items()}
 
     # Remove nan
     results_df = results_df[~results_df[metric].isna()]
