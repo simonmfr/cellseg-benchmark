@@ -178,6 +178,45 @@ def scalpel_qc(cor, supertype, mad_factor=3.0):
     return out
 
 
+# marker types whose marker sets are ambiguous in the panel; never used for revision
+UNRELIABLE_MARKER_TYPES = {
+    "0", "Bergmann", "Neurons-Dopa", "Neurons-Dopa-Gaba", "Neurons-Other", "Neurons-Granule-Immature",
+    "Neurons-Glyc-Gaba", "Immune-Other", "ABCs", "OECs", "BAMs", "Astroependymal", "Tanycytes",
+}
+
+
+def annotate_clusters(adata, cluster_col, label_col, marker_csv, min_score=1.0, delta=0.25, logger=None):
+    """Cluster labels: majority vote of per-cell labels, then marker revision.
+
+    A cluster is relabelled to the cell type with the highest cluster-mean marker score if that
+    score is >= min_score and exceeds the score of its voted label by > delta (the runner-up's
+    score if the voted label has no markers, e.g. "Undefined"). Markers never set "Undefined".
+    Types in UNRELIABLE_MARKER_TYPES are not scored.
+
+    Returns:
+        vote, revised (pd.Series): per-cell labels before and after the marker revision.
+    """
+    clusters = adata.obs[cluster_col].astype(str)
+    vote = adata.obs[label_col].astype(str).groupby(clusters).agg(lambda x: x.value_counts().idxmax())
+
+    mdf = pd.read_csv(marker_csv)
+    markers = {c: mdf[c].dropna().tolist() for c in mdf.columns if c not in UNRELIABLE_MARKER_TYPES}
+    score_cell_types(adata, markers, top_n_genes=50, layer=None, logger=logger)
+    types = [t for t in markers if f"score_{t}" in adata.obs]
+    means = adata.obs[[f"score_{t}" for t in types]].groupby(clusters).mean()
+    means.columns = types
+
+    revised = vote.copy()
+    for c, s in means.iterrows():
+        s = s.sort_values(ascending=False)
+        ref = s.get(vote[c], s.iloc[1])
+        if s.iloc[0] >= min_score and s.iloc[0] - ref > delta:
+            revised[c] = s.index[0]
+    if logger:
+        logger.info(f"Marker revision relabelled {(revised != vote).sum()} of {len(vote)} clusters")
+    return clusters.map(vote), clusters.map(revised)
+
+
 def process_adata(adata, seg_method, logger):
     """
     Preprocess AnnData object.

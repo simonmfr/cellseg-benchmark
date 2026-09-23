@@ -2,14 +2,15 @@
 import datetime
 import pathlib
 
-"""Cell type annotation: MapMyCells, SCALPEL label transfer QC, Leiden majority vote.
+"""Cell type annotation: MapMyCells, SCALPEL label transfer QC, cluster vote, marker revision.
 
 1. Run MapMyCells against the ABC mouse brain atlas (or reuse an existing result)
 2. SCALPEL QC (DoubleMAD per supertype, with bimodal handling): failing cells -> "Undefined"
 3. Group subclasses into coarse cell types
-4. Leiden clustering; each cluster gets its majority label, with QC-failed cells voting
-   "Undefined" -> cell_type_revised
-5. Plots and adata_obs_annotated.csv
+4. Leiden clustering; each cluster gets its majority label, QC-failed cells voting
+   "Undefined" -> cell_type_vote
+5. Marker revision with curated markers (reassign only, never "Undefined") -> cell_type_revised
+6. Plots and adata_obs_annotated.csv
 """
 
 import argparse
@@ -69,7 +70,19 @@ parser.add_argument(
     help="MAD_low factor (>0) for removing outlier annotations. SCALPEL uses 3.",
 )
 parser.add_argument(
-    "--leiden_res", default=10.0, type=float, help="Leiden clustering resolution"
+    "--leiden_res", default=20.0, type=float, help="Leiden clustering resolution"
+)
+parser.add_argument(
+    "--marker_min_score",
+    default=1.0,
+    type=float,
+    help="Minimum cluster-mean marker score for a marker revision",
+)
+parser.add_argument(
+    "--marker_delta",
+    default=0.25,
+    type=float,
+    help="Margin over the voted label's marker score required for a marker revision",
 )
 args = parser.parse_args()
 
@@ -225,15 +238,27 @@ adata.obs.drop(columns="cell_type_mmc_is_low_quality", inplace=True)
 leiden_col = f"leiden_res{args.leiden_res}".replace(".", "_")
 if leiden_col not in adata.obs:
     sc.tl.leiden(adata, key_added=leiden_col, resolution=args.leiden_res)
-majority = adata.obs.groupby(leiden_col, observed=True)["cell_type_mmc_incl_low_quality"].agg(
-    lambda x: x.value_counts().idxmax()
+adata.obs["cell_type_vote"], adata.obs["cell_type_revised"] = anno_utils.annotate_clusters(
+    adata,
+    cluster_col=leiden_col,
+    label_col="cell_type_mmc_incl_low_quality",
+    marker_csv=pathlib.Path(
+        args.data_dir,
+        "misc",
+        "scRNAseq_ref_ABCAtlas_Yao2023Nature",
+        "marker_genes_df",
+        "20250416_cell_type_markers_top50.csv",
+    ),
+    min_score=args.marker_min_score,
+    delta=args.marker_delta,
+    logger=logger,
 )
-adata.obs["cell_type_revised"] = adata.obs[leiden_col].map(majority).astype(str)
 logger.info(f"cell_type_revised:\n{adata.obs['cell_type_revised'].value_counts()}")
 
 plot_keys = [
     "cell_type_mmc_raw",
     "cell_type_mmc_incl_low_quality",
+    "cell_type_vote",
     "cell_type_revised",
     leiden_col,
 ]
