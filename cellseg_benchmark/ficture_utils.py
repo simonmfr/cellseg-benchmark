@@ -26,7 +26,7 @@ from cellseg_benchmark import _constants
 _COLORS = _constants.cell_type_colors
 # factor id (as str) -> color-table cell-type name (via _constants.true_cluster)
 _FACTOR_CELL_TYPE = {
-    f: _constants.true_cluster.get(ct, ct)
+    f: _constants.true_cluster.get(ct) or "Undefined"
     for f, ct in _constants.ficture_factor_to_celltype.items()
 }
 

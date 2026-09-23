@@ -163,32 +163,29 @@ ficture_factor_to_celltype = {
     "20": "VLMCs",
 }
 
-true_cluster = {  # fine label -> canonical cell type
-    "Neurons-Immature": "Neurons-Granule-Immature",  # legacy FICTURE factor label
+true_cluster = {  # FICTURE factor or segmentation label -> cell type scored in FICTURE F1, None = not scored
+    "ABCs": "VLMCs",
     "Astrocytes": "Astrocytes",
-    "Astroependymal": "Astrocytes",
     "BAMs": "BAMs",
+    "Bergmann": "Astrocytes",
     "Choroid-Plexus": "Ependymal",
     "ECs": "ECs",
     "Ependymal": "Ependymal",
-    "Immune-Other": "Immune-Other",
+    "Immune-Other": None,
     "Microglia": "Microglia",
-    "Neurons-Dopa-Gaba": "Neurons-Dopa",
+    "Neurons-Dopa": None,
+    "Neurons-Dopa-Gaba": "Neurons-Gaba",
     "Neurons-Gaba": "Neurons-Gaba",
     "Neurons-Glut": "Neurons-Glut",
-    "Neurons-Glyc-Gaba": "Neurons-Glyc-Gaba",
-    "Neurons-Granule-Immature": "Neurons-Granule-Immature",
-    "Neurons-Other": "Neurons-Other",
-    "OECs": "OECs",
+    "Neurons-Glyc-Gaba": "Neurons-Gaba",
+    "Neurons-Immature": None,
+    "Neurons-Other": None,
+    "OECs": "Oligodendrocytes",
     "OPCs": "OPCs",
     "Oligodendrocytes": "Oligodendrocytes",
     "Pericytes": "Pericytes",
     "SMCs": "SMCs",
     "VLMCs": "VLMCs",
-    "ABCs": "VLMCs",
-    "Bergmann": "Astrocytes",
-    "Neurons-Dopa": "Neurons-Dopa",
-    "Tanycytes": "Ependymal",
 }
 
 # merges neurons for marker-gene-based metrics
@@ -202,10 +199,6 @@ merged_celltypes = {
 
 # Vascular cell types, used for the secondary macro-F1 (see metrics.ficture).
 vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
-
-# Cell types without clear marker genes: their boundary annotation is unreliable, so
-# transcripts touching them are dropped from the FICTURE F1 comparison (metrics.ficture).
-unreliable_celltypes = ["Neurons-Other", "Immune-Other", "OECs"]
 
 index_order = [
     "Astrocytes",
