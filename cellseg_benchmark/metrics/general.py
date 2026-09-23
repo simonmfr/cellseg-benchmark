@@ -141,6 +141,7 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
 def extract_mem_and_time(
     adata,
     method,
+    cohort,
     ref_file_path=Path(BASE_PATH) / "misc/logs/run_log.tsv",
     metrics_dir=Path(BASE_PATH) / "misc/extracted_job_stats",
     base_path=None,
@@ -182,6 +183,10 @@ def extract_mem_and_time(
     ref["jobid"] = ref["jobid"].astype(int)
     ref["jobname"] = ref["jobname"].astype(str)
     ref["sample"] = ref["key"].astype(str)
+
+    #filter entries for cohort
+    ref = ref[[x.startswith(cohort) for x in ref['sample']]]
+
     ref["jobname_norm"] = ref["jobname"].apply(normalize_jobname)
 
     ref["method_with_flavor"] = ref.apply(
