@@ -185,7 +185,7 @@ def extract_mem_and_time(
 
     #filter entries for cohort
     cohort = adata.obs['sample'].unique()
-    cohort = set([x.split("_") for x in cohort])
+    cohort = set([x.split("_")[0] for x in cohort])
     assert len(cohort) == 1, "more than one cohort found. Cohort recognition is sensitive to '_'"
     ref = ref[[x.startswith(list(cohort)[0]) for x in ref['sample']]]
 
