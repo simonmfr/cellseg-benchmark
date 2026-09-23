@@ -337,6 +337,10 @@ def plot_mem_and_time(cohort, metric=None, show: bool = False):
         results_df = results_df[results_df[col_name] <= threshold]
 
         dataset_order = results_df.groupby("method")[col_name].median().sort_values().index
+        palette = {utils.clean_method_name(m): _constants.method_colors[m] for m in dataset_order}
+        dataset_order = [utils.clean_method_name(m) for m in dataset_order]
+
+        results_df['method'] = results_df['method'].map(utils.clean_method_name)
 
         fig = plt.figure(figsize=(6, 6), dpi=300)
         plt.grid(True, alpha=0.3, zorder=0)
@@ -346,7 +350,7 @@ def plot_mem_and_time(cohort, metric=None, show: bool = False):
             x=col_name,
             hue="method",
             order=dataset_order,
-            palette=_constants.method_colors,
+            palette=palette,
             inner="quartile",
             linewidth=0.7,
             zorder=2,
