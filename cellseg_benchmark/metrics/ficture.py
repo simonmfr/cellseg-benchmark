@@ -253,7 +253,7 @@ def plot_ficture_f1(
     plot_path.mkdir(parents=True, exist_ok=True)
 
     scores_df = pd.read_csv(results_file, index_col=0)
-    scores_df['method'] = scores_df['sample'].map(clean_method_name)
+    scores_df['method'] = scores_df['method'].map(clean_method_name)
 
     if celltype_plots:
         scores_df_short = scores_df[scores_df['sample'] != "all_samples"]
