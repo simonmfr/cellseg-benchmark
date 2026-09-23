@@ -301,7 +301,8 @@ def plot_ficture_f1(
     order = (
         mean_results.groupby("method")["f1"].mean().sort_values().index
     )
-    pal = {clean_method_name(ct): _constants.method_colors[ct] for ct in order}
+    pal = {clean_method_name(mtd): _constants.method_colors[mtd] for mtd in order}
+    order = [clean_method_name(mtd) for mtd in order]
     mean_results['method'] = mean_results['method'].map(clean_method_name)
     fig = plt.figure(figsize=(10, 5))
     ax = sns.boxplot(
@@ -337,7 +338,8 @@ def plot_ficture_f1(
     order = (
         mean_results.groupby("method")["f1"].mean().sort_values().index
     )
-    pal = {clean_method_name(ct): _constants.method_colors[ct] for ct in order}
+    pal = {clean_method_name(mtd): _constants.method_colors[mtd] for mtd in order}
+    order = [clean_method_name(mtd) for mtd in order]
     mean_results['method'] = mean_results['method'].map(clean_method_name)
     fig = plt.figure(figsize=(10, 5))
     ax = sns.boxplot(
