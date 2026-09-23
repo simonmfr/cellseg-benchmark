@@ -12,6 +12,7 @@ import pandas as pd
 import scanpy as sc
 
 from .. import _constants
+from ..cell_annotation_utils import group_cell_types
 
 
 def read_ABCAtlas(vascular_subset=False, base_path=_constants.BASE_PATH):
@@ -55,6 +56,7 @@ def read_ABCAtlas(vascular_subset=False, base_path=_constants.BASE_PATH):
         # join with obs
         adata.obs = adata.obs.join(cell_meta, how="left")
 
+    adata.obs["cell_type_dea"] = group_cell_types(adata.obs["subclass"]).astype("category")
     return adata
 
 

@@ -182,18 +182,7 @@ def compute_positive_markers_from_reference(
     #    sc.tl.rank_genes_groups(adata, "cell_type_dea", method="wilcoxon")
     print("computing positive markers")
     # filter celltypes
-    ct_exclude = [
-        "Astroependymal",
-        "Bergmann",
-        "Choroid-Plexus",
-        "Immune-Other",
-        "OECs",
-        "Tanycytes",
-        "ABCs",
-        "Neurons-Other",
-        "Neurons-Granule-Immature",
-    ]
-    adata = adata[~adata.obs[celltype_name].isin(ct_exclude)]
+    adata = adata[adata.obs[celltype_name] != "Choroid-Plexus"]
     # filter all nan values from cell_type_dea, otherwise aggregate fails
     adata = adata[~adata.obs[celltype_name].isna()]
     # merge celltypes
