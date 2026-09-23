@@ -141,7 +141,6 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
 def extract_mem_and_time(
     adata,
     method,
-    cohort,
     ref_file_path=Path(BASE_PATH) / "misc/logs/run_log.tsv",
     metrics_dir=Path(BASE_PATH) / "misc/extracted_job_stats",
     base_path=None,
@@ -185,7 +184,10 @@ def extract_mem_and_time(
     ref["sample"] = ref["key"].astype(str)
 
     #filter entries for cohort
-    ref = ref[[x.startswith(cohort) for x in ref['sample']]]
+    cohort = adata.obs['sample'].unique()
+    cohort = set([x.split("_") for x in cohort])
+    assert len(cohort) == 1, "more than one cohort found. Cohort recognition is sensitive to '_'"
+    ref = ref[[x.startswith(list(cohort)[0]) for x in ref['sample']]]
 
     ref["jobname_norm"] = ref["jobname"].apply(normalize_jobname)
 
