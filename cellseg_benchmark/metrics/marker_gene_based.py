@@ -917,7 +917,7 @@ def plot_negative_marker_purity(cohort, results_suffix, show=False):
     order = scores_df.set_index("method")["negative_marker_purity"].sort_values().index
     pal = {utils.clean_method_name(m): _constants.method_colors[m] for m in order}
     method_order = [utils.clean_method_name(x) for x in _constants.method_colors.keys() if x in scores_df['method'].unique()]
-    scores_df = scores_df['method'].map(utils.clean_method_name)
+    scores_df['method'] = scores_df['method'].map(utils.clean_method_name)
     scores_df['method'] = pd.Categorical(scores_df['method'], categories=method_order, ordered=True)
 
     fig = plt.figure(figsize=(14, 6))
