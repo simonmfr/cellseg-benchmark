@@ -253,7 +253,6 @@ def plot_ficture_f1(
     plot_path.mkdir(parents=True, exist_ok=True)
 
     scores_df = pd.read_csv(results_file, index_col=0)
-    scores_df['method'] = scores_df['method'].map(clean_method_name)
 
     if celltype_plots:
         scores_df_short = scores_df[scores_df['sample'] != "all_samples"]
@@ -303,6 +302,7 @@ def plot_ficture_f1(
         mean_results.groupby("method")["f1"].mean().sort_values().index
     )
     pal = {clean_method_name(ct): _constants.method_colors[ct] for ct in order}
+    mean_results['method'] = mean_results['method'].map(clean_method_name)
     fig = plt.figure(figsize=(10, 5))
     ax = sns.boxplot(
         data=mean_results,
@@ -338,6 +338,7 @@ def plot_ficture_f1(
         mean_results.groupby("method")["f1"].mean().sort_values().index
     )
     pal = {clean_method_name(ct): _constants.method_colors[ct] for ct in order}
+    mean_results['method'] = mean_results['method'].map(clean_method_name)
     fig = plt.figure(figsize=(10, 5))
     ax = sns.boxplot(
         data=mean_results,
