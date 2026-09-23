@@ -17,6 +17,7 @@ from .. import _constants
 from .. import ficture_utils as fu
 from .. import sdata_utils as su
 from . import f1_score
+from .utils import clean_method_name
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("ficture_f1")
@@ -252,6 +253,7 @@ def plot_ficture_f1(
     plot_path.mkdir(parents=True, exist_ok=True)
 
     scores_df = pd.read_csv(results_file, index_col=0)
+    scores_df['method'] = scores_df['sample'].map(clean_method_name)
 
     if celltype_plots:
         scores_df_short = scores_df[scores_df['sample'] != "all_samples"]
@@ -300,7 +302,7 @@ def plot_ficture_f1(
     order = (
         mean_results.groupby("method")["f1"].mean().sort_values().index
     )
-    pal = {ct: _constants.method_colors[ct] for ct in order}
+    pal = {clean_method_name[ct]: _constants.method_colors[ct] for ct in order}
     fig = plt.figure(figsize=(10, 5))
     ax = sns.boxplot(
         data=mean_results,
@@ -335,7 +337,7 @@ def plot_ficture_f1(
     order = (
         mean_results.groupby("method")["f1"].mean().sort_values().index
     )
-    pal = {ct: _constants.method_colors[ct] for ct in order}
+    pal = {clean_method_name[ct]: _constants.method_colors[ct] for ct in order}
     fig = plt.figure(figsize=(10, 5))
     ax = sns.boxplot(
         data=mean_results,
