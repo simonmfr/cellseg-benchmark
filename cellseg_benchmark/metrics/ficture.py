@@ -17,7 +17,7 @@ from .. import _constants
 from .. import ficture_utils as fu
 from .. import sdata_utils as su
 from . import f1_score
-from . import clean_method_name
+from .utils import clean_method_name
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("ficture_f1")
