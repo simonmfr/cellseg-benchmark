@@ -39,6 +39,8 @@ method_colors = {
     "vpt_3D_DAPI_nuclei": "#6baed6",
     "vpt_3D_DAPI_PolyT": "#9ecae1",
     "vpt_3D_DAPI_PolyT_nuclei": "#a9d5f1",
+    # Spots-In-Space
+    "SIS_DAPI_total_mrna": "#9cb01c",
     # Baysor (red)
     "Baysor_2D_denovo": "#5c0010",
     "Baysor_3D_denovo": "#7a0012",
@@ -69,7 +71,6 @@ method_colors = {
 #    "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
     # Other
     "Watershed_Merlin": "#1b7c83",
-    "SIS_DAPI_total_mrna": "#9cb01c",
     "ComSeg": "#8c510a",
     # Ficture based
     'Ficture_segments_dapi': "#5a0876",
