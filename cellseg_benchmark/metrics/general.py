@@ -193,9 +193,8 @@ def extract_mem_and_time(
             }
         ).reset_index(drop=True)
 
-    legacy = Path(ref_file_path).parent / "job_runs.tsv"
-    if legacy.exists():
-        raise FileNotFoundError(f"Obsolete {legacy} must be merged into run_log.tsv and deleted.")
+    ref = pd.read_csv(ref_file_path, sep="\t")
+    ref["_ref_order"] = range(len(ref))
 
     ref["jobid"] = ref["jobid"].astype(int)
     ref["jobname"] = ref["jobname"].astype(str)
