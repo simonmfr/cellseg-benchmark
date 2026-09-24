@@ -118,9 +118,9 @@ method_names = {
     "Proseg_3D_vpt3D_DAPI_nuclei": "Proseg 3D (CP1 3D N)",
     "Proseg_3D_vpt3D_DAPI_PolyT": "Proseg 3D (CP1 3D P)",
     "Proseg_3D_vpt3D_DAPI_PolyT_nuclei": "Proseg 3D (CP1 3D P+N)",
-    "Negative_Control_Rastered_5": "Raster 5µm",
-    "Negative_Control_Rastered_10": "Raster 10µm",
-    "Negative_Control_Rastered_25": "Raster 25µm",
+    "Negative_Control_Rastered_5": "Raster 5μm",
+    "Negative_Control_Rastered_10": "Raster 10μm",
+    "Negative_Control_Rastered_25": "Raster 25μm",
     "Negative_Control_Voronoi": "Voronoi",
     "Negative_Control_Visium": "Visium",
     "ComSeg": "ComSeg",
@@ -142,8 +142,8 @@ label_order = list(label_colors)
 
 metric_names = {
     "n_cells": "# Cells",
-    "volume_final": "Volume (µm³)",
-    "area": "Area (µm²)",
+    "volume_final": "Volume (μm³)",
+    "area": "Area (μm²)",
     "elongation": "Elongation",
     "sphericity": "Sphericity",
     "intensities_DAPI": "DAPI",
