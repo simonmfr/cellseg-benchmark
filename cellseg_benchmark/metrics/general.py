@@ -62,42 +62,53 @@ def _extract_stats(df, columns, celltype_name="cell_type_revised"):
     return results.reset_index()
 
 
-def cells_in_tissue(cohort, base_path=_constants.BASE_PATH, buffer_um=25, plot_path=None):
-    """Post-QC cells inside the tissue and tissue area (mm²), per sample and method.
+def tissue_polygons(cohort, base_path=_constants.BASE_PATH):
+    """Cleaned BANKSY brain-region polygons merged per sample (manual outlier regions and stray islands removed)."""
+    path = Path(base_path) / "misc" / "brain_regions" / f"{cohort}_brain_regions.parquet"
+    return gpd.read_parquet(path).dissolve("sample").geometry
 
-    Tissue = cleaned BANKSY brain-region polygons (manual outlier regions and stray islands removed).
-    Cells more than buffer_um outside them, e.g. debris around the section, are not counted.
-    With plot_path, saves a per-sample QC plot of the tissue border, kept and dropped cells.
-    """
-    base_path = Path(base_path)
-    tissue = gpd.read_parquet(base_path / "misc" / "brain_regions" / f"{cohort}_brain_regions.parquet")
-    tissue = tissue.dissolve("sample").geometry
+
+def _split_by_tissue(xy, tissue, buffer_um):
+    """Yield (sample, cells, inside) with inside = cells within buffer_um of the tissue."""
     near = tissue.buffer(buffer_um)
     shapely.prepare(near.values)
-    rows, pts = [], []
-    for f in (base_path / "analysis" / cohort).glob("*/adatas/adata_integrated.h5ad.gz"):
+    for s, d in xy[xy["sample"].isin(near.index)].groupby("sample"):
+        yield s, d, shapely.contains_xy(near[s], d.x, d.y)
+
+
+def compute_cell_density(adata, tissue, buffer_um=25, **kwargs):
+    """Post-QC cells inside the tissue, tissue area (mm²) and cells per mm², per sample and for all samples.
+
+    Cells more than buffer_um outside the tissue polygons, e.g. debris around the section, are not counted.
+    """
+    xy = pd.DataFrame(adata.obsm["spatial"][:, :2], columns=["x", "y"]).assign(
+        sample=adata.obs["sample"].astype(str).to_numpy()
+    )
+    df = pd.DataFrame([{"sample": s, "n_cells": inside.sum(), "tissue_mm2": tissue[s].area / 1e6}
+                       for s, _, inside in _split_by_tissue(xy, tissue, buffer_um)])
+    df = pd.concat([df, df[["n_cells", "tissue_mm2"]].sum().to_frame().T.assign(sample="all")], ignore_index=True)
+    return df.astype({"n_cells": int}).assign(cells_per_mm2=df.n_cells / df.tissue_mm2)
+
+
+def plot_cell_density(cohort, tissue, path, buffer_um=25, base_path=_constants.BASE_PATH):
+    """QC plot per sample: tissue border, kept cells (subsampled) and dropped cells of all methods."""
+    pts = [pd.DataFrame(shapely.get_coordinates(shapely.segmentize(g.boundary, 10)), columns=["x", "y"])
+           .assign(sample=s, status="border") for s, g in tissue.items()]
+    for f in (Path(base_path) / "analysis" / cohort).glob("*/adatas/adata_integrated.h5ad.gz"):
         with h5py.File(f, "r") as h:
             s = h["obs/sample"]
             sample = s["categories"].asstr()[:][s["codes"][:]] if isinstance(s, h5py.Group) else s.asstr()[:]
             xy = pd.DataFrame(h["obsm/spatial"][:, :2], columns=["x", "y"]).assign(sample=sample)
-        for s, d in xy[xy["sample"].isin(near.index)].groupby("sample"):
-            inside = shapely.contains_xy(near[s], d.x, d.y)
-            rows.append({"method": f.parents[1].name, "sample": s,
-                         "n_cells": inside.sum(), "tissue_mm2": tissue[s].area / 1e6})
+        for _, d, inside in _split_by_tissue(xy, tissue, buffer_um):
             pts += [d[~inside].assign(status="dropped"),
                     d[inside].sample(min(2000, inside.sum()), random_state=0).assign(status="in tissue")]
-
-    if plot_path:
-        plot_path = Path(plot_path)
-        border = [pd.DataFrame(shapely.get_coordinates(shapely.segmentize(g.boundary, 10)), columns=["x", "y"])
-                  .assign(sample=s, status="border") for s, g in tissue.items()]
-        pts = pd.concat(pts + border, ignore_index=True)
-        qc = ad.AnnData(obs=pts[["sample", "status"]].astype("category").set_index(pts.index.astype(str)))
-        qc.obsm["spatial"] = pts[["x", "y"]].to_numpy()
-        plot_spatial_multiplot(qc, "status", plot_path.parent, save_name=plot_path.name, sort=True,
-                               palette={"in tissue": "lightgrey", "border": "black", "dropped": "red"},
-                               max_points_per_sample=len(pts))
-    return pd.DataFrame(rows)
+    pts = pd.concat(pts, ignore_index=True)
+    qc = ad.AnnData(obs=pts[["sample", "status"]].astype("category").set_index(pts.index.astype(str)))
+    qc.obsm["spatial"] = pts[["x", "y"]].to_numpy()
+    path = Path(path)
+    plot_spatial_multiplot(qc, "status", path.parent, save_name=path.name, sort=True,
+                           palette={"in tissue": "lightgrey", "border": "black", "dropped": "red"},
+                           max_points_per_sample=len(pts))
 
 
 def extract_general_stats(
