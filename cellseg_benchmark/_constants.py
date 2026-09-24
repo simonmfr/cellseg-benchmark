@@ -139,6 +139,26 @@ label_colors = {method_names[k]: c for k, c in method_colors.items()}
 
 label_order = list(label_colors)
 
+metric_names = {
+    "n_cells": "# Cells",
+    "volume_final": "Volume (µm³)",
+    "area": "Area (µm²)",
+    "elongation": "Elongation",
+    "sphericity": "Sphericity",
+    "intensities_DAPI": "DAPI",
+    "intensities_PolyT": "PolyT",
+    "Ovrlpy_stats_mean_integrity": "VSI",
+    "pct_assigned_qced": "% Assigned",
+    "negative_marker_purity": "NMP",
+    "MECR": "MECR",
+    "marker_f1": "Marker F1",
+    "silhouette_score": "Silhouette",
+    "calinski_harabasz_score": "CH score",
+    "Undefined": "% Undefined",
+    "maxrss_gb": "Memory (GB)",
+    "elapsed_h": "Runtime (h)",
+}
+
 ficture_factor_to_celltype = {
     "0": "ABCs",
     "1": "Astrocytes",
