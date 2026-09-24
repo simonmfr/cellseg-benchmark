@@ -159,6 +159,7 @@ metric_names = {
     "Undefined": "% Undefined",
     "maxrss_gb": "Memory (GB)",
     "elapsed_h": "Runtime (h)",
+    "cells_per_mm2": "Cells/mm²",
     "ficture_f1_score": "Ficture F1",
 }
 
