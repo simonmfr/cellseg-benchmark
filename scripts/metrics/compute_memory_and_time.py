@@ -1,4 +1,9 @@
+#!/usr/bin/env python
 import argparse
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from  cellseg_benchmark.metrics import (
     compute_metric_for_all_methods,
@@ -12,15 +17,20 @@ if __name__ == "__main__":
     )
     parser.add_argument("cohort", help="Cohort name.")
     parser.add_argument(
-        "plot_metric", choices=["memory", "cpus", "duration"], help="Specify the metric to plot."
+        "--plot_metric",
+        nargs="+",
+        default=["memory", "cpus", "duration"],
+        choices=["memory", "cpus", "duration"],
+        help="Specify the metric(s) to plot.",
     )
     parser.add_argument(
         "--ref_file_path", help="Path to file containing the raw output of sacct."
     )
     parser.add_argument(
-        "--metrics_dir", help="Path to directory containing from sacct output extracted metrics."
+        "--metrics_dir",
+        help="Path to directory containing from sacct output extracted metrics.",
     )
-    args = parser.add_argument(
+    parser.add_argument(
         "--ignore_missing", action="store_true", help="Ignore missing method metrics."
     )
     parser.add_argument(

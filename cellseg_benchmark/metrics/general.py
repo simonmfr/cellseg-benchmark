@@ -5,14 +5,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from cellseg_benchmark import BASE_PATH
-from cellseg_benchmark._constants import method_colors
-from cellseg_benchmark.metrics.utils import (
-    find_latest_job_data_tsv,
-    method_with_flavor_from_row,
-    normalize_jobname,
-)
-
+from . import utils
+from .. import _constants
 
 def _extract_stats(df, columns, celltype_name="cell_type_revised"):
     """Extract and save per-sample and per-celltype mean stats from adata.obs.
@@ -37,17 +31,28 @@ def _extract_stats(df, columns, celltype_name="cell_type_revised"):
         .groupby(["sample", celltype_name], observed=True)
         .mean()
     )
+    counts = (
+        df[["sample", celltype_name] + columns]
+        .groupby(["sample", celltype_name], observed=True)
+        .size()
+    )
+    results = pd.concat([results, counts], axis=1)
     # compute for all cells together
     df_all = df[["sample"] + columns].groupby("sample", observed=True).mean()
+    counts = df[["sample"] + columns].groupby("sample", observed=True).size()
+    df_all = pd.concat([df_all, counts], axis=1)
     df_all[celltype_name] = "all"
     df_all = df_all.reset_index().set_index(["sample", celltype_name])
     results = pd.concat([results, df_all])
     # compute for only vascular subset
     df_vasc = df[df[celltype_name].isin(vascular_celltypes)][["sample"] + columns]
+    counts = df_vasc.groupby("sample", observed=True).size()
     df_vasc = df_vasc.groupby("sample", observed=True).mean()
+    df_vasc = pd.concat([df_vasc, counts], axis=1)
     df_vasc[celltype_name] = "vascular_subset"
     df_vasc = df_vasc.reset_index().set_index(["sample", celltype_name])
     results = pd.concat([results, df_vasc])
+    results.rename({0: "n_cells"}, axis=1, inplace=True)
     return results.reset_index()
 
 
@@ -97,7 +102,7 @@ def extract_general_stats(
 def plot_general_stats(cohort, metric, celltype="all", show=False):
     """Plot general stats."""
     results_file = (
-        Path(BASE_PATH) / "metrics" / cohort / "general_stats" / "general_stats.csv"
+        Path(_constants.BASE_PATH) / "metrics" / cohort / "general_stats" / "general_stats.csv"
     )
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
@@ -105,6 +110,9 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
     results_df = pd.read_csv(results_file, index_col=0)
     # select those with selected celltype
     results_df = results_df[results_df["cell_type_revised"] == celltype]
+    results_df['method'] = results_df['method'].map(utils.clean_method_name)
+
+    palette = {utils.clean_method_name(key): value for key, value in _constants.method_colors.items()}
 
     # Remove nan
     results_df = results_df[~results_df[metric].isna()]
@@ -123,7 +131,7 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
         x=metric,
         hue="method",
         order=dataset_order,
-        palette=method_colors,
+        palette=palette,
         inner="quartile",
         linewidth=0.7,
         zorder=2,
@@ -140,29 +148,38 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
 
 def extract_mem_and_time(
     adata,
-    method,
-    ref_file_path=Path(BASE_PATH) / "misc/logs/run_log.tsv",
-    metrics_dir=Path(BASE_PATH) / "misc/extracted_job_stats",
+    method: str,
+    ref_file_path: str | Path=Path(_constants.BASE_PATH) / "misc/logs/run_log.tsv",
+    metrics_dir: str | Path=Path(_constants.BASE_PATH) / "misc/extracted_job_stats",
     base_path=None,
-    ignore_missing=False,
+    ignore_missing: bool=False,
     **kwargs,
-):
-    """Read job metadata from ref_file_path and enrich it from the newest
-    exported sacct TSV in metrics_dir.
+) -> pd.DataFrame:
+    """Read job metadata from ref_file_path and enrich it from the newest exported sacct TSV in metrics_dir.
+
+    Args:
+        adata: API compatibility.
+        method (str): method name.
+        ref_file_path (str or Path): path to reference TSV file with job information.
+        metrics_dir (str or Path): path to metrics directory containing sacct read-outs.
+        base_path: API compatibility.
+        ignore_missing (bool): ignore methods without successful recorded segmentation.
+
+    Returns:
+        DataFrame with columns ["sample", "maxrss_gb", "elapsed_h", "alloccpus"]
 
     Notes:
-    -----
-    - Does NOT call sacct.
-    - Keeps only successful runs:
-        sacct_state == COMPLETED
-        sacct_exitcode == 0:0
-        and rc == 0 if rc exists in the ref file
-    - If the ref file contains repeated runs for the same sample+method,
-      keeps the last successful one because the ref file is appended.
-    - 'adata' is unused and only kept for API compatibility.
+        - Keeps only successful runs:
+            sacct_state == COMPLETED
+            sacct_exitcode == 0:0
+            and rc == 0 if rc exists in the ref file
+        - If the ref file contains repeated runs for the same sample+method,
+          keeps the last successful one because the ref file is appended.
+        - 'adata' and 'base_path' are unused and only kept for API compatibility.
     """
 
     def _missing_result(samples=None):
+        """Build NaN dataframe for not successfully run or missing segmentations."""
         if samples is None:
             samples = pd.Series(dtype="object")
         else:
@@ -176,8 +193,9 @@ def extract_mem_and_time(
             }
         ).reset_index(drop=True)
 
-    ref = pd.read_csv(ref_file_path, sep="\t")
-    ref["_ref_order"] = range(len(ref))
+    legacy = Path(ref_file_path).parent / "job_runs.tsv"
+    if legacy.exists():
+        raise FileNotFoundError(f"Obsolete {legacy} must be merged into run_log.tsv and deleted.")
 
     ref["jobid"] = ref["jobid"].astype(int)
     ref["jobname"] = ref["jobname"].astype(str)
@@ -192,7 +210,7 @@ def extract_mem_and_time(
     ref["jobname_norm"] = ref["jobname"].apply(normalize_jobname)
 
     ref["method_with_flavor"] = ref.apply(
-        lambda r: method_with_flavor_from_row(r["jobname"], r["sample"]),
+        lambda r: utils.method_with_flavor_from_row(r["jobname"], r["sample"]),
         axis=1,
     )
 
@@ -243,51 +261,65 @@ def extract_mem_and_time(
     out = out.reset_index(drop=True)
     return out
 
-def plot_mem_and_time(cohort, metric, show: bool = False):
-    if metric not in ["memory", "cpus", "duration"]:
-        raise ValueError(f"Metric {metric!r} is not supported. Chose one of memory, cpus or duration.")
+def plot_mem_and_time(cohort, metric=None, show: bool = False):
+    """Violin plots of chosen metrics. Metrics can be "memory", "cpus", "duration"."""
+    if isinstance(metric, str):
+        if metric not in ["memory", "cpus", "duration"]:
+            raise ValueError(f"Metric {metric!r} is not supported. Choose one of memory, cpus or duration.")
+        metric = [metric]
+    elif isinstance(metric, list):
+        if not all([x in ["memory", "cpus", "duration"] for x in metric]):
+            raise ValueError(f"Metric {metric!r} is not supported. Choose subset of memory, cpus or duration.")
+    if metric is None:
+        metric = ["memory", "cpus", "duration"]
 
     column_mapping = {
         "memory": "maxrss_gb",
         "cpus": "alloccpus",
         "duration": "elapsed_h",
     }
-    col_name = column_mapping[metric]
-    results_file = (
-            Path(BASE_PATH) / "metrics" / cohort / "Mem_and_time" / "mem_and_time.csv"
-    )
-    plot_path = results_file.parent / "plots"
-    plot_path.mkdir(parents=True, exist_ok=True)
 
-    results_df = pd.read_csv(results_file, index_col=0)
+    for m in metric:
+        col_name = column_mapping[m]
+        results_file = (
+                Path(_constants.BASE_PATH) / "metrics" / cohort / "Mem_and_time" / "mem_and_time.csv"
+        )
+        plot_path = results_file.parent / "plots"
+        plot_path.mkdir(parents=True, exist_ok=True)
 
-    # Remove nan
-    results_df = results_df[~results_df[col_name].isna()]
+        results_df = pd.read_csv(results_file, index_col=0)
 
-    # Remove outliers
-    threshold = np.percentile(results_df[col_name], 99)
-    results_df = results_df[results_df[col_name] <= threshold]
+        # Remove nan
+        results_df = results_df[~results_df[col_name].isna()]
 
-    dataset_order = results_df.groupby("method")[col_name].median().sort_values().index
+        # Remove outliers
+        threshold = np.percentile(results_df[col_name], 99)
+        results_df = results_df[results_df[col_name] <= threshold]
 
-    fig = plt.figure(figsize=(6, 6), dpi=300)
-    plt.grid(True, alpha=0.3, zorder=0)
-    sns.violinplot(
-        results_df,
-        y="method",
-        x=col_name,
-        hue="method",
-        order=dataset_order,
-        palette=method_colors,
-        inner="quartile",
-        linewidth=0.7,
-        zorder=2,
-        legend=False,
-    )
-    plt.tight_layout()
-    if show:
-        plt.show()
-    fig.savefig(
-        plot_path / f"{metric}.png", bbox_inches="tight"
-    )
-    plt.close(fig)
+        dataset_order = results_df.groupby("method")[col_name].median().sort_values().index
+        palette = {utils.clean_method_name(m): _constants.method_colors[m] for m in dataset_order}
+        dataset_order = [utils.clean_method_name(m) for m in dataset_order]
+
+        results_df['method'] = results_df['method'].map(utils.clean_method_name)
+
+        fig = plt.figure(figsize=(6, 6), dpi=300)
+        plt.grid(True, alpha=0.3, zorder=0)
+        sns.violinplot(
+            results_df,
+            y="method",
+            x=col_name,
+            hue="method",
+            order=dataset_order,
+            palette=palette,
+            inner="quartile",
+            linewidth=0.7,
+            zorder=2,
+            legend=False,
+        )
+        plt.tight_layout()
+        if show:
+            plt.show()
+        fig.savefig(
+            plot_path / f"{m}.png", bbox_inches="tight"
+        )
+        plt.close(fig)

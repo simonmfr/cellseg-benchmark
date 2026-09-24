@@ -1,18 +1,20 @@
-from pathlib import Path
-
+#!/usr/bin/env python
+import pathlib
 import yaml
 
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
+
 with open(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sample_metadata.yaml"
+    f"{BASE_PATH}/misc/sample_metadata.yaml"
 ) as f:
     data = yaml.safe_load(f)
 
-Path(
-    "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_transcript_tif"
+pathlib.Path(
+    f"{BASE_PATH}/misc/sbatches/sbatch_transcript_tif"
 ).mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     f = open(
-        f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/sbatches/sbatch_transcript_tif/{key}.sbatch",
+        f"{BASE_PATH}/misc/sbatches/sbatch_transcript_tif/{key}.sbatch",
         "w",
     )
     f.write(f"""#!/bin/bash
@@ -21,55 +23,17 @@ for key, value in data.items():
 #SBATCH -t 12:00:00
 #SBATCH --mem=100G
 #SBATCH -J transcript_tif_{key}
-#SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/outputs/transcript_tif_{key}.out
-#SBATCH -e /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/errors/transcript_tif_{key}.err
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark.sqsh"
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/transcript_tif_{key}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/transcript_tif_{key}.err
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 
-# ---------- central run log (shared across all scripts) ----------
-RUN_LOG="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/job_runs.tsv"
-LOCK_FILE="${{RUN_LOG}}.lock"
-mkdir -p "$(dirname "${{RUN_LOG}}")"
-
-JOBID="${{SLURM_JOB_ID:-NA}}"
-JOBNAME="${{SLURM_JOB_NAME:-NA}}"
-NODELIST="${{SLURM_JOB_NODELIST:-NA}}"
-SUBMIT_DIR="${{SLURM_SUBMIT_DIR:-$PWD}}"
-HOST="$(hostname -f 2>/dev/null || hostname)"
-
-START_ISO="$(date -Is)"
-START_EPOCH="$(date +%s)"
-
-KEY="{key}"
 INPUT_PATH="{value["path"]}"
-
-CMD="python ~/gitrepos/cellseg-benchmark/scripts/transcript_tif.py \\"${{INPUT_PATH}}\\""
-
-write_log() {{
-  local rc="$1"
-  local end_iso="$2"
-  local elapsed_s="$3"
-
-  (
-    flock -x 200
-    if [ ! -f "${{RUN_LOG}}" ]; then
-      printf "start_iso\tend_iso\telapsed_s\trc\tjobid\tjobname\tkey\tcp_version\tstaining\tconfidence\tinput_path\tresult_dir\thost\tnodelist\tsubmit_dir\tcmd\n" >> "${{RUN_LOG}}"
-    fi
-    # no result_dir / cp_version / staining / confidence here -> NA
-    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-      "${{START_ISO}}" "${{end_iso}}" "${{elapsed_s}}" "${{rc}}" \
-      "${{JOBID}}" "${{JOBNAME}}" "${{KEY}}" "NA" "NA" "NA" \
-      "${{INPUT_PATH}}" "NA" "${{HOST}}" "${{NODELIST}}" "${{SUBMIT_DIR}}" "${{CMD}}" \
-      >> "${{RUN_LOG}}"
-  ) 200>>"${{LOCK_FILE}}"
-}}
-
-trap 'rc=$?; end_iso="$(date -Is)"; end_epoch="$(date +%s)"; elapsed_s=$((end_epoch-START_EPOCH)); write_log "$rc" "$end_iso" "$elapsed_s"' EXIT
 
 mamba activate segmentation
 
-python ~/gitrepos/cellseg-benchmark/scripts/transcript_tif.py \\
+python $HOME/gitrepos/cellseg-benchmark/scripts/transcript_tif.py \\
   "${{INPUT_PATH}}"
 """)
     f.close()

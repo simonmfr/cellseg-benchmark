@@ -1,4 +1,9 @@
+#!/usr/bin/env python
 import argparse
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
 from cellseg_benchmark.metrics import (
     compute_metric_for_all_methods,
@@ -38,4 +43,4 @@ if __name__ == "__main__":
         "intensities_DAPI",
         "Ovrlpy_stats_mean_integrity",
     ]:
-        plot_general_stats(args.cohors, metric, show=False)
+        plot_general_stats(args.cohort, metric, show=False)

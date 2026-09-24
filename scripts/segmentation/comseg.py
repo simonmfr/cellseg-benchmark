@@ -1,11 +1,14 @@
+#!/usr/bin/env python
 import argparse
+import pathlib
+import subprocess
 import time
-from os.path import join
-from subprocess import run
 
+import pandas as pd
 import sopa
-from pandas import read_csv
 from spatialdata import read_zarr
+
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 
 parser = argparse.ArgumentParser(description="Run ComSeg segmentation.")
 parser.add_argument("data_path", help="Path to merfish output folder.")
@@ -20,10 +23,10 @@ def main(data_path, sample, base_segmentation):
     """ComSeg algorithm by sopa with dask backend parallelized."""
     print("Reading raw MERSCOPE data...")
     sdata_tmp = sopa.io.merscope(data_path)  # to read in the images and points
-    path = f"/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/samples/{sample}/results"
+    path = f"{BASE_PATH}/samples/{sample}/results"
 
     print("Loading base segmentation...")
-    sdata = read_zarr(join(path, base_segmentation, "sdata.zarr"))
+    sdata = read_zarr(pathlib.Path(path, base_segmentation, "sdata.zarr"))
     sdata[list(sdata_tmp.images.keys())[0]] = sdata_tmp[
         list(sdata_tmp.images.keys())[0]
     ]
@@ -39,8 +42,8 @@ def main(data_path, sample, base_segmentation):
         "_".join(data_path.rstrip("/").split("/")[-2:]) + "_transcripts"
     )
 
-    translation = read_csv(
-        join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
+    translation = pd.read_csv(
+        pathlib.Path(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,
     )
@@ -49,10 +52,10 @@ def main(data_path, sample, base_segmentation):
     print("Backing sdata to temporary Zarr store...")
     start = time.time()
     sdata.write(
-        join(path, f"ComSeg_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True
+        pathlib.Path(path, f"ComSeg_{base_segmentation}", "sdata_tmp.zarr"), overwrite=True
     )
     print(f"Writing done in {(time.time() - start) / 3600:.2f}h")
-    sdata = read_zarr(join(path, f"ComSeg_{base_segmentation}", "sdata_tmp.zarr"))
+    sdata = read_zarr(pathlib.Path(path, f"ComSeg_{base_segmentation}", "sdata_tmp.zarr"))
 
     print("Creating transcript patches using Cellpose boundaries...")
     start = time.time()
@@ -77,7 +80,7 @@ def main(data_path, sample, base_segmentation):
     # sopa.settings.dask_client_kwargs["timeout"] = "600000"
 
     print("Running ComSeg segmentation...")
-    path_json = "/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/comseg.json"
+    path_json = f"{BASE_PATH}/misc/comseg.json"
     start = time.time()
     try:
         sopa.segmentation.comseg(
@@ -97,7 +100,7 @@ def main(data_path, sample, base_segmentation):
     print("Writing Sopa Explorer output...")
     start = time.time()
     sopa.io.explorer.write(
-        join(path, f"ComSeg_{base_segmentation}", "sdata.explorer"),
+        pathlib.Path(path, f"ComSeg_{base_segmentation}", "sdata.explorer"),
         sdata,
         gene_column="gene",
         ram_threshold_gb=4,
@@ -107,8 +110,8 @@ def main(data_path, sample, base_segmentation):
 
     print("Cleaning up temporary data and saving final result...")
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
-    sdata.write(join(path, f"ComSeg_{base_segmentation}", "sdata.zarr"))
-    run(["rm", "-r", join(path, f"ComSeg_{base_segmentation}", "sdata_tmp.zarr")])
+    sdata.write(pathlib.Path(path, f"ComSeg_{base_segmentation}", "sdata.zarr"))
+    subprocess.run(["rm", "-r", pathlib.Path(path, f"ComSeg_{base_segmentation}", "sdata_tmp.zarr")])
 
     print("Done.")
 

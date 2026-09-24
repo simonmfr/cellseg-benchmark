@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import scipy.sparse as sp
-from scipy.sparse import issparse
 
 
 def pseudobulk_aggregate_and_filter(
@@ -98,7 +97,7 @@ def pseudobulk_aggregate_and_filter(
             adata_rep = adata_donor[rep_indices]
             X = (
                 adata_rep.X.toarray()
-                if issparse(adata_rep.X)
+                if sp.issparse(adata_rep.X)
                 else np.asarray(adata_rep.X)
             )
 
@@ -329,39 +328,39 @@ def subset_by_brain_region(
     """Subset AnnData by brain region.
 
     Subset may be alias (cortex/hippocampus/white_matter/grey_matter)
-    or comma-separated raw labels from spatial_registration.csv.
+    or comma-separated raw labels from brain_regions.csv.
     """
     if not subset:
         return adata, None
 
     REGION_MAP = {
         "grey_matter": [
-            "CTX",
+            "CTX_1",
+            "CTX_2",
             "HIP",
             "CAsp",
             "DG-sg",
-            "STR",
+            "STR_PAL",
             "BS",
-            "BS/STR",
-            "Meninges",
+            "MEN",
         ],
-        "white_matter": ["fiber_tracts"],
-        "cortex": ["CTX"],
+        "white_matter": ["FT"],
+        "cortex": ["CTX_1", "CTX_2"],
         "hippocampus": ["HIP", "DG-sg", "CAsp"],
     }
 
-    reg_csv = method_path / "spatial_registration.csv"
+    reg_csv = method_path / "brain_regions.csv"
     try:
         region_df = pd.read_csv(reg_csv, index_col=0)
     except FileNotFoundError:
         logger.warning(f"--brain_region_subset ignored (missing {reg_csv}).")
         return adata, None
-    if "label" not in region_df.columns:
-        logger.warning("--brain_region_subset ignored (no 'label' column).")
+    if "brain_region" not in region_df.columns:
+        logger.warning("--brain_region_subset ignored (no 'brain_region' column).")
         return adata, None
 
     adata.obs["brain_region"] = (
-        region_df["label"].reindex(adata.obs_names).astype("string")
+        region_df["brain_region"].reindex(adata.obs_names).astype("string")
     )
 
     key = subset.strip()

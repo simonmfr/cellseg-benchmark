@@ -1,8 +1,9 @@
 from .assigned_transcripts import compute_assigned_transcripts, plot_assigned_transcripts, plot_assigned_transcripts_heatmap
 from .cell_type import compute_cell_type_distribution, plot_cell_type_distribution
 from .clustering import compute_clustering_scores, plot_clustering_scores
-from .f1_score import ficture_f1_parallel
+from .ficture import compute_ficture_f1, plot_ficture_f1
 from .general import extract_general_stats, plot_general_stats, extract_mem_and_time, plot_mem_and_time
+from .f1_score import compute_f1
 from .marker_gene_based import (
     compute_marker_F1_score,
     compute_MECR_score,
@@ -11,13 +12,27 @@ from .marker_gene_based import (
     get_positive_markers,
     plot_marker_F1_score,
     plot_MECR_score,
+    plot_MECR_vs_sensitivity,
+    plot_negative_marker_purity,
 )
 from .utils import (
+    clean_method_name,
     compute_metric,
     compute_metric_for_all_methods,
     read_ABCAtlas,
     read_adata,
 )
+
+from . import assigned_transcripts
+from . import basic
+from . import cell_type
+from . import clustering
+from . import f1_score
+from . import ficture
+from . import general
+from . import marker_gene_based
+from . import ovrl
+from . import utils
 
 __all__ = [
     "compute_assigned_transcripts",
@@ -27,18 +42,21 @@ __all__ = [
     "plot_cell_type_distribution",
     "compute_clustering_scores",
     "plot_clustering_scores",
-    "ficture_f1_parallel",
+    "compute_ficture_f1",
     "extract_general_stats",
     "plot_general_stats",
     "extract_mem_and_time",
     "plot_mem_and_time",
+    "compute_f1",
     "compute_marker_F1_score",
     "plot_marker_F1_score",
     "compute_MECR_score",
     "plot_MECR_score",
+    "plot_MECR_vs_sensitivity",
     "compute_negative_marker_purity",
     "get_negative_markers",
     "get_positive_markers",
+    "clean_method_name",
     "compute_metric",
     "compute_metric_for_all_methods",
     "read_ABCAtlas",
