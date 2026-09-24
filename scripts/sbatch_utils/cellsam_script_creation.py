@@ -15,7 +15,7 @@ parser.add_argument("--block_size", type=int, default=1024, help="CellSAM block 
 parser.add_argument("--patch_width", type=int, default=8192, help="Sopa patch width.")
 args = parser.parse_args()
 
-BASE_PATH = pathlib.Path("/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark")
+BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_CellSAM"
 SBATCH_DIR.mkdir(parents=True, exist_ok=True)
 
