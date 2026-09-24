@@ -22,7 +22,7 @@ methods_3D = [
     "vpt_3D",
 ]
 
-image_based = ["Cellpose", "Negative_Control"]
+image_based = ["Cellpose", "Negative_Control", "CellSAM"]
 
 method_colors = {
     # Baysor variants (red palette)
@@ -51,6 +51,9 @@ method_colors = {
     "Cellpose_1_Merlin": "#31a354",
     "Cellpose_2_DAPI_PolyT": "#74c476",
     "Cellpose_2_DAPI_Transcripts": "#9cd8a2",
+    # CellSAM (teal palette)
+    "CellSAM_DAPI": "#00696e",
+    "CellSAM_DAPI_PolyT": "#4fb3b8",
     # Proseg variants (outdated)
 #    "Proseg_pure": "#4a1486",
 #    "Proseg_Cellpose_1_DAPI_PolyT": "#5a0876",
@@ -109,6 +112,8 @@ method_names = {
     "Cellpose_1_Merlin": "Cellpose1 P Merlin",
     "Cellpose_2_DAPI_PolyT": "Cellpose2 P Sopa",
     "Cellpose_2_DAPI_Transcripts": "Cellpose2 T Sopa",
+    "CellSAM_DAPI": "CellSAM Sopa",
+    "CellSAM_DAPI_PolyT": "CellSAM P Sopa",
     "Proseg_3D_Cellpose_1_DAPI_PolyT": "Proseg 3D (CP1 P)",
     "Proseg_3D_Cellpose_1_DAPI_Transcripts": "Proseg 3D (CP1 T)",
     "Proseg_3D_Cellpose_1_nuclei_model": "Proseg 3D (CP1 N)",
@@ -163,32 +168,29 @@ ficture_factor_to_celltype = {
     "20": "VLMCs",
 }
 
-true_cluster = {  # fine label -> canonical cell type
-    "Neurons-Immature": "Neurons-Granule-Immature",  # legacy FICTURE factor label
+true_cluster = {  # FICTURE factor or segmentation label -> cell type scored in FICTURE F1, None = not scored
+    "ABCs": "VLMCs",
     "Astrocytes": "Astrocytes",
-    "Astroependymal": "Astrocytes",
     "BAMs": "BAMs",
+    "Bergmann": "Astrocytes",
     "Choroid-Plexus": "Ependymal",
     "ECs": "ECs",
     "Ependymal": "Ependymal",
-    "Immune-Other": "Immune-Other",
+    "Immune-Other": None,
     "Microglia": "Microglia",
-    "Neurons-Dopa-Gaba": "Neurons-Dopa",
+    "Neurons-Dopa": None,
+    "Neurons-Dopa-Gaba": "Neurons-Gaba",
     "Neurons-Gaba": "Neurons-Gaba",
     "Neurons-Glut": "Neurons-Glut",
-    "Neurons-Glyc-Gaba": "Neurons-Glyc-Gaba",
-    "Neurons-Granule-Immature": "Neurons-Granule-Immature",
-    "Neurons-Other": "Neurons-Other",
-    "OECs": "OECs",
+    "Neurons-Glyc-Gaba": "Neurons-Gaba",
+    "Neurons-Immature": None,
+    "Neurons-Other": None,
+    "OECs": "Oligodendrocytes",
     "OPCs": "OPCs",
     "Oligodendrocytes": "Oligodendrocytes",
     "Pericytes": "Pericytes",
     "SMCs": "SMCs",
     "VLMCs": "VLMCs",
-    "ABCs": "VLMCs",
-    "Bergmann": "Astrocytes",
-    "Neurons-Dopa": "Neurons-Dopa",
-    "Tanycytes": "Ependymal",
 }
 
 # merges neurons for marker-gene-based metrics
@@ -202,10 +204,6 @@ merged_celltypes = {
 
 # Vascular cell types, used for the secondary macro-F1 (see metrics.ficture).
 vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
-
-# Cell types without clear marker genes: their boundary annotation is unreliable, so
-# transcripts touching them are dropped from the FICTURE F1 comparison (metrics.ficture).
-unreliable_celltypes = ["Neurons-Other", "Immune-Other", "OECs"]
 
 index_order = [
     "Astrocytes",
@@ -294,15 +292,24 @@ cell_type_colors = {
 }  # Updated method-to-color mapping with distinct, moderately saturated shades
 
 brain_regions_colors = {
-    "BS": "FF7080",
-    "CA3sp": "66A83D",
-    "CTX": "B0FFB8",
-    "DG-sg": "66A83D",
-    "HIP": "7ED04B",
-    "STR": "98D6F9",
-    "VS": "AAAAAA",
-    "fiber tracts": "CCCCCC",
-    "BS/STR": "CCA3BC",
-    "STR/CTX": "A4EAD8",
-    "Meninges": "480091",
+    "MEN": "#A9DDD0",
+    "CTX_1": "#66C2A5",
+    "CTX_2": "#1B7A5E",
+    "HIP": "#7ED04B",
+    "DG-sg": "#2C7A2C",
+    "CAsp": "#E07B39",
+    "STR_PAL": "#98D6F9",
+    "BS": "#FF7080",
+    "FT": "#A8A8A0",
+    "VL": "#D4D4D4",
+    "V3": "#787878",
+    "STR/CTX": "#C9BFE0",
+}
+
+brain_regions_broad = {
+    "MEN": "CTX",
+    "CTX_1": "CTX",
+    "CTX_2": "CTX",
+    "VL": "VS",
+    "V3": "VS",
 }

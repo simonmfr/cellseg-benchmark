@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+import resource
 import subprocess
 
 import numpy as np
@@ -89,6 +90,15 @@ def main(
     del sdata[list(sdata.images.keys())[0]], sdata[list(sdata.points.keys())[0]]
     sdata.write(pathlib.Path(save_path, "sdata.zarr"), overwrite=True)
     subprocess.run(["rm", "-r", pathlib.Path(save_path, "sdata_tmp.zarr")])
+
+    peak_gb = (
+        max(
+            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+            resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,
+        )
+        / 1e6
+    )
+    print(f"peak RSS: {peak_gb:.1f} GB", flush=True)
 
 
 if __name__ == "__main__":
