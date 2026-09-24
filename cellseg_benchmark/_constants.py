@@ -159,6 +159,7 @@ metric_names = {
     "Undefined": "% Undefined",
     "maxrss_gb": "Memory (GB)",
     "elapsed_h": "Runtime (h)",
+    "ficture_f1_score": "FICTURE F1",
 }
 
 ficture_factor_to_celltype = {
