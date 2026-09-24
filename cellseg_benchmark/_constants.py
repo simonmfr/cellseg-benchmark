@@ -25,61 +25,61 @@ methods_3D = [
 image_based = ["Cellpose", "Negative_Control"]
 
 method_colors = {
-    # Baysor variants (red palette)
+    # Cellpose-Sopa (green)
+    "Cellpose_1_nuclei_model": "#00441b",
+    "Cellpose_1_DAPI_PolyT": "#006d2c",
+    "Cellpose_1_DAPI_Transcripts": "#217a37",
+    "Cellpose_2_DAPI_PolyT": "#31a354",
+    "Cellpose_2_DAPI_Transcripts": "#74c476",
+    "Cellpose_1_Merlin": "#9cd8a2",
+    # Cellpose-VPT (blue)
+    "vpt_2D_DAPI_nuclei": "#08306b",
+    "vpt_2D_DAPI_PolyT": "#08519c",
+    "vpt_2D_DAPI_PolyT_nuclei": "#2171b5",
+    "vpt_3D_DAPI_nuclei": "#6baed6",
+    "vpt_3D_DAPI_PolyT": "#9ecae1",
+    "vpt_3D_DAPI_PolyT_nuclei": "#a9d5f1",
+    # Baysor (red)
     "Baysor_2D_denovo": "#5c0010",
     "Baysor_3D_denovo": "#7a0012",
-    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2": "#9a0013",
-    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8": "#a71423",
-    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2": "#b32833",
-    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.8": "#c03b43",
-    "Baysor_2D_Cellpose_1_nuclei_model_1.0": "#cc4f53",
+    "Baysor_2D_Cellpose_1_nuclei_model_1.0": "#9a0013",
+    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2": "#a71423",
+    "Baysor_2D_Cellpose_1_DAPI_PolyT_0.8": "#b32833",
+    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.2": "#c03b43",
+    "Baysor_2D_Cellpose_1_DAPI_Transcripts_0.8": "#cc4f53",
     "Baysor_2D_Cellpose_2_DAPI_PolyT_0.2": "#d96363",
     "Baysor_2D_Cellpose_2_DAPI_PolyT_0.8": "#e67673",
     "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.2": "#f28a83",
     "Baysor_2D_Cellpose_2_DAPI_Transcripts_0.8": "#ff9e93",
-    # vpt variants (blue palette)
-    "vpt_2D_DAPI_PolyT": "#08306b",
-    "vpt_2D_DAPI_PolyT_nuclei": "#08519c",
-    "vpt_2D_DAPI_nuclei": "#2171b5",
-    "vpt_3D_DAPI_PolyT": "#6baed6",
-    "vpt_3D_DAPI_PolyT_nuclei": "#9ecae1",
-    "vpt_3D_DAPI_nuclei": "#a9d5f1",
-    # Cellpose core methods (green palette)
-    "Cellpose_1_nuclei_model": "#00441b",
-    "Cellpose_1_DAPI_PolyT": "#006d2c",
-    "Cellpose_1_DAPI_Transcripts": "#217a37",
-    "Cellpose_1_Merlin": "#31a354",
-    "Cellpose_2_DAPI_PolyT": "#74c476",
-    "Cellpose_2_DAPI_Transcripts": "#9cd8a2",
-    # Proseg variants (outdated)
+    # Proseg 3D (yellow)
+    "Proseg_3D_Cellpose_1_nuclei_model": "#e8a20a",
+    "Proseg_3D_Cellpose_1_DAPI_PolyT": "#eaad28",
+    "Proseg_3D_Cellpose_1_DAPI_Transcripts": "#edb846",
+    "Proseg_3D_Cellpose_2_DAPI_PolyT": "#eec364",
+    "Proseg_3D_Cellpose_2_DAPI_Transcripts": "#efce82",
+    "Proseg_3D_vpt3D_DAPI_nuclei": "#f1d9a1",
+    "Proseg_3D_vpt3D_DAPI_PolyT": "#f3e4bf",
+    "Proseg_3D_vpt3D_DAPI_PolyT_nuclei": "#f5f0df",
+#    # Proseg 2D (outdated)
 #    "Proseg_pure": "#4a1486",
 #    "Proseg_Cellpose_1_DAPI_PolyT": "#5a0876",
 #    "Proseg_Cellpose_1_DAPI_Transcripts": "#6a1894",
 #    "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
 #    "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
 #    "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
-    # Proseg 3D variants (yellow palette)
-    "Proseg_3D_Cellpose_1_DAPI_PolyT": "#f5f0df",
-    "Proseg_3D_Cellpose_1_DAPI_Transcripts": "#f3e4bf",
-    "Proseg_3D_Cellpose_1_nuclei_model": "#f1d9a1",
-    "Proseg_3D_Cellpose_2_DAPI_PolyT": "#efce82",
-    "Proseg_3D_Cellpose_2_DAPI_Transcripts": "#eec364",
-    "Proseg_3D_vpt3D_DAPI_nuclei": "#edb846",
-    "Proseg_3D_vpt3D_DAPI_PolyT": "#eaad28",
-    "Proseg_3D_vpt3D_DAPI_PolyT_nuclei": "#e8a20a",
-    # Negative controls (grey palette)
+    # Other
+    "Watershed_Merlin": "#1b7c83",
+    "SIS_DAPI_total_mrna": "#9cb01c",
+    "ComSeg": "#8c510a",
+    # Ficture based
+    'Ficture_segments_dapi': "#5a0876",
+    'Ficture_segments': "#7d3db3",
+    # Negative controls (grey)
     "Negative_Control_Rastered_5": "#101010",
     "Negative_Control_Rastered_10": "#424141",
     "Negative_Control_Rastered_25": "#5A5A5A",
     "Negative_Control_Voronoi": "#797878",
-    "Negative_Control_Visium": "#969696",
-    # ComSeg standalone (dark purple)
-    "ComSeg": "#d7f035",
-    "SIS_DAPI_total_mrna": "#9cb01c",
-    "Watershed_Merlin": "#8a9159",
-    # Ficture based
-    'Ficture_segments_dapi': "#5a0876",
-    'Ficture_segments': "#7d3db3"
+    "Negative_Control_Visium": "#969696"
 }
 
 # Figure labels: <Algorithm> [3D] <input> [framework] [(prior, confidence)].
