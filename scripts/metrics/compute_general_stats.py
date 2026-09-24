@@ -37,7 +37,8 @@ if __name__ == "__main__":
     for metric in [
         "volume_final",
         "area",
-        "sphericity",
+        "circularity",
+        "sphericity_3d",
         "elongation",
         "intensities_PolyT",
         "intensities_DAPI",
