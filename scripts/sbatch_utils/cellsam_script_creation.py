@@ -34,11 +34,11 @@ for key, value in samples.items():
     (SBATCH_DIR / f"{key}_{METHOD}.sbatch").write_text(f"""#!/bin/bash
 #SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
-#SBATCH -t 8:00:00
-#SBATCH --mem=128G
-#SBATCH -J CellSAM_{key}
-#SBATCH -o {BASE_PATH}/misc/logs/outputs/CellSAM_{key}.out
-#SBATCH -e {BASE_PATH}/misc/logs/errors/CellSAM_{key}.err
+#SBATCH -t 10:00:00
+#SBATCH --mem=150G
+#SBATCH -J {METHOD}_{key}
+#SBATCH -o {BASE_PATH}/misc/logs/outputs/{METHOD}_{key}.out
+#SBATCH -e {BASE_PATH}/misc/logs/errors/{METHOD}_{key}.err
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new2.sqsh"
 
 set -euo pipefail
