@@ -206,7 +206,7 @@ def extract_mem_and_time(
     assert len(cohort) == 1, "more than one cohort found. Cohort recognition is sensitive to '_'"
     ref = ref[[x.startswith(list(cohort)[0]) for x in ref['sample']]]
 
-    ref["jobname_norm"] = ref["jobname"].apply(normalize_jobname)
+    ref["jobname_norm"] = ref["jobname"].apply(utils.normalize_jobname)
 
     ref["method_with_flavor"] = ref.apply(
         lambda r: utils.method_with_flavor_from_row(r["jobname"], r["sample"]),
