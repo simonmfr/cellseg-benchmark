@@ -470,8 +470,10 @@ def plot_MECR_score(cohort, results_suffix, show=False):
     median_results = results_df[results_df["gene1"] == "all"]
     method_order = median_results.groupby("method")["MECR"].mean().sort_values().index
     custom_palette = {
-        method: _constants.method_colors[method] for method in method_order
+        utils.clean_method_name(method): _constants.method_colors[method] for method in method_order
     }
+    method_order = [utils.clean_method_name(method) for method in method_order]
+    median_results['method'] = median_results['method'].map(utils.clean_method_name)
 
     fig = plt.figure(figsize=(5, 8), dpi=300)
     plt.grid(True, alpha=0.3, zorder=0)
@@ -728,7 +730,9 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
         mean_results.groupby("method").mean("f1_score").sort_values("f1_score").index
     )
 
-    pal = {method: _constants.method_colors[method] for method in order}
+    pal = {utils.clean_method_name(method): _constants.method_colors[method] for method in order}
+    order = [utils.clean_method_name(method) for method in order]
+    mean_results['method'] = mean_results['method'].map(utils.clean_method_name)
     fig = plt.figure(figsize=(10, 5))
     sns.boxplot(
         data=mean_results,
@@ -911,8 +915,10 @@ def plot_negative_marker_purity(cohort, results_suffix, show=False):
     scores_df = pd.read_csv(results_file, index_col=0)
 
     order = scores_df.set_index("method")["negative_marker_purity"].sort_values().index
-    pal = {m: _constants.method_colors[m] for m in order}
-    method_order = [x for x in _constants.method_colors.keys() if x in scores_df['method'].unique()]
+    pal = {utils.clean_method_name(m): _constants.method_colors[m] for m in order}
+    order = [utils.clean_method_name(x) for x in order]
+    method_order = [utils.clean_method_name(x) for x in _constants.method_colors.keys() if x in scores_df['method'].unique()]
+    scores_df['method'] = scores_df['method'].map(utils.clean_method_name)
     scores_df['method'] = pd.Categorical(scores_df['method'], categories=method_order, ordered=True)
 
     fig = plt.figure(figsize=(14, 6))
