@@ -50,8 +50,9 @@ RESULT_DIR="{result_dir}"
 CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/cellpose_sam.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\"{STAINING_FLAG}"
 start_run_log
 
-export CELLPOSE_LOCAL_MODELS_PATH=/opt/cellpose_models
-mamba activate cellposesam
+export CELLPOSE_LOCAL_MODELS_PATH=/home/ubuntu/.cellpose/models
+mamba activate segmentation
+source /opt/cellposesam/bin/activate
 mkdir -p "${{RESULT_DIR}}"
 
 eval "${{CMD}}"
