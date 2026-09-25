@@ -35,11 +35,11 @@ for key, value in samples.items():
 #SBATCH -p lrz-hgx-h100-94x4,lrz-hgx-a100-80x4,lrz-dgx-a100-80x8
 #SBATCH --gres=gpu:1
 #SBATCH -t 10:00:00
-#SBATCH --mem=150G
+#SBATCH --mem=250G
 #SBATCH -J {METHOD}_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/{METHOD}_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/{METHOD}_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new2.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -euo pipefail
 source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
