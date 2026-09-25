@@ -56,6 +56,9 @@ method_colors = {
     # CellSAM (teal palette)
     "CellSAM_DAPI": "#00696e",
     "CellSAM_DAPI_PolyT": "#4fb3b8",
+    # CellposeSAM (purple palette)
+    "CellposeSAM_DAPI": "#6a3d9a",
+    "CellposeSAM_DAPI_PolyT": "#b294c7",
     # Proseg 3D (yellow)
     "Proseg_3D_Cellpose_1_nuclei_model": "#e8a20a",
     "Proseg_3D_Cellpose_1_DAPI_PolyT": "#eaad28",
@@ -115,6 +118,8 @@ method_names = {
     "Cellpose_2_DAPI_Transcripts": "Cellpose2 T Sopa",
     "CellSAM_DAPI": "CellSAM Sopa",
     "CellSAM_DAPI_PolyT": "CellSAM P Sopa",
+    "CellposeSAM_DAPI": "CellposeSAM Sopa",
+    "CellposeSAM_DAPI_PolyT": "CellposeSAM P Sopa",
     "Proseg_3D_Cellpose_1_DAPI_PolyT": "Proseg 3D (CP1 P)",
     "Proseg_3D_Cellpose_1_DAPI_Transcripts": "Proseg 3D (CP1 T)",
     "Proseg_3D_Cellpose_1_nuclei_model": "Proseg 3D (CP1 N)",
