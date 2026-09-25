@@ -106,15 +106,9 @@ def main():
         logger=logger,
     )
 
-    if "vpt_3D" in args.seg_method:
-        min_counts = 10  # min_counts = 10 due to smaller cell sizes
-    else:
-        min_counts = None  # default = 25
-
     adata = adata_utils.filter_low_quality_cells(
         adata,
         save_path=save_path / "plots",
-        **({"min_counts": min_counts} if min_counts is not None else {}),
         logger=logger,
     )
 
