@@ -435,14 +435,8 @@ def add_cell_type_annotation(
     if logger:
         logger.info(f"Adding cell type annotations for {seg_method}...")
     cell_type_information = [
-        "cell_type_incl_low_quality_revised",
-        "cell_type_mmc_incl_low_quality_clusters",
-        "cell_type_mmc_incl_low_quality",
-        "cell_type_incl_mixed_revised",
-        "cell_type_mmc_incl_mixed_clusters",
-        "cell_type_mmc_incl_mixed",
         "cell_type_revised",
-        "cell_type_mmc_raw_clusters",
+        "cell_type_mmc_incl_low_quality",
         "cell_type_mmc_raw",
         "cell_id",
     ]

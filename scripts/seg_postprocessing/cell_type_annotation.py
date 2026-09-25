@@ -2,20 +2,15 @@
 import datetime
 import pathlib
 
-"""Run automated cell type annotation by combining MapMyCells (MMC) and marker genes scores.
+"""Cell type annotation: MapMyCells, SCALPEL label transfer QC, cluster vote, marker revision.
 
-1. Load adata from sdata.zarr
-2. Run MapMyCells against ABC mouse brain reference atlas; parse per-cell labels/scores
-3. QC MapMyCells output: plot distributions; mark low-correlation cells as Undefined (MAD-based per group,as suggested by Allen Institute); group fine types
-4. Sensitivity: annotate "mixed" cells (runner-up probability gap) and low_quality cells (MAD rule); saved as "*_mixed" and "*_low_quality"
-5. Leiden clustering; assign cluster labels by MMC majority vote (from MMC-Leiden crosstab)
-6. Score marker genes (ABCAtlas via sc.tl.score) and refine cluster labels using thresholds:
-   - Reassign if some cell type’s cluster-mean marker-gene score ≥ 0.5 (high_threshold)
-     AND it exceeds the MMC majority label’s marker-gene score by ≥ 0.25 (delta)
-   - Set to "Undefined" if all cell types’ scores are < 0.5 (low_threshold)
-   - Otherwise keep the MMC majority label
-7. Plot UMAP and spatial plots (mixed/low-quality, annotations)
-8. Export CSVs (adata_obs.csv including cell type labels).
+1. Run MapMyCells against the ABC mouse brain atlas (or reuse an existing result)
+2. SCALPEL QC (DoubleMAD per supertype, with bimodal handling): failing cells -> "Undefined"
+3. Group subclasses into coarse cell types (subclasses without a group, e.g. Lymphoid -> "Undefined")
+4. Leiden clustering; each cluster gets its majority label, QC-failed cells voting
+   "Undefined" -> cell_type_vote
+5. Marker revision with curated markers (reassign only, never "Undefined") -> cell_type_revised
+6. Annotation QC summary (annotation_qc.csv), plots and adata_obs_annotated.csv
 """
 
 import argparse
@@ -72,10 +67,22 @@ parser.add_argument(
     "--mad_factor",
     default=3,
     type=float,
-    help="MAD factor (>0) for removing outlier annotations",
+    help="MAD_low factor (>0) for removing outlier annotations. SCALPEL uses 3.",
 )
 parser.add_argument(
-    "--leiden_res", default=10.0, type=float, help="Leiden clustering resolution"
+    "--leiden_res", default=20.0, type=float, help="Leiden clustering resolution"
+)
+parser.add_argument(
+    "--marker_min_score",
+    default=1.0,
+    type=float,
+    help="Minimum cluster-mean marker score for a marker revision",
+)
+parser.add_argument(
+    "--marker_delta",
+    default=0.25,
+    type=float,
+    help="Margin over the voted label's marker score required for a marker revision",
 )
 args = parser.parse_args()
 
@@ -138,44 +145,16 @@ anno_utils.plot_metric_distributions(
     file_name="QC_raw_metric_distributions",
 )
 
-# Plot MAD thresholds for SUBC and CLAS (per cell type)
-for allen_key, figsize in [("SUBC", (45, 7)), ("CLAS", (13, 7))]:
-    anno_utils.plot_mad_thresholds(
-        allen_mmc_metadata,
-        out_path=annotation_path,
-        name=f"QC_mad_threshold_{allen_key}",
-        group_column=f"allen_{allen_key}",
-        value_column=f"allen_cor_{allen_key}",
-        mad_factor=args.mad_factor,
-        figsize=figsize,
-    )
-
-logger.info("Marking low-quality cells as 'Undefined'...")
-# based on correlation MAD as suggested by Allen Institute
-taxonomy_levels = ["CLAS", "SUBC", "SUPT", "CLUS"]
-prefixes = ["allen", "allen_runner_up_1", "allen_runner_up_2"]
-for level in taxonomy_levels:
-    for prefix in prefixes:
-        anno_utils.mark_low_quality_mappings(
-            allen_mmc_metadata,
-            target_column=prefix,
-            mad_factor=args.mad_factor,
-            level=level,
-        )
-
-# re-group cell types from *_SUBC
-for prefix in prefixes:
-    for suffix in ["SUBC", "SUBC_incl_low_quality"]:
-        allen_mmc_metadata[f"{prefix}_{suffix}"] = anno_utils.group_cell_types(
-            allen_mmc_metadata[f"{prefix}_{suffix}"]
-        )
-
-logger.info("Annotating 'mixed' cells based on runner-up probability...")
-mixed_df = anno_utils.create_mixed_cell_types(df=allen_mmc_metadata, diff_threshold=0.5)
-
-allen_mmc_metadata = allen_mmc_metadata.merge(
-    mixed_df, left_index=True, right_index=True, how="left"
+logger.info("SCALPEL QC...")
+qc = anno_utils.scalpel_qc(
+    allen_mmc_metadata["allen_cor_SUPT"], allen_mmc_metadata["allen_SUPT"], args.mad_factor
 )
+allen_mmc_metadata = allen_mmc_metadata.join(qc)
+allen_mmc_metadata["allen_SUBC"] = anno_utils.group_cell_types(allen_mmc_metadata["allen_SUBC"]).fillna("Undefined")
+allen_mmc_metadata["allen_SUBC_incl_low_quality"] = allen_mmc_metadata["allen_SUBC"].where(
+    qc["qc_passed"], "Undefined"
+)
+logger.info(f"QC failed: {(~qc['qc_passed']).mean():.1%} of cells")
 
 adata.obsm["allen_cell_type_mapping"] = allen_mmc_metadata.loc[adata.obs.index]
 
@@ -232,119 +211,61 @@ with plt.rc_context({"figure.figsize": (9, 9)}):
     plt.close()
     adata.obs.drop(columns=adata.obsm["allen_cell_type_mapping"].columns, inplace=True)
 
-# plot mixed and low-quality cells on umap and spatial plot
-adata.obs["cell_type_mmc_is_low_quality"] = adata.obs[
-    "cell_type_mmc_incl_low_quality"
-].apply(lambda x: "undefined" if x == "Undefined" else "mapped")
-palette_dict = {
-    "cell_type_mmc_is_mixed": {"mixed": "red", "unique": "lightgrey"},
-    "cell_type_mmc_is_low_quality": {"undefined": "blue", "mapped": "lightgrey"},
-}
-
-fig, axes = plt.subplots(
-    2, 2, figsize=(18, 16), gridspec_kw={"wspace": 0.15, "hspace": 0.15}
+adata.obs["cell_type_mmc_is_low_quality"] = np.where(
+    adata.obs["cell_type_mmc_incl_low_quality"] == "Undefined", "undefined", "mapped"
 )
-
-keys = ["cell_type_mmc_is_mixed", "cell_type_mmc_is_low_quality"]
-
-for i, key in enumerate(keys):
-    palette = palette_dict[key]
-
-    sc.pl.umap(
-        adata,
-        color=key,
-        size=pt_size_umap,
-        legend_fontoutline=2,
-        legend_fontweight="normal",
-        legend_fontsize=7,
-        palette=palette,
-        ax=axes[0, i],
-        show=False,
-    )
-    axes[0, i].set_aspect("equal")
-
+fig, axes = plt.subplots(1, 2, figsize=(18, 8))
+for ax, basis in zip(axes, ["umap", "spatial"]):
     sc.pl.embedding(
         adata,
-        basis="spatial",
-        color=key,
-        size=150000 / adata.shape[0],
-        legend_loc=None,
-        palette=palette,
-        ax=axes[1, i],
+        basis=basis,
+        color="cell_type_mmc_is_low_quality",
+        size=(pt_size_umap if basis == "umap" else 150000 / adata.shape[0]),
+        palette={"undefined": "blue", "mapped": "lightgrey"},
+        legend_loc="right margin" if basis == "umap" else None,
+        ax=ax,
         show=False,
     )
-    axes[1, i].set_aspect("equal")
-
-output_path = pathlib.Path(
-    annotation_path, "UMAP_and_Spatial_mapmycells_mixed_and_undefined.png"
+    ax.set_aspect("equal")
+plt.savefig(
+    pathlib.Path(annotation_path, "UMAP_and_Spatial_mapmycells_undefined.png"),
+    dpi=200,
+    bbox_inches="tight",
 )
-plt.savefig(output_path, dpi=200, bbox_inches="tight")
 plt.close()
-
-logger.info(
-    "Number of mixed mmc: {}".format(adata.obs["cell_type_mmc_is_mixed"].value_counts())
-)
-logger.debug(
-    "Number of mmc including mixed cells: {}".format(
-        adata.obs["cell_type_mmc_incl_mixed"].value_counts()
-    )
-)
-logger.debug(
-    "Number of mmc with mixed names: {}".format(
-        adata.obs["cell_type_mmc_mixed_names"].value_counts()
-    )
-)
-logger.info(
-    "Number of low-quality cells: {}".format(
-        adata.obs["cell_type_mmc_is_low_quality"].value_counts()
-    )
-)
-logger.debug(
-    "Number of cells including low-quality cells: {}".format(
-        adata.obs["cell_type_mmc_incl_low_quality"].value_counts()
-    )
-)
-
+adata.obs.drop(columns="cell_type_mmc_is_low_quality", inplace=True)
 
 leiden_col = f"leiden_res{args.leiden_res}".replace(".", "_")
-adata, annotation_results, mmc_leiden_crosstab = anno_utils.revise_annotations(
+if leiden_col not in adata.obs:
+    sc.tl.leiden(adata, key_added=leiden_col, resolution=args.leiden_res)
+adata.obs["cell_type_vote"], adata.obs["cell_type_revised"] = anno_utils.annotate_clusters(
     adata,
-    leiden_res=args.leiden_res,
-    leiden_col=leiden_col,
-    cell_type_colors=cell_type_colors,
-    score_high_threshold=0.5,
-    score_low_threshold=0.5,
-    score_delta=0.25,
-    top_n_genes=50,
-    ABCAtlas_marker_df_path=pathlib.Path(
+    cluster_col=leiden_col,
+    label_col="cell_type_mmc_incl_low_quality",
+    marker_csv=pathlib.Path(
         args.data_dir,
         "misc",
         "scRNAseq_ref_ABCAtlas_Yao2023Nature",
         "marker_genes_df",
         "20250416_cell_type_markers_top50.csv",
     ),
+    min_score=args.marker_min_score,
+    delta=args.marker_delta,
     logger=logger,
 )
+logger.info(f"cell_type_revised:\n{adata.obs['cell_type_revised'].value_counts()}")
 
-adata.obs.rename(
-    columns={
-        "cell_type_mmc_raw_revised": "cell_type_revised",
-        "cell_type_mmc_incl_mixed_revised": "cell_type_incl_mixed_revised",
-        "cell_type_mmc_incl_low_quality_revised": "cell_type_incl_low_quality_revised",
-    },
-    inplace=True,
+qc_summary = anno_utils.annotation_qc_summary(adata)
+logger.info(f"Annotation QC:\n{qc_summary.to_string()}")
+pd.concat([pd.Series({"sample": args.sample_name, "seg_method": args.seg_method}), qc_summary]).to_frame().T.to_csv(
+    pathlib.Path(annotation_path, "annotation_qc.csv"), index=False
 )
 
 plot_keys = [
     "cell_type_mmc_raw",
-    "cell_type_mmc_raw_clusters",
-    "cell_type_revised",
-    "cell_type_mmc_incl_mixed",
-    "cell_type_mmc_incl_mixed_clusters",
-    "cell_type_incl_mixed_revised",
     "cell_type_mmc_incl_low_quality",
-    "cell_type_mmc_incl_low_quality_clusters",
-    "cell_type_incl_low_quality_revised",
+    "cell_type_vote",
+    "cell_type_revised",
     leiden_col,
 ]
 
@@ -502,11 +423,6 @@ plt.close()
 
 logger.info("Exporting output...")
 
-# diagnostic
-# mmc_leiden_crosstab.to_csv(
-#    pathlib.Path(annotation_path, "mmc_leiden_crosstab_normalized.csv")
-# )
-
 # subset columns
 if "cell_id" not in adata.obs.columns:
     logger.error(f"No cell_ID column. Available columns: {adata.obs.columns}")
@@ -517,16 +433,5 @@ adata.obs = adata.obs[
         if any(substr in col for substr in ["cell_id", "leiden", "score", "cell_type"])
     ]
 ]
-# replace np.nan with "None" for downstream compatibility
-na_cols = [
-    "cell_type_mmc_runner_up_1",
-    "cell_type_mmc_runner_up_2",
-    "cell_type_mmc_runner_up_1_incl_low_quality",
-    "cell_type_mmc_runner_up_2_incl_low_quality",
-]
-for col in na_cols:
-    if isinstance(adata.obs[col].dtype, pd.CategoricalDtype):
-        adata.obs[col] = adata.obs[col].cat.add_categories("None")
-    adata.obs[col] = adata.obs[col].fillna("None")
 adata.obs.to_csv(pathlib.Path(annotation_path, "adata_obs_annotated.csv"), index=False)
 logger.info("Done.")

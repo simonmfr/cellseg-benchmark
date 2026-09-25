@@ -36,10 +36,10 @@ def compute_ficture_f1(
 
     Each transcript is labelled twice: with the cell type implied by its nearest
     FICTURE pixel's top factor (K1, within 5 um) and with the cell type of the
-    segmentation cell it lies in. Both labels are collapsed to canonical parent
-    types (``_constants.true_cluster``) before scoring, so subtypes such as
-    Astroependymal or Neurons-Dopa-Gaba count towards their parent, and transcripts
-    touching markerless types (``_constants.unreliable_celltypes``) are dropped. Fits the
+    segmentation cell it lies in. Both labels are mapped to the cell types in
+    ``_constants.true_cluster`` before scoring, so labels such as Bergmann or
+    Neurons-Dopa-Gaba count towards their parent, and transcripts with a label that
+    is not scored (None or missing, e.g. Neurons-Other, Undefined) are dropped. Fits the
     standard ``compute_metric`` contract and scores all of a method's samples
     in parallel.
 
@@ -222,9 +222,7 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
             .map(_constants.true_cluster)
             .to_numpy(),
         }
-    )
-    # drop transcripts touching markerless types (unreliable annotation) on either side
-    labels = labels.replace(_constants.unreliable_celltypes, np.nan).dropna()
+    ).dropna()
 
     del transcripts
     gc.collect()
