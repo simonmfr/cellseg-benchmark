@@ -18,9 +18,9 @@ parser.add_argument(
     "--use_polyt", action="store_true", help="Use DAPI + PolyT instead of DAPI only."
 )
 parser.add_argument("--block_size", type=int, default=1024, help="CellSAM block size.")
-parser.add_argument("--patch_width", type=int, default=8192, help="Sopa patch width.")
+parser.add_argument("--patch_width", type=int, default=8900, help="Sopa patch width.")
 parser.add_argument(
-    "--patch_overlap", type=int, default=200, help="Sopa patch overlap."
+    "--patch_overlap", type=int, default=178, help="Sopa patch overlap."
 )
 parser.add_argument("--min_area", type=int, default=2000, help="Minimum cell area.")
 args = parser.parse_args()

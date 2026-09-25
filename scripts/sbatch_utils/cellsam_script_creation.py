@@ -12,7 +12,7 @@ parser.add_argument(
     "--use_polyt", action="store_true", help="Use DAPI + PolyT instead of DAPI only."
 )
 parser.add_argument("--block_size", type=int, default=1024, help="CellSAM block size.")
-parser.add_argument("--patch_width", type=int, default=8192, help="Sopa patch width.")
+parser.add_argument("--patch_width", type=int, default=8900, help="Sopa patch width.")
 args = parser.parse_args()
 
 BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
