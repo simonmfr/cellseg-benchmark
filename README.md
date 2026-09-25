@@ -170,5 +170,5 @@ We're assuming that the container is properly setup with python.
   deactivate && python -c "import cellpose; print(cellpose.version)"  # 3.1.1.1
   ```
 
-The [Sopa framework](https://github.com/prism-oncology/sopa) was used to run implementations of Cellpose, Cellpose-SAM, CellSAM, Proseg, and Baysor. For installation of `sopa` and recommendations for setting up these algorithms with sopa please refer to the [sopa documentation](https://prism-oncology.github.io/sopa/getting_started/).
+Cellpose, Cellpose-SAM, CellSAM, Baysor, ComSeg and Proseg were run through [Sopa](https://github.com/prism-oncology/sopa). See the [Sopa documentation](https://prism-oncology.github.io/sopa/getting_started/) for installation and method setup.
 
