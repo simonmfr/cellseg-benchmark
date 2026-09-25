@@ -1017,16 +1017,18 @@ def compute_cell_morphology(
 
     Metrics per cell include:
     - dimensionality: '2D' or '3D', depending on whether the cell spans multiple Z planes.
-    - area: Total surface area (2D: shape area; 3D: approximated surface area).
+    - area: outline area (3D: area of the flattened outline, union over z planes).
+    - surface_area: approximated 3D surface area (3D only).
     - volume_sum: Naive volume by summing areas and multiplying with z_spacing.
     - volume_trapz: Trapezoidal volume integration across z-planes (3D only).
     - volume_final: Final volume estimate (trapz if 3D, volume_sum if 2D).
     - num_z_planes: Number of Z planes a cell spans.
     - size_normalized: Edge length of a square (2D) or cube (3D) with same area or volume as the cell.
     - surface_to_volume_ratio: Ratio of surface area to volume.
-    - sphericity: Shape compactness; 1 for a perfect sphere (3D only).
+    - circularity: 4*pi*area / perimeter² of the (flattened) outline; 1 for a circle.
+    - sphericity_3d: Shape compactness; 1 for a perfect sphere (3D only).
     - solidity: Volume compared to its convex hull volume (compactness).
-    - elongation: PCA-based anisotropy estimate (0 = isotropic, 1 = elongated).
+    - elongation: PCA-based anisotropy of the (flattened) outline (0 = isotropic, 1 = elongated).
     """
     results_dict = {}
 
@@ -1129,7 +1131,7 @@ def _compute_2d_metrics(geom, z_spacing: float):
         "surface_to_volume_ratio": perimeter / area if area > 0 else np.nan,
     }
 
-    metrics["sphericity"] = 4 * PI * area / (perimeter**2) if perimeter > 0 else np.nan
+    metrics["circularity"] = 4 * PI * area / (perimeter**2) if perimeter > 0 else np.nan
 
     if not geom.is_valid:
         geom = geom.buffer(0)  # assume no topology error occurs
@@ -1139,7 +1141,6 @@ def _compute_2d_metrics(geom, z_spacing: float):
     hull_points = np.array(convex_hull.exterior.coords[:-1])
     if len(hull_points) >= 3:
         hull_points -= hull_points.mean(axis=0)
-        hull_points /= hull_points.std(axis=0, ddof=0)
         cov = (hull_points.T @ hull_points) / hull_points.shape[0]
         eigenvalues = np.linalg.eigvalsh(cov)[::-1]
         metrics["elongation"] = (
@@ -1208,10 +1209,15 @@ def _compute_3d_metrics(
         )
         top_bottom_surface = areas[0] + areas[-1] if len(areas) > 0 else 0
         surface_area = lateral_surface + top_bottom_surface
+        flat = shapely.union_all(shapely.make_valid(polygons))
+        flat_metrics = _compute_2d_metrics(flat, z_spacing)
 
         metrics = {
             "dimensionality": "3D",
-            "area": surface_area,
+            "area": flat.area,
+            "elongation": flat_metrics.get("elongation", np.nan),
+            "circularity": flat_metrics.get("circularity", np.nan),
+            "surface_area": surface_area,
             "volume_sum": volume_sum,
             "volume_trapz": volume_trapz,
             "volume_final": volume_trapz,
@@ -1220,7 +1226,7 @@ def _compute_3d_metrics(
             "surface_to_volume_ratio": surface_area / volume_trapz
             if volume_trapz > 0
             else np.nan,
-            "sphericity": (
+            "sphericity_3d": (
                 (PI ** (1 / 3)) * (6 * volume_trapz) ** (2 / 3) / surface_area
                 if volume_trapz > 0 and surface_area > 0
                 else np.nan
@@ -1252,7 +1258,7 @@ def _compute_3d_metrics(
             all_points.append(np.hstack([coords, z_coords]))
 
         if not all_points:
-            metrics.update({"solidity": np.nan, "elongation": np.nan})
+            metrics["solidity"] = np.nan
             return metrics
 
         all_points = np.vstack(all_points)
@@ -1278,20 +1284,6 @@ def _compute_3d_metrics(
                         except Exception:
                             solidity = np.nan
         metrics["solidity"] = solidity
-
-        cov = (all_points.T @ all_points) / all_points.shape[0]
-        eigenvalues = np.linalg.eigvalsh(cov)[::-1]
-
-        if eigenvalues[0] <= 0:
-            elongation = np.nan
-        elif eigenvalues[2] > 1e-6:
-            elongation = 1 - np.sqrt(eigenvalues[2] / eigenvalues[0])
-        elif eigenvalues[1] > 1e-6:
-            elongation = 1 - np.sqrt(eigenvalues[1] / eigenvalues[0])
-        else:
-            elongation = 1.0
-        metrics["elongation"] = elongation
-
         return metrics
 
     except Exception as e:

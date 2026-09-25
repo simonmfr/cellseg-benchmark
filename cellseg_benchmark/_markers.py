@@ -1622,3 +1622,16 @@ gwas_hits = {
         "Col4a2",
     ],
 }
+
+# Shown per cluster by banksy_annotate_regions.py --init, so clusters are
+# named from evidence, not shape alone. Genes absent from the panel are skipped.
+brain_region_markers = {
+    "DG-sg": ["Prox1", "Dock10"],
+    "CAsp": ["Fibcd1", "Wfs1", "Neurod6"],
+    "CTX": ["Cux2", "Rorb", "Foxp2", "Bcl11b"],
+    "STR_PAL": ["Ppp1r1b", "Drd1", "Adora2a"],
+    "BS": ["Tcf7l2", "Slc17a6"],
+    "FT": ["Mbp", "Plp1", "Mog"],
+    "VS": ["Ttr", "Foxj1"],
+    "MEN": ["Dcn", "Slc47a1"],
+}

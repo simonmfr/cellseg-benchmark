@@ -17,6 +17,7 @@ from .. import _constants
 from .. import ficture_utils as fu
 from .. import sdata_utils as su
 from . import f1_score
+from .utils import clean_method_name
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("ficture_f1")
@@ -300,7 +301,9 @@ def plot_ficture_f1(
     order = (
         mean_results.groupby("method")["f1"].mean().sort_values().index
     )
-    pal = {ct: _constants.method_colors[ct] for ct in order}
+    pal = {clean_method_name(mtd): _constants.method_colors[mtd] for mtd in order}
+    order = [clean_method_name(mtd) for mtd in order]
+    mean_results['method'] = mean_results['method'].map(clean_method_name)
     fig = plt.figure(figsize=(10, 5))
     ax = sns.boxplot(
         data=mean_results,
@@ -335,7 +338,9 @@ def plot_ficture_f1(
     order = (
         mean_results.groupby("method")["f1"].mean().sort_values().index
     )
-    pal = {ct: _constants.method_colors[ct] for ct in order}
+    pal = {clean_method_name(mtd): _constants.method_colors[mtd] for mtd in order}
+    order = [clean_method_name(mtd) for mtd in order]
+    mean_results['method'] = mean_results['method'].map(clean_method_name)
     fig = plt.figure(figsize=(10, 5))
     ax = sns.boxplot(
         data=mean_results,

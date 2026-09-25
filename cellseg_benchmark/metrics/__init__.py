@@ -2,7 +2,7 @@ from .assigned_transcripts import compute_assigned_transcripts, plot_assigned_tr
 from .cell_type import compute_cell_type_distribution, plot_cell_type_distribution
 from .clustering import compute_clustering_scores, plot_clustering_scores
 from .ficture import compute_ficture_f1, plot_ficture_f1
-from .general import extract_general_stats, plot_general_stats, extract_mem_and_time, plot_mem_and_time
+from .general import extract_general_stats, plot_general_stats, tissue_polygons, compute_cell_density, plot_cell_density, extract_mem_and_time, plot_mem_and_time
 from .f1_score import compute_f1
 from .marker_gene_based import (
     compute_marker_F1_score,
@@ -45,6 +45,9 @@ __all__ = [
     "compute_ficture_f1",
     "extract_general_stats",
     "plot_general_stats",
+    "tissue_polygons",
+    "compute_cell_density",
+    "plot_cell_density",
     "extract_mem_and_time",
     "plot_mem_and_time",
     "compute_f1",

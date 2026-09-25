@@ -278,6 +278,15 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         if j == f"vpt{dim}_{k}":
             return f"vpt_{dim}"
 
+    if j.startswith("Baysor_2D_denovo"):
+        return "Baysor_2D_denovo"
+    if j.startswith("Baysor_3D_denovo"):
+        return "Baysor_3D_denovo"
+    if j.startswith("SIS"):
+        return "SIS_DAPI_total_mrna"
+    if j.startswith("CellSAM"):
+        return "CellSAM"
+
     # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
     prefix_3d = f"Proseg_3D_{k}_"
     if j.startswith(prefix_3d) and "_vpt" in j:
@@ -285,7 +294,7 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         rest = re.sub(r"_vxl_.+$", "", rest)  # ignore voxel size
         m = re.match(r"^vpt(?P<dim>2D|3D)_(?P<flavor>.+)$", rest)
         if m:
-            return f"Proseg_3D_vpt_{m.group('dim')}_DAPI_{m.group('flavor')}"
+            return f"Proseg_3D_vpt{m.group('dim')}_DAPI_{m.group('flavor')}"
         return f"Proseg_3D_{rest}"
 
     # --- Proseg_3D CP: Proseg_3D_<key>_CP2_PolyT_vxl_7
@@ -299,19 +308,6 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
                 return f"Proseg_3D_Cellpose_{cp}_nuclei_model"
             return f"Proseg_3D_Cellpose_{cp}_DAPI_{stain}"
         return f"Proseg_3D_{re.sub(r'_vxl_.+$', '', rest)}"
-
-    # --- Proseg (2D) CP: Proseg_<key>_CP2_PolyT_vxl_7
-    prefix_2d = f"Proseg_{k}_"
-    if j.startswith(prefix_2d) and "_CP" in j:
-        rest = j[len(prefix_2d):]
-        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)(?:_vxl_.+)?$", rest)
-        if m:
-            cp = m.group("cp")
-            stain = m.group("stain")
-            if stain == "nuclei":
-                return f"Proseg_2D_Cellpose_{cp}_nuclei_model"
-            return f"Proseg_2D_Cellpose_{cp}_DAPI_{stain}"
-        return f"Proseg_{re.sub(r'_vxl_.+$', '', rest)}"
 
     # --- Cellpose jobs: CP1_<key>_<stain> / CP2_<key>_<stain>
     prefix = f"CP1_{k}_"

@@ -159,4 +159,3 @@ We're assuming that the container is properly setup with python.
 
 The [Sopa framework](https://github.com/prism-oncology/sopa) was used to run implementations of Cellpose, Cellsam, Proseg, and Baysor. For installation of `sopa` and recommendations for setting up these algorithms with sopa please refer to the [sopa documentation](https://prism-oncology.github.io/sopa/getting_started/).
 
-
