@@ -156,18 +156,19 @@ We're assuming that the container is properly setup with python.
   ```
 
   Do not pin `tifffile`; use `tifffile.memmap` instead of `aszarr()` if needed.
-+ **Cellpose-SAM installation:** venv on top of `segmentation`, so `segmentation` keeps Cellpose 3.
++ **Cellpose-SAM installation** (`benchmark_new2.sqsh`): venv on top of `segmentation`, so `segmentation` keeps Cellpose 3 and sopa 2.1.10 is shared.
   ```bash
   mamba activate segmentation
   python -m venv --system-site-packages /opt/cellposesam
   source /opt/cellposesam/bin/activate
   pip install cellpose==4.2.1.1
-  python -c "import torch, sopa, cellpose; print(torch.__version__, sopa.__version__, cellpose.version, cellpose.__file__)"
+  python -c "import torch, sopa, cellpose; print(torch.__version__, sopa.__version__, cellpose.version, cellpose.__file__)"  # 2.10.0+cu128 2.1.10 4.2.1.1 /opt/cellposesam/...
 
   mkdir -p /home/ubuntu/.cellpose/models
   CELLPOSE_LOCAL_MODELS_PATH=/home/ubuntu/.cellpose/models python -c "from cellpose import models; models.CellposeModel(pretrained_model='cpsam_v2')"
   chmod -R a+rX /opt/cellposesam /home/ubuntu/.cellpose
+  deactivate && python -c "import cellpose; print(cellpose.version)"  # 3.1.1.1
   ```
 
-The [Sopa framework](https://github.com/prism-oncology/sopa) was used to run implementations of Cellpose, Cellsam, Proseg, and Baysor. For installation of `sopa` and recommendations for setting up these algorithms with sopa please refer to the [sopa documentation](https://prism-oncology.github.io/sopa/getting_started/).
+The [Sopa framework](https://github.com/prism-oncology/sopa) was used to run implementations of Cellpose, Cellpose-SAM, CellSAM, Proseg, and Baysor. For installation of `sopa` and recommendations for setting up these algorithms with sopa please refer to the [sopa documentation](https://prism-oncology.github.io/sopa/getting_started/).
 
