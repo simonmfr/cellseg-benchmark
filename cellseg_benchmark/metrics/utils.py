@@ -286,6 +286,8 @@ def method_with_flavor_from_row(jobname: str, key: str) -> str:
         return "SIS_DAPI_total_mrna"
     if j.startswith("CellSAM"):
         return "CellSAM"
+    if j.startswith("CellposeSAM"):
+        return j.removesuffix(f"_{k}")
 
     # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
     prefix_3d = f"Proseg_3D_{k}_"
