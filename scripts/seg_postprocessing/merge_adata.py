@@ -98,12 +98,6 @@ def main():
 
     adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
     
-    # workaround, as explorer is in pixel units
-    if (
-        args.seg_method == "Cellpose_1_Merlin"
-    ):  
-        adata.obsm["spatial"] = adata.obsm.get("spatial_pixel", adata.obsm["spatial"])
-
     adata = adata_utils.filter_spatial_outlier_cells(
         adata,
         data_dir=str(base_path),
@@ -111,12 +105,6 @@ def main():
         save_path=save_path / "plots",
         logger=logger,
     )
-
-    # workaround, as explorer is in pixel units
-    if (
-        args.seg_method == "Cellpose_1_Merlin"
-    ): 
-        adata.obsm["spatial"] = adata.obsm.get("spatial_microns", adata.obsm["spatial"])
 
     if "vpt_3D" in args.seg_method:
         min_counts = 10  # min_counts = 10 due to smaller cell sizes
