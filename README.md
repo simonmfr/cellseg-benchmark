@@ -156,7 +156,7 @@ We're assuming that the container is properly setup with python.
   ```
 
   Do not pin `tifffile`; use `tifffile.memmap` instead of `aszarr()` if needed.
-+ **Cellpose-SAM installation** (`benchmark_new2.sqsh`): venv on top of `segmentation`, so `segmentation` keeps Cellpose 3 and sopa 2.1.10 is shared.
++ **Cellpose-SAM installation:** venv on top of `segmentation`, so `segmentation` keeps Cellpose 3 and sopa 2.1.10 is shared.
   ```bash
   mamba activate segmentation
   python -m venv --system-site-packages /opt/cellposesam
