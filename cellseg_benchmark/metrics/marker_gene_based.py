@@ -195,7 +195,7 @@ def compute_positive_markers_from_reference(
     # continue with merged_celltypes
     celltype_name = "merged_celltypes"
 
-    # compute cell type markers as genes expressed in > 25% of cells within celltype and < 1% of remaining cells
+    # compute cell type markers as genes expressed in > 25% of cells within celltype and < 2% of remaining cells (paper: 1%)
     adata_agg = sc.get.aggregate(adata, by=celltype_name, func="count_nonzero")
 
     count_nonzero = pd.DataFrame(
