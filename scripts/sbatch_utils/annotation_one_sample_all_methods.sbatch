@@ -2,8 +2,8 @@
 #
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 05:00:00
-#SBATCH --mem=50G
+#SBATCH -t 08:00:00
+#SBATCH --mem=64G
 #SBATCH --cpus-per-task=5
 #SBATCH -J annot_sample
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/merged/annot_sample_%A_%a.log
