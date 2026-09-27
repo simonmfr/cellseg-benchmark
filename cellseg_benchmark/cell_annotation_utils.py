@@ -162,7 +162,7 @@ def annotate_clusters(
 ):
     """Cluster labels: majority vote of per-cell labels, then marker revision.
 
-    Cell types from group_cell_types are scored with their top 50 markers present in the panel,
+    Cell types from group_cell_types are scored with their top markers present in the panel (at most 50),
     if at least min_genes. A cluster voted to a scored type or "Undefined" is relabelled to the
     cell type with the highest cluster-mean score if that score is >= min_score and exceeds the
     score of its voted label (the runner-up's for "Undefined") by > delta. Markers never set
@@ -176,7 +176,7 @@ def annotate_clusters(
 
     mdf = pd.read_csv(marker_csv)
     labels = set(CELL_TYPE_GROUPS.values()) - {None} | {"Neurons-Glut", "Neurons-Gaba"}
-    markers = {c: [g for g in mdf[c].dropna().head(50) if g in adata.var_names] for c in mdf.columns if c in labels}
+    markers = {c: [g for g in mdf[c].dropna() if g in adata.var_names] for c in mdf.columns if c in labels}
     markers = {c: g for c, g in markers.items() if len(g) >= min_genes}
     score_cell_types(adata, markers, top_n_genes=50, layer=None, logger=logger)
     types = [t for t in markers if f"score_{t}" in adata.obs]

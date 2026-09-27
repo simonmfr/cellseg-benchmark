@@ -154,7 +154,7 @@ allen_mmc_metadata["allen_SUBC"] = anno_utils.group_cell_types(allen_mmc_metadat
 allen_mmc_metadata["allen_SUBC_incl_low_quality"] = allen_mmc_metadata["allen_SUBC"].where(
     qc["qc_passed"], "Undefined"
 )
-logger.info(f"QC failed: {(~qc['qc_passed']).mean():.1%} of cells")
+logger.info(f"Cells failing SCALPEL QC: {(~qc['qc_passed']).mean():.1%}")
 
 adata.obsm["allen_cell_type_mapping"] = allen_mmc_metadata.loc[adata.obs.index]
 
@@ -247,7 +247,7 @@ adata.obs["cell_type_vote"], adata.obs["cell_type_revised"] = anno_utils.annotat
         "misc",
         "scRNAseq_ref_ABCAtlas_Yao2023Nature",
         "marker_genes_df",
-        "20260927_cell_type_markers_top50.csv",
+        "20260927_cell_type_markers_top100.csv",
     ),
     min_score=args.marker_min_score,
     delta=args.marker_delta,
