@@ -24,11 +24,19 @@ from tqdm import tqdm
 from cellseg_benchmark import _constants
 
 _COLORS = _constants.cell_type_colors
-# factor id (as str) -> color-table cell-type name (via _constants.true_cluster)
-_FACTOR_CELL_TYPE = {
-    f: _constants.true_cluster.get(ct) or "Undefined"
-    for f, ct in _constants.ficture_factor_to_celltype.items()
-}
+
+
+def factor_cell_types(pixel_file: str) -> Dict[int, str]:
+    """Factor id -> cell type scored in FICTURE F1 (_constants.true_cluster, None = not scored).
+
+    Factor names are the reference columns kept in model.posterior.count.tsv.gz next to the
+    pixel file, so runs with any reference work. Runs without that file or with numeric factor
+    names fall back to the legacy _constants.ficture_factor_to_celltype.
+    """
+    legacy = _constants.ficture_factor_to_celltype
+    model = pathlib.Path(pixel_file).parent / "model.posterior.count.tsv.gz"
+    names = pd.read_csv(model, sep="\t", nrows=0).columns[1:] if model.exists() else list(legacy)
+    return {i: _constants.true_cluster.get(legacy.get(n, n)) for i, n in enumerate(names)}
 
 
 def parse_metadata(file_path: str) -> Dict[str, str]:
@@ -227,12 +235,13 @@ def build_factor_raster(pixel_file: str, res: float = 1.5, min_um2: float = 5.0)
     return clean, affine, bbox
 
 
-def segments_to_boundaries(lab: np.ndarray, affine: Affine) -> gpd.GeoDataFrame:
+def segments_to_boundaries(lab: np.ndarray, affine: Affine, cell_types: Dict[int, str]) -> gpd.GeoDataFrame:
     """Polygonize raw FICTURE segments (one polygon per connected same-factor patch).
 
     Args:
         lab: Majority-factor raster from build_factor_raster.
         affine: Grid->um transform.
+        cell_types: Factor id -> cell type, from factor_cell_types.
 
     Returns:
         GeoDataFrame indexed by segment_id with factor, cell_type, area_um2.
@@ -240,7 +249,7 @@ def segments_to_boundaries(lab: np.ndarray, affine: Affine) -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame(
         [{"factor": int(v) - 1, "geometry": shape(g)}
          for g, v in rf.shapes(lab, mask=lab > 0, transform=affine, connectivity=8)])
-    gdf["cell_type"] = gdf.factor.astype(str).map(_FACTOR_CELL_TYPE)
+    gdf["cell_type"] = gdf.factor.map(cell_types).fillna("Undefined")
     gdf["area_um2"] = gdf.geometry.area
     gdf.index.name = "segment_id"
     return gdf
@@ -274,7 +283,7 @@ def _split_factor(sub, rr, cc, ee, conn):
     return out, metas
 
 
-def split_by_nuclei(lab: np.ndarray, affine: Affine, nuclei_xy, entity_ids,
+def split_by_nuclei(lab: np.ndarray, affine: Affine, cell_types: Dict[int, str], nuclei_xy, entity_ids,
                     connectivity: int = 1, n_jobs: int = 8) -> gpd.GeoDataFrame:
     """Split FICTURE segments into single cells using DAPI nuclei as seeds.
 
@@ -285,6 +294,7 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, nuclei_xy, entity_ids,
     Args:
         lab: Majority-factor raster from build_factor_raster.
         affine: Grid->um transform (a/c/f give res, offset_x, offset_y).
+        cell_types: Factor id -> cell type, from factor_cell_types.
         nuclei_xy: (N, 2) nucleus centroids in um.
         entity_ids: (N,) nucleus ids aligned to nuclei_xy.
         connectivity: 1 (4-conn, avoids diagonal 1px bridges) or 2 (8-conn).
@@ -332,7 +342,7 @@ def split_by_nuclei(lab: np.ndarray, affine: Affine, nuclei_xy, entity_ids,
          for g, v in rf.shapes(ws, mask=ws > 0, transform=affine, connectivity=8)]
     ).dissolve(by="cell_id", aggfunc={"factor": "first", "entity_id": "first",
                                       "n_nuclei": "first"})
-    gdf["cell_type"] = gdf.factor.astype(str).map(_FACTOR_CELL_TYPE)
+    gdf["cell_type"] = gdf.factor.map(cell_types).fillna("Undefined")
     gdf["area_um2"] = gdf.geometry.area
     return gdf
 

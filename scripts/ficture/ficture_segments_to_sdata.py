@@ -35,6 +35,7 @@ from cellseg_benchmark import _constants
 from cellseg_benchmark.ficture_utils import (
     aggregate_tables,
     build_factor_raster,
+    factor_cell_types,
     plot_qc,
     segments_to_boundaries,
     split_by_nuclei,
@@ -77,14 +78,15 @@ def main():
     aspect = (bbox[3] - bbox[2]) / (bbox[1] - bbox[0])
 
     # raw FICTURE segments
-    seg = segments_to_boundaries(lab, affine)
+    cell_types = factor_cell_types(str(pix))
+    seg = segments_to_boundaries(lab, affine, cell_types)
     log.info("[%s] %d unsplit segments", args.sample, len(seg))
 
     # nuclei-split cells
     log.info("[%s] loading nuclei and splitting", args.sample)
     obs = ad.read_zarr(str(dapi)).obs
     nuclei = obs[["center_x", "center_y"]].to_numpy(float)
-    cells = split_by_nuclei(lab, affine, nuclei, obs.index.to_numpy(),
+    cells = split_by_nuclei(lab, affine, cell_types, nuclei, obs.index.to_numpy(),
                             args.connectivity, args.n_jobs)
     log.info("[%s] %d cells (%d nucleated, %d nucleus-free)", args.sample, len(cells),
              int((cells.n_nuclei == 1).sum()), int((cells.n_nuclei == 0).sum()))
