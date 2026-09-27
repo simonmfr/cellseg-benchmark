@@ -247,7 +247,7 @@ adata.obs["cell_type_vote"], adata.obs["cell_type_revised"] = anno_utils.annotat
         "misc",
         "scRNAseq_ref_ABCAtlas_Yao2023Nature",
         "marker_genes_df",
-        "20250416_cell_type_markers_top50.csv",
+        "20260927_cell_type_markers_top50.csv",
     ),
     min_score=args.marker_min_score,
     delta=args.marker_delta,
