@@ -214,7 +214,7 @@ def add_ensembl_id(
         for h in mg.querymany(
             need, scopes=scope, species=species, fields="ensembl.gene,symbol"
         ):
-            ens = _first_ens(h.get("ensembl"))
+            ens = _first_ens(h.get("ensembl"), species)
             canon, q = h.get("symbol") or h.get("query"), h.get("query")
             if not (ens and canon):
                 continue
@@ -255,14 +255,11 @@ def add_ensembl_id(
     return df
 
 
-def _first_ens(x):
-    """Helper to extract first Ensembl gene ID from dict or list of dicts."""
-    if isinstance(x, dict):
-        return x.get("gene")
-    if isinstance(x, list):
-        for i in x:
-            if "gene" in i:
-                return i["gene"]
+def _first_ens(x, species="mouse"):
+    """First Ensembl gene ID of the species from a dict or list of dicts (mygene also returns other species' IDs)."""
+    prefix = {"mouse": "ENSMUSG", "human": "ENSG0"}[species]
+    ids = [i.get("gene") for i in (x if isinstance(x, list) else [x or {}])]
+    return next((i for i in ids if i and i.startswith(prefix)), None)
 
 
 def add_group_sample_counts(

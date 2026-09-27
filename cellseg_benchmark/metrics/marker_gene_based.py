@@ -182,18 +182,7 @@ def compute_positive_markers_from_reference(
     #    sc.tl.rank_genes_groups(adata, "cell_type_dea", method="wilcoxon")
     print("computing positive markers")
     # filter celltypes
-    ct_exclude = [
-        "Astroependymal",
-        "Bergmann",
-        "Choroid-Plexus",
-        "Immune-Other",
-        "OECs",
-        "Tanycytes",
-        "ABCs",
-        "Neurons-Other",
-        "Neurons-Granule-Immature",
-    ]
-    adata = adata[~adata.obs[celltype_name].isin(ct_exclude)]
+    adata = adata[adata.obs[celltype_name] != "Choroid-Plexus"]
     # filter all nan values from cell_type_dea, otherwise aggregate fails
     adata = adata[~adata.obs[celltype_name].isna()]
     # merge celltypes
@@ -206,7 +195,7 @@ def compute_positive_markers_from_reference(
     # continue with merged_celltypes
     celltype_name = "merged_celltypes"
 
-    # compute cell type markers as genes expressed in > 25% of cells within celltype and < 1% of remaining cells
+    # compute cell type markers as genes expressed in > 25% of cells within celltype and < 2% of remaining cells (paper: 1%)
     adata_agg = sc.get.aggregate(adata, by=celltype_name, func="count_nonzero")
 
     count_nonzero = pd.DataFrame(
@@ -324,53 +313,6 @@ def get_positive_markers(
     return markers_filtered
 
 
-# --- Functions to read previously saved marker genes ---
-
-
-def load_marker_gene_dict(subset_genes=None, subset_celltypes=None):
-    """Load dict of marker genes, filtered by gene and celltypes.
-
-    From Allen mouse brain scRNA-seq atlas (Yao 2023 Nature, 4M cells)
-    Computed using edgeR of pseudobulks, using author-derived cell annotations (see separate script)
-
-    NOTE: not used anymore in MECR score and marker_f1_score. Instead, get_positive_markers is used.
-
-    Args:
-        subset_genes: list of genes to subset gene dict to
-        subset_celltypes: list of celltypes to subset gene dict to
-
-    Returns:
-        marker_gene_dict, dictionary with celltypes as keys and marker genes as values.
-    """
-    ABCAtlas_marker_df = pd.read_csv(
-        os.path.join(
-            _constants.BASE_PATH,
-            "misc",
-            "scRNAseq_ref_ABCAtlas_Yao2023Nature",
-            "marker_genes_df",
-            "20250211_cell_type_markers_top15_specific.csv",
-        )
-    )
-    # turn ABCAtlas_marker_df to dict
-    cell_types = ABCAtlas_marker_df.columns.tolist()
-    cell_type_dict = {}
-    for cell_type in cell_types:
-        # Skip the index column (0) if present
-        if cell_type == "0":
-            continue
-        # Skip if celltype not in subset_celltypes
-        if (subset_celltypes is not None) and (cell_type not in subset_celltypes):
-            continue
-        # Get values from column, excluding the header row
-        genes = ABCAtlas_marker_df[cell_type].iloc[0:].tolist()
-        # Remove any NaN values
-        genes = [gene for gene in genes if pd.notna(gene)]
-        if subset_genes is not None:
-            genes = [gene for gene in genes if gene in subset_genes]
-        cell_type_dict[cell_type] = genes
-    return cell_type_dict
-
-
 # --- Compute & plotting functions for MECR, F1 and negative marker purity
 
 
@@ -418,7 +360,7 @@ def compute_MECR_score(
 ):
     """Compute MECR Score on specific gene pairs.
 
-    Gene pairs are loaded using load_marker_gene_dict()
+    Gene pairs are built from get_positive_markers()
 
     Args:
         adata: anndata to compute MECR with

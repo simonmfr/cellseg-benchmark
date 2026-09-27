@@ -37,7 +37,7 @@ FORMAT_VIZGEN_SCRIPT="${FORMAT_VIZGEN_SCRIPT:-${SCRIPT_DIR}/format_vizgen.py}"
 
 BASE_PATH="$(realpath -m "${SCRIPT_DIR}/../../data")"
 RESOURCES_DIR="${BASE_PATH}/misc"
-AGGREGATED_COUNTS="${RESOURCES_DIR}/scRNAseq_ref_ABCAtlas_Yao2023Nature/pseudobulk_celltype_for_ficture.norm.tsv.gz"
+AGGREGATED_COUNTS="${RESOURCES_DIR}/scRNAseq_ref_ABCAtlas_Yao2023Nature/pseudobulk_celltype_dea_for_ficture.norm.tsv.gz"
 
 train_width=6
 thread=32
@@ -97,12 +97,12 @@ model_matrix="${fit_prefix}.model_matrix.tsv.gz"
 
 # --- Step 6: load color + plot overview ---
 echo "Step 6: choose color + plot overview"
-GLOBAL_CMAP="${RESOURCES_DIR}/ficture_model.rgb.tsv"
+GLOBAL_CMAP="${AGGREGATED_COUNTS%.tsv.gz}.rgb.tsv"
 cmap_path="${figure_path}/ficture_model.rgb.tsv"
 if [ ! -f "$GLOBAL_CMAP" ]; then
   ficture choose_color --input "${fit_prefix}.fit_result.tsv.gz" \
-    --output "${RESOURCES_DIR}/model.tmp.$$" --cmap_name turbo
-  mv -n "${RESOURCES_DIR}/model.tmp.$$.rgb.tsv" "$GLOBAL_CMAP"
+    --output "${GLOBAL_CMAP%.rgb.tsv}.tmp.$$" --cmap_name turbo
+  mv -n "${GLOBAL_CMAP%.rgb.tsv}.tmp.$$.rgb.tsv" "$GLOBAL_CMAP"
 fi
 cp "$GLOBAL_CMAP" "$cmap_path"
 ficture plot_base --input "${fit_prefix}.fit_result.tsv.gz" \

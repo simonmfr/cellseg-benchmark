@@ -36,10 +36,10 @@ def compute_ficture_f1(
 
     Each transcript is labelled twice: with the cell type implied by its nearest
     FICTURE pixel's top factor (K1, within 5 um) and with the cell type of the
-    segmentation cell it lies in. Both labels are collapsed to canonical parent
-    types (``_constants.true_cluster``) before scoring, so subtypes such as
-    Astroependymal or Neurons-Dopa-Gaba count towards their parent, and transcripts
-    touching markerless types (``_constants.unreliable_celltypes``) are dropped. Fits the
+    segmentation cell it lies in. Both labels are mapped to the cell types in
+    ``_constants.true_cluster`` before scoring, so labels such as Bergmann or
+    Neurons-Dopa-Gaba count towards their parent, and transcripts with a label that
+    is not scored (None or missing, e.g. Neurons-Other, Undefined) are dropped. Fits the
     standard ``compute_metric`` contract and scores all of a method's samples
     in parallel.
 
@@ -63,11 +63,6 @@ def compute_ficture_f1(
         logger.info(f"[{method}] 3D method; skipping FICTURE F1.")
         return None
 
-    factor_to_canonical = {
-        int(factor): _constants.true_cluster[celltype]
-        for factor, celltype in _constants.ficture_factor_to_celltype.items()
-    }
-
     obs = adata.obs[[sample_col, celltype_col]].copy()
     # obs ids are the boundary cell_id (first 10 chars) plus an AnnData suffix
     obs.index = obs.index.astype(str)
@@ -81,7 +76,6 @@ def compute_ficture_f1(
             obs.loc[obs[sample_col] == sample, celltype_col],
             method,
             base_path,
-            factor_to_canonical,
         )
         for sample in samples
     )
@@ -131,7 +125,8 @@ def _transcript_factors(sample, base_path):
 
     Method-independent, so computed once and cached next to the FICTURE output as
     ``ficture_transcript_factors.parquet`` (columns: x, y, factor; factor -1 = no
-    pixel within 5 um). Reused across all segmentation methods.
+    pixel within 5 um). Reused across all segmentation methods; recomputed if FICTURE
+    was rerun after the cache was written.
 
     Raises:
         FileNotFoundError: If the sample has no FICTURE output.
@@ -144,12 +139,12 @@ def _transcript_factors(sample, base_path):
         / "Ficture"
         / "ficture_transcript_factors.parquet"
     )
-    if cache.exists():
+    pixel_file = fu.find_ficture_output(sample, base_path)  # raises if missing
+    if cache.exists() and cache.stat().st_mtime > pathlib.Path(pixel_file).stat().st_mtime:
         logger.info(f"[{sample}] loading cached transcript factors")
         return pd.read_parquet(cache)
 
-    logger.info(f"[{sample}] computing transcript factors (no cache)")
-    pixel_file = fu.find_ficture_output(sample, base_path)  # raises if missing
+    logger.info(f"[{sample}] computing transcript factors (no or outdated cache)")
     sdata = sd.read_zarr(
         pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr",
         selection=("points",),
@@ -183,7 +178,7 @@ def _transcript_factors(sample, base_path):
     return transcripts
 
 
-def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canonical):
+def _labelled_transcripts(sample, celltypes, method, base_path):
     """Return per-transcript canonical labels (ficture, segmentation) for one sample."""
     try:
         transcripts = _transcript_factors(sample, base_path)
@@ -216,15 +211,15 @@ def _labelled_transcripts(sample, celltypes, method, base_path, factor_to_canoni
         )
     labels = pd.DataFrame(
         {
-            "ficture": transcripts["factor"].map(factor_to_canonical).to_numpy(),
+            "ficture": transcripts["factor"]
+            .map(fu.factor_cell_types(fu.find_ficture_output(sample, base_path)))
+            .to_numpy(),
             "segmentation": transcripts["cell"]
             .map(dict(celltypes))
             .map(_constants.true_cluster)
             .to_numpy(),
         }
-    )
-    # drop transcripts touching markerless types (unreliable annotation) on either side
-    labels = labels.replace(_constants.unreliable_celltypes, np.nan).dropna()
+    ).dropna()
 
     del transcripts
     gc.collect()
