@@ -7,7 +7,6 @@
 #SBATCH --cpus-per-task=5
 #SBATCH -J annot_sample
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/merged/annot_sample_%A_%a.log
-#SBATCH -D /home/ubuntu/gitrepos/cellseg-benchmark
 #SBATCH --array=0-44%5
 #SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_new2.sqsh"
 
@@ -55,4 +54,4 @@ echo "running SAMPLE=$SAMPLE | METHOD=$METHOD -> $LOGFILE"
 exec >"$LOGFILE" 2>&1
 
 mamba activate seg_postprocessing
-python scripts/seg_postprocessing/cell_type_annotation.py "$SAMPLE" "$METHOD" "$ROOT"
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/cell_type_annotation.py "$SAMPLE" "$METHOD" "$ROOT"
