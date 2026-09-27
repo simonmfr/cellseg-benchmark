@@ -154,6 +154,7 @@ def integrate_segmentation_data(
     write_to_disk: bool = True,
     data_path: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
+    overwrite_annotation: bool = False,
     **obs,
 ) -> sd.SpatialData:
     """Integrate segmentation data from multiple methods into the main spatial data object.
@@ -172,6 +173,7 @@ def integrate_segmentation_data(
         write_to_disk: Whether to write elements to disk immediately
         data_path: Optional path to directory to get transformation for adatas
         logger: Optional logger object to write messages to console
+        overwrite_annotation: Replace cell type labels of existing tables with the current annotation
         **obs: Additional per-cell annotations to add to `.obs`
               (e.g. condition, batch, etc.).
 
@@ -372,6 +374,13 @@ def integrate_segmentation_data(
                 print(
                     f"Skipping adata import of {seg_method} as adata_{seg_method} exist already."
                 )
+            if overwrite_annotation and os.path.exists(
+                join(sdata_path, "results", seg_method, "cell_type_annotation", "adata_obs_annotated.csv")
+            ):
+                sdata_main = add_cell_type_annotation(sdata_main, sdata_path, seg_method, logger=logger)
+                if write_to_disk:
+                    sdata_main.delete_element_from_disk(f"adata_{seg_method}")
+                    sdata_main.write_element(f"adata_{seg_method}")
 
     return sdata_main
 

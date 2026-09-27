@@ -1,7 +1,17 @@
 #!/usr/bin/env python
+import argparse
 import pathlib
 import shlex
+
 import yaml
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--overwrite_annotation",
+    action="store_true",
+    help="Replace cell type labels of existing tables with the current annotation.",
+)
+args = parser.parse_args()
 
 BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 YAML = BASE_PATH / "misc/sample_metadata.yaml"
@@ -37,6 +47,7 @@ for sample, meta in data.items():
         "--run_date",
         str(meta["run_date"]),
         *extras,
+        *(["--overwrite_annotation"] if args.overwrite_annotation else []),
     ]
     cli_args = " \\\n".join(shlex.quote(str(a)) for a in argv)
 

@@ -43,6 +43,11 @@ def main():
     p.add_argument("--region", type=str, help="region.", default=None)
     p.add_argument("--cohort", type=str, help="cohort.", default=None)
     p.add_argument(
+        "--overwrite_annotation",
+        action="store_true",
+        help="Replace cell type labels of existing tables with the current annotation.",
+    )
+    p.add_argument(
         "--obs",
         action="append",
         default=[],
@@ -90,6 +95,7 @@ def main():
         write_to_disk=True,
         data_path=args.data_path,
         logger=logger,
+        overwrite_annotation=args.overwrite_annotation,
         **extra_obs,
     )
     logger.info("Done.")
