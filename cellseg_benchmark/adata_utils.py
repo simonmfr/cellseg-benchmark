@@ -490,16 +490,17 @@ def filter_spatial_outlier_cells(
 def filter_low_quality_cells(
     adata: ad.AnnData,
     save_path: str,
-    min_counts: int = 25,
+    min_counts: int = 20,
     min_genes: int = 5,
-    min_volume_threshold: int = 10,
+    min_volume_threshold: int = 30,
+    max_volume_fold: float = 5,
     logger: logging.Logger = None,
     remove_outliers: bool = True,
 ) -> ad.AnnData:
     """Flag two types of problematic cells in `adata.obs`.
 
     - 'low_quality_cell': cells with fewer than `min_counts` counts or `min_genes` genes.
-    - 'volume_outlier_cell': cells with volume_final < 100 or > 3× median volume.
+    - 'volume_outlier_cell': cells with volume_final < min_volume_threshold or > max_volume_fold × median volume.
 
     If `remove_outliers` is True:
     - Volume outliers are removed.
@@ -514,6 +515,7 @@ def filter_low_quality_cells(
         min_counts (int): Minimum number of counts per cell to retain.
         min_genes (int): Minimum number of genes per cell to retain.
         min_volume_threshold (int): Minimum volume threshold.
+        max_volume_fold (float): Maximum volume as multiple of the median volume.
         logger (logging.Logger, optional): Optional logger object. Defaults to None.
         remove_outliers (bool, optional): If True, remove outlier cells from adata.
             If False, only mark outliers without filtering. Defaults to True.
@@ -526,7 +528,7 @@ def filter_low_quality_cells(
         adata.obs["n_genes"] < min_genes
     )
 
-    metric, n = "volume_final", 3
+    metric, n = "volume_final", max_volume_fold
     adata.obs["volume_outlier_cell"] = (
         adata.obs[metric]
         > n

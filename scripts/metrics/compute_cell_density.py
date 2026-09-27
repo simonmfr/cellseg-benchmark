@@ -5,15 +5,17 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
+from cellseg_benchmark import BASE_PATH
 from cellseg_benchmark.metrics import (
+    compute_cell_density,
     compute_metric_for_all_methods,
-    extract_general_stats,
-    plot_general_stats,
+    plot_cell_density,
+    tissue_polygons,
 )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Compute general stats for all methods in cohort."
+        description="Compute post-QC cells per mm² of tissue for all methods in cohort."
     )
     parser.add_argument("cohort", help="Cohort name.")
     parser.add_argument(
@@ -24,24 +26,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--overwrite", action="store_true", help="Overwrite existing results"
     )
-
     args = parser.parse_args()
-    results_name = "general_stats/general_stats.csv"
-
-    # compute negative marker purity
+    tissue = tissue_polygons(args.cohort)
     compute_metric_for_all_methods(
-        extract_general_stats,
-        results_name=results_name,
-        **vars(args),
+        compute_cell_density, results_name="cell_density/cell_density.csv", tissue=tissue, **vars(args)
     )
-    for metric in [
-        "volume_final",
-        "area",
-        "circularity",
-        "sphericity_3d",
-        "elongation",
-        "intensities_PolyT",
-        "intensities_DAPI",
-        "Ovrlpy_stats_mean_integrity",
-    ]:
-        plot_general_stats(args.cohort, metric, show=False)
+    plot_cell_density(
+        args.cohort, tissue, pathlib.Path(BASE_PATH) / "metrics" / args.cohort / "cell_density" / "cell_density.png"
+    )
