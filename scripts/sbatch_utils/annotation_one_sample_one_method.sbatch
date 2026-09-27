@@ -8,7 +8,7 @@
 #SBATCH -J annot_single
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/merged/annot_single_%j.log
 #SBATCH -D /home/ubuntu/gitrepos/cellseg-benchmark
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/annotation.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_new2.sqsh"
 #SBATCH --container-mounts=/dev:/dev
 
 # Cell type annotation of one method of one sample. SEG_METHOD is a regex that must match exactly one method.
@@ -45,5 +45,5 @@ LOGFILE="$ROOT/misc/logs/merged/annot_${SAMPLE}_${METHOD}.log"
 echo "running SAMPLE=$SAMPLE | METHOD=$METHOD -> $LOGFILE"
 exec >"$LOGFILE" 2>&1
 
-mamba activate annotation
+mamba activate seg_postprocessing
 python scripts/seg_postprocessing/cell_type_annotation.py "$SAMPLE" "$METHOD" "$ROOT"

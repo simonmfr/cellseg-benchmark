@@ -9,7 +9,7 @@
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/merged/annot_sample_%A_%a.log
 #SBATCH -D /home/ubuntu/gitrepos/cellseg-benchmark
 #SBATCH --array=0-44%5
-#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/annotation.sqsh"
+#SBATCH --container-image="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/benchmark_new2.sqsh"
 
 # Cell type annotation of all methods (sdata.zarr) of one sample, one array task per method.
 # Negative_Control_Rastered_5 is skipped unless SEG_METHOD is set; annotation_submit_sample.sh
@@ -54,5 +54,5 @@ LOGFILE="$ROOT/misc/logs/merged/annot_${SAMPLE}_${METHOD}.log"
 echo "running SAMPLE=$SAMPLE | METHOD=$METHOD -> $LOGFILE"
 exec >"$LOGFILE" 2>&1
 
-mamba activate annotation
+mamba activate seg_postprocessing
 python scripts/seg_postprocessing/cell_type_annotation.py "$SAMPLE" "$METHOD" "$ROOT"
