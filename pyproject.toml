@@ -33,7 +33,7 @@ dependencies = [
     "scipy",
     "seaborn",
     "shapely>=2",
-    "sopa==2.0.6",
+    "sopa==2.1.10",
     "spatialdata<0.6.0",
     "spatialdata-io>=0.1.5",
     "tifffile",
