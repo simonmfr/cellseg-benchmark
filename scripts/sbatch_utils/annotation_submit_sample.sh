@@ -10,5 +10,5 @@ ROOT="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 SAMPLE="$SAMPLE" sbatch "$DIR/annotation_one_sample_all_methods.sbatch"
 if [[ -d "$ROOT/samples/$SAMPLE/results/Negative_Control_Rastered_5/sdata.zarr" ]]; then
   SAMPLE="$SAMPLE" SEG_METHOD='^Negative_Control_Rastered_5$' \
-    sbatch -t 1-12:00:00 --mem=100G "$DIR/annotation_one_sample_one_method.sbatch"
+    sbatch -t 2-00:00:00 --mem=128G "$DIR/annotation_one_sample_one_method.sbatch"
 fi

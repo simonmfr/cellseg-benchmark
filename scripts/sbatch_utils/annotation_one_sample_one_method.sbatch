@@ -2,8 +2,8 @@
 #
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 06:00:00
-#SBATCH --mem=60G
+#SBATCH -t 10:00:00
+#SBATCH --mem=80G
 #SBATCH --cpus-per-task=5
 #SBATCH -J annot_single
 #SBATCH -o /dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/logs/merged/annot_single_%j.log
@@ -13,7 +13,7 @@
 # Cell type annotation of one method of one sample. SEG_METHOD is a regex that must match exactly one method.
 #
 #   SAMPLE=foxf2_s2_r1 SEG_METHOD='^Cellpose_1_nuclei_model$' sbatch annotation_one_sample_one_method.sbatch
-#   SAMPLE=foxf2_s2_r1 SEG_METHOD='^Negative_Control_Rastered_5$' sbatch -t 1-12:00:00 --mem=100G annotation_one_sample_one_method.sbatch
+#   SAMPLE=foxf2_s2_r1 SEG_METHOD='^Negative_Control_Rastered_5$' sbatch -t 2-00:00:00 --mem=128G annotation_one_sample_one_method.sbatch
 
 set -euo pipefail
 
