@@ -517,7 +517,7 @@ def plot_MECR_vs_sensitivity(cohort, results_suffix, show=False):
 
 
 def compute_marker_F1_score(
-    adata, celltype_name, layer="volume_log1p_norm", threshold=1, **kwargs
+    adata, celltype_name, layer="volume_log1p_norm", subset_vascular_celltypes=False, threshold=1, **kwargs
 ):
     """Compute F1 scores for matching marker–cell type pairs.
 
@@ -541,12 +541,18 @@ def compute_marker_F1_score(
     # continue with merged_celltypes
     celltype_name = "merged_celltypes"
 
+    subset_celltypes = adata.obs[celltype_name].unique()
+    if subset_vascular_celltypes:
+        subset_celltypes = list({"ECs", "Pericytes", "SMCs", "VLMCs"}.intersection(subset_celltypes))
+
     marker_dict = get_positive_markers(
-        subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique(), **kwargs
+        subset_genes=adata.var_names,
+        subset_celltypes= subset_celltypes,
+        **kwargs
     )
 
     results = []
-    for sample in adata.obs["sample"].unique():
+    for sample in subset_celltypes:
         cur_adata = adata[adata.obs["sample"] == sample]
 
         # Use the specified layer or adata.X
