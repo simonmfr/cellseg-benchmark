@@ -212,9 +212,11 @@ def compute_3D_intensities(
                 shapes_key=f"boundaries_{idx}",
                 image_key=determine_image(sdata_working, idx),
             ),
-            columns=sopa.utils.get_spatial_image(
-                sdata_working, determine_image(sdata_working, idx)
-            ).coords["c"].values.astype(str),
+            columns=sopa.utils.validated_channel_names(
+                sopa.utils.get_spatial_image(
+                    sdata_working, determine_image(sdata_working, idx), return_key=True
+                )[1]
+            ),
             index=sdata_working[f"boundaries_{idx}"].index.astype(str),
         )
     intensities_stacked = pd.concat(intensities.values(), keys=intensities.keys())

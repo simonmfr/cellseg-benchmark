@@ -14,7 +14,7 @@ import ovrlpy
 import pandas as pd
 import polars
 import shapely
-import sopa.segmentation.shapes
+import sopa.shapes
 import xarray
 
 
@@ -282,7 +282,7 @@ def aggregate_channels_aligned(
 
         for index in intersections:
             cell = cells[index]
-            bounds = sopa.segmentation.shapes.pixel_outer_bounds(cell.bounds)
+            bounds = sopa.shapes._vectorize.pixel_outer_bounds(cell.bounds)
 
             sub_image = chunk[
                 :,
@@ -293,7 +293,7 @@ def aggregate_channels_aligned(
             if sub_image.shape[1] == 0 or sub_image.shape[2] == 0:
                 continue
 
-            mask = sopa.segmentation.shapes.rasterize(cell, sub_image.shape[1:], bounds)
+            mask = sopa.shapes._rasterize.rasterize(cell, sub_image.shape[1:], bounds)
 
             areas[index] += np.sum(mask)
 
