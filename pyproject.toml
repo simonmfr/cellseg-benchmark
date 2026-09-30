@@ -38,6 +38,7 @@ dependencies = [
     "spatialdata-io>=0.1.5",
     "setuptools==80.0.0",
     "tifffile",
+    "trimap",
     "tqdm",
     "xarray",
 ]
