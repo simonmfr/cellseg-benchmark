@@ -104,7 +104,7 @@ def plot_clustering_scores(cohort, results_suffix, show=False):
     plt.style.use("seaborn-v0_8-whitegrid")
     # --- Figure 1: boxplot of CH/SH scores ---
     palette = sns.color_palette("viridis_r", n_colors=len(mean_scores))
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6), dpi=300)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6), dpi=300)
 
     # box plot of CH scores
     ch_order = list(
