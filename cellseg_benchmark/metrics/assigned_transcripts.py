@@ -284,7 +284,7 @@ def plot_assigned_transcripts(
         ax.scatter(pos - w / 2, raw_pct, s=4, c="k", alpha=.2, zorder=3)
         ax.scatter(pos + w / 2, qc_pct, s=4, c="k", alpha=.2, zorder=3)
 
-        ax.set_xticks(p, order, rotation=-45, ha="left", va="top")
+        ax.set_xticks(p, order, rotation=45, ha="left", va="top")
         ax.set_ylabel("Transcript assignment (%)")
         ax.set_xlim(-.5, len(order) - .5)
 
@@ -409,7 +409,7 @@ def plot_assigned_transcripts_heatmap(
     ax.set_xticks(np.arange(n_methods))
     ax.set_xticklabels(
         [clean_method_name(m) for m in display_methods],
-        fontsize=7, rotation=-45, ha="left", va="top", rotation_mode="anchor",
+        fontsize=7, rotation=45, ha="left", va="top", rotation_mode="anchor",
     )
 
     for j, m in enumerate(display_methods):
