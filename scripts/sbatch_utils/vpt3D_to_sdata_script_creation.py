@@ -31,8 +31,8 @@ for key, value in data.items():
 
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 00:05:00
-#SBATCH --mem=75G
+#SBATCH -t 01:00:00
+#SBATCH --mem=150G
 #SBATCH -J vpt3D_{key}_{args.staining}{adapt}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/vpt3D_to_sdata_{key}_{args.staining}{adapt}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/vpt3D_to_sdata_{key}_{args.staining}{adapt}.err
