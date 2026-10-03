@@ -29,8 +29,8 @@ for key, value in data.items():
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 2-00:00:00
-#SBATCH --mem=240G
+#SBATCH -t 1-00:00:00
+#SBATCH --mem=128G
 #SBATCH --cpus-per-task=30
 #SBATCH -J ComSeg_{key}_CP{cp_tag}_{args.staining}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/%x.out
@@ -50,6 +50,7 @@ start_run_log
 
 mamba activate segmentation
 pip install -q comseg==1.8.5
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/comseg_cap_patch.py
 
 mkdir -p "${{RESULT_DIR}}"
 python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/comseg_sopa.py \\
