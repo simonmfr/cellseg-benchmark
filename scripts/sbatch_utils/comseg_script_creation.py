@@ -31,7 +31,7 @@ for key, value in data.items():
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t 1-00:00:00
-#SBATCH --mem=128G
+#SBATCH --mem=240G
 #SBATCH --cpus-per-task=30
 #SBATCH -J ComSeg_{key}_CP{cp_tag}_{args.staining}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/%x.out
