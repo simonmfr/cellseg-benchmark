@@ -50,7 +50,6 @@ CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/comseg_sopa.py
 start_run_log
 
 mamba activate segmentation
-pip install -q comseg==1.8.5
 python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/comseg_cap_patch.py
 
 mkdir -p "${{RESULT_DIR}}"
