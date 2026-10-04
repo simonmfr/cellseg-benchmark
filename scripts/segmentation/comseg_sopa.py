@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description="Run ComSeg segmentation.")
 parser.add_argument("data_path", help="Path to merfish output folder.")
 parser.add_argument("sample", help="Sample name.")
 parser.add_argument(
-    "base_segmentation", help="Name of prior segmentation to use for initializaton."
+    "base_segmentation", help="Name of prior segmentation to use for initialization."
 )
 args = parser.parse_args()
 
@@ -34,7 +34,9 @@ def main(data_path, sample, base_segmentation):
         sdata[list(sdata_tmp.points.keys())[0]] = sdata_tmp[
             list(sdata_tmp.points.keys())[0]
         ]
-        sdata.attrs["cell_segmentation_image"] = sdata_tmp.attrs["cell_segmentation_image"]
+        sdata.attrs["cell_segmentation_image"] = sdata_tmp.attrs[
+            "cell_segmentation_image"
+        ]
         sdata.attrs["transcripts_dataframe"] = sdata_tmp.attrs["transcripts_dataframe"]
         del sdata_tmp
         sdata.write(tmp_path)
