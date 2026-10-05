@@ -58,8 +58,12 @@ def main(data_path, sample, base_segmentation):
     )
     sopa.settings.dask_client_kwargs["threads_per_worker"] = 1
 
-    path_json = pathlib.Path(__file__).parents[2] / "configs" / "comseg.json"
-    sopa.segmentation.comseg(sdata, config=str(path_json), min_area=10, recover=True)
+    config = str(pathlib.Path(__file__).parents[2] / "configs" / "comseg.json")
+    try:
+        sopa.segmentation.comseg(sdata, config=config, min_area=10, recover=True)
+    except TimeoutError:
+        sopa.settings.parallelization_backend = None
+        sopa.segmentation.comseg(sdata, config=config, min_area=10, recover=True)
 
     sopa.aggregate(
         sdata,
