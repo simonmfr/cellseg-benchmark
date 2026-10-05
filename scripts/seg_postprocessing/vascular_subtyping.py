@@ -336,7 +336,7 @@ def main():
         .fillna(merged.obs[cell_type_col].astype("object"))
     )
 
-    # set "otherECs" for specific cell types without ec annotation. these were previously removed as contamination.
+    # ECs without a zonation call
     missed_ECs_mask = merged.obs["ec_zonation"].isna() & merged.obs[cell_type_col].isin(
         ["ECs"]
     )

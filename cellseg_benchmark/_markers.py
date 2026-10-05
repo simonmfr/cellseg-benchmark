@@ -1026,12 +1026,14 @@ neuronal_cell_subtypes_merfish_panel_500_mouse_brain = {
     "GABAergic main subclasses": ["Pvalb", "Sst", "Vip", "Sncg", "Lamp5"],
 }
 
+# Literature EC zonation markers minus genes in any non-EC ABC atlas top100 marker list
+# (misc/scRNAseq_ref_ABCAtlas_Yao2023Nature/marker_genes_df/20260927_cell_type_markers_top100.csv).
+# Dropped: Mgp, Igf2, Notch3, Clu, Mfsd2a, Cxcl12, Car4, Flrt2, Vcam1, Ctsc.
 selected_EC_subtypes = {
     "aECs": [
         "Bmx",
         "Efnb2",
         "Vegfc",
-        "Mgp",
         "Cytl1",
         "Sema3g",
         "Gkn3",
@@ -1039,36 +1041,26 @@ selected_EC_subtypes = {
         "Hey1",
         "Egfl8",
         "Jag1",
-        "Igf2",
-        "Notch3",
-        "Mgp",
-        "Clu",
     ],
     "capECs": [
         "Slc7a5",
-        "Mfsd2a",
         "Tfrc",
         "Slc16a1",
         "Meox1",
         "Col4a3",
         "Angpt2",
         "Rgcc",
-        "Cxcl12",
         "Ecscr",
         "Apln",
-        "Car4",
     ],
     "vECs": [
         "Nr2f2",
         "Slc38a5",
-        "Flrt2",
         "Ier3",
         "Ackr1",
         "Lcn2",
-        "Vcam1",
         "Ly6c1",
         "Ly6a",
-        "Ctsc",
     ],
 }
 
