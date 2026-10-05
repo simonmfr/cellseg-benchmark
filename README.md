@@ -127,7 +127,7 @@ We're assuming that the container is properly setup with python.
   printf 'NVIDIA_VISIBLE_DEVICES=all\nNVIDIA_DRIVER_CAPABILITIES=compute,utility\n' \
     >> $ROOTFS/etc/environment
   ```
-+ **Cellpose and ComSeg installation:** `pip install cellpose comseg==1.8.5` in the `segmentation` env.
++ **Cellpose and ComSeg installation:** `pip install cellpose==3.1.1.1 comseg==1.8.5` in the `segmentation` env.
 + **Proseg installation:** install cargo (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`), then `cargo install proseg`.
 + **CellSAM installation:**
   ```bash
