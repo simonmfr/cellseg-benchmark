@@ -1,5 +1,5 @@
 from .assigned_transcripts import compute_assigned_transcripts, plot_assigned_transcripts, plot_assigned_transcripts_heatmap
-from .cell_type import compute_cell_type_distribution, plot_cell_type_distribution
+from .cell_type import compute_annotation_qc, compute_cell_type_distribution, plot_cell_type_distribution
 from .clustering import compute_clustering_scores, plot_clustering_scores
 from .ficture import compute_ficture_f1, plot_ficture_f1
 from .general import extract_general_stats, plot_general_stats, tissue_polygons, compute_cell_density, plot_cell_density, extract_mem_and_time, plot_mem_and_time
@@ -38,6 +38,7 @@ __all__ = [
     "compute_assigned_transcripts",
     "plot_assigned_transcripts",
     "plot_assigned_transcripts_heatmap",
+    "compute_annotation_qc",
     "compute_cell_type_distribution",
     "plot_cell_type_distribution",
     "compute_clustering_scores",

@@ -1,5 +1,7 @@
+import json
 from pathlib import Path
 
+import anndata as ad
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -24,6 +26,56 @@ def compute_cell_type_distribution(adata, celltype_name, **kwargs):
     # compute clustering score per sample
     results = _cell_type_distribution(adata, celltype_name)
     return results.reset_index(names="sample")
+
+
+def compute_annotation_qc(adata, method, base_path=_constants.BASE_PATH, mad_factor=3.0, **kwargs):
+    """`annotation_qc_summary` on post-merge cells, per sample and pooled ("all").
+
+    Rebuilds per-cell MapMyCells output and SCALPEL QC from each sample's annotation folder,
+    as in cell_type_annotation.py, and restricts it to the cells kept by merge_adata.
+    """
+    from ..cell_annotation_utils import (
+        annotation_qc_summary,
+        group_cell_types,
+        process_mapmycells_output,
+        scalpel_qc,
+    )
+
+    subs = {}
+    for sample in adata.obs["sample"].unique():
+        ann_path = Path(base_path) / "samples" / sample / "results" / method / "cell_type_annotation"
+        jsons = sorted(ann_path.glob(f"mapmycells_out/*MapMyCells_{sample}_{method}.json"))
+        if not jsons:
+            print(f"No MapMyCells output for {sample}, skipping")
+            continue
+        with open(jsons[-1], "rb") as f:
+            mmc = process_mapmycells_output(json.load(f))
+        mmc = mmc.join(scalpel_qc(mmc["allen_cor_SUPT"], mmc["allen_SUPT"], mad_factor))
+        mmc["allen_SUBC"] = group_cell_types(mmc["allen_SUBC"]).fillna("Undefined")
+        mmc.index = mmc.index.astype(str)
+        labels = pd.read_csv(
+            ann_path / "adata_obs_annotated.csv",
+            usecols=["cell_id", "cell_type_vote", "cell_type_revised"],
+            dtype={"cell_id": str},
+        ).set_index("cell_id")
+
+        sub = adata[adata.obs["sample"] == sample]
+        ids = sub.obs_names.astype(str)
+        ids = ids.where(ids.isin(labels.index), ids.str.replace(r"-\d+$", "", regex=True))
+        keep = ids.isin(labels.index) & ids.isin(mmc.index)
+        if not keep.all():
+            print(f"{sample}: {(~keep).sum()} merged cells without annotation, dropped")
+        sub, ids = sub[keep], ids[keep]
+        subs[sample] = ad.AnnData(
+            obs=labels.loc[ids].set_axis(sub.obs_names).assign(volume=sub.obs["volume_final"].to_numpy()),
+            obsm={"allen_cell_type_mapping": mmc.loc[ids].set_axis(sub.obs_names)},
+            var=sub.var[[]],
+            layers={"counts": sub.layers["counts"]},
+        )
+    if not subs:
+        return None
+    subs["all"] = ad.concat(subs.values(), merge="first")
+    return pd.DataFrame({s: annotation_qc_summary(a) for s, a in subs.items()}).T.reset_index(names="sample")
 
 
 def _cell_type_distribution(adata, celltype_name):
