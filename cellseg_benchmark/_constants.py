@@ -68,6 +68,12 @@ method_colors = {
     "Proseg_3D_vpt3D_DAPI_nuclei": "#f1d9a1",
     "Proseg_3D_vpt3D_DAPI_PolyT": "#f3e4bf",
     "Proseg_3D_vpt3D_DAPI_PolyT_nuclei": "#f5f0df",
+    # ComSeg (brown)
+    "ComSeg_Cellpose_1_nuclei_model": "#543005",
+    "ComSeg_Cellpose_1_DAPI_PolyT": "#7f4a10",
+    "ComSeg_Cellpose_1_DAPI_Transcripts": "#a0652a",
+    "ComSeg_Cellpose_2_DAPI_PolyT": "#c08552",
+    "ComSeg_Cellpose_2_DAPI_Transcripts": "#d8ab84",
 #    # Proseg 2D (outdated)
 #    "Proseg_pure": "#4a1486",
 #    "Proseg_Cellpose_1_DAPI_PolyT": "#5a0876",
@@ -77,7 +83,6 @@ method_colors = {
 #    "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
     # Other
     "Watershed_Merlin": "#1b7c83",
-    "ComSeg": "#8c510a",
     # Ficture based
     'Ficture_segments_dapi': "#5a0876",
     'Ficture_segments': "#7d3db3",
@@ -128,12 +133,16 @@ method_names = {
     "Proseg_3D_vpt3D_DAPI_nuclei": "Proseg 3D (CP1 3D N)",
     "Proseg_3D_vpt3D_DAPI_PolyT": "Proseg 3D (CP1 3D P)",
     "Proseg_3D_vpt3D_DAPI_PolyT_nuclei": "Proseg 3D (CP1 3D P+N)",
+    "ComSeg_Cellpose_1_nuclei_model": "ComSeg Sopa (CP1 N)",
+    "ComSeg_Cellpose_1_DAPI_PolyT": "ComSeg Sopa (CP1 P)",
+    "ComSeg_Cellpose_1_DAPI_Transcripts": "ComSeg Sopa (CP1 T)",
+    "ComSeg_Cellpose_2_DAPI_PolyT": "ComSeg Sopa (CP2 P)",
+    "ComSeg_Cellpose_2_DAPI_Transcripts": "ComSeg Sopa (CP2 T)",
     "Negative_Control_Rastered_5": "Raster 5μm",
     "Negative_Control_Rastered_10": "Raster 10μm",
     "Negative_Control_Rastered_25": "Raster 25μm",
     "Negative_Control_Voronoi": "Voronoi",
     "Negative_Control_Visium": "Visium",
-    "ComSeg": "ComSeg",
     "SIS_DAPI_total_mrna": "Spots-In-Space 3D",
     "Watershed_Merlin": "Watershed 3D P Merlin",
     "Ficture_segments_dapi": "Ficture Seg (CP1 3D N)",

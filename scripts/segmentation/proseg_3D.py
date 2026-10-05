@@ -27,7 +27,7 @@ proseg_flags = " ".join(args.proseg_flags)
 
 
 def main(data_path, sample, base_segmentation, proseg_flags):
-    """ComSeg algorithm by sopa with dask backend parallelized."""
+    """Proseg algorithm by sopa with dask backend parallelized."""
     sdata_tmp = sopa.io.merscope(data_path)  # to read in the images and points
     path = f"{BASE_PATH}/samples/{sample}/results"
     sdata = read_zarr(

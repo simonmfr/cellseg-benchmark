@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import pathlib
+
 import yaml
 
 parser = argparse.ArgumentParser(description="Generate ComSeg sbatch scripts.")
@@ -18,39 +19,42 @@ SBATCH_DIR = BASE_PATH / f"misc/sbatches/sbatch_ComSeg_CP{args.CP_version}_{args
 SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 
 for key, value in data.items():
-    cp_tag = "CP1" if args.staining == "nuclei" else f"CP{args.CP_version}"
-    job_name = f"ComSeg_{key}_{cp_tag}_{args.staining}"
-    result_dir = (
-        f"Cellpose_{args.CP_version}_DAPI_{args.staining}"
-        if args.staining != "nuclei"
-        else f"Cellpose_1_{args.staining}_model"
+    cp_tag = "1" if args.staining == "nuclei" else args.CP_version
+    base_segmentation = (
+        f"Cellpose_1_{args.staining}_model"
+        if args.staining == "nuclei"
+        else f"Cellpose_{args.CP_version}_DAPI_{args.staining}"
     )
 
-    sbatch_path = SBATCH_DIR / f"{key}.sbatch"
-    with open(sbatch_path, "w") as f:
-        f.write(
-            f"""#!/bin/bash
-
+    with open(SBATCH_DIR / f"{key}.sbatch", "w") as f:
+        f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
-#SBATCH -t 12:00:00
-#SBATCH --mem=160G
-#SBATCH --cpus-per-task=20
-#SBATCH -J {job_name}
+#SBATCH -t 1-00:00:00
+#SBATCH --mem=240G
+#SBATCH --cpus-per-task=30
+#SBATCH -J ComSeg_{key}_CP{cp_tag}_{args.staining}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/%x.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/%x.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new2.sqsh"
 
-set -eu
+set -euo pipefail
+source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
 
-cd $HOME/gitrepos/spatialdata
-git pull -q
-cd $HOME/gitrepos/cellseg-benchmark
+KEY="{key}"
+CP_VERSION="{cp_tag}"
+STAINING="{args.staining}"
+INPUT_PATH="{value["path"]}"
+RESULT_DIR="{BASE_PATH}/samples/{key}/results/ComSeg_{base_segmentation}"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/comseg_sopa.py \\"${{INPUT_PATH}}\\" ${{KEY}} {base_segmentation}"
+start_run_log
 
-mamba activate sopa
+mamba activate segmentation
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/comseg_cap_patch.py
 
-mkdir -p {BASE_PATH}/samples/{key}/results/ComSeg_{result_dir}
-
-python scripts/segmentation/comseg.py {value["path"]} {key} {result_dir}
-"""
-        )
+mkdir -p "${{RESULT_DIR}}"
+python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/comseg_sopa.py \\
+  "${{INPUT_PATH}}" \\
+  "${{KEY}}" \\
+  "{base_segmentation}"
+""")
