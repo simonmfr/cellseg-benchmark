@@ -62,6 +62,9 @@ def main(data_path, sample, base_segmentation):
     try:
         sopa.segmentation.comseg(sdata, config=config, min_area=10, recover=True)
     except TimeoutError:
+        dirs = sopa.utils.get_transcripts_patches_dirs(sdata)
+        if not all((d / "segmentation_counts.h5ad").exists() for d in dirs):
+            raise
         sopa.settings.parallelization_backend = None
         sopa.segmentation.comseg(sdata, config=config, min_area=10, recover=True)
 
