@@ -7,8 +7,16 @@ import subprocess
 import anndata
 import geopandas
 import h5py
+import joblib
+import numpy as np
 import pandas as pd
+import rasterio.features
+import rasterio.transform
+import scipy.ndimage
 import scipy.sparse
+import scipy.spatial
+import scipy.stats
+import shapely.geometry
 import sopa.aggregation
 import sopa.io.explorer
 import sopa.utils
@@ -44,6 +52,70 @@ def read_boundaries(path):
     return gdf
 
 
+def _plane_polygons(m, z, x0, y0, grid_shape, pixel, k, max_dist, min_area):
+    xy = m[["x", "y"]].to_numpy()
+    ij = ((xy - [x0, y0]) / pixel).astype(int)
+    occ = np.zeros(grid_shape, bool)
+    occ[ij[:, 1], ij[:, 0]] = True
+    near = scipy.ndimage.distance_transform_edt(~occ) <= max_dist / pixel
+    rows, cols = np.nonzero(near)
+    pts = (np.c_[cols, rows] + 0.5) * pixel + [x0, y0]
+    _, idx = scipy.spatial.cKDTree(xy).query(pts, k=k, distance_upper_bound=max_dist)
+    lab = np.append(m["code"].to_numpy(), -1)[idx.reshape(len(pts), -1)]
+    labels = np.full(grid_shape, -1, np.int32)
+    labels[rows, cols] = scipy.stats.mode(lab, axis=1).mode
+
+    shapes = list(
+        rasterio.features.shapes(
+            labels,
+            mask=labels >= 0,
+            transform=rasterio.transform.Affine(pixel, 0, x0, 0, pixel, y0),
+        )
+    )
+    gdf = geopandas.GeoDataFrame(
+        {"code": [int(v) for _, v in shapes]},
+        geometry=[shapely.geometry.shape(g) for g, _ in shapes],
+    )
+    gdf = gdf.assign(area=gdf.area).sort_values("area")
+    gdf = gdf.drop_duplicates("code", keep="last")
+    gdf["geometry"] = gdf.simplify(pixel / 2)
+    gdf = gdf[gdf.area >= min_area]
+    gdf["layer"] = z
+    return gdf.drop(columns="area")
+
+
+def plane_boundaries(
+    mol, pixel=0.5, z_window=1.0, k=7, max_dist=2.5, min_area=1.0, n_jobs=8
+):
+    """Per imaged z plane polygons: kNN label raster of assigned molecules."""
+    mol = mol[~mol["is_noise"] & mol["cell"].notna()].copy()
+    mol["code"], cells = pd.factorize(mol["cell"])
+    x0, y0 = mol["x"].min(), mol["y"].min()
+    grid_shape = (
+        int((mol["y"].max() - y0) / pixel) + 1,
+        int((mol["x"].max() - x0) / pixel) + 1,
+    )
+    gdfs = joblib.Parallel(n_jobs=n_jobs)(
+        joblib.delayed(_plane_polygons)(
+            mol[(mol["z"] - z).abs() <= z_window],
+            z,
+            x0,
+            y0,
+            grid_shape,
+            pixel,
+            k,
+            max_dist,
+            min_area,
+        )
+        for z in np.unique(mol["z"])
+    )
+    gdf = geopandas.GeoDataFrame(pd.concat(gdfs, ignore_index=True))
+    gdf["cell_id"] = cells.astype(str)[gdf.pop("code")]
+    gdf.set_index("cell_id", drop=False, inplace=True)
+    gdf.index = gdf.index.rename(None)
+    return gdf
+
+
 def main():
     """Convert a Baysor de novo parquet bundle to sdata.zarr."""
     parser = argparse.ArgumentParser(
@@ -51,9 +123,7 @@ def main():
     )
     parser.add_argument("data_path", help="Path to merfish output folder.")
     parser.add_argument("save_path", help="Path to Baysor_*_denovo results folder.")
-    parser.add_argument(
-        "--explorer", action="store_true", help="Write explorer files."
-    )
+    parser.add_argument("--explorer", action="store_true", help="Write explorer files.")
     args = parser.parse_args()
 
     save_path = pathlib.Path(args.save_path)
@@ -65,23 +135,34 @@ def main():
             f"Missing {feature_matrix}; Baysor output not correctly computed"
         )
 
-    logger.info("Loading images...")
-    sdata = spatialdata_io.merscope(
-        data_path,
-        transcripts=False,
-        mosaic_images=True,
-        cells_boundaries=False,
-    )
+    has_images = (data_path / "images").is_dir()
+    if has_images:
+        logger.info("Loading images...")
+        sdata = spatialdata_io.merscope(
+            data_path,
+            transcripts=False,
+            mosaic_images=True,
+            cells_boundaries=False,
+        )
+    else:
+        logger.info("No images; boundaries stay in microns, no intensities.")
+        sdata = spatialdata.SpatialData()
 
     logger.info("Loading boundaries...")
     boundaries_3d = baysor_out / "cell_boundaries_3d.parquet"
     is_3d = boundaries_3d.exists()
     if is_3d:
         boundaries = read_boundaries(boundaries_3d)
-        boundaries["ZLevel"] = boundaries["layer"].astype(float)
-        boundaries["ZIndex"] = (
-            boundaries["ZLevel"].rank(method="dense").astype(int) - 1
+        mol = pd.read_parquet(
+            baysor_out / "segmentation.parquet",
+            columns=["x", "y", "z", "cell", "is_noise"],
         )
+        if mol["z"].nunique() > boundaries["layer"].nunique():
+            logger.info("Baysor binned z layers; rebuilding per imaged plane...")
+            boundaries = plane_boundaries(mol)
+        del mol
+        boundaries["ZLevel"] = boundaries["layer"].astype(float)
+        boundaries["ZIndex"] = boundaries["ZLevel"].rank(method="dense").astype(int) - 1
         # Estimated from all of a cell's molecules, wider than the union of z layers.
         outlines = read_boundaries(baysor_out / "cell_boundaries.parquet")
         intensity_shapes_key = "baysor_outlines"
@@ -94,23 +175,24 @@ def main():
     if outlines is not None:
         sdata["baysor_outlines"] = spatialdata.models.ShapesModel.parse(outlines)
 
-    translation = pd.read_csv(
-        data_path / "images" / "micron_to_mosaic_pixel_transform.csv",
-        sep=" ",
-        header=None,
-    )
-    transform = spatialdata.transformations.Affine(
-        translation.to_numpy(),
-        input_axes=("x", "y"),
-        output_axes=("x", "y"),
-    )
-    spatialdata.transformations.set_transformation(
-        sdata["baysor_boundaries"], transform
-    )
-    if outlines is not None:
-        spatialdata.transformations.set_transformation(
-            sdata["baysor_outlines"], transform
+    if has_images:
+        translation = pd.read_csv(
+            data_path / "images" / "micron_to_mosaic_pixel_transform.csv",
+            sep=" ",
+            header=None,
         )
+        transform = spatialdata.transformations.Affine(
+            translation.to_numpy(),
+            input_axes=("x", "y"),
+            output_axes=("x", "y"),
+        )
+        spatialdata.transformations.set_transformation(
+            sdata["baysor_boundaries"], transform
+        )
+        if outlines is not None:
+            spatialdata.transformations.set_transformation(
+                sdata["baysor_outlines"], transform
+            )
 
     logger.info("Loading counts...")
     with h5py.File(baysor_out / "feature_matrix.h5", "r") as f:
@@ -144,16 +226,17 @@ def main():
     )
 
     # per z plane intensities come from intensities_3D.py, run after this
-    logger.info("Aggregating channel intensities...")
-    sdata["table"].obsm["intensities"] = pd.DataFrame(
-        sopa.aggregation.aggregate_channels(sdata, shapes_key=intensity_shapes_key),
-        columns=sopa.utils.validated_channel_names(
-            sopa.utils.get_spatial_image(
-                sdata, list(sdata.images.keys())[0], return_key=True
-            )[1]
-        ),
-        index=sdata[intensity_shapes_key].index.astype(str),
-    ).reindex(sdata["table"].obs["cell_id"])
+    if has_images:
+        logger.info("Aggregating channel intensities...")
+        sdata["table"].obsm["intensities"] = pd.DataFrame(
+            sopa.aggregation.aggregate_channels(sdata, shapes_key=intensity_shapes_key),
+            columns=sopa.utils.validated_channel_names(
+                sopa.utils.get_spatial_image(
+                    sdata, list(sdata.images.keys())[0], return_key=True
+                )[1]
+            ),
+            index=sdata[intensity_shapes_key].index.astype(str),
+        ).reindex(sdata["table"].obs["cell_id"])
 
     if outlines is not None:
         del sdata["baysor_outlines"]
