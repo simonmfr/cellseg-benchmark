@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 import argparse
+import collections
+import itertools
 import logging
 import pathlib
 import subprocess
 
 import anndata
-import cv2
 import geopandas
 import h5py
-import joblib
 import numpy as np
 import pandas as pd
-import scipy.ndimage
 import scipy.sparse
 import scipy.spatial
 import shapely
@@ -31,17 +30,19 @@ logger.addHandler(handler)
 
 
 def read_boundaries(path):
-    """GeoParquet polygons -> GeoDataFrame indexed by cell_id.
-
-    Self-intersecting rings on sparse z layers are repaired, empty ones dropped.
-    """
+    """GeoParquet polygons -> GeoDataFrame indexed by cell_id."""
     gdf = geopandas.read_parquet(path).rename(columns={"cell": "cell_id"})
+    return clean_boundaries(gdf, path.name)
+
+
+def clean_boundaries(gdf, name):
+    """Self-intersecting rings on sparse z layers are repaired, empty ones dropped."""
     invalid = ~gdf.geometry.is_valid
     if invalid.any():
         gdf.loc[invalid, "geometry"] = gdf.loc[invalid, "geometry"].buffer(0)
     empty = gdf.geometry.is_empty
     logger.info(
-        f"{path.name}: {len(gdf)} polygons, {invalid.sum()} repaired, "
+        f"{name}: {len(gdf)} polygons, {invalid.sum()} repaired, "
         f"{empty.sum()} dropped as empty"
     )
     gdf = gdf[~empty]
@@ -50,69 +51,59 @@ def read_boundaries(path):
     return gdf
 
 
-def _plane_polygons(m, z, x0, y0, grid_shape, pixel, k, max_dist, min_area):
-    xy = m[["x", "y"]].to_numpy()
-    ij = ((xy - [x0, y0]) / pixel).astype(int)
-    occ = np.zeros(grid_shape, bool)
-    occ[ij[:, 1], ij[:, 0]] = True
-    near = scipy.ndimage.distance_transform_edt(~occ) <= max_dist / pixel
-    rows, cols = np.nonzero(near)
-    pts = (np.c_[cols, rows] + 0.5) * pixel + [x0, y0]
-    _, idx = scipy.spatial.cKDTree(xy).query(pts, k=k, distance_upper_bound=max_dist)
-    lab = np.append(m["code"].to_numpy(), -1)[idx.reshape(len(pts), -1)]
-    labels = np.zeros(grid_shape, np.int32)
-    votes = (lab[:, :, None] == lab[:, None, :]).sum(2, dtype=np.uint8)
-    labels[rows, cols] = lab[np.arange(len(lab)), votes.argmax(1)] + 1
-
-    codes, polys = [], []
-    for code, sl in enumerate(scipy.ndimage.find_objects(labels)):
-        if sl is None:
-            continue
-        crop = (labels[sl] == code + 1).astype(np.uint8)
-        contours, _ = cv2.findContours(crop, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        c = max(contours, key=cv2.contourArea)[:, 0, :]
-        if len(c) < 3:
-            continue
-        xy = (c + [sl[1].start, sl[0].start] + 0.5) * pixel + [x0, y0]
-        codes.append(code)
-        polys.append(shapely.Polygon(xy))
-    gdf = geopandas.GeoDataFrame({"code": codes}, geometry=polys)
-    gdf["geometry"] = gdf.simplify(pixel / 2).buffer(0)
-    gdf = gdf[gdf.area >= min_area]
-    gdf["layer"] = z
-    return gdf
+def _cell_polygon(xy, foreign):
+    """Baysor cpp-0.8.3: Delaunay of the cell, minus border triangles with other molecules."""
+    tris = scipy.spatial.Delaunay(xy).simplices
+    edges = [
+        [tuple(sorted(e)) for e in itertools.combinations(t, 2)] for t in tris.tolist()
+    ]
+    count = collections.Counter(e for es in edges for e in es)
+    border = collections.Counter(v for e, n in count.items() if n == 1 for v in e)
+    keep = np.ones(len(tris), bool)
+    for _ in range(100):
+        peeled = False
+        for i, es in enumerate(edges):
+            if (
+                keep[i]
+                and sum(count[e] == 1 for e in es) == 1
+                and not any(
+                    count[e] == 2 and border[e[0]] == border[e[1]] == 2 for e in es
+                )
+                and shapely.contains_xy(shapely.Polygon(xy[tris[i]]), *foreign.T).any()
+            ):
+                keep[i], peeled = False, True
+                for e in es:
+                    count[e] -= 1
+                    d = {0: -1, 1: 1}.get(count[e], 0)
+                    border[e[0]] += d
+                    border[e[1]] += d
+        if not peeled:
+            break
+    return shapely.coverage_union_all(shapely.polygons(xy[tris[keep]]))
 
 
-def plane_boundaries(
-    mol, pixel=0.5, z_window=1.0, k=7, max_dist=2.5, min_area=1.0, n_jobs=8
-):
-    """Per imaged z plane polygons: kNN label raster of assigned molecules."""
-    mol = mol[~mol["is_noise"] & mol["cell"].notna()].copy()
-    mol["code"], cells = pd.factorize(mol["cell"])
-    x0, y0 = mol["x"].min(), mol["y"].min()
-    grid_shape = (
-        int((mol["y"].max() - y0) / pixel) + 1,
-        int((mol["x"].max() - x0) / pixel) + 1,
-    )
-    gdfs = joblib.Parallel(n_jobs=n_jobs)(
-        joblib.delayed(_plane_polygons)(
-            mol[(mol["z"] - z).abs() <= z_window],
-            z,
-            x0,
-            y0,
-            grid_shape,
-            pixel,
-            k,
-            max_dist,
-            min_area,
-        )
-        for z in np.unique(mol["z"])
-    )
-    gdf = geopandas.GeoDataFrame(pd.concat(gdfs, ignore_index=True))
-    gdf["cell_id"] = cells.astype(str)[gdf.pop("code")]
-    gdf.set_index("cell_id", drop=False, inplace=True)
-    gdf.index = gdf.index.rename(None)
-    return gdf
+def plane_boundaries(mol):
+    """Baysor's 3D cell polygons on every imaged z plane instead of binned layers."""
+    rows = []
+    for z, m in mol.groupby("z"):
+        xy = m[["x", "y"]].to_numpy()
+        cell = m["cell"].where(~m["is_noise"]).to_numpy()
+        order = np.argsort(xy[:, 0])
+        xs = xy[order, 0]
+        for c, ids in pd.Series(cell).groupby(cell).indices.items():
+            if len(ids) < 3:
+                continue
+            lo, hi = xy[ids].min(0), xy[ids].max(0)
+            box = order[
+                np.searchsorted(xs, lo[0]) : np.searchsorted(xs, hi[0], "right")
+            ]
+            box = box[(xy[box, 1] >= lo[1]) & (xy[box, 1] <= hi[1]) & (cell[box] != c)]
+            try:
+                rows.append((str(c), z, _cell_polygon(xy[ids], xy[box])))
+            except scipy.spatial.QhullError:
+                pass
+    gdf = geopandas.GeoDataFrame(rows, columns=["cell_id", "layer", "geometry"])
+    return clean_boundaries(gdf, "per-plane polygons")
 
 
 def main():
