@@ -693,7 +693,7 @@ def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
     )
 
     if any([seg_method.startswith(method) for method in _constants.image_based]):
-        if seg_method == "Cellpose_1_Merlin" or seg_method == "Negative_Control_Visium":
+        if seg_method in ["Cellpose_1_Merlin", "Watershed_Merlin", "Negative_Control_Visium"]:
             sd.transformations.set_transformation(
                 sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron"
             )
@@ -830,7 +830,7 @@ def get_2D_boundaries(
     else:
         sdata[f"boundaries_{method}"] = sd.models.ShapesModel.parse(org_sdata[boundary_key])
     if any([method.startswith(x) for x in _constants.image_based]):
-        if method == "Cellpose_1_Merlin" or method == "Watershed_Merlin":
+        if method in ["Cellpose_1_Merlin", "Watershed_Merlin", "Negative_Control_Visium"]:
             sd.transformations.set_transformation(
                 sdata[f"boundaries_{method}"],
                 sd.transformations.Identity(),
