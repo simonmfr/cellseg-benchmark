@@ -14,7 +14,6 @@ import pandas as pd
 import scipy.ndimage
 import scipy.sparse
 import scipy.spatial
-import scipy.stats
 import shapely
 import sopa.aggregation
 import sopa.io.explorer
@@ -62,7 +61,8 @@ def _plane_polygons(m, z, x0, y0, grid_shape, pixel, k, max_dist, min_area):
     _, idx = scipy.spatial.cKDTree(xy).query(pts, k=k, distance_upper_bound=max_dist)
     lab = np.append(m["code"].to_numpy(), -1)[idx.reshape(len(pts), -1)]
     labels = np.zeros(grid_shape, np.int32)
-    labels[rows, cols] = scipy.stats.mode(lab, axis=1).mode + 1
+    votes = (lab[:, :, None] == lab[:, None, :]).sum(2, dtype=np.uint8)
+    labels[rows, cols] = lab[np.arange(len(lab)), votes.argmax(1)] + 1
 
     codes, polys = [], []
     for code, sl in enumerate(scipy.ndimage.find_objects(labels)):
