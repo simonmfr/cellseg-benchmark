@@ -5,18 +5,17 @@ import pathlib
 import subprocess
 
 import anndata
+import cv2
 import geopandas
 import h5py
 import joblib
 import numpy as np
 import pandas as pd
-import rasterio.features
-import rasterio.transform
 import scipy.ndimage
 import scipy.sparse
 import scipy.spatial
 import scipy.stats
-import shapely.geometry
+import shapely
 import sopa.aggregation
 import sopa.io.explorer
 import sopa.utils
@@ -62,26 +61,26 @@ def _plane_polygons(m, z, x0, y0, grid_shape, pixel, k, max_dist, min_area):
     pts = (np.c_[cols, rows] + 0.5) * pixel + [x0, y0]
     _, idx = scipy.spatial.cKDTree(xy).query(pts, k=k, distance_upper_bound=max_dist)
     lab = np.append(m["code"].to_numpy(), -1)[idx.reshape(len(pts), -1)]
-    labels = np.full(grid_shape, -1, np.int32)
-    labels[rows, cols] = scipy.stats.mode(lab, axis=1).mode
+    labels = np.zeros(grid_shape, np.int32)
+    labels[rows, cols] = scipy.stats.mode(lab, axis=1).mode + 1
 
-    shapes = list(
-        rasterio.features.shapes(
-            labels,
-            mask=labels >= 0,
-            transform=rasterio.transform.Affine(pixel, 0, x0, 0, pixel, y0),
-        )
-    )
-    gdf = geopandas.GeoDataFrame(
-        {"code": [int(v) for _, v in shapes]},
-        geometry=[shapely.geometry.shape(g) for g, _ in shapes],
-    )
-    gdf = gdf.assign(area=gdf.area).sort_values("area")
-    gdf = gdf.drop_duplicates("code", keep="last")
-    gdf["geometry"] = gdf.simplify(pixel / 2)
+    codes, polys = [], []
+    for code, sl in enumerate(scipy.ndimage.find_objects(labels)):
+        if sl is None:
+            continue
+        crop = (labels[sl] == code + 1).astype(np.uint8)
+        contours, _ = cv2.findContours(crop, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        c = max(contours, key=cv2.contourArea)[:, 0, :]
+        if len(c) < 3:
+            continue
+        xy = (c + [sl[1].start, sl[0].start] + 0.5) * pixel + [x0, y0]
+        codes.append(code)
+        polys.append(shapely.Polygon(xy))
+    gdf = geopandas.GeoDataFrame({"code": codes}, geometry=polys)
+    gdf["geometry"] = gdf.simplify(pixel / 2).buffer(0)
     gdf = gdf[gdf.area >= min_area]
     gdf["layer"] = z
-    return gdf.drop(columns="area")
+    return gdf
 
 
 def plane_boundaries(
