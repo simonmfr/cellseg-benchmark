@@ -84,5 +84,6 @@ set -eu
 cd $HOME/gitrepos/cellseg-benchmark
 
 mamba activate seg_postprocessing
+pip install trimap
 python scripts/seg_postprocessing/vascular_subtyping.py {args.cohort} {seg_method} --condition-col {condition_col}
 """)
