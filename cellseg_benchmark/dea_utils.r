@@ -416,7 +416,7 @@ mast_run_cached <- function(adata,
     tab_cond <- table(cd[[condition_col]])
     small_conditions <- names(tab_cond[tab_cond < 50L])
 
-    if (length(small_samples) > 0L) {
+    if (length(small_conditions) > 0L) {
       message("   Skipping group '", group_i,
               "': too few cells within one condition."
               )
