@@ -144,7 +144,7 @@ def main():
     if is_3d:
         boundaries = read_boundaries(boundaries_3d)
         mol = pd.read_parquet(
-            baysor_out / "segmentation.parquet",
+            baysor_out / "molecules.parquet",
             columns=["x", "y", "z", "cell", "is_noise"],
         )
         if mol["z"].nunique() > boundaries["layer"].nunique():
