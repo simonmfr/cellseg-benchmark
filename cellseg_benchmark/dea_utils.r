@@ -273,7 +273,8 @@ mast_run_cached <- function(adata,
                             sample_random_effects = TRUE,
                             max_cells_per_condition = 10000,
                             brain_region_subset = NULL,
-                            cond_threshold = FALSE) {
+                            cond_threshold = FALSE,
+                            cdr = FALSE) {
 
   mode_tag <- if (isTRUE(sample_random_effects)) "RE" else "FE"
 
@@ -287,7 +288,7 @@ mast_run_cached <- function(adata,
 
   ## paths (cap- & subset-aware)
   dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
-  prefix <- file.path(cache_dir, paste0("DE_", group_i, "_", mode_tag, "_cap", cap_val, br_tag))
+  prefix <- file.path(cache_dir, paste0("DE_", group_i, "_", mode_tag, if (isTRUE(cdr)) "_CDR", "_cap", cap_val, br_tag))
   res_path <- paste0(prefix, "_res.rds")
   contrast_path <- function(g) paste0(prefix, "_", g, ".rds")
   log_file <- paste0(prefix, "_R.log")
@@ -355,6 +356,7 @@ mast_run_cached <- function(adata,
   ## gene filtering
   Y  <- SummarizedExperiment::assay(sca)
   nz <- as(Y != 0, "dMatrix")
+  if (isTRUE(cdr)) SummarizedExperiment::colData(sca)$cdr <- as.numeric(scale(Matrix::colSums(nz)))
   det_overall <- Matrix::rowMeans(nz)
   det_by_grp <- lapply(levels(grp), function(lvl) {
     idx <- which(!is.na(grp) & grp == lvl)
@@ -436,19 +438,11 @@ mast_run_cached <- function(adata,
     batch_col %in% colnames(cd) &&
     nlevels(droplevels(factor(cd[[batch_col]]))) > 1
 
+  model_str <- paste0("~ ", condition_col, if (use_batch) paste0(" + ", batch_col), if (isTRUE(cdr)) " + cdr")
   if (isTRUE(sample_random_effects)) {
-    model_str <- if (use_batch) {
-      paste0("~ ", condition_col, " + ", batch_col, " + (1 | ", sample_col, ")")
-    } else {
-      paste0("~ ", condition_col, " + (1 | ", sample_col, ")")
-    }
+    model_str <- paste0(model_str, " + (1 | ", sample_col, ")")
     zlm_method <- "glmer"
   } else {
-    model_str <- if (use_batch) {
-      paste0("~ ", condition_col, " + ", batch_col)
-    } else {
-      paste0("~ ", condition_col)
-    }
     zlm_method <- "bayesglm"
   }
 
