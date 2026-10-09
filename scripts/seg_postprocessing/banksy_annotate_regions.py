@@ -294,6 +294,11 @@ def main():
         help="Write a YAML skeleton and per-cluster evidence instead of the parquet.",
     )
     parser.add_argument(
+        "--tissue-only",
+        action="store_true",
+        help="No config: label all bins 'tissue', e.g. for cohorts without region annotation.",
+    )
+    parser.add_argument(
         "--title_keys",
         nargs="+",
         default=["sample", "age_months"],
@@ -316,10 +321,14 @@ def main():
         write_skeleton(adata, args.cluster_key, config, plot_dir)
         return
 
-    with open(config) as fh:
-        cfg = yaml.safe_load(fh)
-    cluster_key = args.cluster_key or cfg["cluster_key"]
-    logger.info("Using %s from %s", cluster_key, config)
+    if args.tissue_only:
+        adata.obs["tissue"] = "tissue"
+        cfg, cluster_key = {"clusters": {"tissue": "tissue"}}, "tissue"
+    else:
+        with open(config) as fh:
+            cfg = yaml.safe_load(fh)
+        cluster_key = args.cluster_key or cfg["cluster_key"]
+        logger.info("Using %s from %s", cluster_key, config)
 
     # Factorize once, so a code means the same cluster in every sample.
     codes, uniques = pd.factorize(adata.obs[cluster_key].astype(str), sort=True)
