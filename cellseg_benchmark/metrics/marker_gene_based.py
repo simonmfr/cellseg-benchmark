@@ -615,6 +615,7 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
     If order (clean method names, e.g. returned by plot_assigned_transcripts) is given, additionally plots a
     horizontal barplot in that order, to be placed next to the horizontal assigned transcripts plot.
     """
+    bar_order = order  # order is reused for the boxplots below
     results_file = (
         Path(_constants.BASE_PATH)
         / "metrics"
@@ -700,8 +701,9 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
     )
     plt.show()
 
-    if order is None:
+    if bar_order is None:
         return
+    order = bar_order
 
     # horizontal barplot: bar = mean over samples, dot = per-sample mean over cell types
     per_sample = mean_results.groupby(["method", "sample"])["f1_score"].mean().reset_index()
