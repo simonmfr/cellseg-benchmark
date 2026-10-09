@@ -31,6 +31,11 @@ def main():
         help="Path to boundaries parquet. Defaults to <data_path>/cell_boundaries.parquet.",
     )
     parser.add_argument(
+        "--reference-path",
+        default=None,
+        help="Vizgen merscope folder of the same sample (watershed only), used to align coordinates.",
+    )
+    parser.add_argument(
         "--explorer",
         action="store_true",
         help="Whether to compute 10X Xenium explorer file (cellpose only).",
@@ -39,6 +44,8 @@ def main():
 
     if args.explorer and args.segmentation != "cellpose":
         parser.error("--explorer is only supported for cellpose (2D) segmentation.")
+    if args.segmentation == "watershed" and args.reference_path is None:
+        parser.error("--reference-path is required for watershed segmentation.")
 
     data_path = pathlib.Path(args.data_path)
     save_path = pathlib.Path(args.save_path)
@@ -129,6 +136,35 @@ def main():
 
     if args.segmentation == "watershed":
         del sdata["boundaries_vpt_2D"]
+
+        # Watershed reran decoding and stitching, so its coordinates are shifted against the
+        # Vizgen frame. Both runs decoded the same molecules, so the shift is the median
+        # difference of mean transcript positions per FOV.
+        means = [
+            pandas.read_csv(
+                path / "detected_transcripts.csv",
+                usecols=["global_x", "global_y", "fov"],
+                nrows=20_000_000,
+            )
+            .groupby("fov")[["global_x", "global_y"]]
+            .mean()
+            for path in (pathlib.Path(args.reference_path), data_path)
+        ]
+        diff = (means[0] - means[1]).dropna()
+        iqr = diff.quantile(0.75) - diff.quantile(0.25)
+        assert len(diff) > 100 and (iqr < 10).all(), f"Unreliable offset: {len(diff)} FOVs, IQR {iqr.values}"
+        dx, dy = diff.median()
+        print(f"Watershed offset: dx={dx:.2f}, dy={dy:.2f} um from {len(diff)} FOVs")
+
+        boundaries = sdata["boundaries_vpt_3D"]
+        boundaries["geometry"] = boundaries.geometry.translate(dx, dy)
+        table = sdata["table"]
+        table.obsm["spatial"] = table.obsm["spatial"] + [dx, dy]
+        for col in table.obs.columns.intersection(["center_x", "min_x", "max_x"]):
+            table.obs[col] += dx
+        for col in table.obs.columns.intersection(["center_y", "min_y", "max_y"]):
+            table.obs[col] += dy
+        table.uns["offset_to_reference_um"] = [dx, dy]
 
     sdata.write(str(save_path / "sdata.zarr"), overwrite=True)
     sdata = spatialdata.read_zarr(str(save_path / "sdata.zarr"))

@@ -44,16 +44,17 @@ for key, val in metadata.items():
         data_path = pathlib.Path(val[path_key])
         if (data_path / "cell_by_gene.csv").exists():
             save_path = BASE_PATH / "samples" / key / "results" / result_dir
-            jobs.append((str(data_path), str(save_path), seg, key))
+            jobs.append((str(data_path), str(save_path), seg, key, val["path"]))
 
 if not jobs:
     print(f"No valid samples found for cohort '{args.cohort}'.")
     exit(0)
 
-data_paths = " ".join(f'"{dp}"' for dp, sp, sf, sn in jobs)
-save_paths = " ".join(f'"{sp}"' for dp, sp, sf, sn in jobs)
-seg_flags = " ".join(f'"{sf}"' for dp, sp, sf, sn in jobs)
-sample_names = " ".join(f'"{sn}"' for dp, sp, sf, sn in jobs)
+data_paths = " ".join(f'"{j[0]}"' for j in jobs)
+save_paths = " ".join(f'"{j[1]}"' for j in jobs)
+seg_flags = " ".join(f'"{j[2]}"' for j in jobs)
+sample_names = " ".join(f'"{j[3]}"' for j in jobs)
+reference_paths = " ".join(f'"{j[4]}"' for j in jobs)
 sbatch = f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
@@ -69,6 +70,7 @@ DATA_PATHS=({data_paths})
 SAVE_PATHS=({save_paths})
 SEG_FLAGS=({seg_flags})
 SAMPLE_NAMES=({sample_names})
+REFERENCE_PATHS=({reference_paths})
 
 mamba activate segmentation
 mkdir -p "${{SAVE_PATHS[$SLURM_ARRAY_TASK_ID]}}"
@@ -83,6 +85,7 @@ python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merscope_to_s
   "${{DATA_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
   "${{SAVE_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
   --segmentation "${{SEG_FLAGS[$SLURM_ARRAY_TASK_ID]}}" \\
+  --reference-path "${{REFERENCE_PATHS[$SLURM_ARRAY_TASK_ID]}}" \\
   $EXPLORER_FLAG
 """
 
