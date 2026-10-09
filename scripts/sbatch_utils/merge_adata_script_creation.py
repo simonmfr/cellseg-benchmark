@@ -71,7 +71,7 @@ for method in methods:
     ]:
         time_limit = "20:00:00"
     else:
-        time_limit = "06:00:00"
+        time_limit = "10:00:00"
 
     memory = "700G" if "Negative_Control" in method else "350G"
 
