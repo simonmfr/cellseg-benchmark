@@ -6,10 +6,6 @@ parser = argparse.ArgumentParser(
     description="scripts for merging one method from different samples."
 )
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
-parser.add_argument("--age", action="store_true", help="Consider age differentiation")
-parser.add_argument(
-    "--genotype", action="store_true", help="Consider genotype differentiation"
-)
 args = parser.parse_args()
 BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_merge_adata"
