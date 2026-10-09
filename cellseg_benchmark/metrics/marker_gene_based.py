@@ -608,10 +608,12 @@ def compute_marker_F1_score(
     return pd.DataFrame(results)
 
 
-def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=False):
+def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=False, order=None):
     """Plot marker F1 scores.
 
-    Plots one plot per method showing cell-type specific F1 scores, and one plot summarising scores for each method
+    Plots one plot per method showing cell-type specific F1 scores, and one plot summarising scores for each method.
+    If order (clean method names, e.g. returned by plot_assigned_transcripts) is given, additionally plots a
+    horizontal barplot in that order, to be placed next to the horizontal assigned transcripts plot.
     """
     results_file = (
         Path(_constants.BASE_PATH)
@@ -697,6 +699,28 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
         plot_path / f"marker_f1_score_{results_suffix}.png", bbox_inches="tight"
     )
     plt.show()
+
+    if order is None:
+        return
+
+    # horizontal barplot: bar = mean over samples, dot = per-sample mean over cell types
+    per_sample = mean_results.groupby(["method", "sample"])["f1_score"].mean().reset_index()
+    p = pd.Series(np.arange(len(order)), index=order)
+    fig, ax = plt.subplots(figsize=(3, max(2, 0.22 * len(order))))
+    ax.barh(p, per_sample.groupby("method")["f1_score"].mean().reindex(order), height=0.76, color="firebrick")
+    ax.scatter(per_sample.f1_score, per_sample.method.map(p), s=4, c="k", alpha=.2, zorder=3, clip_on=False)
+    ax.set_ylim(-.5, len(order) - .5)
+    ax.set_yticks([])
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position("top")
+    ax.set_xlabel("Marker gene F1 score", labelpad=4)
+    for side in ["top", "right", "bottom"]:
+        ax.spines[side].set_visible(False)
+    fig.tight_layout(pad=.15)
+    fig.savefig(
+        plot_path / f"marker_f1_score_{results_suffix}_barh.png", dpi=300, bbox_inches="tight", pad_inches=.02
+    )
+    plt.show() if show else plt.close(fig)
 
 
 def compute_negative_marker_purity(

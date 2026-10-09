@@ -323,6 +323,8 @@ def plot_assigned_transcripts(
     else:
         plt.close(fig)
 
+    return list(order)
+
 def plot_assigned_transcripts_heatmap(
     cohort: str,
     method,
