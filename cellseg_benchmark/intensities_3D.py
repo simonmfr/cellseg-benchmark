@@ -8,6 +8,7 @@ import pathlib
 from typing import Optional
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import sopa
 import spatialdata as sd
@@ -48,8 +49,8 @@ def compute_3D_intensities(
     )
     logger.debug(tmp_sdata)
 
-    transform = sd.transformations.get_transformation(
-        tmp_sdata[list(tmp_sdata.points.keys())[0]]
+    transform = sd.transformations.Affine(
+        np.loadtxt(pathlib.Path(data_path, "images", "micron_to_mosaic_pixel_transform.csv")), ("x", "y"), ("x", "y")
     )
     logger.debug(transform)
 

@@ -59,30 +59,31 @@ def process_merscope(
     sdata.write(sdata_file, overwrite=False)
     sdata = sd.read_zarr(sdata_file)
 
-    # set coordinates system
-    transformation_to_pixel = sd.transformations.get_transformation(
-        sdata[list(sdata.points.keys())[0]], "global"
-    )
-
+    points = sdata[list(sdata.points.keys())[0]]
     sd.transformations.set_transformation(
-        sdata[list(sdata.points.keys())[0]], sd.transformations.Identity(), "micron", write_to_sdata=sdata
-    )
-    sd.transformations.set_transformation(
-        sdata[list(sdata.points.keys())[0]],
-        transformation_to_pixel,
-        "pixel",
+        points,
+        {
+            "micron": sd.transformations.Identity(),
+            "pixel": sd.transformations.get_transformation(points, "global"),
+            "global": sd.transformations.get_transformation(points, "global"),
+        },
+        set_all=True,
         write_to_sdata=sdata,
     )
-
-    sd.transformations.set_transformation(
-        sdata[list(sdata.images.keys())[0]],
-        transformation_to_pixel.inverse(),
-        "micron",
-        write_to_sdata=sdata,
+    micron_to_pixel = sd.transformations.Affine(
+        np.loadtxt(join(data_path, "images", "micron_to_mosaic_pixel_transform.csv")), ("x", "y"), ("x", "y")
     )
-    sd.transformations.set_transformation(
-        sdata[list(sdata.images.keys())[0]], sd.transformations.Identity(), "pixel", write_to_sdata=sdata
-    )
+    for image in sdata.images.values():
+        sd.transformations.set_transformation(
+            image,
+            {
+                "micron": micron_to_pixel.inverse(),
+                "pixel": sd.transformations.Identity(),
+                "global": sd.transformations.Identity(),
+            },
+            set_all=True,
+            write_to_sdata=sdata,
+        )
 
 
 def process_merlin_segmentation(
@@ -419,7 +420,13 @@ def build_shapes(
 
     if obj is not None:
         sdata_main[f"boundaries_{seg_method}"] = obj
-        assign_transformations(sdata_main, seg_method)
+        assign_transformations(
+            sdata_main[f"boundaries_{seg_method}"],
+            seg_method,
+            sd.transformations.get_transformation(
+                sdata_main[list(sdata_main.images.keys())[0]], "micron"
+            ).inverse(),
+        )
     else:
         msg = (
             f"Shapes file missing for {seg_method}. "
@@ -681,40 +688,25 @@ def compute_polygon_stats_3D(
         return None
 
 
-def assign_transformations(sdata_main: sd.SpatialData, seg_method: str) -> None:
-    """Assign transformations to spatial data.
+def assign_transformations(
+    boundaries, seg_method: str, micron_to_pixel: sd.transformations.Affine
+) -> None:
+    """Set micron, pixel and global (= pixel) transformations of 2D boundaries.
 
     Args:
-        sdata_main: master sdata
-        seg_method: current segmentation method
+        boundaries: shapes element of seg_method
+        seg_method: segmentation method; image-based methods are stored in pixels, all others in microns
+        micron_to_pixel: 2D affine from microns to mosaic pixels
     """
-    transformation_to_pixel = sd.transformations.get_transformation(
-        sdata_main[list(sdata_main.points.keys())[0]], "global"
+    in_pixels = any(seg_method.startswith(m) for m in _constants.image_based) and seg_method not in [
+        "Cellpose_1_Merlin",
+        "Negative_Control_Visium",
+    ]
+    to_pixel = sd.transformations.Identity() if in_pixels else micron_to_pixel
+    to_micron = micron_to_pixel.inverse() if in_pixels else sd.transformations.Identity()
+    sd.transformations.set_transformation(
+        boundaries, {"micron": to_micron, "pixel": to_pixel, "global": to_pixel}, set_all=True
     )
-
-    if any([seg_method.startswith(method) for method in _constants.image_based]):
-        if seg_method in ["Cellpose_1_Merlin", "Watershed_Merlin", "Negative_Control_Visium"]:
-            sd.transformations.set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron"
-            )
-            sd.transformations.set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
-            )
-        else:
-            sd.transformations.set_transformation(
-                sdata_main[f"boundaries_{seg_method}"],
-                transformation_to_pixel.inverse(),
-                "micron",
-            )
-            sd.transformations.set_transformation(
-                sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "pixel"
-            )
-    else:
-        sd.transformations.set_transformation(sdata_main[f"boundaries_{seg_method}"], sd.transformations.Identity(), "micron")
-        sd.transformations.set_transformation(
-            sdata_main[f"boundaries_{seg_method}"], transformation_to_pixel, "pixel"
-        )
-    return
 
 
 def transform_adata(
@@ -822,34 +814,13 @@ def get_2D_boundaries(
             bound = new.dissolve(by="cell_id")
             del new
         sdata[f"boundaries_{method}"] = sd.models.ShapesModel.parse(bound)
-        sd.transformations.set_transformation(
-            sdata[f"boundaries_{method}"],
-            sd.transformations.Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
-            to_coordinate_system="global",
-        )
     else:
         sdata[f"boundaries_{method}"] = sd.models.ShapesModel.parse(org_sdata[boundary_key])
-    if any([method.startswith(x) for x in _constants.image_based]):
-        if method in ["Cellpose_1_Merlin", "Watershed_Merlin", "Negative_Control_Visium"]:
-            sd.transformations.set_transformation(
-                sdata[f"boundaries_{method}"],
-                sd.transformations.Identity(),
-                to_coordinate_system="micron",
-            )
-        else:
-            sd.transformations.set_transformation(
-                sdata[f"boundaries_{method}"],
-                sd.transformations.Affine(
-                    transformation, input_axes=("x", "y"), output_axes=("x", "y")
-                ).inverse(),
-                to_coordinate_system="micron",
-            )
-    else:
-        sd.transformations.set_transformation(
-            sdata[f"boundaries_{method}"],
-            sd.transformations.Identity(),
-            to_coordinate_system="micron",
-        )
+    assign_transformations(
+        sdata[f"boundaries_{method}"],
+        method,
+        sd.transformations.Affine(transformation, input_axes=("x", "y"), output_axes=("x", "y")),
+    )
 
 
 def pixel_to_microns(
@@ -1296,6 +1267,7 @@ def _compute_3d_metrics(
 
 def add_visium_boundaries(
     sdata,
+    data_path: str,
     out_name: str,
     points_key: str,
     x_col: str = "x",
@@ -1336,8 +1308,10 @@ def add_visium_boundaries(
 
     gdf = gpd.GeoDataFrame({"spot_id": ids}, geometry=geoms).set_index("spot_id")
 
-    transforms = {cs: sd.transformations.get_transformation(pts, cs) for cs in sdata.coordinate_systems}
-    sdata.shapes[out_name] = sd.models.ShapesModel.parse(gdf, transformations=transforms)
+    micron_to_pixel = np.loadtxt(join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"))
+    sdata.shapes[out_name] = sd.models.ShapesModel.parse(
+        gdf, transformations={"global": sd.transformations.Affine(micron_to_pixel, ("x", "y"), ("x", "y"))}
+    )
     return sdata
 
 

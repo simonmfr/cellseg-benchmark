@@ -40,6 +40,7 @@ sdata = merscope(args.data_path)
 points_key = args.points_key or next(iter(sdata.points))
 sdata = add_visium_boundaries(
     sdata,
+    args.data_path,
     out_name=args.out_name,
     points_key=points_key,
     ccd_um=args.ccd_um,
