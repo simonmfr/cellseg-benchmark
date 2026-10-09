@@ -199,7 +199,9 @@ def main():
 
     var = pd.DataFrame({"gene": genes}, index=genes)
     adata = anndata.AnnData(counts.T.tocsr(), obs=obs, var=var)
-    adata = adata[adata.obs["cell_id"].isin(boundaries["cell_id"])].copy()
+    ids = adata.obs["cell_id"]
+    outlined = sdata[intensity_shapes_key].index.astype(str)
+    adata = adata[ids.isin(boundaries["cell_id"]) & ids.isin(outlined)].copy()
     adata.obs["region"] = pd.Categorical(["baysor_boundaries"] * adata.n_obs)
     centroids = sdata[intensity_shapes_key].geometry.centroid
     adata.obsm["spatial"] = (
