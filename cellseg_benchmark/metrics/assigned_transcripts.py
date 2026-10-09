@@ -164,6 +164,7 @@ def plot_assigned_transcripts(
     show: bool = True,
     exclude_regex: str | None = None,
     horizontal: bool = False,
+    as_svg: bool = False,
 ):
     """
     Plot assigned transcript percentages per segmentation method.
@@ -311,7 +312,10 @@ def plot_assigned_transcripts(
 
     fig.tight_layout(pad=.15)
 
-    out_file = plot_path / "assigned_transcripts_plot.png"
+    if as_svg:
+        out_file = plot_path / "assigned_transcripts_plot.svg"
+    else:
+        out_file = plot_path / "assigned_transcripts_plot.png"
     fig.savefig(out_file, dpi=300, bbox_inches="tight", pad_inches=.02)
 
     if show:
