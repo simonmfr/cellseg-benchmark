@@ -62,6 +62,7 @@ CMD="vpt run-segmentation + partition-transcripts + derive-entity-metadata + upd
 start_run_log
 
 mamba activate vpt
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 
 mkdir -p "${{RESULT_DIR}}"
 
@@ -88,10 +89,9 @@ vpt --verbose --processes 10 update-vzg \\
   --input-entity-by-gene "${{OUT_CBG}}" \\
   --output-vzg "${{OUT_VZG}}" \\
   --input-metadata "${{OUT_META}}" \\
-  --temp-path "${{TMP_PATH}}"
+  --temp-path "${{TMP_PATH}}" || echo "update-vzg failed"
 
-# remove leftover temp dir if vpt emptied it
-rmdir --ignore-fail-on-non-empty "${{TMP_PATH}}" 2>/dev/null || true
+rm -rf "${{TMP_PATH}}"
 """)
     f.close()
 
