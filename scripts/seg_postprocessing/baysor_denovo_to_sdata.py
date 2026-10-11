@@ -143,14 +143,13 @@ def main():
     is_3d = boundaries_3d.exists()
     if is_3d:
         boundaries = read_boundaries(boundaries_3d)
-        mol = pd.read_parquet(
-            baysor_out / "molecules.parquet",
-            columns=["x", "y", "z", "cell", "is_noise"],
-        )
-        if mol["z"].nunique() > boundaries["layer"].nunique():
+        molecules = baysor_out / "molecules.parquet"
+        n_planes = pd.read_parquet(molecules, columns=["z"])["z"].nunique()
+        if n_planes > boundaries["layer"].nunique():
             logger.info("Baysor binned z layers; rebuilding per imaged plane...")
-            boundaries = plane_boundaries(mol)
-        del mol
+            boundaries = plane_boundaries(
+                pd.read_parquet(molecules, columns=["x", "y", "z", "cell", "is_noise"])
+            )
         boundaries["ZLevel"] = boundaries["layer"].astype(float)
         boundaries["ZIndex"] = boundaries["ZLevel"].rank(method="dense").astype(int) - 1
         # Estimated from all of a cell's molecules, wider than the union of z layers.
