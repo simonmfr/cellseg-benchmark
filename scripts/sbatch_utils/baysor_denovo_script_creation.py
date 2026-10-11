@@ -24,6 +24,7 @@ with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
 (BASE_PATH / f"misc/sbatches/sbatch_{METHOD}").mkdir(parents=False, exist_ok=True)
 
 for key, value in data.items():
+    z_args = "".join(f" --{k} {value[k]}" for k in ("z_step", "z_start") if k in value)
     with open(BASE_PATH / f"misc/sbatches/sbatch_{METHOD}/{key}.sbatch", "w") as f:
         f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
@@ -44,7 +45,7 @@ DIMENSION="{args.dimension}"
 INPUT_PATH="{value["path"]}"
 RESULT_DIR="{BASE_PATH}/samples/{key}/results/{METHOD}"
 PARAMS="baysor=cpp-0.8.3,scale=5,n_clusters=10,mrf,no_prior"
-CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_denovo.py \\"${{INPUT_PATH}}\\" ${{KEY}} ${{DIMENSION}}"
+CMD="python $HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_denovo.py \\"${{INPUT_PATH}}\\" ${{KEY}} ${{DIMENSION}}{z_args}"
 start_run_log
 
 mamba activate segmentation
@@ -54,5 +55,5 @@ mkdir -p "${{RESULT_DIR}}"
 python "$HOME/gitrepos/cellseg-benchmark/scripts/segmentation/baysor_denovo.py" \\
   "${{INPUT_PATH}}" \\
   "${{KEY}}" \\
-  "${{DIMENSION}}"
+  "${{DIMENSION}}"{z_args}
 """)
