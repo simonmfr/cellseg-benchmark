@@ -144,7 +144,7 @@ def main():
             pandas.read_csv(
                 path / "detected_transcripts.csv",
                 usecols=["global_x", "global_y", "fov"],
-                nrows=20_000_000,
+                engine="pyarrow",
             )
             .groupby("fov")[["global_x", "global_y"]]
             .mean()
