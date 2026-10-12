@@ -74,13 +74,6 @@ method_colors = {
     "ComSeg_Cellpose_1_DAPI_Transcripts": "#a0652a",
     "ComSeg_Cellpose_2_DAPI_PolyT": "#c08552",
     "ComSeg_Cellpose_2_DAPI_Transcripts": "#d8ab84",
-#    # Proseg 2D (outdated)
-#    "Proseg_pure": "#4a1486",
-#    "Proseg_Cellpose_1_DAPI_PolyT": "#5a0876",
-#    "Proseg_Cellpose_1_DAPI_Transcripts": "#6a1894",
-#    "Proseg_Cellpose_1_nuclei_model": "#7d3db3",
-#    "Proseg_Cellpose_2_DAPI_PolyT": "#927ac6",
-#    "Proseg_Cellpose_2_DAPI_Transcripts": "#b2a4db",
     # Other
     "Watershed_Merlin": "#1b7c83",
     # Ficture based
