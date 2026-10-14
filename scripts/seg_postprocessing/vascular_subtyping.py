@@ -156,6 +156,21 @@ def main():
         score_threshold=0.15,
     )
 
+    logger.info("Gate non-EC rescue by pan-EC score...")
+    top100 = pd.read_csv(
+        args.base_path
+        / "misc/scRNAseq_ref_ABCAtlas_Yao2023Nature/marker_genes_df/20260927_cell_type_markers_top100.csv"
+    )
+    pan_ec = [g for g in top100["ECs"] if g in sub.var_names][:10]
+    sub = cell_annotation_utils.score_cell_types(
+        sub, {"panEC": pan_ec}, top_n_genes=10, layer="volume_log1p_norm"
+    )
+    is_ec = sub.obs[cell_type_col] == "ECs"
+    cutoff = sub.obs.loc[is_ec, "score_panEC"].quantile(0.05)
+    ec_like = is_ec | (sub.obs["score_panEC"] >= cutoff)
+    logger.info(f"Gated non-ECs: {(~ec_like).sum()}")
+    sub.obs["ec_zonation"] = sub.obs["ec_zonation"].astype("object").where(ec_like)
+
     sub.obs["ec_zonation"] = pd.Categorical(
         sub.obs["ec_zonation"], categories=list(_constants.cell_type_colors.keys())
     ).remove_unused_categories()
@@ -342,19 +357,20 @@ def main():
     )
     merged.obs.loc[missed_ECs_mask, "cell_type_incl_zonation"] = "otherECs"
 
-    merged.obs["cell_type_incl_zonation"] = merged.obs[
-        "cell_type_incl_zonation"
-    ].astype("category")
+    merged.obs["cell_type_vascular"] = (
+        merged.obs[cell_type_col]
+        .astype("object")
+        .mask(merged.obs["ec_zonation"].notna(), "ECs")
+    )
     merged.obs.drop(columns="ec_zonation", inplace=True)
 
-    merged.obs["cell_type_incl_zonation"] = pd.Categorical(
-        merged.obs["cell_type_incl_zonation"],
-        categories=list(_constants.cell_type_colors.keys()),
-    ).remove_unused_categories()
-    merged.uns["cell_type_incl_zonation_colors"] = [
-        _constants.cell_type_colors[ct]
-        for ct in merged.obs["cell_type_incl_zonation"].cat.categories
-    ]
+    for col in ["cell_type_vascular", "cell_type_incl_zonation"]:
+        merged.obs[col] = pd.Categorical(
+            merged.obs[col], categories=list(_constants.cell_type_colors.keys())
+        ).remove_unused_categories()
+        merged.uns[f"{col}_colors"] = [
+            _constants.cell_type_colors[ct] for ct in merged.obs[col].cat.categories
+        ]
 
     with plt.rc_context({"figure.figsize": (6, 6)}):
         sc.pl.embedding(
@@ -370,7 +386,7 @@ def main():
             cmap="inferno",
             ncols=5,
             wspace=0.25,
-            size=320000 / ec.shape[0],
+            size=320000 / merged.shape[0],
             show=False,
         )
         plt.savefig(
