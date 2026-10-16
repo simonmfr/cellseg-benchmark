@@ -57,6 +57,7 @@ def merge_adatas(
             nan = adata.obs["volume_final"].isna()
             assert nan.mean() < 0.01, f"[{name}] {nan.sum()} cells with NaN volume_final"
             adata = adata[~nan].copy()
+            adata.obs["volume_final"] = adata.obs["volume_final"].round(3)
 
         if "spt_region" in adata.obs:
             del adata.obs["spt_region"]
