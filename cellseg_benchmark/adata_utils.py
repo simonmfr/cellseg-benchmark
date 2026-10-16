@@ -57,7 +57,6 @@ def merge_adatas(
             nan = adata.obs["volume_final"].isna()
             assert nan.mean() < 0.01, f"[{name}] {nan.sum()} cells with NaN volume_final"
             adata = adata[~nan].copy()
-            adata.obs["volume_final"] = adata.obs["volume_final"].round(3)
 
         if "spt_region" in adata.obs:
             del adata.obs["spt_region"]
@@ -85,7 +84,7 @@ def merge_adatas(
             if "volume_final" in adata.obs:
                 y_limits[3] = max(
                     y_limits[3],
-                    np.histogram(adata.obs["volume_final"], bins=100)[0].max(),
+                    np.histogram(adata.obs["volume_final"].round(3), bins=100)[0].max(),
                 )
 
     adata = ad.concat(adatas, join="outer", merge="first")
@@ -163,7 +162,7 @@ def plot_qc(adata: ad.AnnData, save_dir, y_limits, logger) -> None:
                 adata_tmp.obs["n_counts"],
                 adata_tmp.obs["n_counts"][adata_tmp.obs["n_counts"] < 1000],
                 adata_tmp.obs["n_genes"],
-                adata_tmp.obs["volume_final"],
+                adata_tmp.obs["volume_final"].round(3),
             ],
             [60, 60, 60, 100],
             y_limits,
@@ -652,7 +651,7 @@ def filter_genes(adata, save_path, logger=None):
             adata.obs["n_counts"],
             adata.obs["n_counts"][adata.obs["n_counts"] < 1000],
             adata.obs["n_genes"],
-            adata.obs["volume_final"],
+            adata.obs["volume_final"].round(3),
         ],
         [100, 100, 100, 100],  # bins
     ):
