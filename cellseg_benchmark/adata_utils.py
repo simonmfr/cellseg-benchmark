@@ -53,11 +53,6 @@ def merge_adatas(
     adatas = []
 
     for name, adata in tqdm(adatas_list):
-        if "volume_final" in adata.obs:
-            nan = adata.obs["volume_final"].isna()
-            assert nan.mean() < 0.01, f"[{name}] {nan.sum()} cells with NaN volume_final"
-            adata = adata[~nan].copy()
-
         if "spt_region" in adata.obs:
             del adata.obs["spt_region"]
 
