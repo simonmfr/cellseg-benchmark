@@ -85,6 +85,14 @@ def main():
     if cell_type_col not in adata.obs.columns:
         raise KeyError(f"'{cell_type_col}' not in adata.obs")
 
+    missing = [
+        k
+        for k, g in _markers.selected_EC_subtypes.items()
+        if not set(g) & set(adata.var_names)
+    ]
+    if missing:
+        raise ValueError(f"No zonation markers on panel for {missing}")
+
     adata.obs[cell_type_col] = pd.Categorical(
         adata.obs[cell_type_col], categories=list(_constants.cell_type_colors.keys())
     ).remove_unused_categories()
