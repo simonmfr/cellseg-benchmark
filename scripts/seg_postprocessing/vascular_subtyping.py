@@ -266,52 +266,6 @@ def main():
         )
         plt.close()
 
-    logger.info("Run Trimap...")
-    sc.external.tl.trimap(ec)
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.external.pl.trimap(
-            ec,
-            color=[
-                cell_type_col,
-                "ec_zonation",
-                "score_aECs",
-                "score_capECs",
-                "score_vECs",
-            ],
-            cmap="inferno",
-            ncols=5,
-            wspace=0.25,
-            size=320000 / ec.shape[0],
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "ecs-only" / "TRIMAP_ECs.png", dpi=150, bbox_inches="tight"
-        )
-        plt.close()
-
-    logger.info("Run Phate...")
-    sc.external.tl.phate(ec)
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.external.pl.phate(
-            ec,
-            color=[
-                cell_type_col,
-                "ec_zonation",
-                "score_aECs",
-                "score_capECs",
-                "score_vECs",
-            ],
-            cmap="inferno",
-            ncols=5,
-            wspace=0.25,
-            size=320000 / ec.shape[0],
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "ecs-only" / "PHATE_ECs.png", dpi=150, bbox_inches="tight"
-        )
-        plt.close()
-
     logger.info("Summaries by condition...")
     cond = args.condition_col
     if cond in ec.obs.columns:
