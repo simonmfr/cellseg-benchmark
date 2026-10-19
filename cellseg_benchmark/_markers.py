@@ -1026,50 +1026,11 @@ neuronal_cell_subtypes_merfish_panel_500_mouse_brain = {
     "GABAergic main subclasses": ["Pvalb", "Sst", "Vip", "Sncg", "Lamp5"],
 }
 
+# EC zonation markers validated in Vanlandewijck et al. 2018 (Nature 554:475)
 selected_EC_subtypes = {
-    "aECs": [
-        "Bmx",
-        "Efnb2",
-        "Vegfc",
-        "Mgp",
-        "Cytl1",
-        "Sema3g",
-        "Gkn3",
-        "Fbln2",
-        "Hey1",
-        "Egfl8",
-        "Jag1",
-        "Igf2",
-        "Notch3",
-        "Mgp",
-        "Clu",
-    ],
-    "capECs": [
-        "Slc7a5",
-        "Mfsd2a",
-        "Tfrc",
-        "Slc16a1",
-        "Meox1",
-        "Col4a3",
-        "Angpt2",
-        "Rgcc",
-        "Cxcl12",
-        "Ecscr",
-        "Apln",
-        "Car4",
-    ],
-    "vECs": [
-        "Nr2f2",
-        "Slc38a5",
-        "Flrt2",
-        "Ier3",
-        "Ackr1",
-        "Lcn2",
-        "Vcam1",
-        "Ly6c1",
-        "Ly6a",
-        "Ctsc",
-    ],
+    "aECs": ["Bmx", "Efnb2", "Vegfc", "Sema3g", "Gkn3"],
+    "capECs": ["Mfsd2a", "Slc7a5", "Tfrc", "Slc16a1"],
+    "vECs": ["Nr2f2", "Slc38a5"],
 }
 
 contamination_markers = {
