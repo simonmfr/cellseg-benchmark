@@ -69,7 +69,6 @@ def main():
 
     logger.info("Starting vascular subtyping for %s / %s", args.cohort, args.seg_method)
 
-    # Paths
     method_path = args.base_path / "analysis" / args.cohort / args.seg_method
     adatas_path = method_path / "adatas"
     plot_path = method_path / "plots" / "subtyping-vascular"
@@ -142,11 +141,9 @@ def main():
     )
 
     logger.info("Score EC zonation subtypes...")
-    # Step 1: score marker genes
     sub = cell_annotation_utils.score_cell_types(
         sub, _markers.selected_EC_subtypes, top_n_genes=10, layer="volume_log1p_norm"
     )
-    # Step 2: assign each cell by max scoring subtype
     sub = cell_annotation_utils.annotate_cells_by_score(
         sub,
         _markers.selected_EC_subtypes,
@@ -251,30 +248,11 @@ def main():
 
     logger.info("Merge EC zonation subtypes back into vascular set...")
     merged = sub.copy()
-    if "ec_zonation" in merged.obs.columns:
-        merged.obs = merged.obs.drop(columns="ec_zonation")
-
-    merged.obs = merged.obs.merge(
-        ec.obs[["ec_zonation"]], left_index=True, right_index=True, how="left"
-    )
-    merged.obs["cell_type_incl_zonation"] = (
-        merged.obs["ec_zonation"]
-        .astype("object")
-        .fillna(merged.obs[cell_type_col].astype("object"))
-    )
-
-    # ECs without a zonation call
-    missed_ECs_mask = merged.obs["ec_zonation"].isna() & merged.obs[cell_type_col].isin(
-        ["ECs"]
-    )
-    merged.obs.loc[missed_ECs_mask, "cell_type_incl_zonation"] = "otherECs"
-
-    merged.obs["cell_type_vascular"] = (
-        merged.obs[cell_type_col]
-        .astype("object")
-        .mask(merged.obs["ec_zonation"].notna(), "ECs")
-    )
-    merged.obs.drop(columns="ec_zonation", inplace=True)
+    zon = ec.obs["ec_zonation"].astype("object").reindex(merged.obs_names)
+    ct = merged.obs[cell_type_col].astype("object")
+    merged.obs["cell_type_vascular"] = ct.mask(zon.notna(), "ECs")
+    merged.obs["cell_type_incl_zonation"] = zon.fillna(ct.replace("ECs", "otherECs"))
+    merged.obs = merged.obs.drop(columns="ec_zonation")
 
     for col in ["cell_type_vascular", "cell_type_incl_zonation"]:
         merged.obs[col] = pd.Categorical(
