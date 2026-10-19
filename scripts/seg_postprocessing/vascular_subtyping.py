@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pathlib
+import shutil
 import sys
 
 import matplotlib.pyplot as plt
@@ -21,6 +22,22 @@ logger.setLevel(logging.INFO)
 _handler = logging.StreamHandler()
 _handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s"))
 logger.addHandler(_handler)
+
+
+def plot_embedding(adata, basis, color, path, ncols=5):
+    with plt.rc_context({"figure.figsize": (6, 6)}):
+        sc.pl.embedding(
+            adata,
+            basis=basis,
+            color=color,
+            cmap="inferno",
+            ncols=ncols,
+            wspace=0.25,
+            size=320000 / adata.shape[0],
+            show=False,
+        )
+        plt.savefig(path, dpi=150, bbox_inches="tight")
+        plt.close()
 
 
 def main():
@@ -56,9 +73,11 @@ def main():
     method_path = args.base_path / "analysis" / args.cohort / args.seg_method
     adatas_path = method_path / "adatas"
     plot_path = method_path / "plots" / "subtyping-vascular"
+    out = adatas_path / "adata_vascular_subset.h5ad.gz"
 
-    for p in [plot_path, plot_path / "ecs-only", plot_path / "spatial", adatas_path]:
-        p.mkdir(parents=True, exist_ok=True)
+    out.unlink(missing_ok=True)
+    shutil.rmtree(plot_path, ignore_errors=True)
+    (plot_path / "spatial").mkdir(parents=True)
 
     logger.info("Load adata...")
     adata = sc.read_h5ad(adatas_path / args.input_filename)
@@ -89,36 +108,15 @@ def main():
         logger=logger,
     )
 
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.pl.embedding(
-            sub,
-            basis="X_umap_harmony_20_50",
-            color=[
-                "contaminated",
-                "contaminated_Neuronal",
-                "contaminated_Oligodendrocytes",
-                "contaminated_Astrocytes",
-                "contaminated_Immune",
-            ],
-            size=50000 / sub.shape[0],
-            show=False,
-        )
-        plt.savefig(plot_path / "UMAP_cell_type_contaminations.png", dpi=200)
-        plt.close()
-
+    plot_embedding(
+        sub,
+        "X_umap_harmony_20_50",
+        [cell_type_col, "contaminated"]
+        + [f"contaminated_{k}" for k in _markers.contamination_markers],
+        plot_path / "vascular_contamination_umap.png",
+        ncols=6,
+    )
     sub = sub[~sub.obs["contaminated"]].copy()
-
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.pl.embedding(
-            sub,
-            basis="X_umap_harmony_20_50",
-            color=cell_type_col,
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "UMAP_integrated_subset.png", dpi=200, bbox_inches="tight"
-        )
-        plt.close()
 
     logger.info("Re-process vascular subset...")
     sub = adata_utils.clean_pca_umap(sub, logger=None)
@@ -205,112 +203,26 @@ def main():
         logger=logger,
     )
 
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.pl.embedding(
-            ec,
-            basis="X_umap_harmony_10_20",
-            color=[
-                cell_type_col,
-                "ec_zonation",
-                "score_aECs",
-                "score_capECs",
-                "score_vECs",
-            ],
-            cmap="inferno",
-            ncols=5,
-            wspace=0.25,
-            size=320000 / ec.shape[0],
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "ecs-only" / "UMAP_ECs.png", dpi=150, bbox_inches="tight"
-        )
-        plt.close()
-
-    # run 3D UMAP (computation affects 2D components, therefore save separately)
-    sc.pp.neighbors(ec, n_neighbors=10, n_pcs=20)
-    sc.tl.umap(
+    zonation = [
+        cell_type_col,
+        "ec_zonation",
+        "score_aECs",
+        "score_capECs",
+        "score_vECs",
+    ]
+    plot_embedding(ec, "X_umap_harmony_10_20", zonation, plot_path / "ecs_umap.png")
+    plot_embedding(
         ec,
-        neighbors_key="neighbors_harmony_10_20",
-        key_added="X_umap_harmony_10_20_3D",
-        n_components=3,
+        "X_umap_harmony_10_20",
+        ["n_counts", "n_genes", "volume_final"],
+        plot_path / "ecs_umap_qc.png",
     )
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.pl.embedding(
-            ec,
-            basis="X_umap_harmony_10_20_3D",
-            color=[cell_type_col, "sample", "ec_zonation"],
-            alpha=0.2,
-            wspace=0.1,
-            projection="3d",
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "ecs-only" / "UMAP_ECs_3D.png", dpi=150, bbox_inches="tight"
-        )
-        plt.close()
-
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.pl.embedding(
-            ec,
-            basis="X_umap_harmony_10_20",
-            color=["n_counts", "n_genes", "volume_final"],
-            cmap="turbo",
-            size=320000 / ec.shape[0],
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "ecs-only" / "UMAP_ECs_metadata.png",
-            dpi=100,
-            bbox_inches="tight",
-        )
-        plt.close()
-
     logger.info("Run Trimap...")
     sc.external.tl.trimap(ec)
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.external.pl.trimap(
-            ec,
-            color=[
-                cell_type_col,
-                "ec_zonation",
-                "score_aECs",
-                "score_capECs",
-                "score_vECs",
-            ],
-            cmap="inferno",
-            ncols=5,
-            wspace=0.25,
-            size=320000 / ec.shape[0],
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "ecs-only" / "TRIMAP_ECs.png", dpi=150, bbox_inches="tight"
-        )
-        plt.close()
-
+    plot_embedding(ec, "X_trimap", zonation, plot_path / "ecs_trimap.png")
     logger.info("Run Phate...")
     sc.external.tl.phate(ec)
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.external.pl.phate(
-            ec,
-            color=[
-                cell_type_col,
-                "ec_zonation",
-                "score_aECs",
-                "score_capECs",
-                "score_vECs",
-            ],
-            cmap="inferno",
-            ncols=5,
-            wspace=0.25,
-            size=320000 / ec.shape[0],
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "ecs-only" / "PHATE_ECs.png", dpi=150, bbox_inches="tight"
-        )
-        plt.close()
+    plot_embedding(ec, "X_phate", zonation, plot_path / "ecs_phate.png")
 
     logger.info("Summaries by condition...")
     cond = args.condition_col
@@ -372,29 +284,13 @@ def main():
             _constants.cell_type_colors[ct] for ct in merged.obs[col].cat.categories
         ]
 
-    with plt.rc_context({"figure.figsize": (6, 6)}):
-        sc.pl.embedding(
-            merged,
-            basis="X_umap_harmony_10_20",
-            color=[
-                cell_type_col,
-                "cell_type_incl_zonation",
-                "score_aECs",
-                "score_capECs",
-                "score_vECs",
-            ],
-            cmap="inferno",
-            ncols=5,
-            wspace=0.25,
-            size=320000 / merged.shape[0],
-            show=False,
-        )
-        plt.savefig(
-            plot_path / "UMAP_integrated_EC_scoring.png",
-            dpi=150,
-            bbox_inches="tight",
-        )
-        plt.close()
+    plot_embedding(
+        merged,
+        "X_umap_harmony_10_20",
+        [cell_type_col, "cell_type_vascular", "cell_type_incl_zonation"] + zonation[2:],
+        plot_path / "vascular_umap.png",
+        ncols=6,
+    )
 
     logger.info(f"Exporting spatial plots to: {plot_path / 'spatial'}...")
     if "sample" in merged.obs.columns:
@@ -407,10 +303,9 @@ def main():
                     size=9,
                     show=False,
                 )
-                plt.savefig(plot_path / "spatial" / f"Spatial_{s}.png", dpi=500)
+                plt.savefig(plot_path / "spatial" / f"{s}.png", dpi=500)
                 plt.close()
 
-    out = adatas_path / "adata_vascular_subset.h5ad.gz"
     logger.info("Saving to %s", out)
     if "fov" in merged.obs.columns:
         merged.obs["fov"] = merged.obs["fov"].astype(str)
