@@ -81,9 +81,8 @@ for seg_method in methods:
 #SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
 
 set -eu
-cd $HOME/gitrepos/cellseg-benchmark
 
 mamba activate seg_postprocessing
-pip install trimap
-python scripts/seg_postprocessing/vascular_subtyping.py {args.cohort} {seg_method} --condition-col {condition_col}
+pip install -q trimap phate
+python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/vascular_subtyping.py {args.cohort} {seg_method} --condition-col {condition_col}
 """)
