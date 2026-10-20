@@ -30,7 +30,7 @@ SKIP_SAMPLES=(VizgenHumanBrain_s1_r0)
 ESCAPED="$(printf '%s' "$METHOD" | sed -e 's/[][\.^$*+?(){}|/]/\\&/g')"
 SEG_REGEX="^${ESCAPED}$"
 
-n_found=0; n_done=0; n_queued=0
+n_found=0; n_done=0; n_queued=0; n_skipped=0
 shopt -s nullglob
 for zarr in "$ROOT"/samples/*/results/"$METHOD"/sdata.zarr; do
   [[ -d "$zarr" ]] || continue
