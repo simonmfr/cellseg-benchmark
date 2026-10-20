@@ -24,6 +24,7 @@ done
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark"
 MARKER="cell_type_annotation/adata_obs_annotated.csv"
+SKIP_SAMPLES=(VizgenHumanBrain_s1_r0)
 
 # exact-match regex for the one-method sbatch (escape regex metacharacters in the name)
 ESCAPED="$(printf '%s' "$METHOD" | sed -e 's/[][\.^$*+?(){}|/]/\\&/g')"
@@ -35,6 +36,11 @@ for zarr in "$ROOT"/samples/*/results/"$METHOD"/sdata.zarr; do
   [[ -d "$zarr" ]] || continue
   mdir="$(dirname "$zarr")"
   SAMPLE="$(basename "$(dirname "$(dirname "$mdir")")")"
+
+  if printf '%s\n' "${SKIP_SAMPLES[@]}" | grep -qxF -- "$SAMPLE"; then
+    n_skipped=$((n_skipped + 1))
+    continue
+  fi
   n_found=$((n_found + 1))
 
   if (( ! FORCE )) && [[ -s "$mdir/$MARKER" ]]; then
