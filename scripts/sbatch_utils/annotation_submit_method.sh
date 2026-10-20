@@ -63,5 +63,5 @@ for zarr in "$ROOT"/samples/*/results/"$METHOD"/sdata.zarr; do
   n_queued=$((n_queued + 1))
 done
 
-echo "[$METHOD] sdata.zarr found: $n_found | already annotated: $n_done | queued: $n_queued$( ((DRY)) && echo ' (dry-run)')"
+echo "[$METHOD] sdata.zarr found: $n_found | already annotated: $n_done | skipped (excluded): $n_skipped | queued: $n_queued$( ((DRY)) && echo ' (dry-run)')"
 (( n_found > 0 )) || echo "[warn] no samples with $METHOD/sdata.zarr under $ROOT/samples" >&2
