@@ -4,10 +4,14 @@ import pathlib
 
 parser = argparse.ArgumentParser(description="Scripts for vascular subtyping.")
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
+parser.add_argument("--linux_cluster", action="store_true", help="Adapt sbatch call for linux cluster.")
 
 args = parser.parse_args()
 BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
-SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vascular_subtyping"
+if args.linux_cluster:
+    SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vascular_subtyping_linux"
+else:
+    SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_vascular_subtyping"
 condition_col = "genotype" if args.cohort == "foxf2" else "condition"
 methods = [
     "Baysor_2D_Cellpose_1_DAPI_PolyT_0.2",
@@ -70,8 +74,31 @@ for seg_method in methods:
     job_name = f"vasc_subty_{args.cohort}_{seg_method}"
     sbatch_file = SBATCH_DIR / f"{job_name}.sbatch"
 
-    with open(sbatch_file, "w") as f:
-        f.write(f"""#!/bin/bash
+    if args.linux_cluster:
+        with open(sbatch_file, "w") as f:
+            f.write(f"""#!/bin/bash
+#SBATCH --clusters=serial
+#SBATCH --partition=serial_std
+#SBATCH --qos=serial_std
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH -t {time_limit}
+#SBATCH --mem={memory}
+#SBATCH -J {job_name}
+#SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
+#SBATCH --get-user-env
+
+source $HOME/.bashrc
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate cellseg_benchmark
+
+set -eu
+python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/seg_postprocessing/vascular_subtyping.py {args.cohort} {seg_method} --condition-col {condition_col}
+""")
+    else:
+        with open(sbatch_file, "w") as f:
+            f.write(f"""#!/bin/bash
 #SBATCH -p lrz-cpu
 #SBATCH --qos=cpu
 #SBATCH -t {time_limit}
