@@ -79,7 +79,6 @@ for seg_method in methods:
             f.write(f"""#!/bin/bash
 #SBATCH --clusters=serial
 #SBATCH --partition=serial_std
-#SBATCH --qos=serial_std
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
