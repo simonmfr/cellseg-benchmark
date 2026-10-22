@@ -31,6 +31,8 @@ methods = [
     "Cellpose_1_Merlin",
     "Cellpose_2_DAPI_PolyT",
     "Cellpose_2_DAPI_Transcripts",
+    "CellposeSAM_DAPI",
+    "CellposeSAM_DAPI_PolyT",
     "CellSAM_DAPI",
     "CellSAM_DAPI_PolyT",
     "Ficture_segments",
