@@ -128,7 +128,7 @@ We're assuming that the container is properly setup with python.
     >> $ROOTFS/etc/environment
   ```
 + **Cellpose and ComSeg installation:** `pip install cellpose==3.1.1.1 comseg==1.8.5` in the `segmentation` env.
-+ **Proseg installation:** install cargo (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`), then `cargo install proseg`.
++ **Proseg installation:** install cargo (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`), then `cargo install proseg --version 3.0.7 --locked`.
 + **CellSAM installation:**
   ```bash
   mamba activate segmentation
