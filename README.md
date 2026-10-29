@@ -170,6 +170,11 @@ BiocManager::install(c(
 ))
 ```
 
+For BANKSY brain-region mapping (`scripts/seg_postprocessing/banksy_*.py`), install into the `analysis` env:
+```
+mamba install -n analysis -c conda-forge -c bioconda bioconductor-banksy=1.6.0 bioconductor-spatialexperiment
+```
+
 **Segmentation setup:**
 We're assuming that the container is properly setup with python.
 + **GPU setup:** Expose NVIDIA devices in the enroot container.

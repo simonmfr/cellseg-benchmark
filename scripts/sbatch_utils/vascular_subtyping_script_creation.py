@@ -110,11 +110,10 @@ python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/seg_pos
 #SBATCH --mem={memory}
 #SBATCH -J {job_name}
 #SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/testing/analysis.sqsh"
 
 set -eu
 
 mamba activate seg_postprocessing
-pip install -q trimap phate
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/vascular_subtyping.py {args.cohort} {seg_method} --condition-col {condition_col}
 """)

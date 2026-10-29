@@ -16,7 +16,7 @@ dependencies = [
     "anndata>=0.12.0",
     "dask",
     "geopandas",
-    "harmonypy",
+    "harmonypy==0.0.10",
     "igraph",
     "IProgress",
     "joblib",
