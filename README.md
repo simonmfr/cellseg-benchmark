@@ -101,7 +101,7 @@ Install into `segmentation`. Cellpose, Cellpose-SAM, CellSAM, Baysor, ComSeg and
   printf 'NVIDIA_VISIBLE_DEVICES=all\nNVIDIA_DRIVER_CAPABILITIES=compute,utility\n' >> $ROOTFS/etc/environment
   ```
 + **Cellpose, ComSeg:** `pip install cellpose==3.1.1.1 comseg==1.8.5`
-+ **Proseg:** install cargo (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`), then `cargo install proseg`.
++ **Proseg:** install cargo (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`), then `cargo install proseg --version 3.0.7 --locked`.
 + **Visium:** `pip install rasterio`
 + **CellSAM:** `--no-deps` keeps the CUDA PyTorch build.
   ```bash
