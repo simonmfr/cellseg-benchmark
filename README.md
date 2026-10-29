@@ -43,7 +43,58 @@ If necessary, you can also temporarily disable all pre-commit hooks when committ
 
 ## Container setup (enroot LRZ)
 
-We assume, that we are starting with a new ubuntu enroot container with python already setup.
+First, import the ubuntu docker container and setup python and mamba:
+
+```
+enroot import docker://ubuntu
+enroot create --name <container_name> ubuntu.sqsh
+enroot start -r <container_name>
+
+# --- inside container ---
+apt-get update
+apt-get install vim
+apt-get install curl
+apt-get install git
+apt-get install nano
+
+echo "HOME=/home/ubuntu" >> /etc/profile
+exit
+
+# --- restart container without root access ---
+enroot start <container_name>
+
+cd tmp
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+bash Miniforge3-$(uname)-$(uname -m).sh
+
+cat > /home/ubuntu/activate_env.sh <<'EOL'
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/ubuntu/miniforge3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/ubuntu/miniforge3/etc/profile.d/conda.sh" ]; then
+        . "/home/ubuntu/miniforge3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/ubuntu/miniforge3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+
+if [ -f "/home/ubuntu/miniforge3/etc/profile.d/mamba.sh" ]; then
+    . "/home/ubuntu/miniforge3/etc/profile.d/mamba.sh"
+fi
+# <<< conda initialize <<<
+EOL
+
+# set $BASH_ENV activate_env.sh
+echo "BASH_ENV=/home/ubuntu/activate_env.sh" >> /etc/environment
+
+# re-source .bashrc -> this should activate conda base environment
+source ~/.bashrc
+exit
+```
 
 **Container configuration:**
 First, check that your project folders, e.g. data and output folders, are available to the container. To do this, locate `/etc/fstab`, open the file and add `<outside_path> <inside_path> none x-create=dir,bind`. For further information for this consult https://github.com/NVIDIA/enroot/blob/main/doc/image-format.md.
