@@ -19,11 +19,11 @@ parser.add_argument("cohort", help="Cohort name, e.g. 'aging'")
 parser.add_argument("--seg_method", default="Negative_Control_Rastered_25")
 parser.add_argument("--repo", default="~/gitrepos/cellseg-benchmark")
 parser.add_argument(
-    "--image", default=str(BASE_PATH / "misc/enroot_images/benchmark_new.sqsh")
+    "--image", default=str(BASE_PATH / "misc/enroot_images/testing/analysis.sqsh")
 )
 parser.add_argument("--env", default="seg_postprocessing", help="env for step 1")
 parser.add_argument(
-    "--banksy_env", default="banksy", help="env with rpy2 and R Banksy"
+    "--banksy_env", default="analysis", help="env with rpy2 and R Banksy"
 )
 args = parser.parse_args()
 
