@@ -66,8 +66,11 @@ def compute_ficture_f1(
     obs = adata.obs[[sample_col, celltype_col]].copy()
     # obs ids are the boundary cell_id (first 10 chars) plus an AnnData suffix
     obs.index = obs.index.astype(str)
-    if not obs.index.str.fullmatch(r"\d+").all():
-        obs.index = obs.index.str.slice(0, 10)
+    if method in ["Baysor_2D_denovo", "Baysor_3D_denovo"]:
+        obs.index = [x.split("_")[0] for x in obs.index]
+    else:
+        if not obs.index.str.fullmatch(r"\d+").all():
+            obs.index = obs.index.str.slice(0, 10)
 
     samples = obs[sample_col].unique().tolist()
     per_sample = joblib.Parallel(n_jobs=n_jobs, verbose=10)(
