@@ -23,12 +23,17 @@ if __name__ == "__main__":
         help="Methods to compute score for. If not specified, use all methods.",
     )
     parser.add_argument(
+        "--adata_name",
+        default="adata_integrated",
+        help="Name of the adata file (either adata_integrated or adata_vascular_subtypes)",
+    )
+    parser.add_argument(
         "--overwrite", action="store_true", help="Overwrite existing results"
     )
     parser.add_argument(
         "--subset_vascular_celltypes",
         action="store_true",
-        help="Subset gene list to vascular celltypes",
+        help="Use vascular subset for computation of MECR score.",
     )
 
     args = parser.parse_args()

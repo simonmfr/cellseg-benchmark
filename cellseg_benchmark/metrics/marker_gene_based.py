@@ -370,8 +370,6 @@ def compute_MECR_score(
         results DataFrame
     """
     subset_celltypes = None
-    if subset_vascular_celltypes:
-        subset_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
     marker_gene_dict = get_positive_markers(
         subset_genes=adata.var_names, subset_celltypes=subset_celltypes, **kwargs
     )
@@ -542,7 +540,7 @@ def compute_marker_F1_score(
     celltype_name = "merged_celltypes"
 
     marker_dict = get_positive_markers(
-        subset_genes=adata.var_names, subset_celltypes=adata.obs[celltype_name].unique(), **kwargs
+        subset_genes=adata.var_names, subset_celltypes=None, **kwargs
     )
 
     results = []

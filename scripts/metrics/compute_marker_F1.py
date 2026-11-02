@@ -22,16 +22,29 @@ if __name__ == "__main__":
         help="Methods to compute score for. If not specified, use all methods.",
     )
     parser.add_argument(
+        "--adata_name",
+        default="adata_integrated",
+        help="Name of the adata file (either adata_integrated or adata_vascular_subtypes)",
+    )
+    parser.add_argument(
         "--celltype_name",
         default="cell_type_revised",
-        help="Nme of celltype column. Default is cell_type_revised.",
+        help="Name of celltype column. Default is cell_type_revised.",
+    )
+    parser.add_argument(
+        "--subset_vascular_celltypes",
+        action="store_true",
+        help="Use vascular subset for computation of MECR score.",
     )
     parser.add_argument(
         "--overwrite", action="store_true", help="Overwrite existing results"
     )
 
     args = parser.parse_args()
-    results_name = f"marker_gene_metrics/marker_f1_score_{args.celltype_name}.csv"
+    suffix = "all"
+    if args.subset_vascular_celltypes:
+        suffix = "vascular_celltypes"
+    results_name = f"marker_gene_metrics/marker_f1_score_{args.celltype_name}_{suffix}.csv"
     compute_metric_for_all_methods(
         compute_marker_F1_score, results_name=results_name, **vars(args)
     )
