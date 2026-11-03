@@ -134,13 +134,8 @@ Install into `segmentation`. Cellpose, Cellpose-SAM, CellSAM, Baysor, ComSeg and
   ```
 + **Spots-in-Space:** separate env `SIS_segmentation`; it needs Cellpose 3.0.7 and other scipy/pyarrow versions.
 
-### Saving changes to an image
-```bash
-I=/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/testing/segmentation.sqsh
-cp $I $I.bak
-enroot create --name tmp_img $I
-# make changes with: enroot start [-r] -w tmp_img
-enroot start -w tmp_img bash -c 'pip cache purge; mamba clean -a -y'
-enroot export -f -o $I tmp_img
-enroot remove -f tmp_img
+### Export
+Jobs use the `.sqsh`, so export after changes. Clean caches inside the container first (`mamba clean -a -y; pip cache purge`). To edit an existing image, start with `enroot create --name <container_name> <image>.sqsh`.
+```
+enroot export -f -o <image>.sqsh <container_name>
 ```
