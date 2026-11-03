@@ -166,6 +166,7 @@ def plot_assigned_transcripts(
     horizontal: bool = False,
     as_svg: bool = False,
     methods: list | None = None,
+    reverse: bool = False,
 ):
     """
     Plot assigned transcript percentages per segmentation method.
@@ -208,7 +209,7 @@ def plot_assigned_transcripts(
     pct_raw = agg.assigned_count_raw / agg.total_count
     pct_qc = agg.assigned_count_qced / agg.total_count
 
-    order = pct_raw.sort_values().index
+    order = pct_raw.sort_values(ascending=not reverse).index
     p = np.arange(len(order))
     w = 0.38
     idx = pd.Series(p, index=order)
@@ -320,7 +321,7 @@ def plot_assigned_transcripts(
         out_file = plot_path / "assigned_transcripts_plot.svg"
     else:
         out_file = plot_path / "assigned_transcripts_plot.png"
-    fig.savefig(out_file, dpi=300, bbox_inches="tight", pad_inches=.02)
+    fig.savefig(out_file, dpi=300, bbox_inches="tight", pad_inches=.02, transparent=True)
 
     if show:
         plt.show()

@@ -670,6 +670,8 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
         .mean("f1_score")
         .reset_index()
     )
+    if bar_order is not None:
+        mean_results = mean_results[mean_results.method.map(utils.clean_method_name).isin(bar_order)]
     order = (
         mean_results.groupby("method").mean("f1_score").sort_values("f1_score").index
     )
@@ -719,7 +721,7 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
         ax.spines[side].set_visible(False)
     fig.tight_layout(pad=.15)
     fig.savefig(
-        plot_path / f"marker_f1_score_{results_suffix}_barh.png", dpi=300, bbox_inches="tight", pad_inches=.02
+        plot_path / f"marker_f1_score_{results_suffix}_barh.png", dpi=300, bbox_inches="tight", pad_inches=.02, transparent=True
     )
     plt.show() if show else plt.close(fig)
 
