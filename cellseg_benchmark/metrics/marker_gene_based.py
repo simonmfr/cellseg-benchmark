@@ -624,7 +624,8 @@ def plot_marker_F1_score(cohort, results_suffix, show=False, celltype_plots=Fals
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
 
-    results_df = pd.read_csv(results_file, index_col=0)
+    cohorts = ["aging", "ABCAtlas", "VizgenMouseBrain"] if cohort == "merged" else [cohort]
+    results_df = pd.concat([pd.read_csv(str(results_file).replace(f"/{cohort}/", f"/{c}/"), index_col=0) for c in cohorts])
 
     # plot boxplot per method show per-sample and per-celltype F1 results
     if celltype_plots:

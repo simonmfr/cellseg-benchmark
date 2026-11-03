@@ -184,7 +184,8 @@ def plot_assigned_transcripts(
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(results_file, index_col=0)
+    cohorts = ["aging", "ABCAtlas", "VizgenMouseBrain"] if cohort == "merged" else [cohort]
+    df = pd.concat([pd.read_csv(str(results_file).replace(f"/{cohort}/", f"/{c}/"), index_col=0) for c in cohorts])
     df = df.groupby(["sample", "method"], as_index=False)[
         ["assigned_count_qced", "assigned_count_raw", "total_count"]
     ].sum()
