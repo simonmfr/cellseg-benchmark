@@ -244,21 +244,21 @@ def plot_assigned_transcripts(
     elif horizontal:
         h_raw = ax.barh(
             p - w / 2, -pct_raw[order] * 100, height=w,
-            color="steelblue", label="All cells (pooled)"
+            color="steelblue", label="All cells"
         )
         h_qc = ax.barh(
             p + w / 2, -pct_qc[order] * 100, height=w,
-            color="lightsteelblue", label="QCed cells (pooled)"
+            color="lightsteelblue", label="QCed cells"
         )
 
     else:
         h_raw = ax.bar(
             p - w / 2, pct_raw[order] * 100, width=w,
-            color="steelblue", label="All cells (pooled)"
+            color="steelblue", label="All cells"
         )
         h_qc = ax.bar(
             p + w / 2, pct_qc[order] * 100, width=w,
-            color="lightsteelblue", label="QCed cells (pooled)"
+            color="lightsteelblue", label="QCed cells"
         )
 
     if horizontal:
