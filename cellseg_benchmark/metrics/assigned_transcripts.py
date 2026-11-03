@@ -306,7 +306,7 @@ def plot_assigned_transcripts(
         [h_raw, h_qc, sample_h],
         [h_raw.get_label(), h_qc.get_label(), "Sample"],
         ncols=1,
-        loc="lower left" if horizontal else "upper left",
+        loc="lower left" if horizontal and not reverse else "upper left",
         borderaxespad=.3,
         fontsize=9,
         frameon=False,
