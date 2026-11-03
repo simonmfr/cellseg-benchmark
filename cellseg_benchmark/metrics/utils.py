@@ -182,7 +182,8 @@ def compute_metric(
     # read adata
     adata = read_adata(cohort, method, adata_name, base_path)
     if adata is None:
-        # read error ocurred, return
+        if results_df is not None:
+            results_df.to_csv(results_name)
         return
 
     # compute metric
