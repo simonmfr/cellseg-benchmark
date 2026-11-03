@@ -43,6 +43,8 @@ If necessary, you can also temporarily disable all pre-commit hooks when committ
 
 ## Container setup (enroot LRZ)
 
+Run enroot on a compute node. Images in `misc/enroot_images/testing/`: `segmentation.sqsh` (envs `segmentation`, `SIS_segmentation`), `analysis.sqsh` (envs `seg_postprocessing`, `analysis`).
+
 First, import the ubuntu docker container and setup python and mamba:
 
 ```
@@ -51,11 +53,7 @@ enroot create --name <container_name> ubuntu.sqsh
 enroot start -r <container_name>
 
 # --- inside container ---
-apt-get update
-apt-get install vim
-apt-get install curl
-apt-get install git
-apt-get install nano
+apt-get update && apt-get install -y vim curl git nano
 
 echo "HOME=/home/ubuntu" >> /etc/profile
 exit
@@ -63,7 +61,7 @@ exit
 # --- restart container without root access ---
 enroot start <container_name>
 
-cd tmp
+cd /tmp
 curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
 bash Miniforge3-$(uname)-$(uname -m).sh
 
@@ -98,19 +96,17 @@ exit
 
 **Container configuration:**
 First, check that your project folders, e.g. data and output folders, are available to the container. To do this, locate `/etc/fstab`, open the file and add `<outside_path> <inside_path> none x-create=dir,bind`. For further information for this consult https://github.com/NVIDIA/enroot/blob/main/doc/image-format.md.
-As we want to use the cellseg_benchmark code, create a gitrepos directory and clone the cellseg_benchmark repository
+Jobs run scripts from this clone, so each image needs it. Clone without root:
 ```
 mkdir ~/gitrepos
 cd ~/gitrepos
-git clone  https://github.com/simonmfr/cellseg-benchmark.git
+git clone https://github.com/simonmfr/cellseg-benchmark.git
 ```
-To auto-pull the repository to the lastest version each time the container is started, exit now the container and restart it with root access. Inside the container create a temporary file with the automatic update code:
+To auto-pull the repository to the latest version each time the container is started, exit now the container and restart it with root access. Inside the container create a temporary file with the automatic update code:
 ```
 cat > /tmp/rc_insert.sh <<'EOF'
 # BEGIN cellseg-benchmark auto-update
-REPO="/home/ubuntu/gitrepos/cellseg-benchmark" #if you have stored the cellseg_benchmark repository at a different places, change this to the updated path
-[ -d "$REPO/.git" ] || REPO="${HOME}/gitrepos/cellseg-benchmark"
-
+REPO="/home/ubuntu/gitrepos/cellseg-benchmark"
 if command -v git >/dev/null 2>&1 && [ -d "$REPO/.git" ]; then
   export GIT_TERMINAL_PROMPT=0
   git -C "$REPO" pull --ff-only -q || true
@@ -126,13 +122,14 @@ if ! grep -q "BEGIN cellseg-benchmark auto-update" /etc/rc; then
 fi
 chmod +x /etc/rc
 ```
+Pulls at every job start, not saved to the image.
 
 **Environment setup:**
 Now exit and restart the container again, this time without root access. To install cellseg_benchmark with dea possibilities and jupyter notebook support, do the following:
 ```
 mamba create -n cellseg_benchmark python=3.12 -c conda-forge -c bioconda r-base rpy2 anndata2ri zlib cmake -y
 mamba activate cellseg_benchmark
-cd ~/gitrepos/cellseg_benchmark
+cd ~/gitrepos/cellseg-benchmark
 pip install -e .
 pip install setuptools==80.0.0
 cd ..
@@ -176,7 +173,7 @@ mamba install -n analysis -c conda-forge -c bioconda bioconductor-banksy=1.6.0 b
 ```
 
 **Segmentation setup:**
-We're assuming that the container is properly setup with python.
+We're assuming that the container is properly setup with python. `cellseg_benchmark` is imported from the clone, not pip-installed. Visium needs `rasterio`.
 + **GPU setup:** Expose NVIDIA devices in the enroot container.
   ```bash
   ROOTFS=/raid/enroot/data/user-$(id -u)/<container_name>
@@ -224,6 +221,17 @@ We're assuming that the container is properly setup with python.
   chmod -R a+rX /opt/cellposesam /home/ubuntu/.cellpose
   deactivate && python -c "import cellpose; print(cellpose.version)"  # 3.1.1.1
   ```
+
+**Saving changes to an image:**
+```bash
+I=/dss/dssfs03/pn52re/pn52re-dss-0001/cellseg-benchmark/misc/enroot_images/testing/segmentation.sqsh
+cp $I $I.bak
+enroot create --name tmp_img $I
+# make changes: enroot start [-r] -w tmp_img ...
+enroot start -w tmp_img bash -c 'pip cache purge; mamba clean -a -y'
+enroot export -f -o $I tmp_img
+enroot remove -f tmp_img
+```
 
 Cellpose, Cellpose-SAM, CellSAM, Baysor, ComSeg and Proseg were run through [Sopa](https://github.com/prism-oncology/sopa). See the [Sopa documentation](https://prism-oncology.github.io/sopa/getting_started/) for installation and method setup.
 
