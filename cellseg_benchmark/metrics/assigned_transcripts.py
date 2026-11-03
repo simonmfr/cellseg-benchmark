@@ -165,6 +165,7 @@ def plot_assigned_transcripts(
     exclude_regex: str | None = None,
     horizontal: bool = False,
     as_svg: bool = False,
+    methods: list | None = None,
 ):
     """
     Plot assigned transcript percentages per segmentation method.
@@ -197,6 +198,8 @@ def plot_assigned_transcripts(
         df = df[~df.method.str.contains(exclude_regex, regex=True, na=False)]
 
     df["method"] = df["method"].map(clean_method_name)
+    if methods is not None:
+        df = df[df.method.isin(methods)]
 
     agg = df.groupby("method")[
         ["assigned_count_raw", "assigned_count_qced", "total_count"]
