@@ -267,7 +267,7 @@ def plot_assigned_transcripts(
         ax.scatter(-qc_pct, pos + w / 2, s=4, c="k", alpha=.2,
                    zorder=3, clip_on=False)
 
-        lim = np.ceil(max(raw_pct.max(), qc_pct.max()) / 10) * 10
+        lim = 100
         ax.set_xlim(-lim * 1.025, lim * 1.025)
         ax.set_ylim(-.5, len(order) - .5)
 
