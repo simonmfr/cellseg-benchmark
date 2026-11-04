@@ -356,7 +356,7 @@ def _MECR_score(adata, gene_pairs, layer=None):
 
 
 def compute_MECR_score(
-    adata, subset_vascular_celltypes=False, layer="volume_log1p_norm", **kwargs
+    adata, layer="volume_log1p_norm", **kwargs
 ):
     """Compute MECR Score on specific gene pairs.
 
@@ -364,7 +364,6 @@ def compute_MECR_score(
 
     Args:
         adata: anndata to compute MECR with
-        subset_vascular_celltypes: if True, subsets gene pairs to vascular celltypes.
         layer: layer of gene expression in adata to use for computing MECR score
     Returns:
         results DataFrame

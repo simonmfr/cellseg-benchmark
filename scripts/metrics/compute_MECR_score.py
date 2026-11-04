@@ -37,6 +37,8 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    if args.subset_vascular_celltypes:
+        args.adata_name = "adata_vascular_subset"
     suffix = "all"
     if args.subset_vascular_celltypes:
         suffix = "vascular_celltypes"
