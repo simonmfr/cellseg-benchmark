@@ -52,7 +52,7 @@ source "$HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh"
 KEY="{key}"
 INPUT_PATH="{BASE_PATH}/samples/{key}/results/Baysor_3D_denovo"
 RESULT_DIR="{BASE_PATH}/samples/{key}/results/{METHOD}"
-FLAGS="--voxel-layers {THICKNESS[key]} --voxel-size 2 --burnin-voxel-size 4 --diffusion-sigma-z {sigma_z:g} --diffusion-proposal-sigma-z {2 * sigma_z:g} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
+FLAGS="--voxel-layers {THICKNESS[key]} --diffusion-sigma-z {sigma_z:g} --diffusion-proposal-sigma-z {2 * sigma_z:g} --output-cell-polygon-layers cell-polygons-layers.geojson.gz"
 PARAMS="proseg=3.0.7,prior=Baysor_3D_denovo,${{FLAGS// /,}}"
 CMD="python {args.repo}/scripts/segmentation/proseg_3D_baysor.py \\"${{INPUT_PATH}}\\" \\"${{RESULT_DIR}}\\" ${{FLAGS}}"
 start_run_log
