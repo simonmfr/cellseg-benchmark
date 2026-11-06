@@ -797,6 +797,7 @@ def compute_negative_marker_purity(
         # Get pos cell ratios in negative marker-cell type pairs
         # lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
         lowvals_sc = ratio_celltype_sc_filtered.values[neg_marker_mask_sc_filtered]
+        ratio_celltype_sp = ratio_celltype_sp[shared_genes]
         lowvals_sp = ratio_celltype_sp.values[neg_marker_mask_sc_filtered]
 
         # Take the mean over the normalized expressions of the genes' negative cell types
@@ -851,6 +852,7 @@ def compute_negative_marker_purity(
     # Get pos cell ratios in negative marker-cell type pairs
     #lowvals_sc = np.full_like(neg_marker_mask_sc, np.nan, dtype=np.float32)
     lowvals_sc = ratio_celltype_sc.values[neg_marker_mask_sc]
+    ratio_celltype_sp = ratio_celltype_sp[shared_genes]
     lowvals_sp = ratio_celltype_sp.values[neg_marker_mask_sc]
 
     # Take the mean over the normalized expressions of the genes' negative cell types
