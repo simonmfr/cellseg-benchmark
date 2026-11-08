@@ -35,4 +35,5 @@ if __name__ == "__main__":
         adata_name="adata_vascular_subset" if vascular else "adata_integrated",
         methods=methods,
         overwrite=args.overwrite,
+        obs_only=True,
     )
