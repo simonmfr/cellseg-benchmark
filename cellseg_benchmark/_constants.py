@@ -161,7 +161,7 @@ metric_names = {
     "sphericity_3d": "Sphericity (3D)",
     "intensities_DAPI": "DAPI",
     "intensities_PolyT": "PolyT",
-    "Ovrlpy_stats_mean_integrity": "Z integrity",
+    "low_vsi_pct": "Z integrity",
     "pct_assigned_qced": "% Assigned",
     "negative_marker_purity": "NMP",
     "MECR": "MECR-raw",
