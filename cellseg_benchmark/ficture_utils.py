@@ -4,12 +4,10 @@ import shutil
 import warnings
 from typing import Dict
 
-import dask.dataframe as dd
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio.features as rf
-from dask.dataframe import DataFrame
 from joblib import Parallel, delayed
 from rasterio import Affine
 from scipy import ndimage as ndi
@@ -110,23 +108,6 @@ def process_coordinates(df: pd.DataFrame, metadata: Dict[str, str]) -> pd.DataFr
     return df.rename(columns={"X_um": "x", "Y_um": "y", "X": "X_px", "Y": "Y_px"})
 
 
-def get_pixel_level_factors(pixel_level_factors_file: str) -> DataFrame:
-    """Load and format FICTURE pixel-level file to micrometer scale and return a parsed SpatialData PointsModel.
-
-    Args:
-        pixel_level_factors_file (str): Path to the FICTURE pixel-level tsv.gz file (*.pixel.sorted.tsv.gz)
-
-    Returns:
-        PointsModel: Dask dataframe parsed  as a SpatialData PointsModel.
-    """
-    from spatialdata.models import PointsModel
-
-    metadata = parse_metadata(pixel_level_factors_file)
-    df = load_pixel_tsv(pixel_level_factors_file, skiprows=3)
-    dask_df = dd.from_pandas(process_coordinates(df, metadata), npartitions=96)
-    return PointsModel.parse(dask_df)
-
-
 def get_transcript_level_factors(
     transcripts: pd.DataFrame,
     tree: KDTree,
@@ -143,54 +124,6 @@ def get_transcript_level_factors(
     # where distance > 5 um set factor to max_factor to indicate that this transcript was not mapped
     factor[dd > 5] = int(metadata["K"])
     return transcripts.assign(**{f"{current_factor}_factors": factor})
-
-
-def create_factor_level_image(
-    data, factor, DAPI_shape, top_n_factors: int
-) -> np.ndarray:
-    """Compute image for given factor.
-
-    Args:
-        data: ficture data
-        factor: factor to compute image for
-        DAPI_shape: target shape
-        top_n_factors: number of top factors work with
-
-    Returns: image of factor
-
-    """
-    filtered_data = []
-    for i in range(1, top_n_factors + 1):
-        filtered_data.append(
-            pd.concat(
-                [
-                    data.loc[data[f"K{i}"] == factor, ["Y_pixel", "X_pixel"]],
-                    data.loc[data[f"K{i}"] == factor, f"P{i}"].rename(
-                        "probability", inplace=False
-                    ),
-                ],
-                axis=1,
-            )
-        )
-    filtered_data = pd.concat(filtered_data, axis=0)
-
-    bins_y = np.linspace(0, DAPI_shape[1], num=DAPI_shape[1] + 1)
-    bins_x = np.linspace(0, DAPI_shape[0], num=DAPI_shape[0] + 1)
-    image, _, _ = np.histogram2d(
-        filtered_data["Y_pixel"],
-        filtered_data["X_pixel"],
-        bins=[bins_x, bins_y],
-        weights=filtered_data["probability"],
-    )
-    image = np.clip(
-        np.around(
-            image * (np.finfo(np.float16).max.astype(np.uint16) - 5)
-        ),  # ensures no overflow with np.float16
-        0,
-        (np.finfo(np.float16).max.astype(np.uint16) - 5),
-    ).astype(np.uint16)  # makes smaller file
-    image = image[np.newaxis, :]
-    return image
 
 
 def build_factor_raster(pixel_file: str, res: float = 1.5, min_um2: float = 5.0):

@@ -6,14 +6,12 @@ dask.config.set({'dataframe.query-planning': False})
 
 import ast
 import gzip
-import io
 import logging
 import math
 import os
 import warnings
-from os import listdir
 from os.path import join
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import geopandas as gpd
 import numpy as np
@@ -24,11 +22,9 @@ import joblib
 import scipy.spatial as ss
 import shapely
 import shapely.ops
-import tifffile
 from tqdm import tqdm
 
 from . import _constants
-from . import ficture_utils as fu
 
 PI = math.pi
 
@@ -894,94 +890,6 @@ def pixel_to_microns(
             # Add to spatialdata
             sdata.shapes[output_name] = transformed_boundaries
             transform_count += 1
-
-
-def prepare_ficture(
-    data_path: str,
-    results_path: str,
-    sample: str,
-    base_path: str,
-    top_n_factors: int = 3,
-    logger: logging.Logger = None,
-    factors: Optional[List[int]] = None,
-) -> Dict[str, Union[np.ndarray, List[int]]]:
-    """Generate ficture images stack and other ficture information.
-
-    Args:
-        data_path: Path to merscope data
-        results_path: path to Segmentation folder
-        sample: Sample name
-        base_path: Path to base folder
-        top_n_factors: only consider top n factors for ficture picture
-        logger: logger instance
-        factors: if provided, only these ficture images will be generated.
-
-    Returns:
-        ficture images and factors of the images.
-    """
-    if logger is not None:
-        logger.info(f"Generating ficture images for {data_path}")
-    DAPI_shape = tifffile.imread(join(data_path, "images/mosaic_DAPI_z3.tif")).shape
-    transform = pd.read_csv(
-        join(data_path, "images/micron_to_mosaic_pixel_transform.csv"),
-        sep=" ",
-        header=None,
-    )
-
-    if "Ficture" not in listdir(results_path):
-        return {}
-    ficture_full_path = fu.find_ficture_output(sample, base_path)
-    assert ficture_full_path != "", "Ficture output not correctly computed."
-
-    ficture_pixels = fu.read_ficture_pixels(ficture_full_path)
-
-    metadata = fu.parse_metadata(ficture_full_path)
-    scale = float(metadata["SCALE"])
-    offset_x = float(metadata["OFFSET_X"])
-    offset_y = float(metadata["OFFSET_Y"])
-    # assume, that transform[0,1], transform[1,0] = 0
-    ficture_pixels["X_pixel"] = (
-        ficture_pixels["X"] / scale * transform.iloc[0, 0]
-        + offset_x * transform.iloc[0, 0]
-        + transform.iloc[0, 2]
-    )
-    ficture_pixels["Y_pixel"] = (
-        ficture_pixels["Y"] / scale * transform.iloc[1, 1]
-        + offset_y * transform.iloc[1, 1]
-        + transform.iloc[1, 2]
-    )
-    del transform, metadata
-
-    unique_factors = set()
-    for i in range(1, top_n_factors + 1):
-        unique_factors = unique_factors.union(set(np.unique(ficture_pixels[f"K{i}"])))
-    unique_factors = list(unique_factors)
-
-    if factors is not None:
-        assert all([x in unique_factors for x in factors])
-        unique_factors = list(set(factors))
-
-    for factor in tqdm(unique_factors):
-        if logger is not None:
-            logger.info(f"Building ficture image for {factor}")
-        try:
-            image_stack
-        except NameError:
-            image_stack = fu.create_factor_level_image(
-                ficture_pixels, factor, DAPI_shape, top_n_factors
-            )
-        else:
-            image_stack = np.concatenate(
-                (
-                    image_stack,
-                    fu.create_factor_level_image(
-                        ficture_pixels, factor, DAPI_shape, top_n_factors
-                    ),
-                ),
-                axis=0,
-                dtype=np.uint16,
-            )
-    return {"images": image_stack, "factors": unique_factors}
 
 
 def compute_cell_morphology(
