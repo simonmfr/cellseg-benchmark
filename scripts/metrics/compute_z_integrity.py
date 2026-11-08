@@ -11,6 +11,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
+from cellseg_benchmark import BASE_PATH, _constants
 from cellseg_benchmark.metrics import (
     compute_metric_for_all_methods,
     compute_z_integrity,
@@ -25,11 +26,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     vascular = args.subset_vascular_celltypes
+    methods = args.methods or sorted(p.name for p in (pathlib.Path(BASE_PATH) / "analysis" / args.cohort).iterdir())
+    methods = [m for m in methods if not m.startswith(tuple(_constants.methods_3D))]
     compute_metric_for_all_methods(
         compute_z_integrity,
         cohort=args.cohort,
         results_name=f"z_integrity/z_integrity_{'vascular_celltypes' if vascular else 'all'}.csv",
         adata_name="adata_vascular_subset" if vascular else "adata_integrated",
-        methods=args.methods,
+        methods=methods,
         overwrite=args.overwrite,
     )
