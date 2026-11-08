@@ -4,7 +4,7 @@ from .clustering import compute_clustering_scores, plot_clustering_scores
 from .ficture import compute_ficture_f1, plot_ficture_f1
 from .general import extract_general_stats, plot_general_stats, tissue_polygons, compute_cell_density, plot_cell_density, extract_mem_and_time, plot_mem_and_time
 from .f1_score import compute_f1
-from .ovrl import compute_z_integrity, low_vsi_per_cell, low_vsi_per_gene
+from .ovrl import compute_z_integrity, low_z_integrity_per_cell, low_z_integrity_per_gene
 from .marker_gene_based import (
     compute_marker_F1_score,
     compute_MECR_score,
@@ -54,8 +54,8 @@ __all__ = [
     "plot_mem_and_time",
     "compute_f1",
     "compute_z_integrity",
-    "low_vsi_per_cell",
-    "low_vsi_per_gene",
+    "low_z_integrity_per_cell",
+    "low_z_integrity_per_gene",
     "compute_marker_F1_score",
     "plot_marker_F1_score",
     "compute_MECR_score",

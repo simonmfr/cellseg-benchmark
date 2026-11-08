@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Compute the ovrlpy VSI and signal maps of one sample (input for the Z integrity metric)."""
+"""Compute the ovrlpy z integrity and signal maps of one sample (input for the z integrity metric)."""
 
 import argparse
 import logging
