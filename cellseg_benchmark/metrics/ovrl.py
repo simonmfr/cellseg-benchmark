@@ -105,8 +105,11 @@ def run_ovrlpy(
         )
 
 
-def _z_integrity_maps(sample, base_path):
-    """Z integrity and signal maps of one sample, plus the micron to map pixel shift."""
+def load_z_integrity_maps(sample, base_path):
+    """Z integrity and signal maps of one sample, plus the micron to map pixel shift.
+
+    A micron coordinate (x, y) lies in map pixel (row, col) = floor(y + shift[1]), floor(x + shift[0]).
+    """
     npz = np.load(pathlib.Path(base_path) / "samples" / sample / NPZ)
     tf = np.loadtxt(pathlib.Path(_sample_path(sample, base_path), "images", "micron_to_mosaic_pixel_transform.csv"))
     shift = tf[[0, 1], 2] / tf[[0, 1], [0, 1]] - OFFSET
@@ -171,7 +174,7 @@ def compute_z_integrity(
         return None
     rows = []
     for sample, obs in adata.obs.groupby(sample_col, observed=True):
-        integrity, signal, shift = _z_integrity_maps(sample, base_path)
+        integrity, signal, shift = load_z_integrity_maps(sample, base_path)
         cells = _cells(sample, method, obs.index, shift, base_path)
         inside = rasterize(((g, 1) for g in cells), out_shape=integrity.shape, dtype=np.uint8) > 0
         for s in signal_thresholds:
@@ -198,7 +201,7 @@ def low_z_integrity_per_cell(adata, method, base_path, sample_col="sample", sign
     """
     out = []
     for sample, obs in adata.obs.groupby(sample_col, observed=True):
-        integrity, signal, shift = _z_integrity_maps(sample, base_path)
+        integrity, signal, shift = load_z_integrity_maps(sample, base_path)
         cells = _cells(sample, method, obs.index, shift, base_path)
         labels = rasterize(zip(cells, range(1, len(cells) + 1)), out_shape=integrity.shape, dtype=np.int32)
         on = (labels > 0) & (signal > signal_threshold)
@@ -217,7 +220,7 @@ def low_z_integrity_per_gene(sample, base_path, signal_threshold=2, z_integrity_
     Returns:
         DataFrame with columns gene, n, n_low.
     """
-    integrity, signal, shift = _z_integrity_maps(sample, base_path)
+    integrity, signal, shift = load_z_integrity_maps(sample, base_path)
     tx = pd.read_csv(pathlib.Path(_sample_path(sample, base_path), "detected_transcripts.csv"))
     x, y = ("global_x", "global_y") if "global_x" in tx else ("x", "y")
     c = np.floor(tx[x].to_numpy() + shift[0]).astype(int)
