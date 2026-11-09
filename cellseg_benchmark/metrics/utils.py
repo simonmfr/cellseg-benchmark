@@ -163,9 +163,14 @@ def compute_metric(
     results_name.parent.mkdir(parents=True, exist_ok=True)
 
     # check if results exist and if allowed to overwrite
+    adata_path = pathlib.Path(base_path) / "analysis" / cohort / method / "adatas" / f"{adata_name}.h5ad.gz"
     if results_name.exists():
         results_df = pd.read_csv(results_name, index_col=0)
         if method in results_df["method"].unique():
+            if not adata_path.exists():
+                print(f"No {adata_name} for {method}, dropping stale results")
+                results_df[results_df["method"] != method].to_csv(results_name)
+                return
             if not overwrite:
                 print(
                     f"{metric_func.__name__} already computed for {method}. Set overwrite=True to recompute"
@@ -182,8 +187,6 @@ def compute_metric(
     # read adata
     adata = read_adata(cohort, method, adata_name, base_path)
     if adata is None:
-        if results_df is not None:
-            results_df.to_csv(results_name)
         return
 
     # compute metric
