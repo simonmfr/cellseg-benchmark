@@ -115,6 +115,9 @@ def compute_metric_for_all_methods(
         adata_name: name of adata file to read (either adata_integrated or adata_vascular_subset)
         overwrite: whether to overwrite already existing results
         kwargs: further keyword arguments passed to metric_func
+
+    Returns:
+        The results csv as DataFrame, or None if it does not exist.
     """
     if methods is None:
         data_path = pathlib.Path(base_path) / "analysis" / cohort
@@ -131,6 +134,8 @@ def compute_metric_for_all_methods(
             base_path=base_path,
             **kwargs,
         )
+    results_path = pathlib.Path(base_path) / "metrics" / cohort / results_name
+    return pd.read_csv(results_path, index_col=0) if results_path.exists() else None
 
 
 def compute_metric(
