@@ -284,7 +284,10 @@ def process_adata(adata, seg_method, logger):
     adata.X = adata.layers["counts"].copy()
 
     volume_col = (
-        "area" if "area" in adata.obs else "volume" if "volume" in adata.obs else None
+        "volume_final" if "volume_final" in adata.obs
+        else "area" if "area" in adata.obs
+        else "volume" if "volume" in adata.obs
+        else None
     )
     if not volume_col:
         raise ValueError(

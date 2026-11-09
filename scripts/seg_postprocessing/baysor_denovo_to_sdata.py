@@ -195,6 +195,10 @@ def main():
     obs = pd.read_parquet(baysor_out / "cells.parquet").set_index("cell").loc[cells]
     obs["cell_id"] = obs.index.astype(str)
     obs.index = obs.index.rename(None)
+    if is_3d:
+        dz = np.median(np.diff(np.sort(boundaries["layer"].unique())))
+        area = boundaries.area.groupby(boundaries["cell_id"]).sum()
+        obs["volume_final"] = area.reindex(obs["cell_id"]).to_numpy() * dz
 
     var = pd.DataFrame({"gene": genes}, index=genes)
     adata = anndata.AnnData(counts.T.tocsr(), obs=obs, var=var)
