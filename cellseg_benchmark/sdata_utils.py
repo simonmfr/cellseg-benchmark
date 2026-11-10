@@ -724,7 +724,10 @@ def transform_adata(
     adata = sdata_main[f"adata_{seg_method}"]
     spatial = adata.obsm["spatial"]
 
-    if any([seg_method.startswith(method) for method in _constants.image_based]):
+    if any(seg_method.startswith(m) for m in _constants.image_based) and seg_method not in [
+        "Cellpose_1_Merlin",
+        "Negative_Control_Visium",
+    ]:
         x = (
             spatial[:, 0] * (1 / transform.iloc[0, 0])
             - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]
