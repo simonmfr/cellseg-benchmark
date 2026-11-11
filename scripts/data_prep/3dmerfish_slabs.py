@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Cut 3DMERFISH thick samples into 10 µm slabs and register them as samples.
 
-Each slab keeps the transcripts with z0 <= global_z < z0 + 10 (global_z in µm, 1 µm planes),
+Existing slab folders are skipped. Each slab keeps the transcripts with z0 <= global_z < z0 + 10 (global_z in µm, 1 µm planes),
 shifted to start at 0, in a MERSCOPE-style folder next to the parent. Slabs are appended to
 sample_metadata.yaml, so the standard Baysor 3D and Proseg 3D generators pick them up.
 """
@@ -12,11 +12,11 @@ import yaml
 meta_file = (pathlib.Path(__file__).parents[2] / "data").resolve() / "misc/sample_metadata.yaml"
 meta = yaml.safe_load(open(meta_file))
 
-for parent, z0s in {"3DMERFISH_cortex": [30, 50, 70], "3DMERFISH_hypothalamus": [50, 100, 150]}.items():
+for parent, z0s in {"3DMERFISH_cortex": [10, 30, 50, 70, 80], "3DMERFISH_hypothalamus": [20, 50, 100, 150, 180]}.items():
     src = pathlib.Path(meta[parent]["path"])
-    out = {z0: src.parent / f"{parent}_z{z0}" for z0 in z0s}
+    out = {z0: d for z0 in z0s if not (d := src.parent / f"{parent}_z{z0}").exists()}
     for d in out.values():
-        d.mkdir(exist_ok=True)
+        d.mkdir()
     for i, chunk in enumerate(pd.read_csv(src / "detected_transcripts.csv", chunksize=5_000_000)):
         for z0, d in out.items():
             chunk[(chunk.global_z >= z0) & (chunk.global_z < z0 + 10)].assign(global_z=lambda c: c.global_z - z0).to_csv(
