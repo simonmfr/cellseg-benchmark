@@ -28,6 +28,8 @@ for parent, z0s in SLABS.items():
             s = chunk[(chunk.global_z >= z0) & (chunk.global_z < z0 + THICK)].assign(global_z=lambda c: c.global_z - z0)
             s.to_csv(d / "detected_transcripts.csv", mode="w" if i == 0 else "a", header=i == 0, index=False)
     with open(meta_file, "a") as f:
+        if not meta_file.read_text().endswith("\n"):
+            f.write("\n")
         for z0, k in keys.items():
             if k not in meta:
                 f.write(yaml.safe_dump({k: {**meta[parent], "path": str(out[z0]), "thickness": THICK}}, sort_keys=False))
