@@ -25,6 +25,7 @@ methods = [
     "Cellpose_1_DAPI_Transcripts",
     "Cellpose_1_nuclei_model",
     "Cellpose_1_Merlin",
+    "ComSeg_Cellpose_1_nuclei_model",
     "Cellpose_2_DAPI_PolyT",
     "Cellpose_2_DAPI_Transcripts",
     "CellposeSAM_DAPI_PolyT",
@@ -81,7 +82,7 @@ for method in methods:
 #SBATCH --mem={memory}
 #SBATCH -J merge_adata_{args.cohort}_{method}
 #SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/testing/analysis.sqsh"
 
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
