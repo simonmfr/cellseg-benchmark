@@ -35,6 +35,7 @@ methods = [
     "CellposeSAM_DAPI_PolyT",
     "CellSAM_DAPI",
     "CellSAM_DAPI_PolyT",
+    "ComSeg_Cellpose_1_nuclei_model",
     "Ficture_segments",
     "Ficture_segments_dapi",
     "Negative_Control_Rastered_5",
