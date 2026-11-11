@@ -27,6 +27,7 @@ THICKNESS = {
 
 with open(BASE_PATH / "misc/sample_metadata.yaml") as f:
     data = yaml.safe_load(f)
+THICKNESS |= {k: v["thickness"] for k, v in data.items() if "thickness" in v}
 
 (BASE_PATH / f"misc/sbatches/sbatch_{METHOD}").mkdir(parents=False, exist_ok=True)
 
