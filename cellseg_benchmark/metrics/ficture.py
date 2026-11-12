@@ -12,6 +12,7 @@ import scipy.spatial as ss
 import seaborn as sns
 import spatialdata as sd
 from matplotlib import pyplot as plt
+from spatialdata._io.io_shapes import _read_shapes
 
 from .. import _constants
 from .. import ficture_utils as fu
@@ -189,14 +190,10 @@ def _labelled_transcripts(sample, celltypes, method, base_path):
         logger.warning(f"[{sample}] no FICTURE output; skipping.")
         return sample, pd.DataFrame(columns=["ficture", "segmentation"])
 
-    sdata = sd.read_zarr(
-        pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr",
-        selection=("shapes",),
-    )
     boundaries = sd.transform(
-        sdata[f"boundaries_{method}"], to_coordinate_system="micron"
+        _read_shapes(pathlib.Path(base_path) / "samples" / sample / "sdata_z3.zarr" / "shapes" / f"boundaries_{method}"),
+        to_coordinate_system="micron",
     ).copy()
-    del sdata
 
     ids = boundaries["cell_id"] if "cell_id" in boundaries.columns else boundaries.index
     boundaries["cell"] = pd.Index(ids).astype(str)
