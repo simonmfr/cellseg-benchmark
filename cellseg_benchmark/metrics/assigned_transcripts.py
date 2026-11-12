@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import spatialdata as sd
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import matplotlib.patches as mpatches
 
 from .. import _constants
@@ -290,7 +289,7 @@ def plot_assigned_transcripts(
         ax.scatter(pos - w / 2, raw_pct, s=4, c="k", alpha=.2, zorder=3)
         ax.scatter(pos + w / 2, qc_pct, s=4, c="k", alpha=.2, zorder=3)
 
-        ax.set_xticks(p, order, rotation=45, ha="left", va="top")
+        ax.set_xticks(p, order, rotation=45, ha="right", rotation_mode="anchor")
         ax.set_ylabel("Transcript assignment (%)")
         ax.set_xlim(-.5, len(order) - .5)
 
@@ -299,7 +298,7 @@ def plot_assigned_transcripts(
 
     sample_h = plt.Line2D(
         [0], [0], marker="o", color="black",
-        linestyle="none", markersize=7, alpha=.6
+        linestyle="none", markersize=2, alpha=.4
     )
 
     ax.legend(
@@ -405,11 +404,8 @@ def plot_assigned_transcripts_heatmap(
             img[i, j] = np.nan if np.isnan(v) else v * 100
 
     fig_height = 0.2 * len(ordered_genes) + 0.5
-    fig_width  = 0.4 * n_methods + 0.2
-    fig = plt.figure(figsize=(fig_width, fig_height))
-    gs = gridspec.GridSpec(1, 2, width_ratios=[5, 0.6], wspace=0.1)
-    ax  = fig.add_subplot(gs[0, 0])
-    cax = fig.add_subplot(gs[0, 1])
+    fig_width  = 0.4 * n_methods + 1
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 
     cmap = plt.cm.Reds
     norm = plt.Normalize(0, 100)
@@ -420,7 +416,7 @@ def plot_assigned_transcripts_heatmap(
     ax.set_xticks(np.arange(n_methods))
     ax.set_xticklabels(
         [clean_method_name(m) for m in display_methods],
-        fontsize=7, rotation=45, ha="left", va="top", rotation_mode="anchor",
+        fontsize=7, rotation=45, ha="right", rotation_mode="anchor",
     )
 
     for j, m in enumerate(display_methods):
@@ -433,19 +429,10 @@ def plot_assigned_transcripts_heatmap(
     for spine in ("top", "right", "bottom", "left"):
         ax.spines[spine].set_visible(False)
 
-    colorbar = fig.colorbar(im, cax=cax)
+    colorbar = fig.colorbar(im, ax=ax, shrink=0.6, pad=0.04)
     colorbar.outline.set_visible(False)
     colorbar.ax.set_ylabel("Assigned transcripts (%)", fontsize=7)
     colorbar.ax.tick_params(labelsize=7)
-
-    pos = cax.get_position()
-    scale = 0.6
-    cax.set_position([
-        pos.x0,
-        pos.y0 + pos.height * (1 - scale) / 2,
-        pos.width,
-        pos.height * scale,
-    ])
 
     metric = "qc" if use_qc else "raw"
     mtag = display_methods[0] if len(display_methods) == 1 else f"{n_methods}methods"
