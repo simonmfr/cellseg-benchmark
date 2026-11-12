@@ -48,7 +48,8 @@ def _clustering_score(
 ):
     results = pd.DataFrame(columns=["calinski_harabasz_score", "silhouette_score"])
     # prepare adata
-    sc.pp.sample(adata, n=sample_size)
+    if adata.n_obs > sample_size:
+        sc.pp.sample(adata, n=sample_size)
     adata.obsm["X_pca"] = sc.pp.pca(adata.X, n_comps=n_pcs)
     if celltype_name == "leiden":
         sc.pp.neighbors(adata, use_rep="X_pca")
