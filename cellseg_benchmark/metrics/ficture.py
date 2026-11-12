@@ -67,7 +67,7 @@ def compute_ficture_f1(
     # obs ids are the boundary cell_id (first 10 chars) plus an AnnData suffix
     obs.index = obs.index.astype(str)
     if method in ["Baysor_2D_denovo", "Baysor_3D_denovo"]:
-        obs.index = [x.split("_")[0] for x in obs.index]
+        obs.index = obs.index.str.extract(r"^(cell_\d+|[^_]+)", expand=False)
     else:
         if not obs.index.str.fullmatch(r"\d+").all():
             obs.index = obs.index.str.slice(0, 10)

@@ -41,12 +41,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    suffix = "all"
-    if args.subset_vascular_celltypes:
-        suffix = "vascular_celltypes"
-    results_name = f"marker_gene_metrics/marker_f1_score_{args.celltype_name}_{suffix}.csv"
+    suffix = f"{args.celltype_name}_vascular_celltypes" if args.subset_vascular_celltypes else args.celltype_name
+    results_name = f"marker_gene_metrics/marker_f1_score_{suffix}.csv"
     compute_metric_for_all_methods(
         compute_marker_F1_score, results_name=results_name, **vars(args)
     )
 
-    plot_marker_F1_score(args.cohort, args.celltype_name, show=False)
+    plot_marker_F1_score(args.cohort, suffix, show=False)
