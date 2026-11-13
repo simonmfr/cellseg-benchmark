@@ -48,6 +48,8 @@ if __name__ == "__main__":
         suffix = "mural"
     elif args.adata_name == "adata_integrated_oligo":
         suffix = "oligo"
+    elif args.adata_name == "adata_integrated_neurons":
+        suffix = "neurons"
     results_name = f"marker_gene_metrics/MECR_score_{suffix}.csv"
     compute_metric_for_all_methods(
         compute_MECR_score, results_name=results_name, **vars(args)
