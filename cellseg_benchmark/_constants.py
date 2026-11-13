@@ -249,6 +249,17 @@ merged_celltypes = {
 # Vascular cell types, used for the secondary macro-F1 (see metrics.ficture).
 vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
 
+# Cell type groups for the cell-type benchmark tables (see metrics.benchmark_table).
+celltype_groups = {
+    "vascular": ["ECs", "SMCs", "Pericytes", "VLMCs", "BAMs"],
+    "ecs": ["ECs"],
+    "mural": ["SMCs", "Pericytes"],
+    "neurons": ["Neurons-Glut", "Neurons-Gaba"],
+    "oligo": ["Oligodendrocytes", "OPCs"],
+    "astrocytes": ["Astrocytes"],
+    "microglia": ["Microglia"],
+}
+
 cell_type_colors = {
     "ECs": "#FF6464",
     "aECs": "#FF7700",  # for EC subtyping script

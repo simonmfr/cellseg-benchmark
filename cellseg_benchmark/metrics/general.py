@@ -120,7 +120,7 @@ def extract_general_stats(
 ):
     """Extract and save per-sample and per-celltype mean stats from adata.obs and obsm.
 
-    Default behavior is to extract volume_final, area, circularity, elongation, ovrlpy mean_integrity, PolyT and DAPI intensity
+    Default behavior is to extract volume_final, area, circularity, elongation, n_counts, ovrlpy mean_integrity, PolyT and DAPI intensity
 
     Args:
         adata: anndata to extract morphology stats from
@@ -134,7 +134,7 @@ def extract_general_stats(
     """
     # set default values
     if obs_columns is None:
-        obs_columns = ["volume_final", "area", "circularity", "sphericity_3d", "elongation"]
+        obs_columns = ["volume_final", "area", "circularity", "sphericity_3d", "elongation", "n_counts"]
     if obsm_columns is None:
         obsm_columns = {
             "intensities": ["PolyT", "DAPI"],

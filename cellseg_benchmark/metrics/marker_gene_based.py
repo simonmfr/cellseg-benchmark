@@ -356,7 +356,7 @@ def _MECR_score(adata, gene_pairs, layer=None):
 
 
 def compute_MECR_score(
-    adata, layer="volume_log1p_norm", **kwargs
+    adata, layer="volume_log1p_norm", groups=False, **kwargs
 ):
     """Compute MECR Score on specific gene pairs.
 
@@ -365,6 +365,7 @@ def compute_MECR_score(
     Args:
         adata: anndata to compute MECR with
         layer: layer of gene expression in adata to use for computing MECR score
+        groups: compute separately for each group in _constants.celltype_groups, with a "group" column
     Returns:
         results DataFrame
     """
@@ -383,8 +384,16 @@ def compute_MECR_score(
                 for gene2 in marker_gene_dict[cell_type2]:
                     gene_pairs.append((gene1, gene2))
 
-    results = _MECR_score(adata, gene_pairs, layer=layer)
-    return results
+    if not groups:
+        return _MECR_score(adata, gene_pairs, layer=layer)
+    cell_types = adata.obs["cell_type_revised"]
+    return pd.concat(
+        [
+            _MECR_score(adata[cell_types.isin(types)], gene_pairs, layer=layer).assign(group=group)
+            for group, types in _constants.celltype_groups.items()
+        ],
+        ignore_index=True,
+    )
 
 
 def plot_MECR_score(cohort, results_suffix, show=False):

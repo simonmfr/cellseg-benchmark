@@ -53,11 +53,18 @@ if __name__ == "__main__":
         help="Resolution to use for leiden clustering if desired. Default is 1",
     )
 
+    parser.add_argument(
+        "--groups",
+        action="store_true",
+        help="Compute within each cell type group (_constants.celltype_groups) into clustering_score_groups.csv.",
+    )
+
     args = parser.parse_args()
-    results_name = (
-        f"cell_type_metrics/clustering_score_{args.adata_name}_{args.celltype_name}.csv"
-    )
+    suffix = "groups" if args.groups else f"{args.adata_name}_{args.celltype_name}"
     compute_metric_for_all_methods(
-        compute_clustering_scores, results_name=results_name, **vars(args)
+        compute_clustering_scores,
+        results_name=f"cell_type_metrics/clustering_score_{suffix}.csv",
+        **vars(args),
     )
-    plot_clustering_scores(args.cohort, f"{args.adata_name}_{args.celltype_name}")
+    if not args.groups:
+        plot_clustering_scores(args.cohort, suffix)

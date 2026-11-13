@@ -12,7 +12,13 @@ from .utils import clean_method_name
 
 
 def compute_clustering_scores(
-    adata, celltype_name, sample_size=1000, n_pcs=30, leiden_resolution=1, **kwargs
+    adata,
+    celltype_name,
+    sample_size=1000,
+    n_pcs=30,
+    leiden_resolution=1,
+    groups=False,
+    **kwargs,
 ):
     """Compute CH / SH clustering scores per sample.
 
@@ -25,6 +31,8 @@ def compute_clustering_scores(
         sample_size: downsamples data to sample_size to speed up computation
         n_pcs: number of principal components to use
         leiden_resolution: resolution to use for leiden clustering
+        groups: compute separately within each group in _constants.celltype_groups that has
+            more than one cell type, with a "group" column
     Returns:
         results DataFrame or None
     """
@@ -32,6 +40,23 @@ def compute_clustering_scores(
     if celltype_name not in adata.obs.columns and (celltype_name != "leiden"):
         print(f"{celltype_name} not found in adata.obs")
         return None
+    if groups:
+        cell_types = adata.obs[celltype_name]
+        results = pd.concat(
+            {
+                group: _clustering_score(
+                    adata[cell_types.isin(types)].copy(),
+                    celltype_name,
+                    sample_size,
+                    n_pcs,
+                    leiden_resolution,
+                )
+                for group, types in _constants.celltype_groups.items()
+                if len(types) > 1
+            },
+            names=["group", "sample"],
+        )
+        return results.reset_index()
     # compute clustering score per sample
     results = _clustering_score(
         adata,
@@ -62,13 +87,17 @@ def _clustering_score(
         ch = sklearn.metrics.calinski_harabasz_score(
             cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name]
         )
-        sh = sklearn.metrics.silhouette_score(cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name])
+        sh = sklearn.metrics.silhouette_score(
+            cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name]
+        )
         results.loc[sample] = {
             "calinski_harabasz_score": float(ch),
             "silhouette_score": float(sh),
         }
     # compute for all samples together
-    ch = sklearn.metrics.calinski_harabasz_score(adata.obsm["X_pca"], adata.obs[celltype_name])
+    ch = sklearn.metrics.calinski_harabasz_score(
+        adata.obsm["X_pca"], adata.obs[celltype_name]
+    )
     sh = sklearn.metrics.silhouette_score(adata.obsm["X_pca"], adata.obs[celltype_name])
     results.loc["all"] = {
         "calinski_harabasz_score": float(ch),
