@@ -39,5 +39,6 @@ if __name__ == "__main__":
         methods=args.methods,
         n_jobs=args.n_jobs,
         overwrite=args.overwrite,
+        skip_3D=True,
     )
     plot_ficture_f1(args.cohort, show=False)

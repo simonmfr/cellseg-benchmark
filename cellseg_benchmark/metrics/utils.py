@@ -93,6 +93,7 @@ def compute_metric_for_all_methods(
     methods=None,
     adata_name="adata_integrated",
     overwrite=False,
+    skip_3D=False,
     **kwargs,
 ):
     """Generic function to iterate over all methods to compute metric.
@@ -107,11 +108,14 @@ def compute_metric_for_all_methods(
         methods: list of methods to iterate over. If None, will iterate over all methods
         adata_name: name of adata file to read (either adata_integrated or adata_vascular_subset)
         overwrite: whether to overwrite already existing results
+        skip_3D: skip 3D methods, for metrics that only apply to 2D segmentations
         kwargs: further keyword arguments passed to metric_func
     """
     if methods is None:
         data_path = pathlib.Path(base_path) / "analysis" / cohort
         methods = os.listdir(data_path)
+    if skip_3D:
+        methods = [m for m in methods if not m.startswith(tuple(_constants.methods_3D))]
     for i, method in enumerate(methods):
         print(f"{i + 1}/{len(methods)} ", end="")
         compute_metric(
