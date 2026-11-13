@@ -71,24 +71,28 @@ def build_benchmark_table(dfs, group=None, ref=None):
     )
     marker = dfs["marker_f1_score_cell_type_revised"]
     ficture = dfs["ficture_f1"][~dfs["ficture_f1"].cell_type.str.startswith("f1_")]
+    counts = (
+        dfs["assigned_transcript_counts"]
+        .groupby(["sample", "method"])[["assigned_count_qced", "total_count"]]
+        .sum()
+    )
     if group is None:
         cells = all_cells
-        transcripts = None
+        transcripts = counts.assigned_count_qced
         mecr = dfs["MECR_score_all"]
         silhouette = dfs["clustering_score_adata_integrated_cell_type_revised"]
     else:
         types = _constants.celltype_groups[group]
         rows = general[general.cell_type_revised.isin(types)]
-        stats_w = stats + ["n_counts"]
         cells = (
-            rows[stats_w]
+            rows[stats + ["n_counts"]]
             .mul(rows.n_cells, axis=0)
             .assign(n_cells=rows.n_cells, sample=rows["sample"], method=rows.method)
             .groupby(["sample", "method"])
             .sum(min_count=1)
         )
-        cells[stats_w] = cells[stats_w].div(cells.n_cells, axis=0)
-        transcripts = cells.n_counts * cells.n_cells
+        transcripts = cells.n_counts
+        cells = cells.div(cells.n_cells, axis=0).assign(n_cells=cells.n_cells)
         mecr = dfs["MECR_score_groups"].query("group == @group")
         silhouette = dfs["clustering_score_groups"].query("group == @group")
         marker = marker[
@@ -97,14 +101,6 @@ def build_benchmark_table(dfs, group=None, ref=None):
             )
         ]
         ficture = ficture[ficture.cell_type.isin(types)]
-
-    counts = (
-        dfs["assigned_transcript_counts"]
-        .groupby(["sample", "method"])[["assigned_count_qced", "total_count"]]
-        .sum()
-    )
-    if transcripts is None:
-        transcripts = counts.assigned_count_qced
     counts["tpc"] = transcripts / cells.n_cells
     counts["pct_assigned_qced"] = transcripts / counts.total_count
     density = dfs["cell_density"].groupby("method")[["n_cells", "tissue_mm2"]].sum()
@@ -165,9 +161,8 @@ def build_benchmark_table(dfs, group=None, ref=None):
 def build_benchmark_tables(cohorts, group=None, base_path=_constants.BASE_PATH):
     """Build one table per cohort and a combined table averaging their scaled metrics.
 
-    A group table is scaled with the min, max and MECR fit of the all-cells table of the
-    same cohort, so its scores are comparable to Fig. 1. Also returns the combined total
-    score from pooled scaling, for sensitivity checks.
+    Group tables are scaled with the MECR fit, min and max of the all-cells table.
+    Also returns the combined total score from pooled scaling, for sensitivity checks.
     """
     tables_used = metric_tables | (group_tables if group else {})
     dfs_by = {

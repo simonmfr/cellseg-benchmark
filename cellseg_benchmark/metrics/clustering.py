@@ -87,17 +87,13 @@ def _clustering_score(
         ch = sklearn.metrics.calinski_harabasz_score(
             cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name]
         )
-        sh = sklearn.metrics.silhouette_score(
-            cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name]
-        )
+        sh = sklearn.metrics.silhouette_score(cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name])
         results.loc[sample] = {
             "calinski_harabasz_score": float(ch),
             "silhouette_score": float(sh),
         }
     # compute for all samples together
-    ch = sklearn.metrics.calinski_harabasz_score(
-        adata.obsm["X_pca"], adata.obs[celltype_name]
-    )
+    ch = sklearn.metrics.calinski_harabasz_score(adata.obsm["X_pca"], adata.obs[celltype_name])
     sh = sklearn.metrics.silhouette_score(adata.obsm["X_pca"], adata.obs[celltype_name])
     results.loc["all"] = {
         "calinski_harabasz_score": float(ch),
