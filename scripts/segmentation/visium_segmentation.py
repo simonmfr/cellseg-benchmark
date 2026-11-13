@@ -7,6 +7,7 @@ import sopa.aggregation.transcripts as tr
 from scipy.sparse import coo_matrix as _coo
 from sopa import aggregate
 from sopa.io import merscope
+from spatialdata import SpatialData
 
 sys.path.insert(0, str(pathlib.Path(__file__).parents[2]))
 
@@ -57,7 +58,9 @@ if hasattr(tr, "coo_matrix"):
     tr.coo_matrix = _coo_as_csr
 
 aggregate(sdata, shapes_key=args.out_name)
-sdata.write(pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True)
+SpatialData(points=sdata.points, shapes=sdata.shapes, tables=sdata.tables).write(
+    pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True
+)
 
 if args.explorer:
     from pandas import read_csv

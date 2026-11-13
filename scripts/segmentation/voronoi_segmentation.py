@@ -10,7 +10,7 @@ import tifffile
 from scipy.spatial import Voronoi
 from sopa import aggregate
 from sopa.io import merscope
-from spatialdata import read_zarr
+from spatialdata import SpatialData, read_zarr
 from spatialdata.models import ShapesModel
 
 parser = argparse.ArgumentParser(
@@ -53,7 +53,9 @@ gdf = gpd.GeoDataFrame({"geometry": [polygon for polygon in polygons]})
 
 sdata["cellpose_boundaries"] = ShapesModel.parse(gdf)
 aggregate(sdata, shapes_key="cellpose_boundaries")
-sdata.write(pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True)
+SpatialData(points=sdata.points, shapes=sdata.shapes, tables=sdata.tables).write(
+    pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True
+)
 
 if args.explorer:
     from sopa.io.explorer import write
