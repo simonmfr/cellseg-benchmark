@@ -41,6 +41,7 @@ def compute_clustering_scores(
         print(f"{celltype_name} not found in adata.obs")
         return None
     if groups:
+        adata.layers.clear()
         cell_types = adata.obs[celltype_name]
         results = pd.concat(
             {
@@ -84,6 +85,8 @@ def _clustering_score(
         )
     for sample in adata.obs["sample"].unique():
         cur_adata = adata[adata.obs["sample"] == sample]
+        if not 1 < cur_adata.obs[celltype_name].nunique() < cur_adata.n_obs:
+            continue
         ch = sklearn.metrics.calinski_harabasz_score(
             cur_adata.obsm["X_pca"], cur_adata.obs[celltype_name]
         )
@@ -93,6 +96,8 @@ def _clustering_score(
             "silhouette_score": float(sh),
         }
     # compute for all samples together
+    if not 1 < adata.obs[celltype_name].nunique() < adata.n_obs:
+        return results
     ch = sklearn.metrics.calinski_harabasz_score(adata.obsm["X_pca"], adata.obs[celltype_name])
     sh = sklearn.metrics.silhouette_score(adata.obsm["X_pca"], adata.obs[celltype_name])
     results.loc["all"] = {
