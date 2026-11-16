@@ -33,6 +33,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   )
 
   column_info <- col_spec %>%
+    filter(id %in% names(df_funky)) %>%
     left_join(metric_labels, by = "id", suffix = c("", "_label")) %>%
     mutate(name = coalesce(name_label, name), name = ifelse(id == "cells_per_mm2", "Cells/mm² (×10³)", name),
            options = opts, legend = FALSE) %>%

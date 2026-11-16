@@ -32,73 +32,110 @@ metric_tables = {
     "marker_f1_score_cell_type_revised": "marker_gene_metrics",
     "clustering_score_adata_integrated_cell_type_revised": "cell_type_metrics",
 }
+group_tables = {"MECR_score_groups": "marker_gene_metrics"}
 
 
 def add_scores(df):
-    """Add total and expression scores as means of category means, sorted by total."""
-    category_scores = pd.DataFrame(
-        {name: df[cols].mean(axis=1) for name, cols in categories.items()}
-    )
-    df["total_score"] = category_scores.mean(axis=1)
-    df["expr_score"] = category_scores[["clustering", "marker"]].mean(axis=1)
+    """Add total and expression scores as means of the category scores, sorted by total."""
+    df["total_score"] = df[list(categories)].mean(axis=1)
+    df["expr_score"] = df[["clustering", "marker"]].mean(axis=1)
     return df.sort_values("total_score", ascending=False)
 
 
-def build_benchmark_table(dfs):
-    """Average metrics per method and min-max scale them across non-control methods."""
-    general = dfs["general_stats"].query("cell_type_revised == 'all'")
+def build_benchmark_table(dfs, group=None, fit=None):
+    """Average metrics per method and min-max scale them across non-control methods.
+
+    BAMs are left out of Ficture F1, which has no reliable BAM factor.
+
+    Args:
+        dfs: metric tables as loaded by build_benchmark_tables.
+        group: key of _constants.celltype_groups to restrict the metrics to, or None for all cells.
+            Silhouette is undefined within one cell type and left empty.
+        fit: MECR fit on log10 transcripts per cell, fitted on this table if None.
+
+    Returns:
+        The scored table and its MECR fit.
+    """
+    general = dfs["general_stats"]
+    stats = [
+        "volume_final",
+        "elongation",
+        "intensities_DAPI",
+        "Ovrlpy_stats_mean_integrity",
+    ]
+    all_cells = general.query("cell_type_revised == 'all'").set_index(
+        ["sample", "method"]
+    )
+    marker = dfs["marker_f1_score_cell_type_revised"]
+    ficture = dfs["ficture_f1"]
+    ficture = ficture[
+        ~ficture.cell_type.str.startswith("f1_") & (ficture.cell_type != "BAMs")
+    ]
     counts = (
         dfs["assigned_transcript_counts"]
         .groupby(["sample", "method"])[["assigned_count_qced", "total_count"]]
         .sum()
     )
-    counts["pct_assigned_qced"] = counts.assigned_count_qced / counts.total_count
-    counts["tpc"] = (
-        counts.assigned_count_qced / general.set_index(["sample", "method"]).n_cells
-    )
+    silhouette = dfs["clustering_score_adata_integrated_cell_type_revised"]
+    if group is None:
+        cells = all_cells
+        transcripts = counts.assigned_count_qced
+        mecr = dfs["MECR_score_all"]
+    else:
+        types = _constants.celltype_groups[group]
+        rows = general[general.cell_type_revised.isin(types)]
+        cells = (
+            rows[stats + ["n_counts"]]
+            .mul(rows.n_cells, axis=0)
+            .assign(n_cells=rows.n_cells, sample=rows["sample"], method=rows.method)
+            .groupby(["sample", "method"])
+            .sum(min_count=1)
+        )
+        transcripts = cells.n_counts
+        cells = cells.div(cells.n_cells, axis=0).assign(n_cells=cells.n_cells)
+        mecr = dfs["MECR_score_groups"].query("group == @group")
+        silhouette = silhouette.iloc[:0]
+        marker = marker[
+            marker.cell_type.isin(
+                {_constants.merged_celltypes.get(t, t) for t in types}
+            )
+        ]
+        ficture = ficture[ficture.cell_type.isin(types)]
+    counts["tpc"] = transcripts / cells.n_cells
+    counts["pct_assigned_qced"] = transcripts / counts.total_count
     density = dfs["cell_density"].groupby("method")[["n_cells", "tissue_mm2"]].sum()
-    marker_f1 = (
-        dfs["marker_f1_score_cell_type_revised"]
-        .groupby(["sample", "method", "cell_type"])
-        .f1_score.mean()
-        .groupby(["sample", "method"])
-        .mean()
-        .groupby("method")
-        .mean()
+    fraction = (
+        cells.n_cells.groupby(level="method").sum()
+        / all_cells.n_cells.groupby(level="method").sum()
     )
 
     df = pd.concat(
         [
-            general.groupby("method")[
-                [
-                    "volume_final",
-                    "elongation",
-                    "intensities_DAPI",
-                    "Ovrlpy_stats_mean_integrity",
-                ]
-            ].mean(),
-            counts.groupby("method")[["pct_assigned_qced", "tpc"]].mean(),
-            dfs["clustering_score_adata_integrated_cell_type_revised"]
-            .groupby("method")[["silhouette_score"]]
-            .mean(),
-            dfs["MECR_score_all"]
-            .query("gene1 == 'all'")
-            .groupby("method")[["MECR"]]
-            .mean(),
-            marker_f1.rename("marker_f1"),
-            dfs["ficture_f1"]
-            .query("cell_type == 'f1_macro_all'")
+            cells.groupby(level="method")[stats].mean(),
+            counts.groupby(level="method")[["pct_assigned_qced", "tpc"]].mean(),
+            silhouette.groupby("method")[["silhouette_score"]].mean(),
+            mecr.query("gene1 == 'all'").groupby("method")[["MECR"]].mean(),
+            marker.groupby(["sample", "method", "cell_type"])
+            .f1_score.mean()
+            .groupby(["sample", "method"])
+            .mean()
             .groupby("method")
+            .mean()
+            .rename("marker_f1"),
+            ficture.groupby(["sample", "method"])
             .f1.mean()
+            .groupby("method")
+            .mean()
             .rename("ficture_f1_score"),
-            (density.n_cells / density.tissue_mm2).rename("cells_per_mm2"),
+            (density.n_cells / density.tissue_mm2 * fraction).rename("cells_per_mm2"),
         ],
         axis=1,
     ).drop(index=exclude, errors="ignore")
 
     df["is_control"] = df.index.str.startswith("Negative_Control")
-    fit_data = df[~df.is_control].dropna(subset=["MECR", "tpc"])
-    fit = np.polyfit(np.log10(fit_data.tpc), fit_data.MECR, 1)
+    if fit is None:
+        fit_data = df[~df.is_control].dropna(subset=["MECR", "tpc"])
+        fit = np.polyfit(np.log10(fit_data.tpc), fit_data.MECR, 1)
     df["MECR_adj"] = df.MECR - np.polyval(fit, np.log10(df.tpc))
 
     is_3d = df.index.str.startswith(tuple(_constants.methods_3D))
@@ -108,45 +145,59 @@ def build_benchmark_table(dfs):
     df["na_ficture"] = (is_3d | is_ficture_seg) & df.ficture_f1_score.isna()
     df["density_label"] = (df.cells_per_mm2 / 1e3).map("{:.1f}".format)
 
+    df.index = df.index.map(clean_method_name).rename("id")
     values = df[metrics].assign(
         MECR_adj=-df.MECR_adj, cells_per_mm2=np.log10(df.cells_per_mm2)
     )
     low, high = values[~df.is_control].min(), values[~df.is_control].max()
     df[metrics] = ((values - low) / (high - low)).clip(0, 1)
+    for name, cols in categories.items():
+        df[name] = df[cols].mean(axis=1)
+    return add_scores(df), fit
 
-    df.index = df.index.map(clean_method_name).rename("id")
-    return add_scores(df)
 
-
-def build_benchmark_tables(cohorts, base_path=_constants.BASE_PATH):
+def build_benchmark_tables(cohorts, group=None, base_path=_constants.BASE_PATH):
     """Build one table per cohort and a combined table averaging their scaled metrics.
 
+    Group tables use the MECR fit of the all-cells table and are scaled within the group.
+    Methods missing in some cohorts are flagged in the "partial" column.
     Also returns the combined total score from pooled scaling, for sensitivity checks.
     """
+    tables_used = metric_tables | (group_tables if group else {})
     dfs_by = {
         cohort: {
             table: pd.read_csv(
                 Path(base_path) / "metrics" / cohort / folder / f"{table}.csv",
                 index_col=0,
             ).query("sample not in ['all', 'all_samples']")
-            for table, folder in metric_tables.items()
+            for table, folder in tables_used.items()
         }
         for cohort in cohorts
     }
     dfs_by["combined"] = {
         t: pd.concat([dfs_by[c][t] for c in cohorts], ignore_index=True)
-        for t in metric_tables
+        for t in tables_used
     }
-    tables = {name: build_benchmark_table(dfs) for name, dfs in dfs_by.items()}
+    tables = {}
+    for name, dfs in dfs_by.items():
+        tables[name], fit = build_benchmark_table(dfs)
+        if group:
+            tables[name], _ = build_benchmark_table(dfs, group, fit)
     combined = tables["combined"]
     pooled_score = combined.total_score.copy()
-    combined[metrics] = (
-        pd.concat([tables[c][metrics] for c in cohorts])
+    columns = metrics + list(categories)
+    combined[columns] = (
+        pd.concat([tables[c][columns] for c in cohorts])
         .groupby(level=0)
         .mean()
         .reindex(combined.index)
     )
     tables["combined"] = add_scores(combined)
+    indices = [set(tables[c].index) for c in cohorts]
+    for table in tables.values():
+        table["partial"] = table.index.isin(
+            set.union(*indices) - set.intersection(*indices)
+        )
     return tables, pooled_score
 
 
@@ -156,15 +207,23 @@ def plot_benchmark_table(
     score_label="Overall",
     font_file=Path(_constants.BASE_PATH) / "misc" / "Arial.ttf",
 ):
-    """Plot a benchmark table with funkyheatmap and save it as png and svg."""
+    """Plot a benchmark table with funkyheatmap and save it as png and svg.
+
+    Methods missing in some cohorts are marked with an asterisk. An empty silhouette column is left out.
+    """
     import rpy2.robjects as ro
     from rpy2.robjects import pandas2ri
 
+    Path(out_file).parent.mkdir(parents=True, exist_ok=True)
     ro.r["source"](str(Path(__file__).with_suffix(".r")))
     labels = pd.DataFrame(list(_constants.metric_names.items()), columns=["id", "name"])
+    if df.silhouette_score.isna().all():
+        df = df.drop(columns="silhouette_score")
     with (ro.default_converter + pandas2ri.converter).context():
         ro.r["plot_benchmark_heatmap"](
-            df.reset_index(),
+            df.reset_index().assign(
+                id=lambda d: d.id + d.partial.map({True: "*", False: ""})
+            ),
             str(out_file),
             labels,
             font_file=str(font_file),

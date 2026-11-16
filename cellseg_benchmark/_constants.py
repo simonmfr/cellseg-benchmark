@@ -27,7 +27,7 @@ image_based = ["Cellpose", "Negative_Control", "CellSAM"]
 # cleaned names (method_names values)
 main_methods = [
     "Cellpose1 3D P VPT", "Cellpose1 3D N VPT", "Cellpose1 3D P+N VPT",
-    "Cellpose1 N VPT", "Cellpose1 P VPT", "Cellpose1 P+N VPT", "Cellpose1 P Merlin",
+    "Cellpose1 N VPT", "Cellpose1 P VPT", "Cellpose1 P+N VPT", "Cellpose1 P Merlin", "Watershed 3D P Merlin",
     "Cellpose1 N Sopa", "Cellpose1 P Sopa", "Cellpose1 T Sopa", "Cellpose2 P Sopa", "Cellpose2 T Sopa",
     "CellSAM N Sopa", "CellSAM P Sopa", "CellposeSAM N Sopa", "CellposeSAM P Sopa",
     "Baysor", "Baysor 3D", "Spots-In-Space 3D",
@@ -248,6 +248,21 @@ merged_celltypes = {
 
 # Vascular cell types, used for the secondary macro-F1 (see metrics.ficture).
 vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
+
+# Cell types for the cell-type benchmark tables (see metrics.benchmark_table).
+# Neuron subtypes are merged, as in the marker gene list.
+celltype_groups = {
+    "ECs": ["ECs"],
+    "Pericytes": ["Pericytes"],
+    "SMCs": ["SMCs"],
+    "VLMCs": ["VLMCs"],
+    "BAMs": ["BAMs"],
+    "Neurons": ["Neurons-Glut", "Neurons-Gaba"],
+    "Oligodendrocytes": ["Oligodendrocytes"],
+    "OPCs": ["OPCs"],
+    "Astrocytes": ["Astrocytes"],
+    "Microglia": ["Microglia"],
+}
 
 cell_type_colors = {
     "ECs": "#FF6464",
