@@ -143,7 +143,7 @@ def build_benchmark_table(dfs, group=None, fit=None):
     df.loc[is_ficture_seg, "ficture_f1_score"] = np.nan
     df["na_z"] = is_3d & df.Ovrlpy_stats_mean_integrity.isna()
     df["na_ficture"] = (is_3d | is_ficture_seg) & df.ficture_f1_score.isna()
-    df["density_label"] = (df.cells_per_mm2 / 1e3).map("{:.1f}".format)
+    df["density_label"] = (df.cells_per_mm2 / 1e3).map(lambda x: f"{x:.1f}" if x < 10 else f"{x:.0f}")
 
     df.index = df.index.map(clean_method_name).rename("id")
     values = df[metrics].assign(
@@ -216,7 +216,11 @@ def plot_benchmark_table(
 
     Path(out_file).parent.mkdir(parents=True, exist_ok=True)
     ro.r["source"](str(Path(__file__).with_suffix(".r")))
-    labels = pd.DataFrame(list(_constants.metric_names.items()), columns=["id", "name"])
+    names = _constants.metric_names | {
+        "volume_final": "Volume",
+        "pct_assigned_qced": "% Transcripts",
+    }
+    labels = pd.DataFrame(list(names.items()), columns=["id", "name"])
     if df.silhouette_score.isna().all():
         df = df.drop(columns="silhouette_score")
     with (ro.default_converter + pandas2ri.converter).context():
