@@ -54,7 +54,7 @@ def build_benchmark_table(dfs, group=None, fit=None):
         fit: MECR fit on log10 transcripts per cell, fitted on this table if None.
 
     Returns:
-        The scored table and its MECR fit.
+        The scored table (raw metric values in *_raw columns) and its MECR fit.
     """
     general = dfs["general_stats"]
     stats = [
@@ -143,9 +143,9 @@ def build_benchmark_table(dfs, group=None, fit=None):
     df.loc[is_ficture_seg, "ficture_f1_score"] = np.nan
     df["na_z"] = is_3d & df.Ovrlpy_stats_mean_integrity.isna()
     df["na_ficture"] = (is_3d | is_ficture_seg) & df.ficture_f1_score.isna()
-    df["density_label"] = (df.cells_per_mm2 / 1e3).map(lambda x: f"{x:.1f}" if x < 10 else f"{x:.0f}")
 
     df.index = df.index.map(clean_method_name).rename("id")
+    df = df.join(df[metrics].add_suffix("_raw"))
     values = df[metrics].assign(
         MECR_adj=-df.MECR_adj, cells_per_mm2=np.log10(df.cells_per_mm2)
     )
@@ -185,7 +185,7 @@ def build_benchmark_tables(cohorts, group=None, base_path=_constants.BASE_PATH):
             tables[name], _ = build_benchmark_table(dfs, group, fit)
     combined = tables["combined"]
     pooled_score = combined.total_score.copy()
-    columns = metrics + list(categories)
+    columns = metrics + list(categories) + [f"{m}_raw" for m in metrics]
     combined[columns] = (
         pd.concat([tables[c][columns] for c in cohorts])
         .groupby(level=0)
@@ -226,7 +226,10 @@ def plot_benchmark_table(
     with (ro.default_converter + pandas2ri.converter).context():
         ro.r["plot_benchmark_heatmap"](
             df.reset_index().assign(
-                id=lambda d: d.id + d.partial.map({True: "*", False: ""})
+                id=lambda d: d.id + d.partial.map({True: "*", False: ""}),
+                density_label=lambda d: (d.cells_per_mm2_raw / 1e3).map(
+                    lambda x: f"{x:.1f}" if x < 10 else f"{x:.0f}"
+                ),
             ),
             str(out_file),
             labels,
