@@ -22,6 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("cohort", help="Cohort name.")
     parser.add_argument("--methods", nargs="+", help="Methods to score (default: all methods in the cohort).")
     parser.add_argument("--subset_vascular_celltypes", action="store_true", help="Score only the cells of the vascular subset.")
+    parser.add_argument("--groups", action="store_true", help="Score each cell-type group of _constants.celltype_groups separately.")
     parser.add_argument("--overwrite", action="store_true", help="Recompute methods already present in the CSV.")
     args = parser.parse_args()
 
@@ -31,7 +32,8 @@ if __name__ == "__main__":
     compute_metric_for_all_methods(
         compute_z_integrity,
         cohort=args.cohort,
-        results_name=f"z_integrity/z_integrity_{'vascular_celltypes' if vascular else 'all'}.csv",
+        results_name=f"z_integrity/z_integrity_{'groups' if args.groups else 'vascular_celltypes' if vascular else 'all'}.csv",
+        groups=_constants.celltype_groups if args.groups else None,
         adata_name="adata_vascular_subset" if vascular else "adata_integrated",
         methods=methods,
         overwrite=args.overwrite,

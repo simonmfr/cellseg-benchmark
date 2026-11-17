@@ -145,6 +145,8 @@ def compute_z_integrity(
     sample_col="sample",
     signal_thresholds=(1, 2, 3),
     z_integrity_thresholds=(0.6, 0.7, 0.8),
+    groups=None,
+    celltype_col="cell_type_revised",
     **kwargs,
 ):
     """Share of signal with low z integrity inside a method's cells, per sample.
@@ -154,7 +156,9 @@ def compute_z_integrity(
     reports the percentage with z integrity below the z integrity threshold. Pooling
     makes the score independent of how a region is split into cells; lower is better.
     Coverage is the share of all signal pixels inside the outlines. Fits the
-    ``compute_metric`` contract; 3D methods are skipped.
+    ``compute_metric`` contract; 3D methods are skipped. With ``groups``, each group's
+    cells are scored separately instead of all cells; where cells of different groups
+    overlap, a pixel counts for the cell drawn last.
 
     Args:
         adata: Integrated AnnData for one method; needs ``sample_col`` in ``.obs``.
@@ -163,10 +167,12 @@ def compute_z_integrity(
         sample_col: ``.obs`` column holding the sample names.
         signal_thresholds: Minimum ovrlpy signal of a pixel to count.
         z_integrity_thresholds: Z integrity below which a pixel counts as low.
+        groups: Optional ``{group: cell types}``, e.g. ``_constants.celltype_groups``.
+        celltype_col: ``.obs`` column holding the cell types, used with ``groups``.
         **kwargs: Extra keyword arguments from the metric runner (ignored).
 
     Returns:
-        DataFrame with one row per sample and threshold pair, plus ``all_samples``
+        DataFrame with one row per sample and threshold pair (and group), plus ``all_samples``
         rows with the mean over samples. Columns: sample, signal_threshold,
         z_integrity_threshold, n_cells, coverage_pct, mean_z_integrity, low_z_integrity_pct.
     """
@@ -176,16 +182,24 @@ def compute_z_integrity(
     for sample, obs in adata.obs.groupby(sample_col, observed=True):
         integrity, signal, shift = load_z_integrity_maps(sample, base_path)
         cells = _cells(sample, method, obs.index, shift, base_path)
-        inside = rasterize(((g, 1) for g in cells), out_shape=integrity.shape, dtype=np.uint8) > 0
-        for s in signal_thresholds:
-            tissue = signal > s
-            vals = integrity[inside & tissue]
-            for z in z_integrity_thresholds:
-                rows.append({"sample": sample, "signal_threshold": s, "z_integrity_threshold": z, "n_cells": cells.index.nunique(),
-                             "coverage_pct": 100 * vals.size / tissue.sum(), "mean_z_integrity": vals.mean() if vals.size else np.nan,
-                             "low_z_integrity_pct": 100 * (vals < z).mean() if vals.size else np.nan})
+        if groups is None:
+            masks = {None: (rasterize(((g, 1) for g in cells), out_shape=integrity.shape, dtype=np.uint8) > 0, cells.index.nunique())}
+        else:
+            code = obs[celltype_col].map({t: i for i, types in enumerate(groups.values(), 1) for t in types}).reindex(cells.index)
+            shapes = [(g, int(k)) for g, k in zip(cells, code) if pd.notna(k)]
+            lab = rasterize(shapes, out_shape=integrity.shape, dtype=np.uint8) if shapes else np.zeros(integrity.shape, np.uint8)
+            masks = {name: (lab == i, code[code == i].index.nunique()) for i, name in enumerate(groups, 1)}
+        for group, (inside, n_cells) in masks.items():
+            for s in signal_thresholds:
+                tissue = signal > s
+                vals = integrity[inside & tissue]
+                for z in z_integrity_thresholds:
+                    rows.append({"sample": sample, "signal_threshold": s, "z_integrity_threshold": z, "n_cells": n_cells,
+                                 "coverage_pct": 100 * vals.size / tissue.sum(), "mean_z_integrity": vals.mean() if vals.size else np.nan,
+                                 "low_z_integrity_pct": 100 * (vals < z).mean() if vals.size else np.nan} | ({"group": group} if groups else {}))
     df = pd.DataFrame(rows)
-    mean = df.groupby(["signal_threshold", "z_integrity_threshold"], as_index=False).mean(numeric_only=True).assign(sample="all_samples")
+    keys = ["signal_threshold", "z_integrity_threshold"] + (["group"] if groups else [])
+    mean = df.groupby(keys, as_index=False).mean(numeric_only=True).assign(sample="all_samples")
     return pd.concat([df, mean[df.columns]], ignore_index=True)
 
 
