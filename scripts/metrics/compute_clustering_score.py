@@ -37,8 +37,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sample_size",
         type=int,
-        default=10000,
-        help="Downsamples data to sample_size to speed up computation. Default is 10000.",
+        default=1000,
+        help="Cells per sample (random subsample) to speed up computation. Default is 1000.",
     )
     parser.add_argument(
         "--n_pcs",
