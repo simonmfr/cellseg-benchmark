@@ -9,7 +9,8 @@ _LAZY_SUBMODULES = {
     "ficture_utils",
     "sdata_utils",
     "metrics",
-    "intensities_3D"
+    "intensities_3D",
+    "crop_plots",
 }
 
 __all__ = ["BASE_PATH", *_LAZY_SUBMODULES]
