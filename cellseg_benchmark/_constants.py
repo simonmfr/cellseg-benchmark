@@ -27,12 +27,12 @@ image_based = ["Cellpose", "Negative_Control", "CellSAM"]
 # cleaned names (method_names values)
 main_methods = [
     "Cellpose1 3D P VPT", "Cellpose1 3D N VPT", "Cellpose1 3D P+N VPT",
-    "Cellpose1 N VPT", "Cellpose1 P VPT", "Cellpose1 P+N VPT", "Cellpose1 P Merlin",
+    "Cellpose1 N VPT", "Cellpose1 P VPT", "Cellpose1 P+N VPT", "Cellpose1 P Merlin", "Watershed 3D P Merlin",
     "Cellpose1 N Sopa", "Cellpose1 P Sopa", "Cellpose1 T Sopa", "Cellpose2 P Sopa", "Cellpose2 T Sopa",
-    "CellSAM N Sopa", "CellSAM P Sopa", "CellposeSAM N Sopa", "CellposeSAM P Sopa",
+    "CellSAM P Sopa", "CellposeSAM P Sopa",
     "Baysor", "Baysor 3D", "Spots-In-Space 3D",
     "Proseg 3D (CP1 3D N)", "Proseg 3D (CP1 3D P)", "Proseg 3D (CP1 3D P+N)",
-    "Baysor Sopa (CP1 P, 0.2)", "Ficture Seg (CP1 3D N)",
+    "Baysor Sopa (CP1 P, 0.2)", "ComSeg Sopa (CP1 N)", "Ficture Seg (CP1 3D N)",
     "Raster 5μm", "Raster 10μm", "Raster 25μm", "Voronoi",
 ]
 
