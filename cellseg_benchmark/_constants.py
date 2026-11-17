@@ -249,6 +249,21 @@ merged_celltypes = {
 # Vascular cell types, used for the secondary macro-F1 (see metrics.ficture).
 vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
 
+# Cell types for the cell-type benchmark tables (see metrics.benchmark_table).
+# Neuron subtypes are merged, as in the marker gene list.
+celltype_groups = {
+    "ECs": ["ECs"],
+    "Pericytes": ["Pericytes"],
+    "SMCs": ["SMCs"],
+    "VLMCs": ["VLMCs"],
+    "BAMs": ["BAMs"],
+    "Neurons": ["Neurons-Glut", "Neurons-Gaba"],
+    "Oligodendrocytes": ["Oligodendrocytes"],
+    "OPCs": ["OPCs"],
+    "Astrocytes": ["Astrocytes"],
+    "Microglia": ["Microglia"],
+}
+
 cell_type_colors = {
     "ECs": "#FF6464",
     "aECs": "#FF7700",  # for EC subtyping script
