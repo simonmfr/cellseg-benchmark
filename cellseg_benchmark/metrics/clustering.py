@@ -22,7 +22,7 @@ def compute_clustering_scores(
         adata: anndata to compute score with
         celltype_name: name of celltype column in adata.obs.
             If 'leiden', uses leiden clustering with leiden_resolution to determine clusters
-        sample_size: downsamples data to sample_size to speed up computation
+        sample_size: cells per sample (random subsample) to speed up computation
         n_pcs: number of principal components to use
         leiden_resolution: resolution to use for leiden clustering
     Returns:
@@ -44,12 +44,13 @@ def compute_clustering_scores(
 
 
 def _clustering_score(
-    adata, celltype_name, sample_size=10000, n_pcs=30, leiden_resolution=1
+    adata, celltype_name, sample_size=1000, n_pcs=30, leiden_resolution=1
 ):
     results = pd.DataFrame(columns=["calinski_harabasz_score", "silhouette_score"])
-    # prepare adata
-    if adata.n_obs > sample_size:
-        sc.pp.sample(adata, n=sample_size)
+    keep = adata.obs.groupby("sample", observed=True, group_keys=False).apply(
+        lambda d: d.sample(min(len(d), sample_size), random_state=0)
+    ).index
+    adata = adata[keep].copy()
     adata.obsm["X_pca"] = sc.pp.pca(adata.X, n_comps=n_pcs)
     if celltype_name == "leiden":
         sc.pp.neighbors(adata, use_rep="X_pca")
