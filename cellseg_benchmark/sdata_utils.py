@@ -574,10 +574,9 @@ def calculate_volume(
             df_morph.drop(columns=["cell_id"], inplace=True)
 
         adata = sdata_main.tables[f"adata_{seg_method}"]
-        if "area" in adata.obs.columns:
-            adata.obs.drop(columns="area", inplace=True)
-        if "solidity" in adata.obs.columns:
-            adata.obs.drop(columns="solidity", inplace=True)
+        adata.obs = adata.obs.drop(columns=["area", "solidity"], errors="ignore").rename(
+            columns={"elongation": "elongation_baysor"}
+        )
         adata.obs = adata.obs.merge(df_morph, left_index=True, right_index=True)
         sdata_main[f"adata_{seg_method}"] = adata
     return sdata_main
@@ -684,7 +683,10 @@ def transform_adata(
     adata = sdata_main[f"adata_{seg_method}"]
     spatial = adata.obsm["spatial"]
 
-    if any([seg_method.startswith(method) for method in _constants.image_based]):
+    if any(seg_method.startswith(m) for m in _constants.image_based) and seg_method not in [
+        "Cellpose_1_Merlin",
+        "Negative_Control_Visium",
+    ]:
         x = (
             spatial[:, 0] * (1 / transform.iloc[0, 0])
             - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]

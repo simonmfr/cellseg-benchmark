@@ -57,7 +57,7 @@ python /dss/dssfs03/pn52re/pn52re-dss-0001/Git/cellseg-benchmark/scripts/seg_pos
 #SBATCH -J ovrlpy_z_integrity_map_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/ovrlpy_z_integrity_map_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/ovrlpy_z_integrity_map_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/testing/analysis.sqsh"
 
 mamba activate seg_postprocessing
 python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/ovrlpy_z_integrity_map.py {key} {value["path"]}

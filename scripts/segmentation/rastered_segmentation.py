@@ -5,6 +5,7 @@ import pathlib
 import pandas as pd
 from sopa import aggregate, make_image_patches
 from sopa.io import merscope
+from spatialdata import SpatialData
 
 parser = argparse.ArgumentParser(
     description="Compute segmentation based on rasterization."
@@ -38,7 +39,9 @@ elif args.scale == "microns":
 
 aggregate(sdata, shapes_key="image_patches", min_intensity_ratio=args.intens_rat)
 sdata["rastered_boundaries"] = sdata["image_patches"]
-sdata.write(pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True)
+SpatialData(points=sdata.points, shapes=sdata.shapes, tables=sdata.tables).write(
+    pathlib.Path(args.save_path, "sdata.zarr"), overwrite=True
+)
 
 if args.explorer:
     from sopa.io.explorer import write

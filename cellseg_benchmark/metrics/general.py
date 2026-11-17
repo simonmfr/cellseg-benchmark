@@ -29,7 +29,7 @@ def _extract_stats(df, columns, celltype_name="cell_type_revised"):
         return None
 
     # celltypes to use for vascular subset
-    vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
+    vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs", "BAMs"]
 
     # compute for all cell types individually
     results = (
