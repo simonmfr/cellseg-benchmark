@@ -1,4 +1,4 @@
-plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "Arial", font_file, score_label = "Overall", row_height = 1.02) {
+plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "Arial", font_file, score_label = "Overall", row_height = 1.02, width = NULL) {
   library(funkyheatmap)
   library(dplyr)
   library(tibble)
@@ -10,11 +10,15 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   showtext::showtext_opts(dpi = 600)
   update_geom_defaults("text", list(family = family))
   for (s in c("sep1", "sep2", "sep3")) df_funky[[s]] <- ""
+  # width (inches): text sized to print at 6 pt when the table is placed at this width
+  s <- 1
+  fs <- function(native, pt = 6) if (is.null(width)) native else pt / .pt / s
+  build <- function(name_w) {
 
   box <- list(width = 1.02)
   col_spec <- tribble(
     ~id,                          ~group,       ~geom,       ~palette,      ~name,          ~opts,
-    "id",                         "",           "text",      NA,            "",             list(width = 8.3, hjust = 0, size = 4.2),
+    "id",                         "",           "text",      NA,            "",             list(width = name_w, hjust = 0, size = fs(4.2)),
     "total_score",                "overall",    "bar",       "overall",     "",             list(width = 2.9, draw_outline = FALSE),
     "sep1",                       "",           "text",      NA,            "",             list(width = 0.3),
     "MECR_adj",                   "expression", "funkyrect", "expression",  "MECR",         box,
@@ -29,7 +33,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     "elongation",                 "general",    "funkyrect", "general",     "Elongation",   box,
     "intensities_DAPI",           "general",    "funkyrect", "general",     "DAPI",         box,
     "cells_per_mm2",              "general",    "rect",      "general_lt",  "Cells/mm²",    list(width = 1.1),
-    "density_label",              "general",    "text",      NA,            "",             list(overlay = TRUE, size = 3.3, hjust = 0.5),
+    "density_label",              "general",    "text",      NA,            "",             list(overlay = TRUE, size = fs(3.3, 5.5), hjust = 0.5),
   )
 
   column_info <- col_spec %>%
@@ -95,26 +99,45 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   na <- bind_rows(tibble(row_id = df_funky$id[df_funky$na_ficture], x = mean(col_x("ficture_f1_score"))),
                   tibble(row_id = df_funky$id[df_funky$na_z], x = mean(z))) %>% left_join(rows, by = "row_id")
   hdr <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomText")))
-  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = ifelse(label_value %in% column_groups$level1, 4.2, size))
+  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = case_when(label_value %in% column_groups$level1 ~ fs(4.2, 5.5), size == fs(3.3, 5.5) ~ size, TRUE ~ fs(size)))
   bar <- with(filter(pos, label_value == score_label)[1, ], c(xmin, xmax))
   len <- df_funky$total_score * diff(bar)
   g[[1]] <- p +
     annotate("text", x = bar[1] + ifelse(len > 1.3, 0, len) + 0.08, y = rows$y[match(df_funky$id, rows$row_id)],
-             label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = 3.85, family = family) +
+             label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = fs(3.85), family = family) +
     annotate("segment", x = mean(c(z[2], col_x("pct_assigned_qced")[1])), y = min(rows$y) - 0.5, yend = max(rows$y) + 0.5,
              colour = "grey60", linewidth = 0.3) +
-    annotate("text", x = na$x, y = na$y, label = "–", colour = "grey60", size = 3.3, family = family)
-  legs <- lapply(seq_len(length(g[[3]])), function(i) g[[3]][[i]])
+    annotate("text", x = na$x, y = na$y, label = "–", colour = "grey60", size = fs(3.3, 5.5), family = family)
+  legs <- lapply(seq_len(length(g[[3]])), function(i) {
+    l <- g[[3]][[i]]
+    for (j in which(sapply(l$layers, function(x) inherits(x$geom, "GeomText"))))
+      l$layers[[j]]$data <- mutate(l$layers[[j]]$data, y = y + ifelse(y > -1, -0.25, 0.25), size = fs(size))
+    l
+  })
   lw <- sapply(legs, `[[`, "width") / 0.25
   leg <- patchwork::wrap_plots(c(legs[1], list(patchwork::plot_spacer()), legs[-1]), nrow = 1, widths = c(lw[1], 0.7, lw[-1])) &
     coord_equal(expand = FALSE, clip = "off") & theme(plot.margin = margin(0, 0, 0, 0), plot.background = element_blank())
   top <- max(rows$y) + 1.1
-  g <- g[[1]] + annotation_custom(patchwork::patchworkGrob(leg), xmin = min(pos$xmin, na.rm = TRUE), xmax = min(pos$xmin, na.rm = TRUE) + sum(lw) + 0.7,
-                                  ymin = top, ymax = top + 3)
+  k <- 0.85
+  g <- g[[1]] + annotation_custom(patchwork::patchworkGrob(leg), xmin = min(pos$xmin, na.rm = TRUE), xmax = min(pos$xmin, na.rm = TRUE) + k * (sum(lw) + 0.7),
+                                  ymin = top, ymax = top + 3 * k)
   g <- g + coord_equal(expand = FALSE, clip = "off") + theme(plot.margin = margin(2, 2, 2, 2))
 
-  w <- p$width; h <- p$height
   g <- g & theme(plot.background = element_rect(fill = NA, colour = NA))
-  ggsave(paste0(out_file, ".png"), g, width = w, height = h, dpi = 600, bg = "transparent", type = "cairo")
-  ggsave(paste0(out_file, ".svg"), g, width = w, height = h, bg = "transparent")
+  list(g = g, w = p$width, h = p$height)
+  }
+
+  b <- build(8.3)
+  if (!is.null(width)) {
+    f <- 6 / .pt / 4.2
+    name_w <- 8.3 * f * (b$w - 2.075) / (width - 2.075 * f)
+    s <- width / (b$w + 0.25 * (name_w - 8.3))
+    b <- build(name_w)
+  }
+  g <- b$g; w <- b$w; h <- b$h
+  showtext::showtext_opts(dpi = 600 * s)
+  ggsave(paste0(out_file, ".png"), g, width = w, height = h, dpi = 600 * s, bg = "transparent", type = "cairo")
+  svg <- paste0(out_file, ".svg")
+  ggsave(svg, g, width = w, height = h, bg = "transparent")
+  if (s != 1) writeLines(sub("width='[0-9.]+pt' height='[0-9.]+pt'", sprintf("width='%.2fpt' height='%.2fpt'", 72 * w * s, 72 * h * s), readLines(svg)), svg)
 }
