@@ -249,7 +249,7 @@ def plot_benchmark_table(
             df.reset_index().assign(
                 id=lambda d: d.id + d.partial.map({True: "*", False: ""}),
                 density_label=lambda d: (d.cells_per_mm2_raw / 1e3).map(
-                    lambda x: f"{x:.1f}" if x < 10 else f"{x:.0f}"
+                    lambda x: f"{x:.1f}" if round(x, 1) < 10 else f"{x:.0f}"
                 ),
             ),
             str(out_file),

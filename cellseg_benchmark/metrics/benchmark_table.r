@@ -10,7 +10,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   showtext::showtext_opts(dpi = 600)
   update_geom_defaults("text", list(family = family))
   for (s in c("sep1", "sep2", "sep3")) df_funky[[s]] <- ""
-  # width (inches): text sized to print at 6 pt when the table is placed at this width
+  # width (inches): text sized for print at this width (6 pt; group headers 5, scores 5.5, densities 4.5)
   s <- 1
   fs <- function(native, pt = 6) if (is.null(width)) native else pt / .pt / s
   build <- function(name_w) {
@@ -33,7 +33,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     "elongation",                 "general",    "funkyrect", "general",     "Elongation",   box,
     "intensities_DAPI",           "general",    "funkyrect", "general",     "DAPI",         box,
     "cells_per_mm2",              "general",    "rect",      "general_lt",  "Cells/mm²",    list(width = 1.1),
-    "density_label",              "general",    "text",      NA,            "",             list(overlay = TRUE, size = fs(3.3, 5), hjust = 0.5),
+    "density_label",              "general",    "text",      NA,            "",             list(overlay = TRUE, size = fs(3.3, 4.5), hjust = 0.5),
   )
 
   column_info <- col_spec %>%
@@ -57,8 +57,8 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     expression  = pal("Purples", 2:6),
     spatial     = colorRampPalette(c("#FCE6DF", "#D67A6B"))(6),
     transcripts = pal("Blues", 2:6),
-    general     = colorRampPalette(c("#EEF3EC", "#8DAA92"))(5),
-    general_lt  = colorRampPalette(c("#F8FAF7", "#DCE6D9"))(3)
+    general     = colorRampPalette(c("#ECEFF4", "#7B8BA3"))(5),
+    general_lt  = colorRampPalette(c("#F8F9FB", "#DDE2EA"))(3)
   )
 
   legends <- list(
@@ -83,11 +83,14 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     position_args = position_arguments(
       row_height = row_height, row_space = 0.08, col_space = 0.08,
       expand_xmax = 4.5, expand_ymin = 0,
-      expand_ymax = 0.3, col_annot_offset = 3.6, col_annot_angle = 45
+      expand_ymax = 0.3, col_annot_offset = 4, col_annot_angle = 45
     )
   )
 
   p <- g[[1]]
+  for (j in which(sapply(p$layers, function(l) inherits(l$geom, "GeomRoundedRect"))))
+    p$layers[[j]]$data <- mutate(p$layers[[j]]$data, cx = (xmin + xmax) / 2, cy = (ymin + ymax) / 2,
+                                 xmin = cx + 0.92 * (xmin - cx), xmax = cx + 0.92 * (xmax - cx), ymin = cy + 0.92 * (ymin - cy), ymax = cy + 0.92 * (ymax - cy))
   rl <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomRect") && "column_id" %in% names(l$data)))
   p$layers[[rl]]$data <- mutate(p$layers[[rl]]$data, d = ifelse(column_id %in% "cells_per_mm2", 0.08, 0),
                                 xmin = xmin + d, xmax = xmax - d, ymin = ymin + d, ymax = ymax - d)
@@ -99,28 +102,29 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   na <- bind_rows(tibble(row_id = df_funky$id[df_funky$na_ficture], x = mean(col_x("ficture_f1_score"))),
                   tibble(row_id = df_funky$id[df_funky$na_z], x = mean(z))) %>% left_join(rows, by = "row_id")
   hdr <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomText")))
-  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = case_when(label_value %in% column_groups$level1 ~ fs(4.2, 5.5), size == fs(3.3, 5) ~ size, TRUE ~ fs(size)))
+  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = case_when(label_value %in% column_groups$level1 ~ fs(4.2, 5), size == fs(3.3, 4.5) ~ size, TRUE ~ fs(size)))
   bar <- with(filter(pos, label_value == score_label)[1, ], c(xmin, xmax))
   len <- df_funky$total_score * diff(bar)
   g[[1]] <- p +
     annotate("text", x = bar[1] + ifelse(len > 1.3, 0.08, len + 0.2), y = rows$y[match(df_funky$id, rows$row_id)],
-             label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = fs(3.85), family = family) +
+             label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = fs(3.85, 5.5), family = family) +
     annotate("segment", x = mean(c(z[2], col_x("pct_assigned_qced")[1])), y = min(rows$y) - 0.5, yend = max(rows$y) + 0.5,
              colour = "grey60", linewidth = 0.3) +
     annotate("text", x = na$x, y = na$y, label = "–", colour = "grey60", size = fs(3.3, 5.5), family = family)
   legs <- lapply(seq_len(length(g[[3]])), function(i) {
     l <- g[[3]][[i]]
     for (j in which(sapply(l$layers, function(x) inherits(x$geom, "GeomText"))))
-      l$layers[[j]]$data <- mutate(l$layers[[j]]$data, y = y + ifelse(y > -1, -0.1, 0.1), size = fs(size))
+      l$layers[[j]]$data <- mutate(l$layers[[j]]$data, size = fs(size))
+    for (j in which(sapply(l$layers, function(x) inherits(x$geom, "GeomRect") && "i" %in% names(x$data))))
+      l$layers[[j]]$data <- arrange(l$layers[[j]]$data, is.na(i))
     l
   })
   lw <- sapply(legs, `[[`, "width") / 0.25
-  leg <- patchwork::wrap_plots(c(legs[1], list(patchwork::plot_spacer()), legs[-1]), nrow = 1, widths = c(lw[1], 0.7, lw[-1])) &
+  leg <- patchwork::wrap_plots(c(legs[1], list(patchwork::plot_spacer()), legs[-1]), nrow = 1, widths = c(lw[1], 1.5, lw[-1])) &
     coord_equal(expand = FALSE, clip = "off") & theme(plot.margin = margin(0, 0, 0, 0), plot.background = element_blank())
   top <- max(rows$y) + 1.1
-  k <- 0.85
-  g <- g[[1]] + annotation_custom(patchwork::patchworkGrob(leg), xmin = min(pos$xmin, na.rm = TRUE), xmax = min(pos$xmin, na.rm = TRUE) + k * (sum(lw) + 0.7),
-                                  ymin = top, ymax = top + 3 * k)
+  g <- g[[1]] + annotation_custom(patchwork::patchworkGrob(leg), xmin = min(pos$xmin, na.rm = TRUE), xmax = min(pos$xmin, na.rm = TRUE) + sum(lw) + 1.5,
+                                  ymin = top, ymax = top + 3)
   g <- g + coord_equal(expand = FALSE, clip = "off") + theme(plot.margin = margin(2, 2, 2, 2))
 
   g <- g & theme(plot.background = element_rect(fill = NA, colour = NA))

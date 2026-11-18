@@ -95,14 +95,15 @@ def draw(ax, sdata, sample, method, box, style="outlines", qc="post", lw=0.4):
     ax.axis("off")
 
 
-def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.8, gap=0.06):
+def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.9, gap=0.06):
     """One row of methods at print size."""
     W, H = len(methods) * (w + gap) - gap, w + 0.3
     fig = plt.figure(figsize=(W, H))
     for i, m in enumerate(methods):
         ax = fig.add_axes([i * (w + gap) / W, 0, w / W, w / H])
         draw(ax, sdata, sample, m, box, style, qc, lw=0.2)
-        ax.set_title(_constants.method_names[m].replace(" (", "\n("), fontsize=7, pad=4, linespacing=1)
+        name = _constants.method_names[m]
+        ax.set_title(name.replace(" (", "\n(") if "(" in name else name.replace(" ", "\n", 1), fontsize=7, pad=4, linespacing=0.95)
     return fig
 
 
