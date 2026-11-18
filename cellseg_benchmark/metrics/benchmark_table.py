@@ -225,12 +225,14 @@ def plot_benchmark_table(
     score_label="Overall",
     row_height=1.02,
     width=None,
+    height=None,
     font_file=Path(_constants.BASE_PATH) / "misc" / "Arial.ttf",
 ):
     """Plot a benchmark table with funkyheatmap and save it as png and svg.
 
     Methods missing in some cohorts are marked with an asterisk. An empty silhouette column is left out.
     width: print width in inches; text is then sized to 6 pt at that width. None keeps the native size.
+    height: print height in inches, reached by adjusting the row height.
     """
     import rpy2.robjects as ro
     from rpy2.robjects import pandas2ri
@@ -258,4 +260,5 @@ def plot_benchmark_table(
             score_label=score_label,
             row_height=row_height,
             width=ro.NULL if width is None else width,
+            height=ro.NULL if height is None else height,
         )

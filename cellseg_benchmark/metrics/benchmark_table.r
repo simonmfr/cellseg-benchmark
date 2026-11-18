@@ -1,4 +1,4 @@
-plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "Arial", font_file, score_label = "Overall", row_height = 1.02, width = NULL) {
+plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "Arial", font_file, score_label = "Overall", row_height = 1.02, width = NULL, height = NULL) {
   library(funkyheatmap)
   library(dplyr)
   library(tibble)
@@ -57,8 +57,8 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     expression  = pal("Purples", 2:6),
     spatial     = colorRampPalette(c("#FCE6DF", "#D67A6B"))(6),
     transcripts = pal("Blues", 2:6),
-    general     = colorRampPalette(c("#ECEFF4", "#7B8BA3"))(5),
-    general_lt  = colorRampPalette(c("#F8F9FB", "#DDE2EA"))(3)
+    general     = colorRampPalette(c("#EDEEF5", "#7A82A6"))(5),
+    general_lt  = colorRampPalette(c("#F8F8FB", "#DFE1EC"))(3)
   )
 
   legends <- list(
@@ -81,7 +81,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     legends       = legends,
     scale_column  = FALSE,
     position_args = position_arguments(
-      row_height = row_height, row_space = 0.08, col_space = 0.08,
+      row_height = row_height, row_space = row_space, col_space = 0.08,
       expand_xmax = 4.5, expand_ymin = 0,
       expand_ymax = 0.3, col_annot_offset = 4, col_annot_angle = 45
     )
@@ -131,11 +131,18 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   list(g = g, w = p$width, h = p$height)
   }
 
-  b <- build(8.3)
+  name_w <- 8.3
+  row_space <- 0.08
+  b <- build(name_w)
   if (!is.null(width)) {
     f <- 6 / .pt / 4.2
     name_w <- 8.3 * f * (b$w - 2.075) / (width - 2.075 * f)
     s <- width / (b$w + 0.25 * (name_w - 8.3))
+    b <- build(name_w)
+  }
+  # height (inches): space between rows chosen so the table prints at this height, cells keep their shape
+  if (!is.null(height)) {
+    row_space <- row_space + (height / s - b$h) / (0.25 * nrow(df_funky))
     b <- build(name_w)
   }
   g <- b$g; w <- b$w; h <- b$h
