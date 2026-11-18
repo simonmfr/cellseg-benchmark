@@ -12,7 +12,8 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   showtext::showtext_opts(dpi = 600)
   update_geom_defaults("text", list(family = family))
   for (s in c("sep1", "sep2", "sep3")) df_funky[[s]] <- ""
-  # width (inches): text sized for print at this width (6 pt; group headers 5, scores 5.5, densities 4.5)
+  # width (inches): text sized for print at this width (6 pt; group headers 5, scores 5.5, densities 4)
+  # height (inches): extra space between rows so the table prints at this height (funkyrect shapes distort with row_height)
   s <- 1
   fs <- function(native, pt = 6) if (is.null(width)) native else pt / .pt / s
   build <- function(name_w) {
@@ -35,7 +36,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     "elongation",                 "general",    "funkyrect", "general",     "Elongation",   box,
     "intensities_DAPI",           "general",    "funkyrect", "general",     "DAPI",         box,
     "cells_per_mm2",              "general",    "rect",      "general_lt",  "Cells/mm²",    list(width = 1.1),
-    "density_label",              "general",    "text",      NA,            "",             list(overlay = TRUE, size = fs(3.3, 4.5), hjust = 0.5),
+    "density_label",              "general",    "text",      NA,            "",             list(overlay = TRUE, size = fs(3.3, 4), hjust = 0.5),
   )
 
   column_info <- col_spec %>%
@@ -57,7 +58,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   palettes <- list(
     overall     = colorRampPalette(c("#FFF4D6", "#FCCB7E", "#EE9E55", "#DA8248"))(6),
     expression  = pal("Purples", 2:6),
-    spatial     = colorRampPalette(c("#FCE6DF", "#D67A6B"))(6),
+    spatial     = colorRampPalette(c("#E6F2F0", "#4F9C93"))(6),
     transcripts = pal("Blues", 2:6),
     general     = colorRampPalette(c("#EDEEF5", "#7A82A6"))(5),
     general_lt  = colorRampPalette(c("#F8F8FB", "#DFE1EC"))(3)
@@ -85,14 +86,15 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     position_args = position_arguments(
       row_height = row_height, row_space = row_space, col_space = 0.08,
       expand_xmax = 4.5, expand_ymin = if (is.null(note)) 0 else 3.2,
-      expand_ymax = 0.3, col_annot_offset = 4, col_annot_angle = 45
+      expand_ymax = 0.3, col_annot_offset = 4.6, col_annot_angle = 45
     )
   )
 
   p <- g[[1]]
   for (j in which(sapply(p$layers, function(l) inherits(l$geom, "GeomRoundedRect"))))
     p$layers[[j]]$data <- mutate(p$layers[[j]]$data, cx = (xmin + xmax) / 2, cy = (ymin + ymax) / 2,
-                                 xmin = cx + 0.92 * (xmin - cx), xmax = cx + 0.92 * (xmax - cx), ymin = cy + 0.92 * (ymin - cy), ymax = cy + 0.92 * (ymax - cy))
+                                 xmin = cx + 0.92 * (xmin - cx), xmax = cx + 0.92 * (xmax - cx), ymin = cy + 0.92 * (ymin - cy), ymax = cy + 0.92 * (ymax - cy),
+                                 across(any_of(c("width", "height")), ~ 0.92 * .x))
   rl <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomRect") && "column_id" %in% names(l$data)))
   p$layers[[rl]]$data <- mutate(p$layers[[rl]]$data, d = ifelse(column_id %in% "cells_per_mm2", 0.08, 0),
                                 xmin = xmin + d, xmax = xmax - d, ymin = ymin + d, ymax = ymax - d)
@@ -104,7 +106,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   na <- bind_rows(tibble(row_id = df_funky$id[df_funky$na_ficture], x = mean(col_x("ficture_f1_score"))),
                   tibble(row_id = df_funky$id[df_funky$na_z], x = mean(z))) %>% left_join(rows, by = "row_id")
   hdr <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomText")))
-  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = case_when(label_value %in% column_groups$level1 ~ fs(4.2, 5), size == fs(3.3, 4.5) ~ size, TRUE ~ fs(size)))
+  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = case_when(label_value %in% column_groups$level1 ~ fs(4.2, 5), size == fs(3.3, 4) ~ size, TRUE ~ fs(size)))
   bar <- with(filter(pos, label_value == score_label)[1, ], c(xmin, xmax))
   len <- df_funky$total_score * diff(bar)
   g[[1]] <- p +
@@ -137,14 +139,16 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
 
   name_w <- 8.3
   row_space <- 0.08
-  b <- build(name_w)
-  if (!is.null(width)) {
-    f <- 6 / .pt / 4.2
-    name_w <- 8.3 * f * (b$w - 2.075) / (width - 2.075 * f)
-    s <- width / (b$w + 0.25 * (name_w - 8.3))
+  f <- 6 / .pt / 4.2
+  fit <- function() {
     b <- build(name_w)
+    if (is.null(width)) return(b)
+    w0 <- b$w - 0.25 * (name_w - 8.3)
+    name_w <<- 8.3 * f * (w0 - 2.075) / (width - 2.075 * f)
+    s <<- width / (w0 + 0.25 * (name_w - 8.3))
+    build(name_w)
   }
-  # height (inches): space between rows chosen so the table prints at this height, cells keep their shape
+  b <- fit()
   if (!is.null(height)) {
     row_space <- row_space + (height / s - b$h) / (0.25 * nrow(df_funky))
     b <- build(name_w)

@@ -226,9 +226,7 @@ def plot_benchmark_table(
     row_height=1.02,
     width=None,
     height=None,
-    note="N, nuclei (DAPI); P, PolyT; P+N, both; 0.2/1.0, Baysor prior confidence\n"
-    "CP1, Cellpose; CP2, fine-tuned Cellpose; VPT/Sopa/Merlin, pipeline\n"
-    "*, not available for all cohorts; –, not scored",
+    note=None,
     font_file=Path(_constants.BASE_PATH) / "misc" / "Arial.ttf",
 ):
     """Plot a benchmark table with funkyheatmap and save it as png and svg.
