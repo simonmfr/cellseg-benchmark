@@ -4,6 +4,8 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   library(tibble)
   library(ggplot2)
   library(RColorBrewer)
+  pdf(NULL)
+  on.exit(dev.off(), add = TRUE)
 
   sysfonts::font_add(family, path.expand(font_file))
   showtext::showtext_auto()
