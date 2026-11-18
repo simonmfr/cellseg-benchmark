@@ -14,6 +14,7 @@ from matplotlib.colors import LinearSegmentedColormap, to_rgb
 
 from . import _constants
 from . import ficture_utils as fu
+from .metrics.ovrl import low_z_integrity_per_cell
 
 dapi_cmap = LinearSegmentedColormap.from_list("dapi", ["white", "#4747ff"])
 
@@ -23,19 +24,20 @@ def _adata_path(sample, method):
 
 
 def find_candidates(cohort, exclude=(), tile=145, quantile=0.85, n=8, ref="vpt_2D_DAPI_PolyT"):
-    """Tiles inside tissue near a density quantile, lowest Ovrlpy integrity first; at most 2 per sample, 4 tiles apart."""
+    """Tiles inside tissue near a density quantile, highest low z integrity share first; at most 2 per sample, 4 tiles apart."""
     with h5py.File(_adata_path(cohort, ref)) as f:
-        cells = pd.DataFrame(f["obsm/spatial"][:], columns=["x", "y"]).assign(
-            sample=np.asarray(ad.io.read_elem(f["obs/sample"])).astype(str),
-            vsi=ad.io.read_elem(f["obsm/Ovrlpy_stats"])["mean_integrity"].to_numpy())
+        cells = pd.DataFrame(f["obsm/spatial"][:], columns=["x", "y"],
+                             index=np.asarray(ad.io.read_elem(f["obs"][f["obs"].attrs["_index"]])).astype(str)).assign(
+            sample=np.asarray(ad.io.read_elem(f["obs/sample"])).astype(str))
     cells = cells[~cells["sample"].isin(exclude)]
+    cells["low_z"] = low_z_integrity_per_cell(ad.AnnData(obs=cells[["sample"]]), ref, _constants.BASE_PATH).to_numpy()
     tiles = (cells.assign(x0=cells.x // tile * tile, y0=cells.y // tile * tile)
-             .groupby(["sample", "x0", "y0"]).agg(n=("vsi", "size"), vsi=("vsi", "mean")).reset_index())
+             .groupby(["sample", "x0", "y0"]).agg(n=("low_z", "size"), low_z=("low_z", "mean")).reset_index())
     full = set(tiles.loc[tiles.n >= tiles.n.median(), ["sample", "x0", "y0"]].itertuples(index=False, name=None))
     inside = [all((s, x + dx * tile, y + dy * tile) in full for dx in (-1, 0, 1) for dy in (-1, 0, 1))
               for s, x, y in tiles[["sample", "x0", "y0"]].itertuples(index=False)]
     picked = []
-    for r in tiles[inside].assign(d=(tiles.n - tiles.n.quantile(quantile)).abs()).sort_values(["d", "vsi"]).itertuples():
+    for r in tiles[inside].assign(d=(tiles.n - tiles.n.quantile(quantile)).abs()).sort_values(["d", "low_z"], ascending=[True, False]).itertuples():
         same = [p for p in picked if p.sample == r.sample]
         if len(same) < 2 and all(np.hypot(r.x0 - p.x0, r.y0 - p.y0) >= 4 * tile for p in same):
             picked.append(r)

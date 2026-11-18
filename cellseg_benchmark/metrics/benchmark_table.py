@@ -12,7 +12,7 @@ categories = {
     "clustering": ["silhouette_score"],
     "marker": ["MECR_adj", "marker_f1"],
     "ficture": ["ficture_f1_score"],
-    "z": ["Ovrlpy_stats_mean_integrity"],
+    "z": ["low_z_integrity_vs_tissue"],
 }
 descriptive = [
     "volume_final",
@@ -31,8 +31,22 @@ metric_tables = {
     "ficture_f1": "ficture",
     "marker_f1_score_cell_type_revised": "marker_gene_metrics",
     "clustering_score_adata_integrated_cell_type_revised": "cell_type_metrics",
+    "z_integrity_all": "z_integrity",
+    "z_integrity_tissue": "z_integrity",
 }
-group_tables = {"MECR_score_groups": "marker_gene_metrics"}
+group_tables = {
+    "MECR_score_groups": "marker_gene_metrics",
+    "z_integrity_groups": "z_integrity",
+}
+
+
+def z_vs_tissue(z, tissue):
+    """Low z integrity share in cells minus the whole-tissue share of the sample (points), mean over samples per method."""
+    z = z.query("signal_threshold == 2 and z_integrity_threshold == 0.7")
+    diff = z.low_z_integrity_pct - z["sample"].map(
+        tissue.set_index("sample").low_z_integrity_pct
+    )
+    return diff.groupby(z.method).mean().rename("low_z_integrity_vs_tissue")
 
 
 def add_scores(df):
@@ -61,7 +75,6 @@ def build_benchmark_table(dfs, group=None, fit=None):
         "volume_final",
         "elongation",
         "intensities_DAPI",
-        "Ovrlpy_stats_mean_integrity",
     ]
     all_cells = general.query("cell_type_revised == 'all'").set_index(
         ["sample", "method"]
@@ -81,6 +94,7 @@ def build_benchmark_table(dfs, group=None, fit=None):
         cells = all_cells
         transcripts = counts.assigned_count_qced
         mecr = dfs["MECR_score_all"]
+        z = dfs["z_integrity_all"]
     else:
         types = _constants.celltype_groups[group]
         rows = general[general.cell_type_revised.isin(types)]
@@ -94,6 +108,7 @@ def build_benchmark_table(dfs, group=None, fit=None):
         transcripts = cells.n_counts
         cells = cells.div(cells.n_cells, axis=0).assign(n_cells=cells.n_cells)
         mecr = dfs["MECR_score_groups"].query("group == @group")
+        z = dfs["z_integrity_groups"].query("group == @group")
         silhouette = silhouette.iloc[:0]
         marker = marker[
             marker.cell_type.isin(
@@ -128,6 +143,7 @@ def build_benchmark_table(dfs, group=None, fit=None):
             .mean()
             .rename("ficture_f1_score"),
             (density.n_cells / density.tissue_mm2 * fraction).rename("cells_per_mm2"),
+            z_vs_tissue(z, dfs["z_integrity_tissue"]),
         ],
         axis=1,
     ).drop(index=exclude, errors="ignore")
@@ -141,13 +157,15 @@ def build_benchmark_table(dfs, group=None, fit=None):
     is_3d = df.index.str.startswith(tuple(_constants.methods_3D))
     is_ficture_seg = df.index.str.startswith("Ficture_segments")
     df.loc[is_ficture_seg, "ficture_f1_score"] = np.nan
-    df["na_z"] = is_3d & df.Ovrlpy_stats_mean_integrity.isna()
+    df["na_z"] = is_3d & df.low_z_integrity_vs_tissue.isna()
     df["na_ficture"] = (is_3d | is_ficture_seg) & df.ficture_f1_score.isna()
 
     df.index = df.index.map(clean_method_name).rename("id")
     df = df.join(df[metrics].add_suffix("_raw"))
     values = df[metrics].assign(
-        MECR_adj=-df.MECR_adj, cells_per_mm2=np.log10(df.cells_per_mm2)
+        MECR_adj=-df.MECR_adj,
+        low_z_integrity_vs_tissue=-df.low_z_integrity_vs_tissue,
+        cells_per_mm2=np.log10(df.cells_per_mm2),
     )
     low, high = values[~df.is_control].min(), values[~df.is_control].max()
     df[metrics] = ((values - low) / (high - low)).clip(0, 1)

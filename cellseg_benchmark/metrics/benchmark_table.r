@@ -22,7 +22,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     "marker_f1",                  "expression", "funkyrect", "expression",  "Marker F1",    box,
     "sep2",                       "",           "text",      NA,            "",             list(width = 0.3),
     "ficture_f1_score",           "spatial",    "funkyrect", "spatial",     "Ficture F1",   box,
-    "Ovrlpy_stats_mean_integrity","spatial",    "funkyrect", "spatial",     "Z integrity",  box,
+    "low_z_integrity_vs_tissue",  "spatial",    "funkyrect", "spatial",     "Z integrity",  box,
     "sep3",                       "",           "text",      NA,            "",             list(width = 0.6),
     "pct_assigned_qced",          "general",    "funkyrect", "transcripts", "% Assigned",   box,
     "volume_final",               "general",    "funkyrect", "general",     "Volume",       box,
@@ -91,7 +91,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     mutate(across(c(xmin, xmax, ymin, ymax), as.numeric))
   col_x <- function(i) with(filter(pos, label_value == column_info$name[column_info$id == i])[1, ], c(xmin, xmax))
   rows <- pos %>% filter(row_id %in% df_funky$id) %>% group_by(row_id) %>% summarise(y = (min(ymin) + max(ymax)) / 2)
-  z <- col_x("Ovrlpy_stats_mean_integrity")
+  z <- col_x("low_z_integrity_vs_tissue")
   na <- bind_rows(tibble(row_id = df_funky$id[df_funky$na_ficture], x = mean(col_x("ficture_f1_score"))),
                   tibble(row_id = df_funky$id[df_funky$na_z], x = mean(z))) %>% left_join(rows, by = "row_id")
   hdr <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomText")))
