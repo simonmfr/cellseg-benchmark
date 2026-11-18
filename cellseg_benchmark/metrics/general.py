@@ -134,7 +134,7 @@ def extract_general_stats(
     """
     # set default values
     if obs_columns is None:
-        obs_columns = ["volume_final", "area", "circularity", "sphericity_3d", "elongation", "n_counts"]
+        obs_columns = ["volume_final", "area", "circularity", "sphericity_3d", "elongation", "n_counts", "n_genes"]
     if obsm_columns is None:
         obsm_columns = {"intensities": ["PolyT", "DAPI"]}
     # prepare adata by putting obsm columns in obs

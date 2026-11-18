@@ -1,4 +1,4 @@
-plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "Arial", font_file, score_label = "Overall") {
+plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "Arial", font_file, score_label = "Overall", row_height = 1.02) {
   library(funkyheatmap)
   library(dplyr)
   library(tibble)
@@ -77,7 +77,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     legends       = legends,
     scale_column  = FALSE,
     position_args = position_arguments(
-      row_height = 1.02, row_space = 0.08, col_space = 0.08,
+      row_height = row_height, row_space = 0.08, col_space = 0.08,
       expand_xmax = 4.5, expand_ymin = 0,
       expand_ymax = 0.3, col_annot_offset = 3.3, col_annot_angle = 45
     )

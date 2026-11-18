@@ -223,6 +223,7 @@ def plot_benchmark_table(
     df,
     out_file,
     score_label="Overall",
+    row_height=1.02,
     font_file=Path(_constants.BASE_PATH) / "misc" / "Arial.ttf",
 ):
     """Plot a benchmark table with funkyheatmap and save it as png and svg.
@@ -253,4 +254,5 @@ def plot_benchmark_table(
             labels,
             font_file=str(font_file),
             score_label=score_label,
+            row_height=row_height,
         )
