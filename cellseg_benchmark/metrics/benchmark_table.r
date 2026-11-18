@@ -42,7 +42,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   column_info <- col_spec %>%
     filter(id %in% names(df_funky)) %>%
     left_join(metric_labels, by = "id", suffix = c("", "_label")) %>%
-    mutate(name = coalesce(name_label, name), name = ifelse(id == "cells_per_mm2", "Cells/mm² (×10³)", name),
+    mutate(name = coalesce(name_label, name), name = ifelse(id == "cells_per_mm2", "Cells/mm²\n(×10³)", name),
            options = opts, legend = FALSE) %>%
     select(-name_label, -opts)
 
@@ -56,12 +56,12 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
 
   pal <- function(name, i = 2:7) brewer.pal(9, name)[i]
   palettes <- list(
-    overall     = colorRampPalette(c("#FFF4D6", "#FCCB7E", "#EE9E55", "#DA8248"))(6),
-    expression  = pal("Purples", 2:6),
-    spatial     = colorRampPalette(c("#E6F2F0", "#4F9C93"))(6),
-    transcripts = pal("Blues", 2:6),
-    general     = colorRampPalette(c("#EDEEF5", "#7A82A6"))(5),
-    general_lt  = colorRampPalette(c("#F8F8FB", "#DFE1EC"))(3)
+    overall     = colorRampPalette(c("#F2F2F2", "#8C8C8C"))(6),
+    expression  = colorRampPalette(c("#EAF1F9", "#4F86C6"))(6),
+    spatial     = colorRampPalette(c("#FBE9E5", "#D9644F"))(6),
+    transcripts = colorRampPalette(c("#FBF3E4", "#C9A46B"))(5),
+    general     = colorRampPalette(c("#FBF3E4", "#C9A46B"))(5),
+    general_lt  = colorRampPalette(c("#FDFAF4", "#F1E4CC"))(3)
   )
 
   legends <- list(
@@ -85,16 +85,12 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     scale_column  = FALSE,
     position_args = position_arguments(
       row_height = row_height, row_space = row_space, col_space = 0.08,
-      expand_xmax = 4.5, expand_ymin = if (is.null(note)) 0 else 3.2,
+      expand_xmax = 2.6, expand_ymin = if (is.null(note)) 0 else 3.2,
       expand_ymax = 0.3, col_annot_offset = 4.6, col_annot_angle = 45
     )
   )
 
   p <- g[[1]]
-  for (j in which(sapply(p$layers, function(l) inherits(l$geom, "GeomRoundedRect"))))
-    p$layers[[j]]$data <- mutate(p$layers[[j]]$data, cx = (xmin + xmax) / 2, cy = (ymin + ymax) / 2,
-                                 xmin = cx + 0.92 * (xmin - cx), xmax = cx + 0.92 * (xmax - cx), ymin = cy + 0.92 * (ymin - cy), ymax = cy + 0.92 * (ymax - cy),
-                                 across(any_of(c("width", "height")), ~ 0.92 * .x))
   rl <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomRect") && "column_id" %in% names(l$data)))
   p$layers[[rl]]$data <- mutate(p$layers[[rl]]$data, d = ifelse(column_id %in% "cells_per_mm2", 0.08, 0),
                                 xmin = xmin + d, xmax = xmax - d, ymin = ymin + d, ymax = ymax - d)
@@ -107,6 +103,10 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
                   tibble(row_id = df_funky$id[df_funky$na_z], x = mean(z))) %>% left_join(rows, by = "row_id")
   hdr <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomText")))
   p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = case_when(label_value %in% column_groups$level1 ~ fs(4.2, 5), size == fs(3.3, 4) ~ size, TRUE ~ fs(size)))
+  # two-line density header: centre the lines on each other, keep the start at the column
+  half <- strwidth("Cells/mm²", units = "inches", cex = with(p$layers[[hdr]]$data, size[grepl("\n", label_value)][1]) * .pt / par("ps")) / 0.25 / 2
+  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, two = grepl("\n", label_value), hjust = ifelse(two, 0.5, hjust), vjust = ifelse(two, 0.75, vjust),
+                                 x = x + two * half * cos(angle * pi / 180), y = y + two * half * sin(angle * pi / 180))
   bar <- with(filter(pos, label_value == score_label)[1, ], c(xmin, xmax))
   len <- df_funky$total_score * diff(bar)
   g[[1]] <- p +
