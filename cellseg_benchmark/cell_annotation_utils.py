@@ -210,12 +210,16 @@ def annotation_qc_summary(adata):
         pd.Series
     """
     m = adata.obsm["allen_cell_type_mapping"].loc[adata.obs.index]
-    counts = adata.layers["counts"]
+    if {"n_counts", "n_genes"} <= set(adata.obs):
+        n_counts, n_genes = adata.obs["n_counts"].to_numpy(), adata.obs["n_genes"].to_numpy()
+    else:
+        counts = adata.layers["counts"]
+        n_counts, n_genes = np.ravel(counts.sum(axis=1)), np.ravel((counts > 0).sum(axis=1))
     cells = pd.DataFrame(
         {
             "undefined": adata.obs["cell_type_revised"].astype(str).eq("Undefined").to_numpy(),
-            "counts": np.ravel(counts.sum(axis=1)),
-            "genes": np.ravel((counts > 0).sum(axis=1)),
+            "counts": n_counts,
+            "genes": n_genes,
             "volume": adata.obs["volume" if "volume" in adata.obs else "area"].to_numpy(),
             "mmc_cor": m["allen_cor_SUPT"].to_numpy(),
             "mmc_prob_gap": m["allen_diff_rup1_prob_SUBC"].to_numpy(),

@@ -67,10 +67,9 @@ def compute_annotation_qc(adata, method, base_path=_constants.BASE_PATH, mad_fac
             print(f"{sample}: {(~keep).sum()} merged cells without annotation, dropped")
         sub, ids = sub[keep], ids[keep]
         subs[sample] = ad.AnnData(
-            obs=labels.loc[ids].set_axis(sub.obs_names).assign(volume=sub.obs["volume_final"].to_numpy()),
+            obs=labels.loc[ids].set_axis(sub.obs_names).assign(**{c: sub.obs[c].to_numpy() for c in ["n_counts", "n_genes"]},
+                                                                 volume=sub.obs["volume_final"].to_numpy()),
             obsm={"allen_cell_type_mapping": mmc.loc[ids].set_axis(sub.obs_names)},
-            var=sub.var[[]],
-            layers={"counts": sub.layers["counts"]},
         )
     if not subs:
         return None
