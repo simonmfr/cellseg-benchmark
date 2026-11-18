@@ -33,7 +33,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     "elongation",                 "general",    "funkyrect", "general",     "Elongation",   box,
     "intensities_DAPI",           "general",    "funkyrect", "general",     "DAPI",         box,
     "cells_per_mm2",              "general",    "rect",      "general_lt",  "Cells/mm²",    list(width = 1.1),
-    "density_label",              "general",    "text",      NA,            "",             list(overlay = TRUE, size = fs(3.3, 5.5), hjust = 0.5),
+    "density_label",              "general",    "text",      NA,            "",             list(overlay = TRUE, size = fs(3.3, 5), hjust = 0.5),
   )
 
   column_info <- col_spec %>%
@@ -57,8 +57,8 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     expression  = pal("Purples", 2:6),
     spatial     = colorRampPalette(c("#FCE6DF", "#D67A6B"))(6),
     transcripts = pal("Blues", 2:6),
-    general     = pal("Greys", 2:5),
-    general_lt  = pal("Greys", 1:3)
+    general     = colorRampPalette(c("#EEF3EC", "#8DAA92"))(5),
+    general_lt  = colorRampPalette(c("#F8FAF7", "#DCE6D9"))(3)
   )
 
   legends <- list(
@@ -83,7 +83,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     position_args = position_arguments(
       row_height = row_height, row_space = 0.08, col_space = 0.08,
       expand_xmax = 4.5, expand_ymin = 0,
-      expand_ymax = 0.3, col_annot_offset = 3.3, col_annot_angle = 45
+      expand_ymax = 0.3, col_annot_offset = 3.6, col_annot_angle = 45
     )
   )
 
@@ -99,11 +99,11 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   na <- bind_rows(tibble(row_id = df_funky$id[df_funky$na_ficture], x = mean(col_x("ficture_f1_score"))),
                   tibble(row_id = df_funky$id[df_funky$na_z], x = mean(z))) %>% left_join(rows, by = "row_id")
   hdr <- which(sapply(p$layers, function(l) inherits(l$geom, "GeomText")))
-  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = case_when(label_value %in% column_groups$level1 ~ fs(4.2, 5.5), size == fs(3.3, 5.5) ~ size, TRUE ~ fs(size)))
+  p$layers[[hdr]]$data <- mutate(p$layers[[hdr]]$data, size = case_when(label_value %in% column_groups$level1 ~ fs(4.2, 5.5), size == fs(3.3, 5) ~ size, TRUE ~ fs(size)))
   bar <- with(filter(pos, label_value == score_label)[1, ], c(xmin, xmax))
   len <- df_funky$total_score * diff(bar)
   g[[1]] <- p +
-    annotate("text", x = bar[1] + ifelse(len > 1.3, 0, len) + 0.08, y = rows$y[match(df_funky$id, rows$row_id)],
+    annotate("text", x = bar[1] + ifelse(len > 1.3, 0.08, len + 0.2), y = rows$y[match(df_funky$id, rows$row_id)],
              label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = fs(3.85), family = family) +
     annotate("segment", x = mean(c(z[2], col_x("pct_assigned_qced")[1])), y = min(rows$y) - 0.5, yend = max(rows$y) + 0.5,
              colour = "grey60", linewidth = 0.3) +
@@ -111,7 +111,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   legs <- lapply(seq_len(length(g[[3]])), function(i) {
     l <- g[[3]][[i]]
     for (j in which(sapply(l$layers, function(x) inherits(x$geom, "GeomText"))))
-      l$layers[[j]]$data <- mutate(l$layers[[j]]$data, y = y + ifelse(y > -1, -0.25, 0.25), size = fs(size))
+      l$layers[[j]]$data <- mutate(l$layers[[j]]$data, y = y + ifelse(y > -1, -0.1, 0.1), size = fs(size))
     l
   })
   lw <- sapply(legs, `[[`, "width") / 0.25
