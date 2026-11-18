@@ -59,7 +59,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     overall     = colorRampPalette(c("#FFF4D6", "#FCCB7E", "#EE9E55", "#DA8248"))(6),
     expression  = colorRampPalette(c("#EAF1F9", "#4F86C6"))(6),
     spatial     = colorRampPalette(c("#FBE9E5", "#D9644F"))(6),
-    transcripts = colorRampPalette(c("#F1ECF7", "#8E6BBF"))(5),
+    transcripts = colorRampPalette(c("#F1EDE8", "#7D6853"))(5),
     general     = colorRampPalette(c("#F4F2EF", "#A39A90"))(5),
     general_lt  = colorRampPalette(c("#FBFAF9", "#EAE6E1"))(3)
   )
