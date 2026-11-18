@@ -59,9 +59,9 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     overall     = colorRampPalette(c("#FFF4D6", "#FCCB7E", "#EE9E55", "#DA8248"))(6),
     expression  = colorRampPalette(c("#EAF1F9", "#4F86C6"))(6),
     spatial     = colorRampPalette(c("#FBE9E5", "#D9644F"))(6),
-    transcripts = colorRampPalette(c("#F2F2F2", "#8C8C8C"))(5),
-    general     = colorRampPalette(c("#F2F2F2", "#8C8C8C"))(5),
-    general_lt  = colorRampPalette(c("#FAFAFA", "#E6E6E6"))(3)
+    transcripts = colorRampPalette(c("#F1ECF7", "#8E6BBF"))(5),
+    general     = colorRampPalette(c("#F4F2EF", "#A39A90"))(5),
+    general_lt  = colorRampPalette(c("#FBFAF9", "#EAE6E1"))(3)
   )
 
   legends <- list(
@@ -86,7 +86,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     position_args = position_arguments(
       row_height = row_height, row_space = row_space, col_space = 0.08,
       expand_xmax = 2.6, expand_ymin = if (is.null(note)) 0 else 3.2,
-      expand_ymax = 0.3, col_annot_offset = 4.6, col_annot_angle = 45
+      expand_ymax = 0.3, col_annot_offset = 4.1, col_annot_angle = 45
     )
   )
 
