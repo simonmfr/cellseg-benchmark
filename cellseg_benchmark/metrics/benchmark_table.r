@@ -17,9 +17,9 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     "id",                         "",           "text",      NA,            "",             list(width = 8.3, hjust = 0, size = 4.2),
     "total_score",                "overall",    "bar",       "overall",     "",             list(width = 2.9, draw_outline = FALSE),
     "sep1",                       "",           "text",      NA,            "",             list(width = 0.3),
-    "silhouette_score",           "expression", "funkyrect", "expression",  "Silhouette",   box,
     "MECR_adj",                   "expression", "funkyrect", "expression",  "MECR",         box,
     "marker_f1",                  "expression", "funkyrect", "expression",  "Marker F1",    box,
+    "silhouette_score",           "expression", "funkyrect", "expression",  "Silhouette",   box,
     "sep2",                       "",           "text",      NA,            "",             list(width = 0.3),
     "ficture_f1_score",           "spatial",    "funkyrect", "spatial",     "Ficture F1",   box,
     "low_z_integrity_vs_tissue",  "spatial",    "funkyrect", "spatial",     "Z integrity",  box,
@@ -49,12 +49,12 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
 
   pal <- function(name, i = 2:7) brewer.pal(9, name)[i]
   palettes <- list(
-    overall     = colorRampPalette(c("#FFF3CF", "#FBC36A", "#E08A3C", "#C46A35"))(6),
-    expression  = pal("Purples"),
-    spatial     = colorRampPalette(c("#FCE4DC", "#C25B4E"))(6),
-    transcripts = pal("Blues"),
-    general     = pal("Greens"),
-    general_lt  = pal("Greens", 1:4)
+    overall     = colorRampPalette(c("#FFF4D6", "#FCCB7E", "#EE9E55", "#DA8248"))(6),
+    expression  = pal("Purples", 2:6),
+    spatial     = colorRampPalette(c("#FCE6DF", "#D67A6B"))(6),
+    transcripts = pal("Blues", 2:6),
+    general     = pal("Greys", 2:5),
+    general_lt  = pal("Greys", 1:3)
   )
 
   legends <- list(
