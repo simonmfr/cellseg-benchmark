@@ -56,12 +56,12 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
 
   pal <- function(name, i = 2:7) brewer.pal(9, name)[i]
   palettes <- list(
-    overall     = colorRampPalette(c("#F2F2F2", "#8C8C8C"))(6),
+    overall     = colorRampPalette(c("#FFF4D6", "#FCCB7E", "#EE9E55", "#DA8248"))(6),
     expression  = colorRampPalette(c("#EAF1F9", "#4F86C6"))(6),
     spatial     = colorRampPalette(c("#FBE9E5", "#D9644F"))(6),
-    transcripts = colorRampPalette(c("#FBF3E4", "#C9A46B"))(5),
-    general     = colorRampPalette(c("#FBF3E4", "#C9A46B"))(5),
-    general_lt  = colorRampPalette(c("#FDFAF4", "#F1E4CC"))(3)
+    transcripts = colorRampPalette(c("#F2F2F2", "#8C8C8C"))(5),
+    general     = colorRampPalette(c("#F2F2F2", "#8C8C8C"))(5),
+    general_lt  = colorRampPalette(c("#FAFAFA", "#E6E6E6"))(3)
   )
 
   legends <- list(
