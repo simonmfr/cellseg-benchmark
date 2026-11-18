@@ -86,7 +86,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     position_args = position_arguments(
       row_height = row_height, row_space = row_space, col_space = 0.08,
       expand_xmax = 2.6, expand_ymin = if (is.null(note)) 0 else 3.2,
-      expand_ymax = 0.3, col_annot_offset = 4.1, col_annot_angle = 45
+      expand_ymax = 0.3, col_annot_offset = 3.85, col_annot_angle = 45
     )
   )
 
@@ -120,7 +120,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   legs <- lapply(seq_len(length(g[[3]])), function(i) {
     l <- g[[3]][[i]]
     for (j in which(sapply(l$layers, function(x) inherits(x$geom, "GeomText"))))
-      l$layers[[j]]$data <- mutate(l$layers[[j]]$data, size = fs(size))
+      l$layers[[j]]$data <- mutate(l$layers[[j]]$data, size = fs(size), y = y + ifelse(y < -3, 0.15, 0))
     for (j in which(sapply(l$layers, function(x) inherits(x$geom, "GeomRect") && "i" %in% names(x$data))))
       l$layers[[j]]$data <- arrange(l$layers[[j]]$data, is.na(i))
     l
