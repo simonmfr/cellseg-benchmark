@@ -1,4 +1,4 @@
-plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "Arial", font_file, score_label = "Overall", row_height = 1.02, width = NULL, height = NULL) {
+plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "Arial", font_file, score_label = "Overall", row_height = 1.02, width = NULL, height = NULL, note = NULL) {
   library(funkyheatmap)
   library(dplyr)
   library(tibble)
@@ -82,7 +82,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     scale_column  = FALSE,
     position_args = position_arguments(
       row_height = row_height, row_space = row_space, col_space = 0.08,
-      expand_xmax = 4.5, expand_ymin = 0,
+      expand_xmax = 4.5, expand_ymin = if (is.null(note)) 0 else 3.2,
       expand_ymax = 0.3, col_annot_offset = 4, col_annot_angle = 45
     )
   )
@@ -110,7 +110,9 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
              label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = fs(3.85, 5.5), family = family) +
     annotate("segment", x = mean(c(z[2], col_x("pct_assigned_qced")[1])), y = min(rows$y) - 0.5, yend = max(rows$y) + 0.5,
              colour = "grey60", linewidth = 0.3) +
-    annotate("text", x = na$x, y = na$y, label = "–", colour = "grey60", size = fs(3.3, 5.5), family = family)
+    annotate("text", x = na$x, y = na$y, label = "–", colour = "grey60", size = fs(3.3, 5.5), family = family) +
+    annotate("text", x = min(pos$xmin, na.rm = TRUE), y = min(rows$y) - 0.9, label = if (is.null(note)) "" else note,
+             hjust = 0, vjust = 1, lineheight = 1, colour = "grey30", size = fs(3.3, 5.5), family = family)
   legs <- lapply(seq_len(length(g[[3]])), function(i) {
     l <- g[[3]][[i]]
     for (j in which(sapply(l$layers, function(x) inherits(x$geom, "GeomText"))))

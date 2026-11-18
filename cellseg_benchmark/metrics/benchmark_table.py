@@ -226,13 +226,17 @@ def plot_benchmark_table(
     row_height=1.02,
     width=None,
     height=None,
+    note="N, nuclei (DAPI); P, PolyT; P+N, both; 0.2/1.0, Baysor prior confidence\n"
+    "CP1, Cellpose; CP2, fine-tuned Cellpose; VPT/Sopa/Merlin, pipeline\n"
+    "*, not available for all cohorts; –, not scored",
     font_file=Path(_constants.BASE_PATH) / "misc" / "Arial.ttf",
 ):
     """Plot a benchmark table with funkyheatmap and save it as png and svg.
 
     Methods missing in some cohorts are marked with an asterisk. An empty silhouette column is left out.
     width: print width in inches; text is then sized to 6 pt at that width. None keeps the native size.
-    height: print height in inches, reached by adjusting the row height.
+    height: print height in inches, reached by adding space between rows.
+    note: key printed below the table, None for none. With width set, the png is tagged 600 dpi so it places at that width.
     """
     import rpy2.robjects as ro
     from rpy2.robjects import pandas2ri
@@ -261,4 +265,12 @@ def plot_benchmark_table(
             row_height=row_height,
             width=ro.NULL if width is None else width,
             height=ro.NULL if height is None else height,
+            note=ro.NULL if note is None else note,
         )
+    if width is not None:
+        from PIL import Image
+
+        png = f"{out_file}.png"
+        im = Image.open(png)
+        im.load()
+        im.save(png, dpi=(600, 600))
