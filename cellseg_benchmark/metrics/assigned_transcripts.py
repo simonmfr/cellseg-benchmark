@@ -215,6 +215,7 @@ def plot_assigned_transcripts(
 
     figsize = (5.2, max(2, 0.22 * len(order))) if horizontal \
         else (6 + 0.2 * len(order), 4)
+    plt.rcParams.update({"font.family": "Arial", "font.size": 7, "svg.fonttype": "none", "pdf.fonttype": 42})
     fig, ax = plt.subplots(figsize=figsize)
 
     raw_pct = df.pct_assigned_raw * 100
@@ -281,7 +282,7 @@ def plot_assigned_transcripts(
 
         ax.set_yticks([])
         for y, label in zip(p, order):
-            ax.text(lim * .025, y, label, ha="left", va="center", fontsize=9)
+            ax.text(lim * .025, y, label, ha="left", va="center", fontsize=7)
 
         ax.axvline(0, color="black", lw=.6)
 
@@ -307,7 +308,7 @@ def plot_assigned_transcripts(
         ncols=1,
         loc="lower left" if horizontal and not reverse else "upper left",
         borderaxespad=.3,
-        fontsize=9,
+        fontsize=7,
         frameon=False,
         handlelength=1,
         handletextpad=.5,
