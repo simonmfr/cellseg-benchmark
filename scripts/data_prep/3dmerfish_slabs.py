@@ -12,7 +12,7 @@ import yaml
 meta_file = (pathlib.Path(__file__).parents[2] / "data").resolve() / "misc/sample_metadata.yaml"
 meta = yaml.safe_load(open(meta_file))
 
-for parent, z0s in {"3DMERFISH_cortex": [10, 30, 50, 70, 80], "3DMERFISH_hypothalamus": [20, 50, 100, 150, 180]}.items():
+for parent, z0s in {"3DMERFISH_cortex": range(0, 100, 10), "3DMERFISH_hypothalamus": range(0, 200, 10)}.items():
     src = pathlib.Path(meta[parent]["path"])
     out = {z0: d for z0 in z0s if not (d := src.parent / f"{parent}_z{z0}").exists()}
     for d in out.values():
