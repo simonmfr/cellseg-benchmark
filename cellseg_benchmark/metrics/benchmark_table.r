@@ -157,6 +157,8 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   showtext::showtext_opts(dpi = 600 * s)
   ggsave(paste0(out_file, ".png"), g, width = w, height = h, dpi = 600 * s, bg = "transparent", type = "cairo")
   svg <- paste0(out_file, ".svg")
-  ggsave(svg, g, width = w, height = h, bg = "transparent")
+  showtext::showtext_auto(FALSE)
+  try(systemfonts::register_font(family, plain = path.expand(font_file)), silent = TRUE)
+  ggsave(svg, g, width = w, height = h, bg = "transparent", device = svglite::svglite)
   if (s != 1) writeLines(sub("width='[0-9.]+pt' height='[0-9.]+pt'", sprintf("width='%.2fpt' height='%.2fpt'", 72 * w * s, 72 * h * s), readLines(svg)), svg)
 }
