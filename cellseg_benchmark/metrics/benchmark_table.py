@@ -157,6 +157,7 @@ def build_benchmark_table(dfs, group=None, fit=None):
     is_3d = df.index.str.startswith(tuple(_constants.methods_3D))
     is_ficture_seg = df.index.str.startswith("Ficture_segments")
     df.loc[is_ficture_seg, "ficture_f1_score"] = np.nan
+    df["is_3d"] = is_3d
     df["na_z"] = is_3d & df.low_z_integrity_vs_tissue.isna()
     df["na_ficture"] = (is_3d | is_ficture_seg) & df.ficture_f1_score.isna()
 
@@ -231,7 +232,7 @@ def plot_benchmark_table(
 ):
     """Plot a benchmark table with funkyheatmap and save it as png and svg.
 
-    Methods missing in some cohorts are marked with an asterisk. An empty silhouette column is left out.
+    Methods missing in some cohorts are marked with an asterisk; a strip marks 3D, 2D and baseline methods. An empty silhouette column is left out.
     width: print width in inches; text is then sized to 6 pt at that width. None keeps the native size.
     height: print height in inches, reached by adding space between rows.
     note: key printed below the table, None for none. With width set, the png is tagged 600 dpi so it places at that width.
@@ -251,6 +252,7 @@ def plot_benchmark_table(
         ro.r["plot_benchmark_heatmap"](
             df.reset_index().assign(
                 id=lambda d: d.id + d.partial.map({True: "*", False: ""}),
+                dim=lambda d: np.select([d.is_control, d.is_3d], ["Baseline", "3D"], "2D"),
                 density_label=lambda d: (d.cells_per_mm2_raw / 1e3).map(
                     lambda x: f"{x:.1f}" if round(x, 1) < 10 else f"{x:.0f}"
                 ),

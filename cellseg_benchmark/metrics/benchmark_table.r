@@ -11,7 +11,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   showtext::showtext_auto()
   showtext::showtext_opts(dpi = 600)
   update_geom_defaults("text", list(family = family))
-  for (s in c("sep1", "sep2", "sep3")) df_funky[[s]] <- ""
+  for (s in c("sep0", "sep1", "sep2", "sep3")) df_funky[[s]] <- ""
   # width (inches): text sized for print at this width (6 pt; group headers 5, scores 5.5, densities 4)
   # height (inches): extra space between rows so the table prints at this height (funkyrect shapes distort with row_height)
   s <- 1
@@ -22,6 +22,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   col_spec <- tribble(
     ~id,                          ~group,       ~geom,       ~palette,      ~name,          ~opts,
     "id",                         "",           "text",      NA,            "",             list(width = name_w, hjust = 0, size = fs(4.2)),
+    "sep0",                       "",           "text",      NA,            "",             list(width = 0.4),
     "total_score",                "overall",    "bar",       "overall",     "",             list(width = 2.9, draw_outline = FALSE),
     "sep1",                       "",           "text",      NA,            "",             list(width = 0.3),
     "MECR_adj",                   "expression", "funkyrect", "expression",  "MECR",         box,
@@ -109,7 +110,17 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
                                  x = x + two * half * cos(angle * pi / 180), y = y + two * half * sin(angle * pi / 180))
   bar <- with(filter(pos, label_value == score_label)[1, ], c(xmin, xmax))
   len <- df_funky$total_score * diff(bar)
+  dims <- c("3D" = "#3d3d3d", "2D" = "#a3a3a3", "Baseline" = "white")
+  hy <- with(filter(pos, label_value == score_label)[1, ], (ymin + ymax) / 2)
+  kw <- strwidth(names(dims), units = "inches", cex = fs(3.96, 5) * .pt / par("ps")) / 0.25
+  kx <- bar[1] - 0.13 - rev(cumsum(rev(0.45 + kw + c(0.6, 0.6, 0))))
   g[[1]] <- p +
+    annotate("rect", xmin = kx, xmax = kx + 0.3, ymin = hy - 0.35, ymax = hy + 0.35, fill = dims,
+             colour = c(NA, NA, "grey60"), linewidth = 0.2) +
+    annotate("text", x = kx + 0.45, y = hy, label = names(dims), hjust = 0, size = fs(3.96, 5), family = family) +
+    annotate("rect", xmin = bar[1] - 0.43, xmax = bar[1] - 0.13, ymin = rows$y[match(df_funky$id, rows$row_id)] - row_height / 2,
+             ymax = rows$y[match(df_funky$id, rows$row_id)] + row_height / 2, fill = dims[df_funky$dim],
+             colour = ifelse(df_funky$dim == "Baseline", "grey60", NA), linewidth = 0.2) +
     annotate("text", x = bar[1] + ifelse(len > 1.3, 0.08, len + 0.2), y = rows$y[match(df_funky$id, rows$row_id)],
              label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = fs(3.85, 5.5), family = family) +
     annotate("segment", x = mean(c(z[2], col_x("pct_assigned_qced")[1])), y = min(rows$y) - 0.5, yend = max(rows$y) + 0.5,
