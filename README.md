@@ -132,7 +132,7 @@ Install into `segmentation`. Cellpose, Cellpose-SAM, CellSAM, Baysor, ComSeg and
   chmod -R a+rX /opt/cellposesam /home/ubuntu/.cellpose
   deactivate && python -c "import cellpose; print(cellpose.version)"  # 3.1.1.1
   ```
-+ **Spots-in-Space:** separate env `SIS_segmentation`; it needs Cellpose 3.0.7 and other scipy/pyarrow versions.
++ **Spots-in-Space:** separate env `SIS_segmentation` (Cellpose 3.0.7, own scipy/pyarrow versions), plus `pip install dask==2024.11.2`.
 
 ### Export
 Jobs use the `.sqsh`, so export after changes. Clean caches inside the container first (`mamba clean -a -y; pip cache purge`). To edit an existing image, start with `enroot create --name <container_name> <image>.sqsh`.
