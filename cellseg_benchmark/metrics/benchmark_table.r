@@ -113,9 +113,12 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   dims <- c("3D" = "#3d3d3d", "2D" = "#a3a3a3")
   ry <- rows$y[match(df_funky$id, rows$row_id)]
   pitch <- (row_height + row_space) / 2
+  dash <- function(y, h) c(outer(y, (seq_len(4) - 2.5) * h / 2, `+`))
+  bl <- dash(ry[df_funky$dim == "Baseline"], pitch)
   g[[1]] <- p +
     annotate("rect", xmin = bar[1] - 0.5, xmax = bar[1] - 0.35, ymin = ry - pitch, ymax = ry + pitch, fill = dims[df_funky$dim],
              colour = NA) +
+    annotate("rect", xmin = bar[1] - 0.5, xmax = bar[1] - 0.35, ymin = bl - 0.08, ymax = bl + 0.08, fill = "#a3a3a3", colour = NA) +
     annotate("text", x = bar[1] + ifelse(len > 1.3, 0.08, len + 0.2), y = rows$y[match(df_funky$id, rows$row_id)],
              label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = fs(3.85, 5.5), family = family) +
     annotate("segment", x = mean(c(z[2], col_x("pct_assigned_qced")[1])), y = min(rows$y) - 0.5, yend = max(rows$y) + 0.5,
@@ -129,16 +132,25 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
       l$layers[[j]]$data <- mutate(l$layers[[j]]$data, size = fs(size), y = y + ifelse(y < -3, 0.15, 0))
     for (j in which(sapply(l$layers, function(x) inherits(x$geom, "GeomRect") && "i" %in% names(x$data))))
       l$layers[[j]]$data <- arrange(l$layers[[j]]$data, is.na(i))
+    if (i == 1) {
+      for (j in seq_along(l$layers))
+        l$layers[[j]]$data <- mutate(l$layers[[j]]$data, across(any_of(c("x", "xmin", "xmax")), ~ .x * 0.7))
+      l$width <- l$width * 0.7
+    }
     l
   })
+  ky <- c(-1, -2, -3)
+  kd <- dash(ky[3], 0.35)
+  kw <- 0.4 + strwidth("Baseline", units = "inches", cex = fs(3.96) * .pt / par("ps")) / 0.25
   key <- ggplot() +
-    annotate("rect", xmin = 0, xmax = 0.15, ymin = c(-2.3, -3.4), ymax = c(-1.5, -2.6), fill = dims) +
-    annotate("text", x = 0.4, y = c(-1.9, -3), label = names(dims), hjust = 0, vjust = 0.5, size = fs(3.96), family = family) +
-    annotate("blank", x = c(0, 1.6), y = c(-3.5, -0.5)) + theme_void()
-  key$width <- 0.25 * 1.6
+    annotate("rect", xmin = 0, xmax = 0.15, ymin = ky[1:2] - 0.35, ymax = ky[1:2] + 0.35, fill = dims) +
+    annotate("rect", xmin = 0, xmax = 0.15, ymin = kd - 0.05, ymax = kd + 0.05, fill = "#a3a3a3") +
+    annotate("text", x = 0.4, y = ky, label = c(names(dims), "Baseline"), hjust = 0, vjust = 0.5, size = fs(3.96), family = family) +
+    annotate("blank", x = c(0, kw), y = c(-3.5, -0.5)) + theme_void()
+  key$width <- 0.25 * kw
   legs <- c(legs, list(key))
   lw <- sapply(legs, `[[`, "width") / 0.25
-  gaps <- c(1.5, 1)
+  gaps <- c(1.2, 1.4)
   leg <- patchwork::wrap_plots(head(c(rbind(legs, list(patchwork::plot_spacer()))), -1), nrow = 1, widths = head(c(rbind(lw, c(gaps, 0))), -1)) &
     coord_equal(expand = FALSE, clip = "off") & theme(plot.margin = margin(0, 0, 0, 0), plot.background = element_blank())
   top <- max(rows$y) + 1.1
