@@ -31,7 +31,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
     "ficture_f1_score",           "spatial",    "funkyrect", "spatial",     "Ficture F1",   box,
     "low_z_integrity_vs_tissue",  "spatial",    "funkyrect", "spatial",     "Z integrity",  box,
     "sep3",                       "",           "text",      NA,            "",             list(width = 0.6),
-    "pct_assigned_qced",          "general",    "funkyrect", "transcripts", "% Assigned",   box,
+    "pct_assigned_qced",          "general",    "funkyrect", "transcripts", "% Transcripts", box,
     "volume_final",               "general",    "funkyrect", "general",     "Volume",       box,
     "elongation",                 "general",    "funkyrect", "general",     "Elongation",   box,
     "intensities_DAPI",           "general",    "funkyrect", "general",     "DAPI",         box,

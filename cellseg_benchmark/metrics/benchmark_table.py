@@ -243,7 +243,6 @@ def plot_benchmark_table(
     ro.r["source"](str(Path(__file__).with_suffix(".r")))
     names = _constants.metric_names | {
         "volume_final": "Volume",
-        "pct_assigned_qced": "% Transcripts",
     }
     labels = pd.DataFrame(list(names.items()), columns=["id", "name"])
     if df.silhouette_score.isna().all():

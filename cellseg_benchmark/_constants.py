@@ -175,7 +175,7 @@ metric_names = {
     "intensities_PolyT": "PolyT",
     "low_z_integrity_pct": "Z integrity",
     "low_z_integrity_vs_tissue": "Z integrity",
-    "pct_assigned_qced": "% Assigned",
+    "pct_assigned_qced": "% Transcripts",
     "negative_marker_purity": "NMP",
     "MECR": "MECR-raw",
     "MECR_adj": "MECR",
