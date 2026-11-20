@@ -29,7 +29,7 @@ def find_candidates(cohort, exclude=(), tile=70, quantile=0.9, n=8, ref="vpt_2D_
         cells = pd.DataFrame(f["obsm/spatial"][:], columns=["x", "y"],
                              index=np.asarray(ad.io.read_elem(f["obs"][f["obs"].attrs["_index"]])).astype(str)).assign(
             sample=np.asarray(ad.io.read_elem(f["obs/sample"])).astype(str))
-    cells["region"] = pd.read_csv(_adata_path(cohort, ref).parents[1] / "brain_regions.csv", index_col=0).brain_region.reindex(cells.index).isin(regions)
+    cells["region"] = pd.read_csv(_adata_path(cohort, ref).parents[1] / "brain_regions.csv", index_col=0, dtype=str).brain_region.reindex(cells.index).isin(regions)
     cells = cells[~cells["sample"].isin(exclude)]
     cells["low_z"] = low_z_integrity_per_cell(ad.AnnData(obs=cells[["sample"]]), ref, _constants.BASE_PATH).to_numpy()
     tiles = (cells.assign(x0=cells.x // tile * tile, y0=cells.y // tile * tile)
