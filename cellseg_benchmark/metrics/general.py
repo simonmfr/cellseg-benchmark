@@ -262,8 +262,7 @@ def extract_mem_and_time(
     ref["jobname_norm"] = ref["jobname"].apply(utils.normalize_jobname)
 
     ref["method_with_flavor"] = ref.apply(
-        lambda r: r["method"] if r.get("method") in _constants.method_names
-        else utils.method_with_flavor_from_row(r["jobname"], r["sample"]),
+        lambda r: utils.method_with_flavor_from_row(r["jobname"], r["sample"]),
         axis=1,
     )
 
