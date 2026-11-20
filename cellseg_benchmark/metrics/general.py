@@ -223,7 +223,8 @@ def extract_mem_and_time(
 
     Notes:
         - Test runs (*_keep_cache) are left out. Proseg_3D_vpt3D_* folders were later renamed Proseg_3D_vpt3D_DAPI_*. Per sample, the last COMPLETED run counts.
-        - Since 2026-10-04, ComSeg resumes from cached patches and timed-out VPT runs were finished by
+        - VPT jobs failed on update-vzg after writing all outputs until 48dffb6, so a FAILED last VPT run counts as done.
+        - ComSeg resumes from cached patches, and since 2026-10-04 timed-out VPT runs were finished by
           recovery jobs on the missing tiles, so runs that did not complete directly before the counted
           run are added to its runtime (memory and CPUs: max).
     """
@@ -241,14 +242,16 @@ def extract_mem_and_time(
 
     sacct = pd.concat(pd.read_csv(p, sep="\t") for p in sorted(Path(metrics_dir).glob("*_job_data.tsv")))
     runs = ref.merge(sacct.drop_duplicates("jobid", keep="last"), on="jobid", suffixes=("_log", "")).sort_values("start_iso")
-    resumes = method.startswith(("ComSeg", "vpt_"))
+    since = "" if method.startswith("ComSeg") else "2026-10-04" if method.startswith("vpt_") else "9999"
 
     def counted(g):
-        done = np.flatnonzero(g["sacct_state"] == "COMPLETED")
+        ok = (g["sacct_state"] == "COMPLETED").to_numpy()
+        ok[-1] |= method.startswith("vpt_") and g["sacct_state"].iloc[-1] == "FAILED"
+        done = np.flatnonzero(ok)
         if not len(done):
             return None
         g = g.iloc[(done[-2] + 1 if len(done) > 1 else 0):done[-1] + 1]
-        g = g[(g["start_iso"] >= "2026-10-04") & resumes | (np.arange(len(g)) == len(g) - 1)]
+        g = g[(g["start_iso"] >= since) | (np.arange(len(g)) == len(g) - 1)]
         return pd.Series({"maxrss_gb": g["maxrss_gb"].max(), "elapsed_h": g["elapsed_s"].sum() / 3600, "alloccpus": g["alloccpus"].max()})
 
     return runs.groupby("key").apply(counted).dropna(subset=["elapsed_h"]).rename_axis("sample").reset_index()
