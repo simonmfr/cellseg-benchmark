@@ -222,7 +222,7 @@ def extract_mem_and_time(
         DataFrame with columns ["sample", "maxrss_gb", "elapsed_h", "alloccpus"]
 
     Notes:
-        - Test runs (*_keep_cache) are left out. Proseg_3D_vpt3D_* folders were later renamed Proseg_3D_vpt3D_DAPI_*. Per sample, the last COMPLETED run counts.
+        - Test runs (*_keep_cache) and runs on CoolMUC-4 (cm4* nodes, other hardware, job IDs clash with the AI system) are left out. Proseg_3D_vpt3D_* folders were later renamed Proseg_3D_vpt3D_DAPI_*. Per sample, the last COMPLETED run counts.
         - VPT jobs failed on update-vzg after writing all outputs until 48dffb6, so a FAILED last VPT run counts as done.
         - ComSeg resumes from cached patches, and since 2026-10-04 timed-out VPT runs were finished by
           recovery jobs on the missing tiles, so runs that did not complete directly before the counted
@@ -234,14 +234,15 @@ def extract_mem_and_time(
     ref = ref[ref["key"].str.startswith(cohorts.pop())
               & (ref["result_dir"].str.extract(r"/results/([^/]+)", expand=False)
                  .str.replace(r"^Proseg_3D_vpt3D_(?!DAPI_)", "Proseg_3D_vpt3D_DAPI_", regex=True) == method)
-              & ~ref["jobname"].str.endswith("_keep_cache")]
+              & ~ref["jobname"].str.endswith("_keep_cache")
+              & ~ref["nodelist"].str.startswith("cm4", na=False)]
     if ref.empty:
         if ignore_missing:
             return pd.DataFrame(columns=["sample", "maxrss_gb", "elapsed_h", "alloccpus"])
         raise LookupError(f"Method {method!r} not found in job file or not yet recorded.")
 
     sacct = pd.concat(pd.read_csv(p, sep="\t") for p in sorted(Path(metrics_dir).glob("*_job_data.tsv")))
-    runs = ref.merge(sacct.drop_duplicates("jobid", keep="last"), on="jobid", suffixes=("_log", "")).sort_values("start_iso")
+    runs = ref.merge(sacct.groupby("jobid", as_index=False).last(), on="jobid", suffixes=("_log", "")).sort_values("start_iso")
     since = "" if method.startswith("ComSeg") else "2026-10-04" if method.startswith("vpt_") else "9999"
 
     def counted(g):
