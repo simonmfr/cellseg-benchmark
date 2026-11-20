@@ -222,7 +222,7 @@ def extract_mem_and_time(
         DataFrame with columns ["sample", "maxrss_gb", "elapsed_h", "alloccpus"]
 
     Notes:
-        - Test runs (*_keep_cache) are left out. Per sample, the last COMPLETED run counts.
+        - Test runs (*_keep_cache) are left out. Proseg_3D_vpt3D_* folders were later renamed Proseg_3D_vpt3D_DAPI_*. Per sample, the last COMPLETED run counts.
         - Since 2026-10-04, ComSeg resumes from cached patches and timed-out VPT runs were finished by
           recovery jobs on the missing tiles, so runs that did not complete directly before the counted
           run are added to its runtime (memory and CPUs: max).
@@ -231,7 +231,8 @@ def extract_mem_and_time(
     assert len(cohorts) == 1, "more than one cohort found. Cohort recognition is sensitive to '_'"
     ref = pd.read_csv(ref_file_path, sep="\t")
     ref = ref[ref["key"].str.startswith(cohorts.pop())
-              & (ref["result_dir"].str.extract(r"/results/([^/]+)", expand=False) == method)
+              & (ref["result_dir"].str.extract(r"/results/([^/]+)", expand=False)
+                 .str.replace(r"^Proseg_3D_vpt3D_(?!DAPI_)", "Proseg_3D_vpt3D_DAPI_", regex=True) == method)
               & ~ref["jobname"].str.endswith("_keep_cache")]
     if ref.empty:
         if ignore_missing:
