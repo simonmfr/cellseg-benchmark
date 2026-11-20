@@ -6,7 +6,6 @@ import datetime
 import io
 import pathlib
 import warnings
-from typing import Union, Optional
 
 import anndata as ad
 import h5py
@@ -223,14 +222,6 @@ def compute_metric(
     results_df.to_csv(results_name)
 
 
-def normalize_jobname(jobname: str) -> str:
-    """Helper function to fix typo in jobname of vpt."""
-    if not isinstance(jobname, str):
-        return ""
-    # fix historic typo: vtp -> vpt
-    return re.sub(r"^vtp", "vpt", jobname)
-
-
 def parse_slurm_mem_to_gb(x: str) -> float:
     """Helper function to parse slurm memory usage in GB."""
     if x is None:
@@ -264,126 +255,6 @@ def clean_method_name(name: str) -> str:
     if name not in _constants.method_names:
         warnings.warn(f"no figure label for method {name!r}")
     return _constants.method_names.get(name, name.replace("_", " "))
-
-
-def method_with_flavor_from_row(jobname: str, key: str) -> str:
-    """Create a canonical method string."""
-    j = normalize_jobname(jobname)
-    k = str(key)
-
-    # --- Baysor without prior: Baysor_<dim>_denovo_<key>
-    m = re.match(rf"^Baysor_(?P<dim>2D|3D)_denovo_{re.escape(k)}$", j)
-    if m:
-        return f"Baysor_{m.group('dim')}_denovo"
-
-    # --- Baysor with optional qualifier before key
-    m = re.match(
-        rf"^Baysor_(?:(?P<qualifier>.+?)_)?{re.escape(k)}_CP(?P<cp>\d+)_(?P<stain>[^_]+)_(?P<conf>.+)$",
-        j,
-    )
-    if m:
-        qualifier = m.group("qualifier")
-        cp = m.group("cp")
-        stain = m.group("stain")
-        conf = m.group("conf")
-        prefix = "Baysor"
-        if qualifier:
-            prefix += f"_{qualifier}"
-        if stain == "nuclei":
-            return f"{prefix}_2D_Cellpose_{cp}_nuclei_model_{conf}"
-        return f"{prefix}_2D_Cellpose_{cp}_DAPI_{stain}_{conf}"
-
-    # --- vpt2D / vpt3D: vpt2D_<key>_<stain...> -> vpt2D_<stain...>
-    for dim in ("2D", "3D"):
-        prefix = f"vpt{dim}_{k}_"
-        if j.startswith(prefix):
-            rest = j[len(prefix) :]
-            return f"vpt_{dim}_DAPI_{rest}"
-        if j == f"vpt{dim}_{k}":
-            return f"vpt_{dim}"
-
-    if j.startswith("Baysor_2D_denovo"):
-        return "Baysor_2D_denovo"
-    if j.startswith("Baysor_3D_denovo"):
-        return "Baysor_3D_denovo"
-    if j.startswith("SIS"):
-        return "SIS_DAPI_total_mrna"
-    if j.startswith("CellSAM"):
-        return "CellSAM"
-    if j.startswith("CellposeSAM"):
-        return j.removesuffix(f"_{k}")
-
-    # --- Proseg_3D vpt: Proseg_3D_<key>_vpt2D_<flavor>_vxl_<voxel>
-    prefix_3d = f"Proseg_3D_{k}_"
-    if j.startswith(prefix_3d) and "_vpt" in j:
-        rest = j[len(prefix_3d):]
-        rest = re.sub(r"_vxl_.+$", "", rest)  # ignore voxel size
-        m = re.match(r"^vpt(?P<dim>2D|3D)_(?P<flavor>.+)$", rest)
-        if m:
-            return f"Proseg_3D_vpt{m.group('dim')}_DAPI_{m.group('flavor')}"
-        return f"Proseg_3D_{rest}"
-
-    # --- Proseg_3D CP: Proseg_3D_<key>_CP2_PolyT_vxl_7
-    if j.startswith(prefix_3d) and "_CP" in j:
-        rest = j[len(prefix_3d):]
-        m = re.match(r"^CP(?P<cp>\d+)_(?P<stain>[^_]+)(?:_vxl_.+)?$", rest)
-        if m:
-            cp = m.group("cp")
-            stain = m.group("stain")
-            if stain == "nuclei":
-                return f"Proseg_3D_Cellpose_{cp}_nuclei_model"
-            return f"Proseg_3D_Cellpose_{cp}_DAPI_{stain}"
-        return f"Proseg_3D_{re.sub(r'_vxl_.+$', '', rest)}"
-
-    # --- Cellpose jobs: CP1_<key>_<stain> / CP2_<key>_<stain>
-    prefix = f"CP1_{k}_"
-    if j.startswith(prefix):
-        stain = j[len(prefix):]
-        if stain == "nuclei":
-            return "Cellpose_1_nuclei_model"
-        if stain == "Merlin":
-            return "Cellpose_1_Merlin"
-        return f"Cellpose_1_DAPI_{stain}"
-
-    prefix = f"CP2_{k}_"
-    if j.startswith(prefix):
-        stain = j[len(prefix):]
-        if stain == "nuclei":
-            return "Cellpose_2_nuclei_model"
-        return f"Cellpose_2_DAPI_{stain}"
-
-    # --- Simple methods
-    if j == f"voronoi_{k}":
-        return "Negative_Control_Voronoi"
-    if j == f"nuclei_{k}":
-        return "Cellpose_1_nuclei_model"
-    if j == f"merscope_watershed_{k}":
-        return "Watershed_Merlin"
-    prefix = f"SIS_{k}_"
-    if j.startswith(prefix):
-        return f"SIS_DAPI_{j[len(prefix):]}"
-    if j == f"SIS_{k}":
-        return "SIS_DAPI_total_mrna"
-    if j == f"merscope_{k}":
-        return "MERSCOPE"
-    if j == f"transcript_tif_{k}":
-        return "Transcript_TIF"
-    m = re.match(rf"^rastered(?P<width>\d+)_{re.escape(k)}$", j)
-    if m:
-        return f"Negative_Control_Rastered_{m.group('width')}"
-
-    return j
-
-
-def find_latest_job_data_tsv(metrics_dir):
-    """Return the newest exported job-data TSV in metrics_dir.
-    Uses file modification time and only considers '*_job_data.tsv'.
-    """
-    metrics_dir = pathlib.Path(metrics_dir)
-    candidates = [p for p in metrics_dir.glob("*_job_data.tsv") if p.is_file()]
-    if not candidates:
-        raise FileNotFoundError(f"No '*_job_data.tsv' files found in: {metrics_dir}")
-    return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
 def export_job_metrics_tsv(
@@ -499,80 +370,3 @@ def run_sacct(jobids):
         names=["JobIDRaw", "State", "ExitCode", "ElapsedRaw", "AllocCPUS", "MaxRSS"],
         dtype=str,
     )
-
-
-
-def show_all_method_names(
-    ref_file_path: Union[str, pathlib.Path],
-    only_successful: bool=False,
-    metrics_dir: Optional[Union[str, pathlib.Path]]=None,
-    return_counts: bool=False
-):
-    """
-    Show all possible canonical method names derived from the ref file.
-
-    Args:
-        ref_file_path (str | Path): Path to the appended run_log.tsv file.
-        only_successful (bool): If True, only include methods with successful runs according to the
-            newest *_job_data.tsv file in metrics_dir. Defaults to False.
-        metrics_dir (str | Path, optional): Required if only_successful=True. Path to the metrics directory of sacct.
-        return_counts (bool): If True, return a DataFrame with counts instead of a plain list. Defaults to False.
-
-    Returns:
-        list[str] or pd.DataFrame: List of all method names in the job_data.tsv file.
-
-    Note:
-        If only_successful=True requires prior run of export_job_metrics_tsv() with access to sacct-command.
-    """
-
-    df = pd.read_csv(ref_file_path, sep="\t")
-    df["_ref_order"] = range(len(df))
-
-    df["jobid"] = df["jobid"].astype(str)
-    df["jobname"] = df["jobname"].astype(str)
-    df["sample"] = df["key"].astype(str)
-    df["jobname_norm"] = df["jobname"].apply(normalize_jobname)
-
-    df["method_with_flavor"] = df.apply(
-        lambda r: method_with_flavor_from_row(r["jobname"], r["sample"]),
-        axis=1,
-    )
-
-    if only_successful:
-        if metrics_dir is None:
-            raise ValueError("metrics_dir must be provided when only_successful=True.")
-
-        latest_metrics_file = find_latest_job_data_tsv(metrics_dir)
-        sacct = pd.read_csv(latest_metrics_file, sep="\t")
-        sacct["jobid"] = sacct["jobid"].astype(str)
-
-        required_cols = {"jobid", "sacct_state", "sacct_exitcode"}
-        missing = required_cols.difference(sacct.columns)
-        if missing:
-            raise ValueError(
-                f"Metrics file {latest_metrics_file} is missing columns: {sorted(missing)}"
-            )
-
-        df = df.merge(
-            sacct[["jobid", "sacct_state", "sacct_exitcode"]],
-            on="jobid",
-            how="left",
-        )
-
-        ok = (df["sacct_state"] == "COMPLETED") & (df["sacct_exitcode"] == "0:0")
-        if "rc" in df.columns:
-            ok = ok & (pd.to_numeric(df["rc"], errors="coerce") == 0)
-
-        df = df.loc[ok].copy()
-
-    if return_counts:
-        out = (
-            df.groupby("method_with_flavor", dropna=False)
-            .size()
-            .reset_index(name="n_runs")
-            .sort_values(["n_runs", "method_with_flavor"], ascending=[False, True])
-            .reset_index(drop=True)
-        )
-        return out
-
-    return sorted(df["method_with_flavor"].dropna().unique().tolist())

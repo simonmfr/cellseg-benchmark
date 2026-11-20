@@ -208,110 +208,49 @@ def extract_mem_and_time(
     ignore_missing: bool=False,
     **kwargs,
 ) -> pd.DataFrame:
-    """Read job metadata from ref_file_path and enrich it from the newest exported sacct TSV in metrics_dir.
+    """Runtime and peak memory per sample of one method, from run_log.tsv and the exported sacct tables.
 
     Args:
-        adata: API compatibility.
-        method (str): method name.
-        ref_file_path (str or Path): path to reference TSV file with job information.
-        metrics_dir (str or Path): path to metrics directory containing sacct read-outs.
+        adata: used to find the cohort.
+        method (str): method name, matched to the results folder of each logged run.
+        ref_file_path (str or Path): run_log.tsv.
+        metrics_dir (str or Path): folder with the *_job_data.tsv exports of export_job_metrics_tsv.
         base_path: API compatibility.
-        ignore_missing (bool): ignore methods without successful recorded segmentation.
+        ignore_missing (bool): return an empty table for methods without logged runs.
 
     Returns:
         DataFrame with columns ["sample", "maxrss_gb", "elapsed_h", "alloccpus"]
 
     Notes:
-        - Keeps only successful runs:
-            sacct_state == COMPLETED
-            sacct_exitcode == 0:0
-            and rc == 0 if rc exists in the ref file
-        - If the ref file contains repeated runs for the same sample+method,
-          keeps the last successful one because the ref file is appended.
-        - 'adata' and 'base_path' are unused and only kept for API compatibility.
+        - Test runs (*_keep_cache) are left out. Per sample, the last COMPLETED run counts.
+        - ComSeg resumes from cached patches since 2026-10-05, so runs that did not complete
+          directly before the counted run are added to its runtime (memory and CPUs: max).
     """
-
-    def _missing_result(samples=None):
-        """Build NaN dataframe for not successfully run or missing segmentations."""
-        if samples is None:
-            samples = pd.Series(dtype="object")
-        else:
-            samples = pd.Series(samples, dtype="object")
-        return pd.DataFrame(
-            {
-                "sample": samples,
-                "maxrss_gb": pd.Series([pd.NA] * len(samples), dtype="object"),
-                "elapsed_h": pd.Series([pd.NA] * len(samples), dtype="object"),
-                "alloccpus": pd.Series([pd.NA] * len(samples), dtype="object"),
-            }
-        ).reset_index(drop=True)
-
+    cohorts = {s.split("_")[0] for s in adata.obs["sample"].unique()}
+    assert len(cohorts) == 1, "more than one cohort found. Cohort recognition is sensitive to '_'"
     ref = pd.read_csv(ref_file_path, sep="\t")
-    ref["_ref_order"] = range(len(ref))
-
-    ref["jobid"] = ref["jobid"].astype(int)
-    ref["jobname"] = ref["jobname"].astype(str)
-    ref["sample"] = ref["key"].astype(str)
-
-    #filter entries for cohort
-    cohort = adata.obs['sample'].unique()
-    cohort = set([x.split("_")[0] for x in cohort])
-    assert len(cohort) == 1, "more than one cohort found. Cohort recognition is sensitive to '_'"
-    ref = ref[[x.startswith(list(cohort)[0]) for x in ref['sample']]]
-
-    ref["jobname_norm"] = ref["jobname"].apply(utils.normalize_jobname)
-
-    ref["method_with_flavor"] = ref.apply(
-        lambda r: utils.method_with_flavor_from_row(r["jobname"], r["sample"]),
-        axis=1,
-    )
-
-    ref = ref[ref["method_with_flavor"] == method].copy()
+    ref = ref[ref["key"].str.startswith(cohorts.pop())
+              & (ref["result_dir"].str.extract(r"/results/([^/]+)", expand=False) == method)
+              & ~ref["jobname"].str.endswith("_keep_cache")]
     if ref.empty:
         if ignore_missing:
-            return _missing_result()
-        raise LookupError(
-            f"Method {method!r} not found in job file or not yet recorded."
-        )
+            return pd.DataFrame(columns=["sample", "maxrss_gb", "elapsed_h", "alloccpus"])
+        raise LookupError(f"Method {method!r} not found in job file or not yet recorded.")
 
-    sacct = pd.concat([pd.read_csv(p, sep="\t") for p in metrics_dir.glob("*_job_data.tsv") if p.is_file()])
-    required_cols = {
-        "jobid",
-        "sacct_state",
-        "sacct_exitcode",
-        "elapsed_s",
-        "alloccpus",
-        "maxrss_gb",
-    }
-    missing = required_cols.difference(sacct.columns)
-    if missing:
-        raise ValueError(
-            f"files in metrics dir {metrics_dir} is missing columns: {sorted(missing)}"
-        )
+    sacct = pd.concat(pd.read_csv(p, sep="\t") for p in sorted(Path(metrics_dir).glob("*_job_data.tsv")))
+    runs = ref.merge(sacct.drop_duplicates("jobid", keep="last"), on="jobid", suffixes=("_log", "")).sort_values("start_iso")
+    resumes = method.startswith("ComSeg")
 
-    sacct_succ = sacct[sacct['sacct_state'] == "COMPLETED"]
-    ref_merge = ref.merge(sacct_succ, on="jobid", suffixes=("", "_sacct"))
+    def counted(g):
+        done = np.flatnonzero(g["sacct_state"] == "COMPLETED")
+        if not len(done):
+            return None
+        g = g.iloc[(done[-2] + 1 if len(done) > 1 else 0):done[-1] + 1]
+        g = g[(g["start_iso"] >= "2026-10-05") & resumes | (np.arange(len(g)) == len(g) - 1)]
+        return pd.Series({"maxrss_gb": g["maxrss_gb"].max(), "elapsed_h": g["elapsed_s"].sum() / 3600, "alloccpus": g["alloccpus"].max()})
 
-    res = (
-        ref_merge
-        .groupby("jobid", sort=False, group_keys=False)
-        .apply(lambda g: g[g['maxrss_gb'].notna()].tail(1) if g['maxrss_gb'].notna().any() else g.tail(1))
-        .reset_index(drop=True)
-    )
-    res = (
-        res
-        .sort_values(by=["end_iso", "start_iso"])
-        .drop_duplicates(subset=["sample", "method_with_flavor"], keep="last")
-        .copy()
-    )
+    return runs.groupby("key").apply(counted).dropna(subset=["elapsed_h"]).rename_axis("sample").reset_index()
 
-    res["elapsed_h"] = (
-        pd.to_numeric(res["elapsed_s_sacct"], errors="coerce") / 3600.0
-    )
-
-    out = res[["sample", "maxrss_gb", "elapsed_h", "alloccpus"]].copy()
-    out = out.reset_index(drop=True)
-    return out
 
 def plot_mem_and_time(cohort, metric=None, show: bool = False):
     """Violin plots of chosen metrics. Metrics can be "memory", "cpus", "duration"."""

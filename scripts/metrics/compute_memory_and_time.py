@@ -47,7 +47,7 @@ if __name__ == "__main__":
         delattr(args, 'metrics_dir')
 
     compute_metric_for_all_methods(
-        extract_mem_and_time, results_name=results_name, **vars(args)
+        extract_mem_and_time, results_name=results_name, obs_only=True, **vars(args)
     )
 
     plot_mem_and_time(args.cohort, args.plot_metric, show=False)
