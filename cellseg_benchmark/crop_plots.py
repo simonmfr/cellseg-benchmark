@@ -14,7 +14,6 @@ from matplotlib.colors import LinearSegmentedColormap, to_rgb
 
 from . import _constants
 from . import ficture_utils as fu
-from .metrics.ovrl import low_z_integrity_per_cell
 
 dapi_cmap = LinearSegmentedColormap.from_list("dapi", ["white", "#4747ff"])
 
@@ -23,22 +22,21 @@ def _adata_path(sample, method):
     return Path(_constants.BASE_PATH) / "analysis" / sample.split("_")[0] / method / "adatas/adata_integrated.h5ad.gz"
 
 
-def find_candidates(cohort, exclude=(), tile=70, quantile=0.9, n=8, ref="vpt_2D_DAPI_PolyT", regions=("CTX_1", "CTX_2")):
-    """Dense tiles (cell count >= quantile) fully inside regions, highest low z integrity share first; at most 2 per sample, 4 tiles apart."""
+def find_candidates(cohort, exclude=(), tile=70, n=8, ref="vpt_3D_DAPI_PolyT", regions=("CTX_1", "CTX_2")):
+    """Densest tiles by ref cell count, fully inside regions with all 8 neighbours; at most 2 per sample, 4 tiles apart."""
     with h5py.File(_adata_path(cohort, ref)) as f:
         cells = pd.DataFrame(f["obsm/spatial"][:], columns=["x", "y"],
                              index=np.asarray(ad.io.read_elem(f["obs"][f["obs"].attrs["_index"]])).astype(str)).assign(
             sample=np.asarray(ad.io.read_elem(f["obs/sample"])).astype(str))
     cells["region"] = pd.read_csv(_adata_path(cohort, ref).parents[1] / "brain_regions.csv", index_col=0).brain_region.rename(index=str).reindex(cells.index).isin(regions)
     cells = cells[~cells["sample"].isin(exclude)]
-    cells["low_z"] = low_z_integrity_per_cell(ad.AnnData(obs=cells[["sample"]]), ref, _constants.BASE_PATH).to_numpy()
     tiles = (cells.assign(x0=cells.x // tile * tile, y0=cells.y // tile * tile)
-             .groupby(["sample", "x0", "y0"]).agg(n=("low_z", "size"), low_z=("low_z", "mean"), region=("region", "mean")).reset_index())
+             .groupby(["sample", "x0", "y0"]).agg(n=("region", "size"), region=("region", "mean")).reset_index())
     full = set(tiles.loc[(tiles.n >= tiles.n.median()) & (tiles.region == 1), ["sample", "x0", "y0"]].itertuples(index=False, name=None))
     tiles = tiles[[all((s, x + dx * tile, y + dy * tile) in full for dx in (-1, 0, 1) for dy in (-1, 0, 1))
                    for s, x, y in tiles[["sample", "x0", "y0"]].itertuples(index=False)]]
     picked = []
-    for r in tiles[tiles.n >= tiles.n.quantile(quantile)].sort_values("low_z", ascending=False).itertuples():
+    for r in tiles.sort_values("n", ascending=False).itertuples():
         same = [p for p in picked if p.sample == r.sample]
         if len(same) < 2 and all(np.hypot(r.x0 - p.x0, r.y0 - p.y0) >= 4 * tile for p in same):
             picked.append(r)
