@@ -223,8 +223,9 @@ def extract_mem_and_time(
 
     Notes:
         - Test runs (*_keep_cache) are left out. Per sample, the last COMPLETED run counts.
-        - ComSeg resumes from cached patches since 2026-10-05, so runs that did not complete
-          directly before the counted run are added to its runtime (memory and CPUs: max).
+        - Since 2026-10-04, ComSeg resumes from cached patches and timed-out VPT runs were finished by
+          recovery jobs on the missing tiles, so runs that did not complete directly before the counted
+          run are added to its runtime (memory and CPUs: max).
     """
     cohorts = {s.split("_")[0] for s in adata.obs["sample"].unique()}
     assert len(cohorts) == 1, "more than one cohort found. Cohort recognition is sensitive to '_'"
@@ -239,14 +240,14 @@ def extract_mem_and_time(
 
     sacct = pd.concat(pd.read_csv(p, sep="\t") for p in sorted(Path(metrics_dir).glob("*_job_data.tsv")))
     runs = ref.merge(sacct.drop_duplicates("jobid", keep="last"), on="jobid", suffixes=("_log", "")).sort_values("start_iso")
-    resumes = method.startswith("ComSeg")
+    resumes = method.startswith(("ComSeg", "vpt_"))
 
     def counted(g):
         done = np.flatnonzero(g["sacct_state"] == "COMPLETED")
         if not len(done):
             return None
         g = g.iloc[(done[-2] + 1 if len(done) > 1 else 0):done[-1] + 1]
-        g = g[(g["start_iso"] >= "2026-10-05") & resumes | (np.arange(len(g)) == len(g) - 1)]
+        g = g[(g["start_iso"] >= "2026-10-04") & resumes | (np.arange(len(g)) == len(g) - 1)]
         return pd.Series({"maxrss_gb": g["maxrss_gb"].max(), "elapsed_h": g["elapsed_s"].sum() / 3600, "alloccpus": g["alloccpus"].max()})
 
     return runs.groupby("key").apply(counted).dropna(subset=["elapsed_h"]).rename_axis("sample").reset_index()
