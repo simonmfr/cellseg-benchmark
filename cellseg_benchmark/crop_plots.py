@@ -96,6 +96,10 @@ def draw(ax, sdata, sample, method, box, style="outlines", qc="post", lw=0.4):
     ax.axis("off")
 
 
+def _title(name):
+    return name.replace(" (", "\n(") if "(" in name else name.replace(" ", "\n", 1)
+
+
 def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.9, gap=0.06):
     """One row of methods at print size."""
     W, H = len(methods) * (w + gap) - gap, w + 0.3
@@ -103,19 +107,19 @@ def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.9, ga
     for i, m in enumerate(methods):
         ax = fig.add_axes([i * (w + gap) / W, 0, w / W, w / H])
         draw(ax, sdata, sample, m, box, style, qc, lw=0.2)
-        name = _constants.method_names[m]
-        ax.set_title(name.replace(" (", "\n(") if "(" in name else name.replace(" ", "\n", 1), fontsize=6, pad=4, linespacing=0.95)
+        ax.set_title(_title(_constants.method_names[m]), fontsize=6, pad=4, linespacing=0.95)
     return fig
 
 
-def plot_grid(sdata, sample, box, style="outlines", ncol=6):
-    """All methods of a sample in one grid."""
-    methods = [m for m in _constants.method_colors if f"boundaries_{m}" in sdata.shapes and _adata_path(sample, m).exists()]
+def plot_grid(sdata, sample, box, methods, style="outlines", ncol=7, w=0.9, gap=0.08, title_h=0.24):
+    """Methods in a grid at print size, row by row."""
+    methods = [m for m in methods if f"boundaries_{m}" in sdata.shapes]
     nrow = -(-len(methods) // ncol)
-    fig, axs = plt.subplots(nrow, ncol, figsize=(3 * ncol, 3.4 * nrow), gridspec_kw=dict(wspace=0.02, hspace=0.12))
-    for ax in axs.flat:
-        ax.axis("off")
-    for ax, m in zip(axs.flat, methods):
-        draw(ax, sdata, sample, m, box, style)
-        ax.set_title(_constants.method_names[m], fontsize=14, pad=3)
+    W, H = ncol * (w + gap) - gap, nrow * (w + title_h)
+    fig = plt.figure(figsize=(W, H))
+    for k, m in enumerate(methods):
+        i, j = divmod(k, ncol)
+        ax = fig.add_axes([j * (w + gap) / W, (H - (i + 1) * (w + title_h)) / H, w / W, w / H])
+        draw(ax, sdata, sample, m, box, style, lw=0.2)
+        ax.set_title(_title(_constants.method_names[m]), fontsize=6, pad=2, linespacing=0.95)
     return fig
