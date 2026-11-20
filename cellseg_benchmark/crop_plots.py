@@ -44,6 +44,7 @@ def find_candidates(cohort, exclude=(), tile=70, quantile=0.9, n=8, ref="vpt_2D_
             picked.append(r)
         if len(picked) == n:
             break
+    assert picked, f"no dense tiles fully inside {regions}; check brain_regions.csv labels and index"
     return pd.DataFrame(picked).drop(columns="Index")
 
 
@@ -100,6 +101,11 @@ def _title(name):
     return name.replace(" (", "\n(") if "(" in name else name.replace(" ", "\n", 1)
 
 
+def _qc_legend(fig, **kw):
+    fig.legend(handles=[plt.Line2D([], [], color=c, lw=0.6, label=l) for c, l in [("black", "Kept"), ("0.5", "Removed by QC")]],
+               frameon=False, fontsize=6, handlelength=1.2, handletextpad=0.4, columnspacing=1, borderaxespad=0, **kw)
+
+
 def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.9, gap=0.06):
     """One row of methods at print size."""
     W, H = len(methods) * (w + gap) - gap, w + 0.3
@@ -108,10 +114,12 @@ def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.9, ga
         ax = fig.add_axes([i * (w + gap) / W, 0, w / W, w / H])
         draw(ax, sdata, sample, m, box, style, qc, lw=0.2)
         ax.set_title(_title(_constants.method_names[m]), fontsize=6, pad=4, linespacing=0.95)
+    if qc == "both":
+        _qc_legend(fig, loc="upper left", bbox_to_anchor=(0, 0), ncol=2)
     return fig
 
 
-def plot_grid(sdata, sample, box, methods, style="outlines", ncol=7, w=0.9, gap=0.08, title_h=0.24):
+def plot_grid(sdata, sample, box, methods, style="outlines", qc="post", ncol=7, w=0.9, gap=0.08, title_h=0.24):
     """Methods in a grid at print size, row by row."""
     methods = [m for m in methods if f"boundaries_{m}" in sdata.shapes]
     nrow = -(-len(methods) // ncol)
@@ -120,6 +128,8 @@ def plot_grid(sdata, sample, box, methods, style="outlines", ncol=7, w=0.9, gap=
     for k, m in enumerate(methods):
         i, j = divmod(k, ncol)
         ax = fig.add_axes([j * (w + gap) / W, (H - (i + 1) * (w + title_h)) / H, w / W, w / H])
-        draw(ax, sdata, sample, m, box, style, lw=0.2)
+        draw(ax, sdata, sample, m, box, style, qc, lw=0.2)
         ax.set_title(_title(_constants.method_names[m]), fontsize=6, pad=2, linespacing=0.95)
+    if qc == "both":
+        _qc_legend(fig, loc="lower right", bbox_to_anchor=(1, 0))
     return fig
