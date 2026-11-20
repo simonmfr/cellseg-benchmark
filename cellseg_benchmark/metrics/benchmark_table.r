@@ -22,7 +22,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   col_spec <- tribble(
     ~id,                          ~group,       ~geom,       ~palette,      ~name,          ~opts,
     "id",                         "",           "text",      NA,            "",             list(width = name_w, hjust = 0, size = fs(4.2)),
-    "sep0",                       "",           "text",      NA,            "",             list(width = 0.3),
+    "sep0",                       "",           "text",      NA,            "",             list(width = 0.5),
     "total_score",                "overall",    "bar",       "overall",     "",             list(width = 2.9, draw_outline = FALSE),
     "sep1",                       "",           "text",      NA,            "",             list(width = 0.3),
     "MECR_adj",                   "expression", "funkyrect", "expression",  "MECR",         box,
@@ -114,7 +114,7 @@ plot_benchmark_heatmap <- function(df_funky, out_file, metric_labels, family = "
   ry <- rows$y[match(df_funky$id, rows$row_id)]
   pitch <- (row_height + row_space) / 2
   g[[1]] <- p +
-    annotate("rect", xmin = bar[1] - 0.25, xmax = bar[1] - 0.1, ymin = ry - pitch, ymax = ry + pitch, fill = dims[df_funky$dim],
+    annotate("rect", xmin = bar[1] - 0.5, xmax = bar[1] - 0.35, ymin = ry - pitch, ymax = ry + pitch, fill = dims[df_funky$dim],
              colour = NA) +
     annotate("text", x = bar[1] + ifelse(len > 1.3, 0.08, len + 0.2), y = rows$y[match(df_funky$id, rows$row_id)],
              label = sprintf("%.2f", df_funky$total_score), hjust = 0, size = fs(3.85, 5.5), family = family) +
