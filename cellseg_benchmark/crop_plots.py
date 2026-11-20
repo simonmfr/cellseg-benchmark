@@ -119,7 +119,7 @@ def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.9, ga
     return fig
 
 
-def plot_grid(sdata, sample, box, methods, style="outlines", qc="post", ncol=7, w=0.9, gap=0.08, title_h=0.24):
+def plot_grid(sdata, sample, box, methods, style="outlines", qc="post", ncol=7, w=0.8, gap=0.08, title_h=0.24):
     """Methods in a grid at print size, row by row."""
     methods = [m for m in methods if f"boundaries_{m}" in sdata.shapes]
     nrow = -(-len(methods) // ncol)
