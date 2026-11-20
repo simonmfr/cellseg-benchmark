@@ -349,6 +349,7 @@ def subset_by_brain_region(
     reg_csv = method_path / "brain_regions.csv"
     try:
         region_df = pd.read_csv(reg_csv, index_col=0)
+        region_df.index = region_df.index.astype(str)
     except FileNotFoundError:
         logger.warning(f"--brain_region_subset ignored (missing {reg_csv}).")
         return adata, None
