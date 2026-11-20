@@ -253,9 +253,10 @@ def extract_mem_and_time(
             return None
         g = g.iloc[(done[-2] + 1 if len(done) > 1 else 0):done[-1] + 1]
         g = g[(g["start_iso"] >= since) | (np.arange(len(g)) == len(g) - 1)]
-        return pd.Series({"maxrss_gb": g["maxrss_gb"].max(), "elapsed_h": g["elapsed_s"].sum() / 3600, "alloccpus": g["alloccpus"].max()})
+        return {"sample": g["key"].iloc[0], "maxrss_gb": g["maxrss_gb"].max(), "elapsed_h": g["elapsed_s"].sum() / 3600, "alloccpus": g["alloccpus"].max()}
 
-    return runs.groupby("key").apply(counted).dropna(subset=["elapsed_h"]).rename_axis("sample").reset_index()
+    rows = [r for _, g in runs.groupby("key") if (r := counted(g))]
+    return pd.DataFrame(rows, columns=["sample", "maxrss_gb", "elapsed_h", "alloccpus"])
 
 
 def plot_mem_and_time(cohort, metric=None, show: bool = False):
