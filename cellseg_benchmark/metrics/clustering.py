@@ -84,133 +84,29 @@ def _clustering_score(
 
 
 def plot_clustering_scores(cohort, results_suffix, show=False):
-    """Plot box plot of clustering scores and dot plot comparing SH and CH scores; "merged" averages cohorts equally."""
-    results_file = (
-        Path(_constants.BASE_PATH)
-        / "metrics"
-        / cohort
-        / "cell_type_metrics"
-        / f"clustering_score_{results_suffix}.csv"
-    )
+    """Box plots of silhouette and Calinski-Harabasz scores per method (samples, ordered by mean silhouette) and their correlation; "merged" averages cohorts equally."""
+    results_file = Path(_constants.BASE_PATH) / "metrics" / cohort / "cell_type_metrics" / f"clustering_score_{results_suffix}.csv"
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
-
     cohorts = ["aging", "ABCAtlas", "VizgenMouseBrain"] if cohort == "merged" else [cohort]
-    scores_df = pd.concat(
+    scores = pd.concat(
         [pd.read_csv(str(results_file).replace(f"/{cohort}/", f"/{c}/"), index_col=0).assign(cohort=c) for c in cohorts],
         ignore_index=True,
     ).query("sample != 'all'")
-    scores_df["method"] = scores_df["method"].map(clean_method_name)
-    mean_scores = (
-        scores_df.groupby(["method", "cohort"])[["calinski_harabasz_score", "silhouette_score"]]
-        .mean()
-        .groupby("method")
-        .mean()
-    )
+    scores["method"] = scores["method"].map(clean_method_name)
+    cols = {"silhouette_score": "Silhouette", "calinski_harabasz_score": "Calinski-Harabasz"}
+    means = scores.groupby(["method", "cohort"])[list(cols)].mean().groupby("method").mean()
+    order = means.sort_values("silhouette_score", ascending=False).index
 
-    # Set theme
-    with plt.style.context("seaborn-v0_8-whitegrid"):
-        # --- Figure 1: boxplot of CH/SH scores ---
-        palette = sns.color_palette("viridis_r", n_colors=len(mean_scores))
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6), dpi=300)
-
-        # box plot of CH scores
-        ch_order = list(
-            mean_scores.sort_values("calinski_harabasz_score", ascending=False).index
-        )
-        _ = sns.boxplot(
-            scores_df,
-            x="method",
-            y="calinski_harabasz_score",
-            order=ch_order,
-            ax=ax1,
-            palette=palette,
-        )
-        ax1.set_title("Calinski-Harabasz Score", fontsize=12)
-        ax1.set_ylabel("Score (higher is better)", fontsize=12)
-
-        # box plot of CH scores
-        sh_order = list(mean_scores.sort_values("silhouette_score", ascending=False).index)
-        _ = sns.boxplot(
-            scores_df,
-            x="method",
-            y="silhouette_score",
-            order=sh_order,
-            ax=ax2,
-            palette=palette,
-        )
-        ax2.set_title("Silhouette Score", fontsize=12)
-        ax2.set_ylabel("Score (closer to 1 is better)", fontsize=12)
-
-        for ax, order in [(ax1, ch_order), (ax2, sh_order)]:
-            # Fix tick labels alignment - set x-ticks explicitly
-            ax.set_xticks(np.arange(len(order)))
-            ax.set_xticklabels(order, rotation=45, ha="right", fontweight="medium")
-            ax.set_xlabel("")
-            # Add subtle border
-            for spine in ax.spines.values():
-                spine.set_edgecolor("#dddddd")
-                spine.set_linewidth(0.8)
-
-        plt.tight_layout()
-        if show:
-            plt.show()
-        fig.savefig(plot_path / f"cluster_scores_{results_suffix}.png")
-        plt.show()
-
-        # --- Figure 2: scatter plot comparing CH/SH scores ---
-        fig = plt.figure(figsize=(7, 5))
-
-        # Create norm for colormap
-        # norm = plt.Normalize(
-        #    mean_scores["calinski_harabasz_score"].min(),
-        #    mean_scores["calinski_harabasz_score"].max(),
-        # )
-
-        # Scatter plot with viridis colormap based on CH score
-        scatter = plt.scatter(
-            mean_scores["calinski_harabasz_score"],
-            mean_scores["silhouette_score"],
-            c=mean_scores["calinski_harabasz_score"],
-            cmap="viridis",
-            s=80,
-            alpha=0.8,
-            edgecolor="white",
-            linewidth=0.5,
-        )
-
-        # Add colorbar
-        cbar = plt.colorbar(scatter)
-        cbar.set_label("Calinski-Harabasz Score", fontsize=10)
-
-        # Add labels for each point
-        for i, txt in enumerate(mean_scores.index):
-            plt.annotate(
-                txt,
-                (
-                    mean_scores["calinski_harabasz_score"].iloc[i],
-                    mean_scores["silhouette_score"].iloc[i],
-                ),
-                fontsize=9,
-                ha="center",
-                va="bottom",
-                xytext=(0, 5),
-                textcoords="offset points",
-            )
-
-        plt.xlabel("Calinski-Harabasz Score", fontsize=12)
-        plt.ylabel("Silhouette Score (closer to 1 is better)", fontsize=12)
-        plt.grid(True, alpha=0.3)
-
-        # Add a box around the plot with light gray color
-        plt.gca().spines["top"].set_visible(True)
-        plt.gca().spines["right"].set_visible(True)
-        for spine in plt.gca().spines.values():
-            spine.set_edgecolor("#dddddd")
-            spine.set_linewidth(0.8)
-
-        plt.tight_layout()
-        if show:
-            plt.show()
-        fig.savefig(plot_path / f"cluster_scores_dotplot_{results_suffix}.png")
-        plt.show()
+    fig, axs = plt.subplots(1, 3, figsize=(9, 0.16 * len(order) + 0.8), gridspec_kw={"width_ratios": [1, 1, 1.3]})
+    for ax, (col, label) in zip(axs, cols.items()):
+        sns.boxplot(scores, x=col, y="method", order=order, ax=ax, color="0.85", linewidth=0.6, fliersize=1.5)
+        ax.set(xlabel=label, ylabel="")
+    axs[1].set_yticklabels([])
+    axs[2].scatter(means.calinski_harabasz_score, means.silhouette_score, s=10, color="0.3")
+    rho = means.corr("spearman").iloc[0, 1]
+    axs[2].set(xlabel="Calinski-Harabasz", ylabel="Silhouette", title=f"Method means, Spearman ρ = {rho:.2f}")
+    sns.despine(fig)
+    fig.tight_layout()
+    fig.savefig(plot_path / f"cluster_scores_{results_suffix}.png", dpi=300)
+    plt.show() if show else plt.close(fig)
