@@ -6,6 +6,7 @@ parser = argparse.ArgumentParser(
     description="scripts for merging one method from different samples."
 )
 parser.add_argument("cohort", help="Cohort name, e.g., 'foxf2'")
+parser.add_argument("--repo", default="$HOME/gitrepos/cellseg-benchmark", help="Repo used inside the job.")
 args = parser.parse_args()
 BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 SBATCH_DIR = BASE_PATH / "misc/sbatches/sbatch_merge_adata"
@@ -92,5 +93,5 @@ export NUMEXPR_NUM_THREADS=1
 set -eu
 
 mamba activate seg_postprocessing
-python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
+python {args.repo}/scripts/seg_postprocessing/merge_adata.py {args.cohort} {method}
 """)
