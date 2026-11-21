@@ -152,6 +152,7 @@ def integrate_segmentation_data(
     data_path: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
     overwrite_annotation: bool = False,
+    z_spacing: float = 1.5,
     **obs,
 ) -> sd.SpatialData:
     """Integrate segmentation data from multiple methods into the main spatial data object.
@@ -171,6 +172,7 @@ def integrate_segmentation_data(
         data_path: Optional path to directory to get transformation for adatas
         logger: Optional logger object to write messages to console
         overwrite_annotation: Replace cell type labels of existing tables with the current annotation
+        z_spacing: z plane spacing (µm) for volumes
         **obs: Additional per-cell annotations to add to `.obs`
               (e.g. condition, batch, etc.).
 
@@ -270,6 +272,7 @@ def integrate_segmentation_data(
                     sdata_main = calculate_volume(
                         seg_method,
                         sdata_main,
+                        z_spacing=z_spacing,
                         n_planes_2d=n_planes_2d,
                         logger=logger,
                     )
@@ -401,7 +404,9 @@ def build_shapes(
             seg_method,
             sd.transformations.get_transformation(
                 sdata_main[list(sdata_main.images.keys())[0]], "micron"
-            ).inverse(),
+            ).inverse()
+            if sdata_main.images
+            else sd.transformations.Identity(),
         )
     else:
         msg = (
@@ -674,7 +679,7 @@ def transform_adata(
         seg_method: current segmentation method
         data_path: path to merscope data
     """
-    transform = pd.read_csv(
+    transform = pd.DataFrame(np.eye(3)) if data_path is None else pd.read_csv(
         os.path.join(data_path, "images", "micron_to_mosaic_pixel_transform.csv"),
         sep=" ",
         header=None,

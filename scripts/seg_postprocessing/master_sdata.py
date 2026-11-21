@@ -41,6 +41,8 @@ def main():
         action="store_true",
         help="Replace cell type labels of existing tables with the current annotation.",
     )
+    p.add_argument("--no_images", action="store_true", help="Sample without images: master sdata without images and points, coordinates in microns.")
+    p.add_argument("--z_spacing", type=float, default=1.5, help="z plane spacing (µm) for volumes.")
     p.add_argument(
         "--obs",
         action="append",
@@ -60,12 +62,15 @@ def main():
         k, v = kv.split("=", 1)
         extra_obs[k] = None if v in NONES else v
 
-    logger.info("Importing images and points...")
-    sdata_utils.process_merscope(
-        args.sample, args.data_dir, args.data_path, zmode=args.zmode
-    )
-
     sdata_path = pathlib.Path(args.data_dir) / "samples" / args.sample
+    if args.no_images:
+        if not (sdata_path / "sdata_z3.zarr").exists():
+            sd.SpatialData().write(sdata_path / "sdata_z3.zarr")
+    else:
+        logger.info("Importing images and points...")
+        sdata_utils.process_merscope(
+            args.sample, args.data_dir, args.data_path, zmode=args.zmode
+        )
     sdata_main = sd.read_zarr(str(sdata_path / "sdata_z3.zarr"))
 
     logger.info(
@@ -87,7 +92,8 @@ def main():
         region=args.region,
         cohort=args.cohort,
         write_to_disk=True,
-        data_path=args.data_path,
+        data_path=None if args.no_images else args.data_path,
+        z_spacing=args.z_spacing,
         logger=logger,
         overwrite_annotation=args.overwrite_annotation,
         **extra_obs,
