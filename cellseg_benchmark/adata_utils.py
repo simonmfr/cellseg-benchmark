@@ -1176,9 +1176,12 @@ def integration_harmony(
     elif logger:
         logger.warning("Layer 'zscore' not found; using current adata.X.")
 
-    if logger:
-        logger.info("Integration: Run Harmony")
-    sc.external.pp.harmony_integrate(adata, key=batch_key, basis="X_pca")
+    if adata.obs[batch_key].nunique() > 1:
+        if logger:
+            logger.info("Integration: Run Harmony")
+        sc.external.pp.harmony_integrate(adata, key=batch_key, basis="X_pca")
+    else:
+        adata.obsm["X_pca_harmony"] = adata.obsm["X_pca"]
 
     if logger:
         logger.info("Integration: Compute neighbors and UMAP")

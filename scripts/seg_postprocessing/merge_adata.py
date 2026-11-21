@@ -124,13 +124,12 @@ def main():
         adata, save_path=save_path / "plots", logger=logger
     )
 
-    if adata.obs["slide"].nunique() > 1:
-        adata = adata_utils.integration_harmony(
-            adata,
-            batch_key="slide",
-            save_path=save_path / "plots",
-            logger=logger,
-        )
+    adata = adata_utils.integration_harmony(
+        adata,
+        batch_key="slide",
+        save_path=save_path / "plots",
+        logger=logger,
+    )
 
     logger.info("Saving integrated object...")
     if "fov" not in adata.obs.columns:
