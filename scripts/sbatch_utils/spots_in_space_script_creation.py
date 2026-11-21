@@ -38,7 +38,7 @@ for key, value in samples.items():
 #SBATCH -J SIS_{key}_{args.staining}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/SIS_{key}_{args.staining}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/SIS_{key}_{args.staining}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/testing/segmentation.sqsh"
 
 set -euo pipefail
 source $HOME/gitrepos/cellseg-benchmark/scripts/sbatch_utils/run_log.sh
