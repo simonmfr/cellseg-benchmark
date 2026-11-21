@@ -11,12 +11,13 @@ parser.add_argument(
     action="store_true",
     help="Replace cell type labels of existing tables with the current annotation.",
 )
+parser.add_argument("--repo", default="$HOME/gitrepos/cellseg-benchmark", help="Repo used inside the job.")
 args = parser.parse_args()
 
 BASE_PATH = (pathlib.Path(__file__).parents[2] / "data").resolve()
 YAML = BASE_PATH / "misc/sample_metadata.yaml"
 OUT = BASE_PATH / "misc/sbatches/sbatch_master_sdata"
-MANDATORY = {"cohort", "slide", "region", "organism", "run_date", "path"}
+MANDATORY = {"cohort", "slide", "region", "organism", "run_date", "path", "no_images", "z_step"}
 
 with open(YAML) as f:
     data = yaml.safe_load(f)
@@ -48,6 +49,8 @@ for sample, meta in data.items():
         str(meta["run_date"]),
         *extras,
         *(["--overwrite_annotation"] if args.overwrite_annotation else []),
+        *(["--no_images"] if meta.get("no_images") else []),
+        *(["--z_spacing", meta["z_step"]] if "z_step" in meta else []),
     ]
     cli_args = " \\\n".join(shlex.quote(str(a)) for a in argv)
 
@@ -66,6 +69,6 @@ for sample, meta in data.items():
 set -eu
 
 mamba activate seg_postprocessing
-python $HOME/gitrepos/cellseg-benchmark/scripts/seg_postprocessing/master_sdata.py {cli_args}
+python {args.repo}/scripts/seg_postprocessing/master_sdata.py {cli_args}
 """
     (OUT / f"{sample}.sbatch").write_text(sbatch)

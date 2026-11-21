@@ -26,5 +26,5 @@ for parent, z0s in {"3DMERFISH_cortex": range(0, 100, 10), "3DMERFISH_hypothalam
             f.write("\n")
         for d in out.values():
             if d.name not in meta:
-                f.write(yaml.safe_dump({d.name: {**meta[parent], "cohort": parent.replace("_", ""), "path": str(d), "thickness": 10}}, sort_keys=False))
+                f.write(yaml.safe_dump({d.name: {**meta[parent], "path": str(d), "thickness": 10}}, sort_keys=False))
     print(parent, "->", [d.name for d in out.values()])
