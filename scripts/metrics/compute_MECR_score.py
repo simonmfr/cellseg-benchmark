@@ -35,6 +35,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Use vascular subset for computation of MECR score.",
     )
+    parser.add_argument(
+        "--groups",
+        action="store_true",
+        help="Compute per cell type group (_constants.celltype_groups) into MECR_score_groups.csv.",
+    )
 
     args = parser.parse_args()
     if args.subset_vascular_celltypes:
@@ -42,9 +47,20 @@ if __name__ == "__main__":
     suffix = "all"
     if args.subset_vascular_celltypes:
         suffix = "vascular_celltypes"
+    if args.adata_name == "adata_integrated_ecs":
+        suffix = "ecs"
+    elif args.adata_name == "adata_integrated_mural":
+        suffix = "mural"
+    elif args.adata_name == "adata_integrated_oligo":
+        suffix = "oligo"
+    elif args.adata_name == "adata_integrated_neurons":
+        suffix = "neurons"
+    if args.groups:
+        suffix = "groups"
     results_name = f"marker_gene_metrics/MECR_score_{suffix}.csv"
     compute_metric_for_all_methods(
         compute_MECR_score, results_name=results_name, **vars(args)
     )
-    plot_MECR_score(args.cohort, suffix, show=False)
-    plot_MECR_vs_sensitivity(args.cohort, suffix, show=False)
+    if not args.groups:
+        plot_MECR_score(args.cohort, suffix, show=False)
+        plot_MECR_vs_sensitivity(args.cohort, suffix, show=False)

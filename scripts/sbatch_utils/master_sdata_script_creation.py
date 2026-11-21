@@ -61,7 +61,7 @@ for sample, meta in data.items():
 #SBATCH --mem=200G
 #SBATCH -J master_sdata_{sample}
 #SBATCH -o {BASE_PATH}/misc/logs/merged/%x.log
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/testing/analysis.sqsh"
 
 set -eu
 

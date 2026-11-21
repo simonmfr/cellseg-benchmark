@@ -8,8 +8,11 @@ import pathlib
 import warnings
 from typing import Union, Optional
 
+import anndata as ad
+import h5py
 import pandas as pd
 import scanpy as sc
+from anndata.io import read_elem
 
 from .. import _constants
 from ..cell_annotation_utils import group_cell_types
@@ -60,7 +63,7 @@ def read_ABCAtlas(vascular_subset=False, base_path=_constants.BASE_PATH):
     return adata
 
 
-def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=_constants.BASE_PATH):
+def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=_constants.BASE_PATH, obs_only=False):
     """Read adata from disk.
 
     Args:
@@ -68,6 +71,7 @@ def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=_co
         method: method to read adata for. If None, will choose the first method it finds in cohort
         adata_name: name of adata to read. Either adata_integrated or adata_vascular_subset
         base_path: base path to read data from.
+        obs_only: read only ``.obs`` (fast, low memory), for metrics that need no expression data.
 
     Returns:
         adata or None if it does not exist
@@ -81,6 +85,9 @@ def read_adata(cohort, method=None, adata_name="adata_integrated", base_path=_co
     if not adata_path.exists():
         print(f"No adata found for cohort {cohort}, method {method}, name {adata_name}")
         return
+    if obs_only:
+        with h5py.File(adata_path, "r") as f:
+            return ad.AnnData(obs=read_elem(f["obs"]))
     adata = sc.read_h5ad(adata_path)
     return adata
 
@@ -93,6 +100,7 @@ def compute_metric_for_all_methods(
     methods=None,
     adata_name="adata_integrated",
     overwrite=False,
+    skip_3D=False,
     **kwargs,
 ):
     """Generic function to iterate over all methods to compute metric.
@@ -107,11 +115,17 @@ def compute_metric_for_all_methods(
         methods: list of methods to iterate over. If None, will iterate over all methods
         adata_name: name of adata file to read (either adata_integrated or adata_vascular_subset)
         overwrite: whether to overwrite already existing results
+        skip_3D: skip 3D methods, for metrics that only apply to 2D segmentations
         kwargs: further keyword arguments passed to metric_func
+
+    Returns:
+        The results csv as DataFrame, or None if it does not exist.
     """
     if methods is None:
         data_path = pathlib.Path(base_path) / "analysis" / cohort
         methods = os.listdir(data_path)
+    if skip_3D:
+        methods = [m for m in methods if not m.startswith(tuple(_constants.methods_3D))]
     for i, method in enumerate(methods):
         print(f"{i + 1}/{len(methods)} ", end="")
         compute_metric(
@@ -124,6 +138,8 @@ def compute_metric_for_all_methods(
             base_path=base_path,
             **kwargs,
         )
+    results_path = pathlib.Path(base_path) / "metrics" / cohort / results_name
+    return pd.read_csv(results_path, index_col=0) if results_path.exists() else None
 
 
 def compute_metric(
@@ -134,6 +150,7 @@ def compute_metric(
     adata_name="adata_integrated",
     overwrite=False,
     base_path=_constants.BASE_PATH,
+    obs_only=False,
     **kwargs,
 ):
     """General function to compute metric and save results as csv.
@@ -152,6 +169,7 @@ def compute_metric(
         adata_name: name of adata file to read (either adata_integrated or adata_vascular_subset)
         overwrite: whether to overwrite already existing results
         base_path: base path to the data
+        obs_only: read only ``.obs`` of the adata, for metrics that need no expression data
         **kwargs: kwargs for metric_fn
 
     Returns:
@@ -185,7 +203,7 @@ def compute_metric(
 
     print(f"Running {metric_func.__name__} for {method}")
     # read adata
-    adata = read_adata(cohort, method, adata_name, base_path)
+    adata = read_adata(cohort, method, adata_name, base_path, obs_only=obs_only)
     if adata is None:
         return
 

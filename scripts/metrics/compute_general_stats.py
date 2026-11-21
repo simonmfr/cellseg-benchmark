@@ -42,6 +42,5 @@ if __name__ == "__main__":
         "elongation",
         "intensities_PolyT",
         "intensities_DAPI",
-        "Ovrlpy_stats_mean_integrity",
     ]:
         plot_general_stats(args.cohort, metric, show=False)

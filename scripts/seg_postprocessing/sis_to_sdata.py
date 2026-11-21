@@ -161,6 +161,8 @@ def main():
     intensities = intensities.loc[sdata["table"].obs_names]
     sdata["table"].obsm["intensities"] = intensities
     del sdata["boundaries_2D"]
+    for key in list(sdata.images):
+        del sdata[key]
 
     out_path = pathlib.Path(args.data_path, "sdata.zarr")
     logger.info(f"Writing to {out_path}")

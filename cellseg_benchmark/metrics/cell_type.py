@@ -67,10 +67,9 @@ def compute_annotation_qc(adata, method, base_path=_constants.BASE_PATH, mad_fac
             print(f"{sample}: {(~keep).sum()} merged cells without annotation, dropped")
         sub, ids = sub[keep], ids[keep]
         subs[sample] = ad.AnnData(
-            obs=labels.loc[ids].set_axis(sub.obs_names).assign(volume=sub.obs["volume_final"].to_numpy()),
+            obs=labels.loc[ids].set_axis(sub.obs_names).assign(**{c: sub.obs[c].to_numpy() for c in ["n_counts", "n_genes"]},
+                                                                 volume=sub.obs["volume_final"].to_numpy()),
             obsm={"allen_cell_type_mapping": mmc.loc[ids].set_axis(sub.obs_names)},
-            var=sub.var[[]],
-            layers={"counts": sub.layers["counts"]},
         )
     if not subs:
         return None
@@ -94,11 +93,14 @@ def _cell_type_distribution(adata, celltype_name):
     return results
 
 
-def plot_cell_type_distribution(cohort, results_suffix, show=False):
-    """Plot cell type distribution as stacked barplot.
+def plot_cell_type_distribution(cohort, results_suffix, methods=None, show=False):
+    """Plot cell type distribution as stacked barplot, methods ordered by composition similarity.
 
-    Uses celltype distribution of all samples together.
+    Uses celltype distribution of all samples together; "merged" averages cohorts equally and marks methods missing in a cohort with *.
+    methods: optional list of clean method names to keep.
     """
+    from scipy.cluster.hierarchy import leaves_list, linkage
+
     results_file = (
         Path(_constants.BASE_PATH)
         / "metrics"
@@ -106,55 +108,39 @@ def plot_cell_type_distribution(cohort, results_suffix, show=False):
         / "cell_type_metrics"
         / f"cell_type_distribution_{results_suffix}.csv"
     )
-    results_df = pd.read_csv(results_file, index_col=0)
-    # clean method names for plotting
-    results_df["method"] = results_df["method"].map(clean_method_name)
-    results_df = (
-        results_df[results_df["sample"] == "all"]
-        .drop(columns=["sample"])
-        .set_index("method")
-    )
+    cohorts = ["aging", "ABCAtlas", "VizgenMouseBrain"] if cohort == "merged" else [cohort]
+    results_df = pd.concat(
+        [pd.read_csv(str(results_file).replace(f"/{cohort}/", f"/{c}/"), index_col=0).assign(cohort=c) for c in cohorts], ignore_index=True
+    ).query("sample == 'all'").drop(columns="sample")
+    results_df["method"] = results_df.method.map(clean_method_name)
+    if methods is not None:
+        results_df = results_df[results_df.method.isin(methods)]
+    partial = results_df.groupby("method").cohort.nunique() < len(cohorts)
+    results_df = results_df.drop(columns="cohort").fillna(0).groupby("method").mean()
+    results_df.index = [f"{m}*" if partial[m] else m for m in results_df.index]
+
+    df_pct = results_df.T * 100
+    df_pct = df_pct.reindex([ct for ct in _constants.cell_type_colors if ct in df_pct.index])
+    rare = (df_pct.max(axis=1) < 0.5) & (df_pct.index != "Undefined")
+    df_pct.loc["Other"] = df_pct[rare].sum()
+    df_pct = df_pct[~rare.reindex(df_pct.index, fill_value=False)]
+    colors = _constants.cell_type_colors | {"Other": "#9e9e9e"}
+    df_pct = df_pct.iloc[:, leaves_list(linkage(df_pct.T, "average", optimal_ordering=True))][::-1]
+
+    with plt.rc_context({"font.size": 7, "axes.linewidth": 0.6, "ytick.major.width": 0.6}):
+        fig, ax = plt.subplots(figsize=(0.17 * df_pct.shape[1], 2.4))
+        df_pct.T.plot.bar(stacked=True, ax=ax, color=[colors[ct] for ct in df_pct.index], width=0.82, lw=0, legend=False)
+        ax.set(xlabel="", ylabel="Cells (%)", ylim=(0, 100), yticks=[0, 50, 100], xlim=(-0.6, df_pct.shape[1] - 0.4))
+        ax.tick_params(axis="x", length=0, rotation=90)
+        ax.spines[["top", "right", "bottom"]].set_visible(False)
+        h, l = ax.get_legend_handles_labels()
+        ax.legend(h[::-1], l[::-1], loc="center left", bbox_to_anchor=(1.01, 0.5), frameon=False,
+                  handlelength=0.8, handleheight=0.8, labelspacing=0.2, borderaxespad=0)
 
     plot_path = results_file.parent / "plots"
     plot_path.mkdir(parents=True, exist_ok=True)
-
-    df_pct = results_df.T * 100
-    legend_order = list(_constants.cell_type_colors.keys())
-    df_pct = df_pct.reindex([ct for ct in legend_order if ct in df_pct.index])
-    if "Undefined" in df_pct.index:
-        cols_sorted = df_pct.loc["Undefined"].sort_values(ascending=False).index
-        df_pct = df_pct[cols_sorted]
-
-    df_pct = df_pct[::-1]
-    colors = [_constants.cell_type_colors[ct] for ct in df_pct.index]
-
-    fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-    df_pct.T.plot(kind="bar", stacked=True, ax=ax, color=colors, width=0.8)
-
-    ax.set_ylabel("% of Cells", fontsize=14)
-    ax.set_xlabel("Segmentation Method", fontsize=14)
-    plt.xticks(rotation=45, ha="right", fontsize=10)
-    plt.yticks(fontsize=10)
-
-    from matplotlib.patches import Patch
-
-    legend_labels = df_pct[::-1].index.tolist()
-    legend_colors = [_constants.cell_type_colors[ct] for ct in legend_labels]
-    handles = [
-        Patch(facecolor=color, label=label)
-        for color, label in zip(legend_colors, legend_labels)
-    ]
-
-    ax.legend(
-        handles=handles,
-        title="Cell Type",
-        bbox_to_anchor=(1.05, 1),
-        loc="upper left",
-        fontsize=9,
-    )
-    plt.tight_layout()
-
+    for ext in ("png", "svg"):
+        fig.savefig(plot_path / f"cell_type_distribution_{results_suffix}{'_main' if methods else ''}.{ext}", dpi=300, bbox_inches="tight", transparent=True)
     if show:
         plt.show()
-    fig.savefig(plot_path / f"cell_type_distribution_{results_suffix}.png")
     plt.close(fig)

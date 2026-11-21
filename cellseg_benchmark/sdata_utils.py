@@ -273,27 +273,7 @@ def integrate_segmentation_data(
                         n_planes_2d=n_planes_2d,
                         logger=logger,
                     )
-                if not any([seg_method.startswith(x) for x in _constants.methods_3D]):
-                    if os.path.exists(
-                        join(sdata_path, "results", seg_method, "Ovrlpy_stats")
-                    ):
-                        if logger:
-                            logger.info(
-                                "Adding Ovrlpy stats to {}...".format(seg_method)
-                            )
-                        add_statistical_data(sdata_main, seg_method, sdata_path)
-                    elif logger:
-                        logger.warning(
-                            "No Ovrlpy_stats files found for {}. Skipping.".format(
-                                seg_method
-                            )
-                        )
-                else:
-                    if logger:
-                        logger.warning(
-                            "{} is a 3D method. Ovrlpy stats are irrelevant.".format(seg_method)
-                        )
-                        
+                if any([seg_method.startswith(x) for x in _constants.methods_3D]):
                     if os.path.exists(
                         join(sdata_path, "results", seg_method, "Intensities_3D")
                     ):
@@ -495,30 +475,10 @@ def add_cell_type_annotation(
     return sdata_main
 
 
-def add_statistical_data(
-    sdata_main: sd.SpatialData, seg_method: str, sdata_path: str
-) -> sd.SpatialData:
-    """Add ovrlpy information to sdata_main."""
-    adata = sdata_main[f"adata_{seg_method}"]
-    for file in os.listdir(join(sdata_path, "results", seg_method, "Ovrlpy_stats")):
-        if file.endswith(".csv"):
-            name = file.split(".")[0]
-            ovrlpy_stats = pd.read_csv(
-                join(sdata_path, "results", seg_method, "Ovrlpy_stats", file),
-                index_col=0,
-            )
-            ovrlpy_stats.index = ovrlpy_stats.index.astype(str)
-            ovrlpy_stats_reordered = ovrlpy_stats.loc[adata.obs_names]
-            assert len(ovrlpy_stats_reordered) == len(ovrlpy_stats)
-            adata.obsm[name] = ovrlpy_stats_reordered
-    sdata_main[f"adata_{seg_method}"] = adata
-    return sdata_main
-
-
 def add_intensities_3D_data(
     sdata_main: sd.SpatialData, seg_method: str, sdata_path: str
 ) -> sd.SpatialData:
-    """Add ovrlpy information to sdata_main."""
+    """Add per-cell 3D channel intensities to sdata_main."""
     adata = sdata_main[f"adata_{seg_method}"]
     for file in os.listdir(join(sdata_path, "results", seg_method, "Intensities_3D")):
         if file.endswith(".csv"):
@@ -614,10 +574,9 @@ def calculate_volume(
             df_morph.drop(columns=["cell_id"], inplace=True)
 
         adata = sdata_main.tables[f"adata_{seg_method}"]
-        if "area" in adata.obs.columns:
-            adata.obs.drop(columns="area", inplace=True)
-        if "solidity" in adata.obs.columns:
-            adata.obs.drop(columns="solidity", inplace=True)
+        adata.obs = adata.obs.drop(columns=["area", "solidity"], errors="ignore").rename(
+            columns={"elongation": "elongation_baysor"}
+        )
         adata.obs = adata.obs.merge(df_morph, left_index=True, right_index=True)
         sdata_main[f"adata_{seg_method}"] = adata
     return sdata_main
@@ -724,7 +683,10 @@ def transform_adata(
     adata = sdata_main[f"adata_{seg_method}"]
     spatial = adata.obsm["spatial"]
 
-    if any([seg_method.startswith(method) for method in _constants.image_based]):
+    if any(seg_method.startswith(m) for m in _constants.image_based) and seg_method not in [
+        "Cellpose_1_Merlin",
+        "Negative_Control_Visium",
+    ]:
         x = (
             spatial[:, 0] * (1 / transform.iloc[0, 0])
             - (1 / transform.iloc[0, 0]) * transform.iloc[0, 2]

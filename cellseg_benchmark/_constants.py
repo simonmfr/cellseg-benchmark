@@ -24,6 +24,18 @@ methods_3D = [
 
 image_based = ["Cellpose", "Negative_Control", "CellSAM"]
 
+# cleaned names (method_names values)
+main_methods = [
+    "Cellpose1 3D P VPT", "Cellpose1 3D N VPT", "Cellpose1 3D P+N VPT",
+    "Cellpose1 N VPT", "Cellpose1 P VPT", "Cellpose1 P+N VPT", "Cellpose1 P Merlin", "Watershed 3D P Merlin",
+    "Cellpose1 N Sopa", "Cellpose1 P Sopa", "Cellpose1 T Sopa", "Cellpose2 P Sopa", "Cellpose2 T Sopa",
+    "CellSAM P Sopa", "CellposeSAM P Sopa",
+    "Baysor", "Baysor 3D", "Spots-In-Space 3D",
+    "Proseg 3D (CP1 3D N)", "Proseg 3D (CP1 3D P)", "Proseg 3D (CP1 3D P+N)",
+    "Baysor Sopa (CP1 P, 0.2)", "ComSeg Sopa (CP1 N)", "Ficture Seg (CP1 3D N)",
+    "Raster 5μm", "Raster 10μm", "Raster 25μm", "Voronoi",
+]
+
 method_colors = {
     # Cellpose-Sopa (green)
     "Cellpose_1_nuclei_model": "#00441b",
@@ -114,9 +126,9 @@ method_names = {
     "Cellpose_1_Merlin": "Cellpose1 P Merlin",
     "Cellpose_2_DAPI_PolyT": "Cellpose2 P Sopa",
     "Cellpose_2_DAPI_Transcripts": "Cellpose2 T Sopa",
-    "CellSAM_DAPI": "CellSAM Sopa",
+    "CellSAM_DAPI": "CellSAM N Sopa",
     "CellSAM_DAPI_PolyT": "CellSAM P Sopa",
-    "CellposeSAM_DAPI": "CellposeSAM Sopa",
+    "CellposeSAM_DAPI": "CellposeSAM N Sopa",
     "CellposeSAM_DAPI_PolyT": "CellposeSAM P Sopa",
     "Proseg_3D_Cellpose_1_DAPI_PolyT": "Proseg 3D (CP1 P)",
     "Proseg_3D_Cellpose_1_DAPI_Transcripts": "Proseg 3D (CP1 T)",
@@ -161,7 +173,8 @@ metric_names = {
     "sphericity_3d": "Sphericity (3D)",
     "intensities_DAPI": "DAPI",
     "intensities_PolyT": "PolyT",
-    "Ovrlpy_stats_mean_integrity": "Z integrity",
+    "low_z_integrity_pct": "Z integrity",
+    "low_z_integrity_vs_tissue": "Z integrity",
     "pct_assigned_qced": "% Assigned",
     "negative_marker_purity": "NMP",
     "MECR": "MECR-raw",
@@ -236,6 +249,21 @@ merged_celltypes = {
 
 # Vascular cell types, used for the secondary macro-F1 (see metrics.ficture).
 vascular_celltypes = ["ECs", "Pericytes", "SMCs", "VLMCs"]
+
+# Cell types for the cell-type benchmark tables (see metrics.benchmark_table).
+# Neuron subtypes are merged, as in the marker gene list.
+celltype_groups = {
+    "ECs": ["ECs"],
+    "Pericytes": ["Pericytes"],
+    "SMCs": ["SMCs"],
+    "VLMCs": ["VLMCs"],
+    "BAMs": ["BAMs"],
+    "Neurons": ["Neurons-Glut", "Neurons-Gaba"],
+    "Oligodendrocytes": ["Oligodendrocytes"],
+    "OPCs": ["OPCs"],
+    "Astrocytes": ["Astrocytes"],
+    "Microglia": ["Microglia"],
+}
 
 cell_type_colors = {
     "ECs": "#FF6464",
