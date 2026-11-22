@@ -157,6 +157,7 @@ def build_benchmark_table(dfs, group=None, fit=None):
     is_3d = df.index.str.startswith(tuple(_constants.methods_3D))
     is_ficture_seg = df.index.str.startswith("Ficture_segments")
     df.loc[is_ficture_seg, "ficture_f1_score"] = np.nan
+    df["is_3d"] = is_3d
     df["na_z"] = is_3d & df.low_z_integrity_vs_tissue.isna()
     df["na_ficture"] = (is_3d | is_ficture_seg) & df.ficture_f1_score.isna()
 
@@ -223,11 +224,18 @@ def plot_benchmark_table(
     df,
     out_file,
     score_label="Overall",
+    row_height=1.02,
+    width=None,
+    height=None,
+    note=None,
     font_file=Path(_constants.BASE_PATH) / "misc" / "Arial.ttf",
 ):
     """Plot a benchmark table with funkyheatmap and save it as png and svg.
 
-    Methods missing in some cohorts are marked with an asterisk. An empty silhouette column is left out.
+    Methods missing in some cohorts are marked with an asterisk; a strip marks 3D, 2D and baseline methods. An empty silhouette column is left out.
+    width: print width in inches; text is then sized to 6 pt at that width. None keeps the native size.
+    height: print height in inches, reached by adding space between rows.
+    note: key printed below the table, None for none. With width set, the png is tagged 600 dpi so it places at that width.
     """
     import rpy2.robjects as ro
     from rpy2.robjects import pandas2ri
@@ -236,7 +244,6 @@ def plot_benchmark_table(
     ro.r["source"](str(Path(__file__).with_suffix(".r")))
     names = _constants.metric_names | {
         "volume_final": "Volume",
-        "pct_assigned_qced": "% Transcripts",
     }
     labels = pd.DataFrame(list(names.items()), columns=["id", "name"])
     if df.silhouette_score.isna().all():
@@ -245,12 +252,24 @@ def plot_benchmark_table(
         ro.r["plot_benchmark_heatmap"](
             df.reset_index().assign(
                 id=lambda d: d.id + d.partial.map({True: "*", False: ""}),
+                dim=lambda d: np.select([d.is_control, d.is_3d], ["Baseline", "3D"], "2D"),
                 density_label=lambda d: (d.cells_per_mm2_raw / 1e3).map(
-                    lambda x: f"{x:.1f}" if x < 10 else f"{x:.0f}"
+                    lambda x: f"{x:.1f}" if round(x, 1) < 10 else f"{x:.0f}"
                 ),
             ),
             str(out_file),
             labels,
             font_file=str(font_file),
             score_label=score_label,
+            row_height=row_height,
+            width=ro.NULL if width is None else width,
+            height=ro.NULL if height is None else height,
+            note=ro.NULL if note is None else note,
         )
+    if width is not None:
+        from PIL import Image
+
+        png = f"{out_file}.png"
+        im = Image.open(png)
+        im.load()
+        im.save(png, dpi=(600, 600))
