@@ -34,7 +34,7 @@ for key, value in data.items():
 #SBATCH -J {METHOD}_to_sdata_{key}
 #SBATCH -o {BASE_PATH}/misc/logs/outputs/{METHOD}_to_sdata_{key}.out
 #SBATCH -e {BASE_PATH}/misc/logs/errors/{METHOD}_to_sdata_{key}.err
-#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/benchmark_new.sqsh"
+#SBATCH --container-image="{BASE_PATH}/misc/enroot_images/testing/segmentation.sqsh"
 
 set -euo pipefail
 
