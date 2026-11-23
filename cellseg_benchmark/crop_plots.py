@@ -14,7 +14,6 @@ from matplotlib.colors import LinearSegmentedColormap, to_rgb
 
 from . import _constants
 from . import ficture_utils as fu
-from .metrics.ovrl import low_z_integrity_per_cell
 
 dapi_cmap = LinearSegmentedColormap.from_list("dapi", ["white", "#4747ff"])
 
@@ -23,26 +22,27 @@ def _adata_path(sample, method):
     return Path(_constants.BASE_PATH) / "analysis" / sample.split("_")[0] / method / "adatas/adata_integrated.h5ad.gz"
 
 
-def find_candidates(cohort, exclude=(), tile=145, quantile=0.85, n=8, ref="vpt_2D_DAPI_PolyT"):
-    """Tiles inside tissue near a density quantile, highest low z integrity share first; at most 2 per sample, 4 tiles apart."""
+def find_candidates(cohort, exclude=(), tile=70, n=8, ref="vpt_3D_DAPI_PolyT", regions=("CTX_1", "CTX_2")):
+    """Densest tiles by ref cell count, fully inside regions with all 8 neighbours; at most 2 per sample, 4 tiles apart."""
     with h5py.File(_adata_path(cohort, ref)) as f:
         cells = pd.DataFrame(f["obsm/spatial"][:], columns=["x", "y"],
                              index=np.asarray(ad.io.read_elem(f["obs"][f["obs"].attrs["_index"]])).astype(str)).assign(
             sample=np.asarray(ad.io.read_elem(f["obs/sample"])).astype(str))
+    cells["region"] = pd.read_csv(_adata_path(cohort, ref).parents[1] / "brain_regions.csv", index_col=0).brain_region.rename(index=str).reindex(cells.index).isin(regions)
     cells = cells[~cells["sample"].isin(exclude)]
-    cells["low_z"] = low_z_integrity_per_cell(ad.AnnData(obs=cells[["sample"]]), ref, _constants.BASE_PATH).to_numpy()
     tiles = (cells.assign(x0=cells.x // tile * tile, y0=cells.y // tile * tile)
-             .groupby(["sample", "x0", "y0"]).agg(n=("low_z", "size"), low_z=("low_z", "mean")).reset_index())
-    full = set(tiles.loc[tiles.n >= tiles.n.median(), ["sample", "x0", "y0"]].itertuples(index=False, name=None))
-    inside = [all((s, x + dx * tile, y + dy * tile) in full for dx in (-1, 0, 1) for dy in (-1, 0, 1))
-              for s, x, y in tiles[["sample", "x0", "y0"]].itertuples(index=False)]
+             .groupby(["sample", "x0", "y0"]).agg(n=("region", "size"), region=("region", "mean")).reset_index())
+    full = set(tiles.loc[(tiles.n >= tiles.n.median()) & (tiles.region == 1), ["sample", "x0", "y0"]].itertuples(index=False, name=None))
+    tiles = tiles[[all((s, x + dx * tile, y + dy * tile) in full for dx in (-1, 0, 1) for dy in (-1, 0, 1))
+                   for s, x, y in tiles[["sample", "x0", "y0"]].itertuples(index=False)]]
     picked = []
-    for r in tiles[inside].assign(d=(tiles.n - tiles.n.quantile(quantile)).abs()).sort_values(["d", "low_z"], ascending=[True, False]).itertuples():
+    for r in tiles.sort_values("n", ascending=False).itertuples():
         same = [p for p in picked if p.sample == r.sample]
         if len(same) < 2 and all(np.hypot(r.x0 - p.x0, r.y0 - p.y0) >= 4 * tile for p in same):
             picked.append(r)
         if len(picked) == n:
             break
+    assert picked, f"no dense tiles fully inside {regions}; check brain_regions.csv labels and index"
     return pd.DataFrame(picked).drop(columns="Index")
 
 
@@ -95,25 +95,40 @@ def draw(ax, sdata, sample, method, box, style="outlines", qc="post", lw=0.4):
     ax.axis("off")
 
 
-def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.8, gap=0.06):
+def _title(name):
+    return name.replace(" (", "\n(") if "(" in name else name.replace(" ", "\n", 1)
+
+
+def _qc_legend(fig, **kw):
+    fig.legend(handles=[plt.Line2D([], [], color="black", lw=0.6, label="Cell boundary\n(merged across z-planes)"), plt.Line2D([], [], color="0.5", lw=0.6, label="Removed by QC"),
+                        plt.Line2D([], [], color="#4747ff", ls="", marker="o", ms=3, label="DAPI\n(central z-plane)")],
+               frameon=False, fontsize=6, handlelength=1.2, handletextpad=0.4, columnspacing=1, borderaxespad=0, **kw)
+
+
+def plot_row(sdata, sample, methods, box, style="outlines", qc="post", w=0.9, gap=0.06):
     """One row of methods at print size."""
     W, H = len(methods) * (w + gap) - gap, w + 0.3
     fig = plt.figure(figsize=(W, H))
     for i, m in enumerate(methods):
         ax = fig.add_axes([i * (w + gap) / W, 0, w / W, w / H])
         draw(ax, sdata, sample, m, box, style, qc, lw=0.2)
-        ax.set_title(_constants.method_names[m].replace(" (", "\n("), fontsize=7, pad=4, linespacing=1)
+        ax.set_title(_title(_constants.method_names[m]), fontsize=6, pad=4, linespacing=0.95)
+    if qc == "both":
+        _qc_legend(fig, loc="upper left", bbox_to_anchor=(0, 0), ncol=3)
     return fig
 
 
-def plot_grid(sdata, sample, box, style="outlines", ncol=6):
-    """All methods of a sample in one grid."""
-    methods = [m for m in _constants.method_colors if f"boundaries_{m}" in sdata.shapes and _adata_path(sample, m).exists()]
+def plot_grid(sdata, sample, box, methods, style="outlines", qc="post", ncol=9, w=0.75, gap=0.05, title_h=0.22):
+    """Methods in a grid at print size, row by row."""
+    methods = [m for m in methods if f"boundaries_{m}" in sdata.shapes]
     nrow = -(-len(methods) // ncol)
-    fig, axs = plt.subplots(nrow, ncol, figsize=(3 * ncol, 3.4 * nrow), gridspec_kw=dict(wspace=0.02, hspace=0.12))
-    for ax in axs.flat:
-        ax.axis("off")
-    for ax, m in zip(axs.flat, methods):
-        draw(ax, sdata, sample, m, box, style)
-        ax.set_title(_constants.method_names[m], fontsize=14, pad=3)
+    W, H = ncol * (w + gap) - gap, nrow * (w + title_h) + (0.3 if qc == "both" else 0)
+    fig = plt.figure(figsize=(W, H))
+    for k, m in enumerate(methods):
+        i, j = divmod(k, ncol)
+        ax = fig.add_axes([j * (w + gap) / W, (H - (i + 1) * (w + title_h)) / H, w / W, w / H])
+        draw(ax, sdata, sample, m, box, style, qc, lw=0.2)
+        ax.set_title(_title(_constants.method_names[m]), fontsize=6, pad=2, linespacing=0.95)
+    if qc == "both":
+        _qc_legend(fig, loc="lower center", bbox_to_anchor=(0.5, 0), ncol=3)
     return fig

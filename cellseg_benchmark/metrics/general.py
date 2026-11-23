@@ -134,7 +134,7 @@ def extract_general_stats(
     """
     # set default values
     if obs_columns is None:
-        obs_columns = ["volume_final", "area", "circularity", "sphericity_3d", "elongation", "n_counts"]
+        obs_columns = ["volume_final", "area", "circularity", "sphericity_3d", "elongation", "n_counts", "n_genes"]
     if obsm_columns is None:
         obsm_columns = {"intensities": ["PolyT", "DAPI"]}
     # prepare adata by putting obsm columns in obs
@@ -197,6 +197,23 @@ def plot_general_stats(cohort, metric, celltype="all", show=False):
         plot_path / f"general_stats_{metric}_{celltype}.png", bbox_inches="tight"
     )
     plt.close(fig)
+
+
+def style_stats_panel(ax, col, n, zebra=True):
+    """Style one per-method or per-cell-type stats panel: linear axis (log for Cells/mm²), two-line title, zebra rows."""
+    log = col == "Cells/mm²"
+    if log:
+        ax.set_xscale("log")
+    else:
+        ax.xaxis.set_major_locator(plt.MaxNLocator(3))
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v / 1000:g}k" if v >= 1000 else f"{v:g}"))
+    title = col + " (log)" if log else col
+    ax.set_title(title.replace(" (", "\n(").replace(" per ", "\nper ").replace(" intensity", "\nintensity").replace(" fraction", "\nfraction"), linespacing=0.95)
+    ax.set(xlabel="", ylabel="")
+    for i in range(0, n if zebra else 0, 2):
+        ax.axhspan(i - 0.5, i + 0.5, color="0.94", lw=0, zorder=0)
+    ax.set_ylim(n - 0.5, -0.5)
+    sns.despine(ax=ax, left=True)
 
 
 def extract_mem_and_time(
