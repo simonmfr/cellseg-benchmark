@@ -132,3 +132,29 @@ def plot_grid(sdata, sample, box, methods, style="outlines", qc="post", ncol=9, 
     if qc == "both":
         _qc_legend(fig, loc="lower center", bbox_to_anchor=(0.5, 0), ncol=3)
     return fig
+
+
+def plot_sections(cohort, method="vpt_3D_DAPI_PolyT", ncol=6, w=1.2, s=0.02):
+    """All sections of a cohort at one scale, cells coloured by cell type (aging sorted by age)."""
+    with h5py.File(_adata_path(cohort, method)) as f:
+        cols = ["sample", "cell_type_revised"] + (["age_months"] if "age_months" in f["obs"] else [])
+        cells = pd.DataFrame(f["obsm/spatial"][:], columns=["x", "y"]).assign(**{c: np.asarray(ad.io.read_elem(f[f"obs/{c}"])) for c in cols})
+    order = cells.groupby("sample").first().sort_values(cols[2:] + ["sample"]).index
+    span = cells.groupby("sample")[["x", "y"]].agg(np.ptp).to_numpy().max()
+    nrow = -(-len(order) // ncol)
+    fig, axs = plt.subplots(nrow, ncol, figsize=(ncol * w, nrow * (w + 0.15)), squeeze=False)
+    for ax in axs.flat:
+        ax.axis("off")
+    for ax, sample in zip(axs.flat, order):
+        d = cells[cells["sample"] == sample]
+        ax.scatter(d.x, d.y, s=s, c=d.cell_type_revised.astype(str).map(_constants.cell_type_colors).fillna("#d9d9d9"), lw=0, rasterized=True)
+        cx, cy = (d.x.min() + d.x.max()) / 2, (d.y.min() + d.y.max()) / 2
+        ax.set(xlim=(cx - span / 2, cx + span / 2), ylim=(cy + span / 2, cy - span / 2), aspect="equal")
+        ax.set_title(sample.split("_", 1)[1] + (f", {int(d.age_months.iloc[0])} mo" if "age_months" in d else ""), fontsize=6, pad=1)
+    ax = axs.flat[0]
+    ax.plot([ax.get_xlim()[0], ax.get_xlim()[0] + 1000], [ax.get_ylim()[0]] * 2, color="k", lw=1, solid_capstyle="butt")
+    present = set(cells.cell_type_revised.astype(str))
+    fig.legend(handles=[plt.Line2D([], [], ls="", marker="o", ms=3, color=c, label=t) for t, c in _constants.cell_type_colors.items() if t in present],
+               loc="upper center", bbox_to_anchor=(0.5, 0), ncol=6, frameon=False, fontsize=6, handletextpad=0.2, columnspacing=0.8)
+    fig.subplots_adjust(wspace=0.02, hspace=0.15)
+    return fig
