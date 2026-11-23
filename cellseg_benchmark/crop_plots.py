@@ -134,27 +134,48 @@ def plot_grid(sdata, sample, box, methods, style="outlines", qc="post", ncol=9, 
     return fig
 
 
-def plot_sections(cohort, method="vpt_3D_DAPI_PolyT", ncol=6, w=1.2, s=0.02):
-    """All sections of a cohort at one scale, cells coloured by cell type (aging sorted by age)."""
-    with h5py.File(_adata_path(cohort, method)) as f:
-        cols = ["sample", "cell_type_revised"] + (["age_months"] if "age_months" in f["obs"] else [])
-        cells = pd.DataFrame(f["obsm/spatial"][:], columns=["x", "y"]).assign(**{c: np.asarray(ad.io.read_elem(f[f"obs/{c}"])) for c in cols})
-    order = cells.groupby("sample").first().sort_values(cols[2:] + ["sample"]).index
-    span = cells.groupby("sample")[["x", "y"]].agg(np.ptp).to_numpy().max()
-    nrow = -(-len(order) // ncol)
-    fig, axs = plt.subplots(nrow, ncol, figsize=(ncol * w, nrow * (w + 0.15)), squeeze=False)
-    for ax in axs.flat:
-        ax.axis("off")
-    for ax, sample in zip(axs.flat, order):
-        d = cells[cells["sample"] == sample]
-        ax.scatter(d.x, d.y, s=s, c=d.cell_type_revised.astype(str).map(_constants.cell_type_colors).fillna("#d9d9d9"), lw=0, rasterized=True)
-        cx, cy = (d.x.min() + d.x.max()) / 2, (d.y.min() + d.y.max()) / 2
-        ax.set(xlim=(cx - span / 2, cx + span / 2), ylim=(cy + span / 2, cy - span / 2), aspect="equal")
-        ax.set_title(sample.split("_", 1)[1] + (f", {int(d.age_months.iloc[0])} mo" if "age_months" in d else ""), fontsize=6, pad=1)
-    ax = axs.flat[0]
-    ax.plot([ax.get_xlim()[0], ax.get_xlim()[0] + 1000], [ax.get_ylim()[0]] * 2, color="k", lw=1, solid_capstyle="butt")
-    present = set(cells.cell_type_revised.astype(str))
-    fig.legend(handles=[plt.Line2D([], [], ls="", marker="o", ms=3, color=c, label=t) for t, c in _constants.cell_type_colors.items() if t in present],
-               loc="upper center", bbox_to_anchor=(0.5, 0), ncol=6, frameon=False, fontsize=6, handletextpad=0.2, columnspacing=0.8)
-    fig.subplots_adjust(wspace=0.02, hspace=0.15)
+def plot_sections(cells, rotate={}, width=7.08, ncol=6, s=0.1, alpha=0.7):
+    """All sections at one scale and print width, rows grouped by cohort, aging sorted by age.
+
+    cells: x, y (µm), sample, cohort, cell_type_revised, age_months. rotate: {sample: degrees clockwise}.
+    ncol applies to the widest cohort; cohorts with narrower sections get more columns.
+    """
+    a = np.deg2rad(cells["sample"].map(rotate).fillna(0))
+    x = cells.x - cells.groupby("sample").x.transform("mean")
+    y = cells.y - cells.groupby("sample").y.transform("mean")
+    by = cells.assign(x=x * np.cos(a) - y * np.sin(a), y=x * np.sin(a) + y * np.cos(a)).groupby("sample", sort=False)
+    ext = by[["x", "y"]].agg(np.ptp).join(by[["cohort", "age_months"]].first())
+    label_w, title_h = 0.15, 0.12
+    k = (width - label_w) / ncol / ext.x.max()
+    rows = []
+    for c, e in ext.groupby("cohort", sort=False):
+        n = int(ncol * ext.x.max() / e.x.max() + 1e-6)
+        n = -(-len(e) // -(-len(e) // n))
+        e = e.sort_values("age_months", kind="stable")
+        rows += [(c, e.index[i:i + n], (width - label_w) / n, k * e.y.max()) for i in range(0, len(e), n)]
+    H = sum(h + title_h for *_, h in rows) + 0.3
+    fig = plt.figure(figsize=(width, H))
+    top, blocks = H, {}
+    for c, samples, w, h in rows:
+        blocks.setdefault(c, [top])
+        top -= title_h + h
+        blocks[c].append(top)
+        for j, sample in enumerate(samples):
+            d = by.get_group(sample)
+            cx, cy = (d.x.min() + d.x.max()) / 2, (d.y.min() + d.y.max()) / 2
+            ax = fig.add_axes([(label_w + j * w) / width, top / H, w / width, h / H])
+            ax.scatter(d.x, d.y, s=s, c=d.cell_type_revised.map(_constants.cell_type_colors).fillna("#d9d9d9"), lw=0, alpha=alpha, rasterized=True)
+            ax.set(xlim=(cx - w / k / 2, cx + w / k / 2), ylim=(cy + h / k / 2, cy - h / k / 2), aspect="equal")
+            age = ext.age_months[sample]
+            ax.set_title(sample.split("_", 1)[1] + ("" if np.isnan(age) else f", {age:.0f} mo"), fontsize=5, pad=1)
+            ax.axis("off")
+    ax = fig.axes[0]
+    (x0, _), (y0, _) = ax.get_xlim(), ax.get_ylim()
+    ax.plot([x0, x0 + 1000], [y0, y0], color="k", lw=1, solid_capstyle="butt")
+    ax.text(x0 + 500, y0 - 100, "1 mm", ha="center", va="bottom", fontsize=5)
+    for c, (t, *_, b) in blocks.items():
+        fig.text(0, (t + b) / 2 / H, {"aging": "Aging", "ABCAtlas": "ABC Atlas", "VizgenMouseBrain": "Vizgen"}[c], rotation=90, va="center", fontsize=6)
+    fig.legend(handles=[plt.Line2D([], [], ls="", marker="o", ms=3, color=col, label=t) for t, col in _constants.cell_type_colors.items()
+                        if t in set(cells.cell_type_revised)],
+               loc="lower center", ncol=8, frameon=False, fontsize=5, handletextpad=0.1, columnspacing=0.8, labelspacing=0.3)
     return fig
