@@ -225,172 +225,59 @@ def _labelled_transcripts(sample, celltypes, method, base_path):
     gc.collect()
     return sample, labels
 
-def plot_ficture_f1(
-        cohort,
-        celltype_plots = False,
-        show = True
-):
-    """Plot ficture F1 scores.
+def plot_ficture_f1(cohort, score="f1_macro_all", methods=None, show=True):
+    """Dot plot of FICTURE F1 per method: mean (method color) over per-sample values (grey), best on top.
 
-    Plots one plot per method showing cell-type specific F1 scores (if celltype_plots = True),
-    one plot summarising micro and macro scores for each method, and one plot showing cell-type
-    specific F1 scores across methods.
+    Args:
+        cohort: cohort name, or "merged" for all cohorts (mean weights cohorts equally).
+        score: summary row to plot, one of f1_{macro,micro}_{all,vascular}.
+        methods: optional list of clean method names to keep.
+        show: show the figure.
     """
-    results_file = (
-            pathlib.Path(_constants.BASE_PATH)
-            / "metrics"
-            / cohort
-            / "ficture"
-            / f"ficture_f1.csv"
-    )
+    cohorts = ["aging", "ABCAtlas", "VizgenMouseBrain"] if cohort == "merged" else [cohort]
+    metrics = pathlib.Path(_constants.BASE_PATH) / "metrics"
+    df = pd.concat([pd.read_csv(metrics / c / "ficture/ficture_f1.csv", index_col=0).assign(cohort=c) for c in cohorts])
+    df = df[(df["sample"] != "all_samples") & (df.cell_type == score)]
+    df["label"] = df.method.map(clean_method_name)
+    if methods is not None:
+        df = df[df.label.isin(methods)]
+    means = df.groupby(["label", "cohort"]).f1.mean().groupby("label").mean().sort_values()
+    y = pd.Series(range(len(means)), index=means.index)
+    colors = df.drop_duplicates("label").set_index("label").method.map(lambda m: _constants.method_colors.get(m, "0.6"))
+    df["y"] = df.label.map(y) + np.random.default_rng(0).uniform(-0.2, 0.2, len(df))
 
-    plot_path = results_file.parent / "plots"
-    plot_path.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(4.5, 0.2 * len(means) + 1))
+    for (c, d), marker in zip(df.groupby("cohort", sort=False), "os^"):
+        ax.scatter(d.f1, d.y, s=7, marker=marker, color="0.7", lw=0, label=c)
+    ax.scatter(means, y, s=40, color=colors[means.index], edgecolor="k", lw=0.5, zorder=3)
+    ax.set_yticks(y, means.index, fontsize=8)
+    ax.set_ylim(-0.7, len(means) - 0.3)
+    ax.set(title=cohort, xlabel=f"FICTURE {score.split('_')[1]} F1" + (" (vascular)" if score.endswith("vascular") else ""))
+    ax.grid(axis="x", lw=0.4, alpha=0.5)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="y", length=0)
+    if cohort == "merged":
+        ax.legend(frameon=False, fontsize=7, loc="lower right", handletextpad=0)
+    sns.despine(ax=ax, left=True)
+    (metrics / cohort / "ficture/plots").mkdir(parents=True, exist_ok=True)
+    fig.savefig(metrics / cohort / f"ficture/plots/ficture_{score}.png", dpi=300, bbox_inches="tight")
+    plt.show() if show else plt.close(fig)
 
-    scores_df = pd.read_csv(results_file, index_col=0)
 
-    if celltype_plots:
-        scores_df_short = scores_df[scores_df['sample'] != "all_samples"]
-        for method, results in scores_df_short.groupby("method"):
-            results = results[results['cell_type'].isin(_constants.cell_type_colors.keys())]
-            mean_results = (
-                results.groupby(["sample", "cell_type"])
-                .mean("f1")
-                .reset_index()
-            )
-            order = (
-                mean_results.groupby("cell_type")["f1"].mean().sort_values().index
-            )
-            pal = {ct: _constants.cell_type_colors[ct] for ct in order}
-            fig = plt.figure(figsize=(10, 5))
-            ax = sns.boxplot(
-                data=mean_results,
-                x="cell_type",
-                y="f1",
-                hue="cell_type",
-                palette=pal,
-                legend=True,
-                order=order
-            )
-            sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-            plt.xticks(rotation=45, ha="right")
-            plt.ylabel("F1 Score")
-            plt.ylim(0, 1)
-            plt.title(f"Ficture F1 Score Distribution per Cell Type for {method}")
-            plt.tight_layout()
+def plot_ficture_f1_heatmap(cohort, show=True):
+    """Heatmap of FICTURE F1 per method and cell type, samples pooled (mean over cohorts if merged)."""
+    cohorts = ["aging", "ABCAtlas", "VizgenMouseBrain"] if cohort == "merged" else [cohort]
+    metrics = pathlib.Path(_constants.BASE_PATH) / "metrics"
+    df = pd.concat([pd.read_csv(metrics / c / "ficture/ficture_f1.csv", index_col=0) for c in cohorts])
+    df = df[(df["sample"] == "all_samples") & ~df.cell_type.str.startswith("f1_")]
+    mat = df.pivot_table(index=df.method.map(clean_method_name), columns="cell_type", values="f1")
+    mat = mat.loc[mat.mean(axis=1).sort_values(ascending=False).index, mat.mean().sort_values(ascending=False).index]
 
-            if show:
-                plt.show()
-            fig.savefig(
-                plot_path / f"ficture_f1_{method}_cell_type_distribution.png",
-                bbox_inches="tight",
-            )
-            plt.show()
-
-    results = scores_df[(scores_df['sample'] != "all_samples") & (scores_df['cell_type'] == "f1_macro_all")]
-    mean_results = (
-        results.groupby(["sample", "method"])
-        .mean("f1")
-        .reset_index()
-    )
-    order = (
-        mean_results.groupby("method")["f1"].mean().sort_values().index
-    )
-    pal = {clean_method_name(mtd): _constants.method_colors[mtd] for mtd in order}
-    order = [clean_method_name(mtd) for mtd in order]
-    mean_results['method'] = mean_results['method'].map(clean_method_name)
-    fig = plt.figure(figsize=(10, 5))
-    ax = sns.boxplot(
-        data=mean_results,
-        x="method",
-        y="f1",
-        hue="method",
-        palette=pal,
-        legend=True,
-        order=order
-    )
-    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-    plt.xticks(rotation=45, ha="right")
-    plt.ylabel("F1 Score")
-    plt.ylim(0, 1)
-    plt.title(f"Ficture macro F1 Score Distribution")
-    plt.tight_layout()
-
-    if show:
-        plt.show()
-    fig.savefig(
-        plot_path / f"ficture_f1_macro_score.png",
-        bbox_inches="tight",
-    )
-    plt.show()
-
-    results = scores_df[(scores_df['sample'] != "all_samples") & (scores_df['cell_type'] == "f1_micro_all")]
-    mean_results = (
-        results.groupby(["sample", "method"])
-        .mean("f1")
-        .reset_index()
-    )
-    order = (
-        mean_results.groupby("method")["f1"].mean().sort_values().index
-    )
-    pal = {clean_method_name(mtd): _constants.method_colors[mtd] for mtd in order}
-    order = [clean_method_name(mtd) for mtd in order]
-    mean_results['method'] = mean_results['method'].map(clean_method_name)
-    fig = plt.figure(figsize=(10, 5))
-    ax = sns.boxplot(
-        data=mean_results,
-        x="method",
-        y="f1",
-        hue="method",
-        palette=pal,
-        legend=True,
-        order=order
-    )
-    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-    plt.xticks(rotation=45, ha="right")
-    plt.ylabel("F1 Score")
-    plt.ylim(0, 1)
-    plt.title(f"Ficture micro F1 Score Distribution")
-    plt.tight_layout()
-    if show:
-        plt.show()
-    fig.savefig(
-        plot_path / f"ficture_f1_micro_score.png",
-        bbox_inches="tight",
-    )
-    plt.show()
-
-    results = scores_df[
-        (scores_df['sample'] == "all_samples") & (scores_df['cell_type'].isin(_constants.cell_type_colors.keys()))]
-    mean_results = (
-        results.groupby(["method", "cell_type"])
-        .mean("f1")
-        .reset_index()
-    )
-    order = (
-        mean_results.groupby("cell_type")["f1"].mean().sort_values().index
-    )
-    pal = {ct: _constants.cell_type_colors[ct] for ct in order}
-    fig = plt.figure(figsize=(10, 5))
-    ax = sns.boxplot(
-        data=mean_results,
-        x="cell_type",
-        y="f1",
-        hue="cell_type",
-        palette=pal,
-        legend=True,
-        order=order
-    )
-    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-    plt.xticks(rotation=45, ha="right")
-    plt.ylabel("F1 Score")
-    plt.ylim(0, 1)
-    plt.title(f"Ficture F1 Score Distribution per Cell Type for all methods")
-    plt.tight_layout()
-    if show:
-        plt.show()
-    fig.savefig(
-        plot_path / f"ficture_f1_all_cell_type_distribution.png",
-        bbox_inches="tight",
-    )
-    plt.show()
+    fig, ax = plt.subplots(figsize=(0.4 * mat.shape[1] + 2.8, 0.24 * mat.shape[0] + 1.2))
+    sns.heatmap(mat, annot=mat.apply(lambda col: col.map(lambda v: f"{v:.2f}".lstrip("0") if v == v else "")), fmt="",
+                annot_kws={"size": 7.5}, cmap="YlOrRd", vmin=0, vmax=1, cbar_kws={"label": "F1", "shrink": 0.5}, ax=ax)
+    ax.tick_params(labelsize=8, length=0)
+    ax.set(xlabel="", ylabel="", title=f"{cohort}: FICTURE F1 per cell type (samples pooled)")
+    (metrics / cohort / "ficture/plots").mkdir(parents=True, exist_ok=True)
+    fig.savefig(metrics / cohort / "ficture/plots/ficture_f1_celltype_heatmap.png", dpi=300, bbox_inches="tight")
+    plt.show() if show else plt.close(fig)
