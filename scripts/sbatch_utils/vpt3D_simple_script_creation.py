@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import argparse
+import json
 import os
 import pathlib
 import yaml
@@ -23,6 +24,15 @@ SBATCH_DIR.mkdir(parents=False, exist_ok=True)
 for key, value in data.items():
     res_path = f"{BASE_PATH}/samples/{key}/results/vpt_3D_DAPI_{args.staining}"
     vzg_path = None
+    experiment_json = EXPERIMENT_JSON_PATH
+    z = sorted(int(f.stem.rsplit("_z", 1)[1]) for f in pathlib.Path(value["path"], "images").glob("mosaic_DAPI_z*.tif")) if "z_step" in value else []
+    if z:   # z planes other than MERSCOPE's 7 (3DMERFISH): config with the sample's planes
+        cfg = json.loads((pathlib.Path(__file__).parents[2] / f"configs/vpt_3D_{args.staining}.json").read_text())
+        cfg["experiment_properties"] = {"all_z_indexes": z, "z_positions_um": [(i + 1) * value["z_step"] for i in z]}
+        for task in cfg["segmentation_tasks"]:
+            task["z_layers"] = z
+        experiment_json = SBATCH_DIR / f"{key}_{args.staining}.json"
+        experiment_json.write_text(json.dumps(cfg, indent=2))
     for dire in os.listdir(value["path"]):
         if dire.endswith(".vzg") or dire.endswith(".vzg2"):
             vzg_path = pathlib.Path(value["path"], dire)
@@ -44,7 +54,7 @@ set -euo pipefail
 source {RUN_LOG_PATH}
 
 RESULT_DIR="{res_path}"
-EXPERIMENT_JSON="{EXPERIMENT_JSON_PATH}"
+EXPERIMENT_JSON="{experiment_json}"
 INPUT_IMAGES="{pathlib.Path(value["path"], "images")}"
 INPUT_TRANSFORM="{pathlib.Path(value["path"], "images/micron_to_mosaic_pixel_transform.csv")}"
 INPUT_TRANSCRIPTS="{pathlib.Path(value["path"], "detected_transcripts.csv")}"
