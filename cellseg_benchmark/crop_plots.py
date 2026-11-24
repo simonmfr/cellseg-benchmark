@@ -85,11 +85,12 @@ def draw(ax, sdata, sample, method, box, style="outlines", qc="post", lw=0.4):
         g.iloc[order].plot(ax=ax, aspect=None, color=fill[order].tolist(), lw=0.4, edgecolor=[tuple(0.7 * v for v in to_rgb(c)) for c in fill[order]])
     else:
         kept = pd.notna(ct)
-        if qc == "both":
-            g[~kept].boundary.plot(ax=ax, aspect=None, color="0.5", lw=lw)
         if style == "transcripts":
             g[kept].boundary.plot(ax=ax, aspect=None, color="white", lw=3 * lw)
         g[kept].boundary.plot(ax=ax, aspect=None, color="black", lw=1.2 * lw if style == "transcripts" else lw)
+        if qc == "both":
+            g[~kept].buffer(-(1.2 * lw if style == "transcripts" else lw) / 4 * box[2] / (ax.get_position().width * ax.figure.get_figwidth() * 72)).boundary.plot(
+                ax=ax, aspect=None, color="0.5", lw=(1.2 * lw if style == "transcripts" else lw) / 2)
     ax.plot([xlim[1] - 30, xlim[1] - 5], [ylim[1] - 5] * 2, color="k", lw=3 * lw, solid_capstyle="butt")
     ax.set(xlim=xlim, ylim=(ylim[1], ylim[0]), aspect="equal")
     ax.axis("off")
